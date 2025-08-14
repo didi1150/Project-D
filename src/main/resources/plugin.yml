@@ -1,0 +1,4 @@
+name: Project-D
+version: '1.0-SNAPSHOT'
+main: dev.bukkit.DMain
+api-version: '1.21'
