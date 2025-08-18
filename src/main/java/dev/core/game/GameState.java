@@ -1,4 +1,11 @@
 package dev.core.game;
 
 public enum GameState {
+    LOBBY,
+    WAITING_FOR_PLAYERS,
+    SELECTING_CLASS,
+    SELECTING_EQUIPMENT,
+    EXPLORING_DUNGEON,
+    BOSSFIGHT,
+    DUNGEON_COMPLETED
 }
