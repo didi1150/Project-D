@@ -1,0 +1,42 @@
+package dev.core.stat;
+
+import java.util.HashMap;
+import java.util.Map;
+import java.util.Map.Entry;
+
+public class StatManager {
+
+	private final Map<StatType, Stat> stats;
+
+	public StatManager(Map<StatType, Stat> preStats) {
+		this.stats = new HashMap<StatType, Stat>();
+
+		for (Entry<StatType, Stat> entry : preStats.entrySet()) {
+			stats.put(entry.getKey(), entry.getValue());
+		}
+	}
+
+	public void addStatModifier(StatModifier statModifier) {
+		stats.get(statModifier.statType).addModifier(statModifier);
+	}
+
+	public void tick(double now) {
+		for (Stat stat : stats.values()) {
+			stat.modifierBucket.removeExpired(now);
+		}
+	}
+
+	public double getCurrentValue(StatType type, double now) {
+		Stat stat = stats.get(type);
+		if (stat == null) {
+			return 0;
+		}
+		return stat.getCurrent(now);
+	}
+
+	public double getMaxValue(StatType type, double now) {
+		Stat stat = stats.get(type);
+		return stat.getMax();
+	}
+
+}

@@ -1,7 +1,5 @@
 package dev.core.game;
 
-import dev.core.attribute.AttributeManager;
-
 public class GameManager {
 
     private static final GameManager instance = new GameManager();
@@ -9,16 +7,12 @@ public class GameManager {
         return instance;
     }
 
-    private AttributeManager attributeManager;
-
     //create a countDownHelper for every needed situation
     //private CountDownHelper lobbyCountDown;
 
     private GameState gameState;
 
     public GameManager() {
-        attributeManager = new AttributeManager();
-
         gameState = GameState.LOBBY;
     }
 
@@ -26,7 +20,6 @@ public class GameManager {
     public void update(float deltaTime) {
         updateGameState();
         //update all managers
-        attributeManager.update(deltaTime);
     }
 
     //update gameState according to certain conditions
