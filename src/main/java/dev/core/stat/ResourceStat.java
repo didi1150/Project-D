@@ -1,32 +1,55 @@
 package dev.core.stat;
 
-import java.util.function.Supplier;
+import java.util.function.LongFunction;
 
+/**
+ * A class representing a resource of an entity <br>
+ * Important: Modifying this class's {@link ModifierBucket} doesn't change its
+ * stats, since they are derived from other combat stats
+ */
 public class ResourceStat extends Stat {
 
-	private Supplier<Double> currentSupplier;
-	private Supplier<Double> maxSupplier;
+	private final LongFunction<Double> regenSupplier; // base regen per second
+	private final LongFunction<Double> maxSupplier; // base max value
+	private long lastTick;
 
-	private ModifierBucket maxModifierBucket;
-
-	public ResourceStat(String name, Supplier<Double> maxSupplier, Supplier<Double> currentSupplier) {
-		super(name, currentSupplier.get(), maxSupplier.get());
+	public ResourceStat(String name, LongFunction<Double> maxSupplier, LongFunction<Double> regenSupplier, long now) {
+		super(name, maxSupplier.apply(now), maxSupplier.apply(now));
 		this.maxSupplier = maxSupplier;
-		this.currentSupplier = currentSupplier;
-		this.maxModifierBucket = new ModifierBucket();
+		this.regenSupplier = regenSupplier;
+		this.lastTick = now;
 	}
 
 	@Override
-	public double getCurrent(long now) {
-		return modifierBucket.getFinalValue(currentSupplier.get(), now);
+	public synchronized double getMax(long now) {
+		return maxSupplier.apply(now);
 	}
 
 	@Override
-	public double getMax(long now) {
-		return maxModifierBucket.getFinalValue(maxSupplier.get(), now);
+	public synchronized double getCurrent(long now) {
+		double max = getMax(now);
+		return max < 0 ? current : Math.min(current, max);
 	}
 
-	public void addMaxModifier(StatModifier statModifier) {
-		maxModifierBucket.add(statModifier);
+	public synchronized void tick(long now) {
+		if (lastTick == now) {
+			return;
+		}
+
+		double elapsedSeconds = (now - lastTick) / 1000.0;
+
+		// Calculate regeneration (convert from per 5 seconds to per second)
+		double effectiveRegen = regenSupplier.apply(now);
+		double regenPerSecond = effectiveRegen / 5.0;
+		double regenAmount = regenPerSecond * elapsedSeconds;
+
+		// Apply regeneration
+		double currentValue = getCurrent(now);
+		double maxValue = getMax(now);
+
+		current = Math.min(maxValue, currentValue + regenAmount);
+
+		// Update ratio
+		lastTick = now;
 	}
 }

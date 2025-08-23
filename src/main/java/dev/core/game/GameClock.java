@@ -105,6 +105,10 @@ public class GameClock {
 		timeMillis.set(0);
 	}
 
+	public void reset(long time) {
+		timeMillis.set(time);
+	}
+
 	public void setSpeed(double multiplier) {
 		if (multiplier < 0) {
 			throw new IllegalArgumentException("Speed multiplier cannot be negative");

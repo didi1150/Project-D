@@ -27,6 +27,18 @@ public class StatModifier {
 		this.expireTime = appliedAt + (long) (duration * 1000);
 	}
 
+	public StatModifier(double amount, ModifierType modifierType, StatType statType, String sourceId, long appliedAt) {
+		this.amount = amount;
+		this.modifierType = modifierType;
+		this.statType = statType;
+		this.sourceId = sourceId;
+		this.appliedAt = appliedAt;
+		this.duration = -1;
+		this.statTarget = StatTarget.BOTH;
+		this.stackPolicy = ModifierStackPolicy.STACK;
+		this.expireTime = 0;
+	}
+
 	public boolean expired(long now) {
 		return duration > 0 && now >= expireTime;
 	}

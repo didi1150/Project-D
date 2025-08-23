@@ -2,8 +2,8 @@ package dev.core.stat;
 
 public class CombatStat extends Stat {
 
-	public CombatStat(String name, double current, double max) {
-		super(name, current, max);
+	public CombatStat(String name, double current) {
+		super(name, current, 0);
 	}
 
 	@Override

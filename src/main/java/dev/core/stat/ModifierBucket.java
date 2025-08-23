@@ -13,6 +13,7 @@ public class ModifierBucket {
 
 	private boolean dirty = true;
 	private double cachedValue = Double.NaN;
+	private double lastCachedBaseValue = Double.NaN;
 
 	public ModifierBucket() {
 		this.modifiers = new ArrayList<StatModifier>();
@@ -43,10 +44,10 @@ public class ModifierBucket {
 
 	public double getFinalValue(double baseValue, long gameTime) {
 
-		if (cachedValue != Double.NaN && !dirty) {
+		if (cachedValue != Double.NaN && !dirty && lastCachedBaseValue == baseValue) {
 			return cachedValue;
 		}
-
+		lastCachedBaseValue = baseValue;
 		modifiers.removeIf(m -> m.expired(gameTime));
 
 		Map<ModifierType, List<StatModifier>> grouped = modifiers.stream()
@@ -95,6 +96,10 @@ public class ModifierBucket {
 		dirty = true;
 	}
 
+	public void markDirty() {
+		dirty = true;
+	}
+
 	public int size() {
 		return modifiers.size();
 	}
@@ -104,6 +109,7 @@ public class ModifierBucket {
 	}
 
 	public StatModifier remove(int index) {
+		dirty = true;
 		return modifiers.remove(index);
 	}
 }
