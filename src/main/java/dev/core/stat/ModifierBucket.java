@@ -1,8 +1,10 @@
 package dev.core.stat;
 
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
+import java.util.function.Predicate;
 import java.util.stream.Collectors;
 
 public class ModifierBucket {
@@ -16,53 +18,30 @@ public class ModifierBucket {
 		this.modifiers = new ArrayList<StatModifier>();
 	}
 
+	public boolean removeIf(Predicate<? super StatModifier> predicate) {
+		return modifiers.removeIf(predicate);
+	}
+
 	public void addModifier(StatModifier modifier) {
-		if (modifier.stackPolicy == ModifierStackPolicy.UNIQUE_BY_SOURCE) {
-			modifiers.removeIf(mod -> mod.sourceId.equals(modifier.sourceId) && mod.statType == modifier.statType);
-		}
+		modifier.stackPolicy.apply(this, modifier);
+	}
 
-		else if (modifier.stackPolicy == ModifierStackPolicy.REPLACE) {
-			modifiers.removeIf(mod -> mod.statType == modifier.statType);
-		}
-
-		else if (modifier.stackPolicy == ModifierStackPolicy.MAX_ONLY) {
-			modifiers.removeIf(mod -> mod.sourceId.equals(modifier.sourceId) && mod.statType == modifier.statType
-					&& mod.amount < modifier.amount);
-		}
-
-		else if (modifier.stackPolicy == ModifierStackPolicy.MAX_ONLY) {
-			modifiers.removeIf(mod -> mod.sourceId.equals(modifier.sourceId) && mod.statType == modifier.statType
-					&& mod.amount < modifier.amount);
-		}
-
-		else if (modifier.stackPolicy == ModifierStackPolicy.MIN_ONLY) {
-			modifiers.removeIf(mod -> mod.sourceId.equals(modifier.sourceId) && mod.statType == modifier.statType
-					&& mod.amount > modifier.amount);
-		} else {
-			for (int i = 0; i < modifiers.size(); i++) {
-				StatModifier mod = modifiers.get(i);
-				if (mod.sourceId.equals(modifier.sourceId) && mod.statType == modifier.statType) {
-					int stacks = mod.getCurrentStacks();
-					modifier.applyStack(stacks);
-					modifiers.set(i, modifier);
-					break;
-				}
-			}
-		}
+	public void add(StatModifier modifier) {
+		modifiers.add(modifier);
 		dirty = true;
 	}
 
-	public void removeExpired(double now) {
+	public void removeExpired(long now) {
 		if (modifiers.removeIf(mod -> mod.expired(now))) {
 			dirty = true;
 		}
 	}
 
-	public List<StatModifier> active(double now) {
+	public List<StatModifier> active(long now) {
 		return modifiers.stream().filter(m -> !m.expired(now)).toList();
 	}
 
-	public double getFinalValue(double baseValue, double gameTime) {
+	public double getFinalValue(double baseValue, long gameTime) {
 
 		if (cachedValue != Double.NaN && !dirty) {
 			return cachedValue;
@@ -74,15 +53,57 @@ public class ModifierBucket {
 				.collect(Collectors.groupingBy(s -> s.modifierType));
 		cachedValue = baseValue;
 
-		cachedValue += grouped.get(ModifierType.FLAT).stream().mapToDouble(StatModifier::effectiveAmount).sum();
-		cachedValue *= (1
-				+ grouped.get(ModifierType.PERCENT_ADD).stream().mapToDouble(StatModifier::effectiveAmount).sum());
-		cachedValue *= grouped.get(ModifierType.MULTIPLY).stream().mapToDouble(m -> 1 + m.effectiveAmount()).reduce(1,
-				(a, b) -> a * b);
+		cachedValue += flatLayer(grouped.get(ModifierType.FLAT));
+		cachedValue *= percentAddLayer(grouped.get(ModifierType.PERCENT_ADD));
+		cachedValue *= percentMulLayer(grouped.get(ModifierType.MULTIPLY));
 
-		cachedValue = grouped.get(ModifierType.OVERRIDE).stream().mapToDouble(StatModifier::effectiveAmount).sum();
+		cachedValue = overrideLayer(grouped.get(ModifierType.OVERRIDE), cachedValue);
 		dirty = false;
 		return cachedValue;
 	}
 
+	private double flatLayer(List<StatModifier> grouped) {
+		if (grouped == null || grouped.isEmpty()) {
+			return 0;
+		}
+		return grouped.stream().mapToDouble(s -> s.amount).sum();
+	}
+
+	private double percentAddLayer(List<StatModifier> grouped) {
+		if (grouped == null || grouped.isEmpty()) {
+			return 1;
+		}
+		return 1 + grouped.stream().mapToDouble(s -> s.amount).sum();
+	}
+
+	private double percentMulLayer(List<StatModifier> grouped) {
+		if (grouped == null || grouped.isEmpty()) {
+			return 1;
+		}
+		return grouped.stream().mapToDouble(m -> 1 + m.amount).reduce(1, (a, b) -> a * b);
+	}
+
+	private double overrideLayer(List<StatModifier> grouped, double current) {
+		if (grouped == null || grouped.isEmpty()) {
+			return current;
+		}
+		return grouped.stream().max(Comparator.comparingLong(s -> s.appliedAt)).map(s -> s.amount).orElse(current);
+	}
+
+	public void clear() {
+		modifiers.clear();
+		dirty = true;
+	}
+
+	public int size() {
+		return modifiers.size();
+	}
+
+	public StatModifier get(int index) {
+		return modifiers.get(index);
+	}
+
+	public StatModifier remove(int index) {
+		return modifiers.remove(index);
+	}
 }

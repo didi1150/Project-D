@@ -9,13 +9,13 @@ public class StatModifier {
 	public final StatType statType;
 	public final String sourceId;
 	public final double duration; // seconds; <= 0 means permanent
-	public final double appliedAt; // Use Game Time, not System#currentMillis
-	public final int maxStacks; // optional
+	public final long appliedAt; // Use System#currentTimeMillis
 	public final StatTarget statTarget;
-	private int currentStacks;
+
+	private final long expireTime;
 
 	public StatModifier(double amount, ModifierStackPolicy stackPolicy, ModifierType modifierType, StatType statType,
-			String sourceId, double duration, double appliedAt, int maxStacks, StatTarget statTarget) {
+			String sourceId, double duration, long appliedAt, StatTarget statTarget) {
 		this.amount = amount;
 		this.stackPolicy = stackPolicy;
 		this.modifierType = modifierType;
@@ -23,25 +23,11 @@ public class StatModifier {
 		this.sourceId = sourceId;
 		this.duration = duration;
 		this.appliedAt = appliedAt;
-		this.maxStacks = maxStacks;
 		this.statTarget = statTarget;
-		this.currentStacks = 0;
+		this.expireTime = appliedAt + (long) (duration * 1000);
 	}
 
-	public boolean expired(double now) {
-		return duration > 0 && now >= appliedAt + duration;
-	}
-
-	// info
-	public double effectiveAmount() {
-		return amount * Math.max(1, currentStacks);
-	}
-
-	public int getCurrentStacks() {
-		return currentStacks;
-	}
-
-	public void applyStack(int stacks) {
-		this.currentStacks = Math.min(maxStacks, this.currentStacks + stacks);
+	public boolean expired(long now) {
+		return duration > 0 && now >= expireTime;
 	}
 }

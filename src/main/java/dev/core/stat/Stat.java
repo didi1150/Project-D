@@ -20,11 +20,9 @@ public abstract class Stat {
 		return name;
 	}
 
-	public double getMax() {
-		return max;
-	}
+	public abstract double getMax(long now);
 
-	public abstract double getCurrent(double now);
+	public abstract double getCurrent(long now);
 
 	protected void setCurrent(double value) {
 		this.current = capped ? Math.max(0, Math.min(value, max)) : value;
@@ -35,7 +33,7 @@ public abstract class Stat {
 	}
 
 	public void addModifier(StatModifier statModifier) {
-		modifierBucket.addModifier(statModifier);
+		modifierBucket.add(statModifier);
 	}
 
 }

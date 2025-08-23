@@ -17,16 +17,16 @@ public class ResourceStat extends Stat {
 	}
 
 	@Override
-	public double getCurrent(double now) {
+	public double getCurrent(long now) {
 		return modifierBucket.getFinalValue(currentSupplier.get(), now);
 	}
 
 	@Override
-	public double getMax() {
-		return maxModifierBucket.getFinalValue(maxSupplier.get(), current);
+	public double getMax(long now) {
+		return maxModifierBucket.getFinalValue(maxSupplier.get(), now);
 	}
 
 	public void addMaxModifier(StatModifier statModifier) {
-		maxModifierBucket.addModifier(statModifier);
+		maxModifierBucket.add(statModifier);
 	}
 }
