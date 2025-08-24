@@ -28,6 +28,7 @@ public class EffectManager {
 			Effect effect = it.next();
 			if (effect.isExpired(now)) {
 				effect.onRemove(entity, now);
+				it.remove();
 			}
 		}
 	}
