@@ -9,10 +9,10 @@ public class StatModifier {
 	public final StatType statType;
 	public final String sourceId;
 	public final double duration; // seconds; <= 0 means permanent
-	public final long appliedAt; // Use System#currentTimeMillis
+	public final long appliedAt; // In Minecraft Ticks 1/20s = 50ms
 	public final StatTarget statTarget;
 
-	private final long expireTime;
+	private final double expireTime;
 
 	public StatModifier(double amount, ModifierStackPolicy stackPolicy, ModifierType modifierType, StatType statType,
 			String sourceId, double duration, long appliedAt, StatTarget statTarget) {
@@ -24,7 +24,7 @@ public class StatModifier {
 		this.duration = duration;
 		this.appliedAt = appliedAt;
 		this.statTarget = statTarget;
-		this.expireTime = appliedAt + (long) (duration * 1000);
+		this.expireTime = appliedAt + duration * 50.0;
 	}
 
 	public StatModifier(double amount, ModifierType modifierType, StatType statType, String sourceId, long appliedAt) {

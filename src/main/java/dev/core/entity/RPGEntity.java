@@ -20,4 +20,13 @@ public abstract class RPGEntity {
 
 	private EntityType entityType;
 
+	public RPGEntity(StatManager statManager, UUID uuid, String name, EntityType entityType) {
+		this.statManager = statManager;
+		this.effectManager = new EffectManager(this);
+		this.equipmentManager = new EquipmentManager();
+		this.uuid = uuid;
+		this.name = name;
+		this.entityType = entityType;
+	}
+
 }

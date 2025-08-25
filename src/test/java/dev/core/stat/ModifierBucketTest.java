@@ -9,7 +9,7 @@ import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
-import dev.core.game.GameClock;
+import dev.bukkit.game.GameClock;
 
 public class ModifierBucketTest {
 
@@ -19,7 +19,7 @@ public class ModifierBucketTest {
 	@BeforeAll
 	static void setup() {
 		modifierBucket = new ModifierBucket();
-		clock = new GameClock(1);
+		clock = new GameClock(null, 1);
 	}
 
 	@AfterEach
@@ -37,12 +37,12 @@ public class ModifierBucketTest {
 	@Test
 	void testSimpleAdd() {
 		StatModifier increaseMaxHP = new StatModifier(10, ModifierStackPolicy.UNIQUE_BY_SOURCE, ModifierType.FLAT,
-				StatType.HEALTH_MAX, "Test", -1, clock.getTimeMillis(), StatTarget.BOTH);
+				StatType.HEALTH_MAX, "Test", -1, clock.getTimeTicks(), StatTarget.BOTH);
 		modifierBucket.addModifier(increaseMaxHP);
 
-		assertEquals(1, modifierBucket.active(clock.getTimeMillis()).size());
-		assertTrue(modifierBucket.active(clock.getTimeMillis()).contains(increaseMaxHP));
-		assertEquals(20, modifierBucket.getFinalValue(10, clock.getTimeMillis()), 1e-12);
+		assertEquals(1, modifierBucket.active(clock.getTimeTicks()).size());
+		assertTrue(modifierBucket.active(clock.getTimeTicks()).contains(increaseMaxHP));
+		assertEquals(20, modifierBucket.getFinalValue(10, clock.getTimeTicks()), 1e-12);
 	}
 
 	@Test
@@ -50,7 +50,7 @@ public class ModifierBucketTest {
 
 		clock.start();
 		StatModifier increaseMaxHP = new StatModifier(10, ModifierStackPolicy.UNIQUE_BY_SOURCE, ModifierType.FLAT,
-				StatType.HEALTH_MAX, "Test", 2.5, clock.getTimeMillis(), StatTarget.BOTH);
+				StatType.HEALTH_MAX, "Test", 2.5, clock.getTimeTicks(), StatTarget.BOTH);
 		Thread testThread = new Thread(() -> {
 
 			try {
@@ -58,127 +58,127 @@ public class ModifierBucketTest {
 			} catch (InterruptedException e) {
 				e.printStackTrace();
 			}
-			modifierBucket.removeExpired(clock.getTimeMillis());
+			modifierBucket.removeExpired(clock.getTimeTicks());
 
-			assertEquals(0, modifierBucket.active(clock.getTimeMillis()).size());
-			assertFalse(modifierBucket.active(clock.getTimeMillis()).contains(increaseMaxHP));
-			assertEquals(10, modifierBucket.getFinalValue(10, clock.getTimeMillis()), 1e-12);
+			assertEquals(0, modifierBucket.active(clock.getTimeTicks()).size());
+			assertFalse(modifierBucket.active(clock.getTimeTicks()).contains(increaseMaxHP));
+			assertEquals(10, modifierBucket.getFinalValue(10, clock.getTimeTicks()), 1e-12);
 
 		});
 		testThread.start();
 
 		modifierBucket.addModifier(increaseMaxHP);
 
-		assertEquals(1, modifierBucket.active(clock.getTimeMillis()).size());
-		assertTrue(modifierBucket.active(clock.getTimeMillis()).contains(increaseMaxHP));
-		assertEquals(20, modifierBucket.getFinalValue(10, clock.getTimeMillis()), 1e-12);
+		assertEquals(1, modifierBucket.active(clock.getTimeTicks()).size());
+		assertTrue(modifierBucket.active(clock.getTimeTicks()).contains(increaseMaxHP));
+		assertEquals(20, modifierBucket.getFinalValue(10, clock.getTimeTicks()), 1e-12);
 
 	}
 
 	@Test
 	void testDuplicateUniqueAdd() {
 		StatModifier increaseMaxHP = new StatModifier(10, ModifierStackPolicy.UNIQUE_BY_SOURCE, ModifierType.FLAT,
-				StatType.HEALTH_MAX, "Test", -1, clock.getTimeMillis(), StatTarget.BOTH);
+				StatType.HEALTH_MAX, "Test", -1, clock.getTimeTicks(), StatTarget.BOTH);
 		StatModifier increaseMaxHP2 = new StatModifier(20, ModifierStackPolicy.UNIQUE_BY_SOURCE, ModifierType.FLAT,
-				StatType.HEALTH_MAX, "Test", -1, clock.getTimeMillis(), StatTarget.BOTH);
+				StatType.HEALTH_MAX, "Test", -1, clock.getTimeTicks(), StatTarget.BOTH);
 
 		modifierBucket.addModifier(increaseMaxHP);
 
-		assertEquals(1, modifierBucket.active(clock.getTimeMillis()).size());
-		assertTrue(modifierBucket.active(clock.getTimeMillis()).contains(increaseMaxHP));
-		assertEquals(20, modifierBucket.getFinalValue(10, clock.getTimeMillis()), 1e-12);
+		assertEquals(1, modifierBucket.active(clock.getTimeTicks()).size());
+		assertTrue(modifierBucket.active(clock.getTimeTicks()).contains(increaseMaxHP));
+		assertEquals(20, modifierBucket.getFinalValue(10, clock.getTimeTicks()), 1e-12);
 
 		modifierBucket.addModifier(increaseMaxHP2);
 
-		assertEquals(1, modifierBucket.active(clock.getTimeMillis()).size());
-		assertTrue(modifierBucket.active(clock.getTimeMillis()).contains(increaseMaxHP2));
-		assertFalse(modifierBucket.active(clock.getTimeMillis()).contains(increaseMaxHP));
-		assertEquals(30, modifierBucket.getFinalValue(10, clock.getTimeMillis()), 1e-12);
+		assertEquals(1, modifierBucket.active(clock.getTimeTicks()).size());
+		assertTrue(modifierBucket.active(clock.getTimeTicks()).contains(increaseMaxHP2));
+		assertFalse(modifierBucket.active(clock.getTimeTicks()).contains(increaseMaxHP));
+		assertEquals(30, modifierBucket.getFinalValue(10, clock.getTimeTicks()), 1e-12);
 
 	}
 
 	@Test
 	void testReplacePolicy() {
 		StatModifier increaseMaxHP = new StatModifier(10, ModifierStackPolicy.UNIQUE_BY_SOURCE, ModifierType.FLAT,
-				StatType.HEALTH_MAX, "Test", -1, clock.getTimeMillis(), StatTarget.BOTH);
+				StatType.HEALTH_MAX, "Test", -1, clock.getTimeTicks(), StatTarget.BOTH);
 		StatModifier increaseMaxHP2 = new StatModifier(20, ModifierStackPolicy.REPLACE, ModifierType.FLAT,
-				StatType.HEALTH_MAX, "Test2", -1, clock.getTimeMillis(), StatTarget.BOTH);
+				StatType.HEALTH_MAX, "Test2", -1, clock.getTimeTicks(), StatTarget.BOTH);
 
 		modifierBucket.addModifier(increaseMaxHP);
 
-		assertEquals(1, modifierBucket.active(clock.getTimeMillis()).size());
-		assertTrue(modifierBucket.active(clock.getTimeMillis()).contains(increaseMaxHP));
-		assertEquals(20, modifierBucket.getFinalValue(10, clock.getTimeMillis()), 1e-12);
+		assertEquals(1, modifierBucket.active(clock.getTimeTicks()).size());
+		assertTrue(modifierBucket.active(clock.getTimeTicks()).contains(increaseMaxHP));
+		assertEquals(20, modifierBucket.getFinalValue(10, clock.getTimeTicks()), 1e-12);
 
 		modifierBucket.addModifier(increaseMaxHP2);
 
-		assertEquals(1, modifierBucket.active(clock.getTimeMillis()).size());
-		assertTrue(modifierBucket.active(clock.getTimeMillis()).contains(increaseMaxHP2));
-		assertFalse(modifierBucket.active(clock.getTimeMillis()).contains(increaseMaxHP));
-		assertEquals(30, modifierBucket.getFinalValue(10, clock.getTimeMillis()), 1e-12);
+		assertEquals(1, modifierBucket.active(clock.getTimeTicks()).size());
+		assertTrue(modifierBucket.active(clock.getTimeTicks()).contains(increaseMaxHP2));
+		assertFalse(modifierBucket.active(clock.getTimeTicks()).contains(increaseMaxHP));
+		assertEquals(30, modifierBucket.getFinalValue(10, clock.getTimeTicks()), 1e-12);
 	}
 
 	@Test
 	void testMaxPolicy() {
 		StatModifier increaseMaxHP = new StatModifier(20, ModifierStackPolicy.UNIQUE_BY_SOURCE, ModifierType.FLAT,
-				StatType.HEALTH_MAX, "Test", -1, clock.getTimeMillis(), StatTarget.BOTH);
+				StatType.HEALTH_MAX, "Test", -1, clock.getTimeTicks(), StatTarget.BOTH);
 		StatModifier increaseMaxHP2 = new StatModifier(10, ModifierStackPolicy.MAX_ONLY, ModifierType.FLAT,
-				StatType.HEALTH_MAX, "Test2", -1, clock.getTimeMillis(), StatTarget.BOTH);
+				StatType.HEALTH_MAX, "Test2", -1, clock.getTimeTicks(), StatTarget.BOTH);
 
 		modifierBucket.addModifier(increaseMaxHP);
 
-		assertEquals(1, modifierBucket.active(clock.getTimeMillis()).size());
-		assertTrue(modifierBucket.active(clock.getTimeMillis()).contains(increaseMaxHP));
-		assertEquals(30, modifierBucket.getFinalValue(10, clock.getTimeMillis()), 1e-12);
+		assertEquals(1, modifierBucket.active(clock.getTimeTicks()).size());
+		assertTrue(modifierBucket.active(clock.getTimeTicks()).contains(increaseMaxHP));
+		assertEquals(30, modifierBucket.getFinalValue(10, clock.getTimeTicks()), 1e-12);
 
 		modifierBucket.addModifier(increaseMaxHP2);
 
-		assertEquals(1, modifierBucket.active(clock.getTimeMillis()).size());
-		assertTrue(modifierBucket.active(clock.getTimeMillis()).contains(increaseMaxHP));
-		assertFalse(modifierBucket.active(clock.getTimeMillis()).contains(increaseMaxHP2));
-		assertEquals(30, modifierBucket.getFinalValue(10, clock.getTimeMillis()), 1e-12);
+		assertEquals(1, modifierBucket.active(clock.getTimeTicks()).size());
+		assertTrue(modifierBucket.active(clock.getTimeTicks()).contains(increaseMaxHP));
+		assertFalse(modifierBucket.active(clock.getTimeTicks()).contains(increaseMaxHP2));
+		assertEquals(30, modifierBucket.getFinalValue(10, clock.getTimeTicks()), 1e-12);
 	}
 
 	@Test
 	void testMinPolicy() {
 		StatModifier increaseMaxHP = new StatModifier(20, ModifierStackPolicy.UNIQUE_BY_SOURCE, ModifierType.FLAT,
-				StatType.HEALTH_MAX, "Test", -1, clock.getTimeMillis(), StatTarget.BOTH);
+				StatType.HEALTH_MAX, "Test", -1, clock.getTimeTicks(), StatTarget.BOTH);
 		StatModifier increaseMaxHP2 = new StatModifier(10, ModifierStackPolicy.MIN_ONLY, ModifierType.FLAT,
-				StatType.HEALTH_MAX, "Test2", -1, clock.getTimeMillis(), StatTarget.BOTH);
+				StatType.HEALTH_MAX, "Test2", -1, clock.getTimeTicks(), StatTarget.BOTH);
 
 		modifierBucket.addModifier(increaseMaxHP);
 
-		assertEquals(1, modifierBucket.active(clock.getTimeMillis()).size());
-		assertTrue(modifierBucket.active(clock.getTimeMillis()).contains(increaseMaxHP));
-		assertEquals(30, modifierBucket.getFinalValue(10, clock.getTimeMillis()), 1e-12);
+		assertEquals(1, modifierBucket.active(clock.getTimeTicks()).size());
+		assertTrue(modifierBucket.active(clock.getTimeTicks()).contains(increaseMaxHP));
+		assertEquals(30, modifierBucket.getFinalValue(10, clock.getTimeTicks()), 1e-12);
 
 		modifierBucket.addModifier(increaseMaxHP2);
 
-		assertEquals(1, modifierBucket.active(clock.getTimeMillis()).size());
-		assertTrue(modifierBucket.active(clock.getTimeMillis()).contains(increaseMaxHP2));
-		assertFalse(modifierBucket.active(clock.getTimeMillis()).contains(increaseMaxHP));
-		assertEquals(20, modifierBucket.getFinalValue(10, clock.getTimeMillis()), 1e-12);
+		assertEquals(1, modifierBucket.active(clock.getTimeTicks()).size());
+		assertTrue(modifierBucket.active(clock.getTimeTicks()).contains(increaseMaxHP2));
+		assertFalse(modifierBucket.active(clock.getTimeTicks()).contains(increaseMaxHP));
+		assertEquals(20, modifierBucket.getFinalValue(10, clock.getTimeTicks()), 1e-12);
 	}
 
 	@Test
 	void testStackPolicy() {
 		StatModifier increaseMaxHP = new StatModifier(20, ModifierStackPolicy.UNIQUE_BY_SOURCE, ModifierType.FLAT,
-				StatType.HEALTH_MAX, "Test", -1, clock.getTimeMillis(), StatTarget.BOTH);
+				StatType.HEALTH_MAX, "Test", -1, clock.getTimeTicks(), StatTarget.BOTH);
 		StatModifier increaseMaxHP2 = new StatModifier(10, ModifierStackPolicy.STACK, ModifierType.FLAT,
-				StatType.HEALTH_MAX, "Test2", -1, clock.getTimeMillis(), StatTarget.BOTH);
+				StatType.HEALTH_MAX, "Test2", -1, clock.getTimeTicks(), StatTarget.BOTH);
 
 		modifierBucket.addModifier(increaseMaxHP);
 
-		assertEquals(1, modifierBucket.active(clock.getTimeMillis()).size());
-		assertTrue(modifierBucket.active(clock.getTimeMillis()).contains(increaseMaxHP));
-		assertEquals(30, modifierBucket.getFinalValue(10, clock.getTimeMillis()), 1e-12);
+		assertEquals(1, modifierBucket.active(clock.getTimeTicks()).size());
+		assertTrue(modifierBucket.active(clock.getTimeTicks()).contains(increaseMaxHP));
+		assertEquals(30, modifierBucket.getFinalValue(10, clock.getTimeTicks()), 1e-12);
 
 		modifierBucket.addModifier(increaseMaxHP2);
 
-		assertEquals(2, modifierBucket.active(clock.getTimeMillis()).size());
-		assertTrue(modifierBucket.active(clock.getTimeMillis()).contains(increaseMaxHP2));
-		assertTrue(modifierBucket.active(clock.getTimeMillis()).contains(increaseMaxHP));
-		assertEquals(40, modifierBucket.getFinalValue(10, clock.getTimeMillis()), 1e-12);
+		assertEquals(2, modifierBucket.active(clock.getTimeTicks()).size());
+		assertTrue(modifierBucket.active(clock.getTimeTicks()).contains(increaseMaxHP2));
+		assertTrue(modifierBucket.active(clock.getTimeTicks()).contains(increaseMaxHP));
+		assertEquals(40, modifierBucket.getFinalValue(10, clock.getTimeTicks()), 1e-12);
 	}
 
 }

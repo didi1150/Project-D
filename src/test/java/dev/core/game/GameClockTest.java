@@ -2,21 +2,36 @@ package dev.core.game;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 
-import java.time.Duration;
-
+import org.bukkit.plugin.Plugin;
+import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.mockbukkit.mockbukkit.MockBukkit;
+import org.mockbukkit.mockbukkit.ServerMock;
 
-public class GameClockTest {
+import dev.bukkit.game.GameClock;
 
-	private static GameClock clock;
+class GameClockTest {
+
+	private static ServerMock server;
+	private static Plugin plugin;
+	private GameClock clock;
 
 	@BeforeAll
-	static void setup() {
-		clock = new GameClock(1);
+	static void setupMock() {
+		server = MockBukkit.mock();
+		plugin = MockBukkit.createMockPlugin();
+
+	}
+
+	@BeforeEach
+	void setUpClock() {
+		clock = new GameClock(plugin); // 1 tick = 50ms
 	}
 
 	@AfterEach
@@ -25,93 +40,63 @@ public class GameClockTest {
 		clock.reset();
 	}
 
+	@AfterAll
+	static void tearDownMock() {
+		MockBukkit.unmock();
+	}
+
 	@Test
 	void testRunFiveSeconds() {
-		assertTrue(clock != null);
+		assertNotNull(clock);
 		assertFalse(clock.isRunning());
-		Thread testThread = new Thread(() -> {
-			clock.start();
-			try {
-				Thread.sleep(Duration.ofSeconds(5));
-			} catch (InterruptedException e) {
-				e.printStackTrace();
-			}
-			assertEquals(5000, clock.getTimeMillis());
-		});
-		testThread.start();
+
+		clock.start();
+		server.getScheduler().performTicks(100); // 5 seconds / 50ms = 100 ticks
+
+		assertEquals(100, clock.getTimeTicks());
+		assertEquals(5.0, clock.getTimeSeconds(), 1e-12);
 	}
 
 	@Test
 	void testRunTwoAndHalfSeconds() {
-		assertTrue(clock != null);
-		assertFalse(clock.isRunning());
-		Thread testThread = new Thread(() -> {
-			clock.start();
-			try {
-				Thread.sleep(Duration.ofMillis(2500));
-			} catch (InterruptedException e) {
-				e.printStackTrace();
-			}
-			assertEquals(2500, clock.getTimeMillis());
-			assertEquals(2.5, clock.getTimeSeconds(), 1e-12);
-		});
-		testThread.start();
+		clock.start();
+		server.getScheduler().performTicks(50); // 2.5 seconds = 50 ticks
+
+		assertEquals(50, clock.getTimeTicks());
+		assertEquals(2.5, clock.getTimeSeconds(), 1e-12);
 	}
 
 	@Test
 	void testRunPauseRun() {
-		assertTrue(clock != null);
-		assertFalse(clock.isRunning());
-		Thread testThread = new Thread(() -> {
-			clock.start();
-			try {
-				Thread.sleep(Duration.ofMillis(2500));
+		clock.start();
+		server.getScheduler().performTicks(50); // 2.5s
+		clock.pause();
 
-				clock.pause();
+		assertEquals(50, clock.getTimeTicks());
+		assertTrue(clock.isPaused());
 
-				assertEquals(2500, clock.getTimeMillis());
-				assertEquals(2.5, clock.getTimeSeconds(), 1e-12);
-				assertTrue(clock.isPaused());
-				assertFalse(clock.isRunning());
+		// Clock should not advance while paused
+		server.getScheduler().performTicks(50);
+		assertEquals(50, clock.getTimeTicks());
 
-				clock.start();
+		// Resume
+		clock.resume();
+		server.getScheduler().performTicks(50); // another 2.5s
 
-				Thread.sleep(Duration.ofMillis(2500));
-
-				assertEquals(5000, clock.getTimeMillis());
-				assertEquals(5.0, clock.getTimeSeconds(), 1e-12);
-				assertFalse(clock.isPaused());
-				assertFalse(clock.isRunning());
-
-			} catch (InterruptedException e) {
-				e.printStackTrace();
-			}
-
-		});
-		testThread.start();
+		assertEquals(100, clock.getTimeTicks());
+		assertFalse(clock.isPaused());
 	}
 
 	@Test
 	void testDoubleSpeed() {
-		assertTrue(clock != null);
-		assertFalse(clock.isRunning());
-		Thread testThread = new Thread(() -> {
-			clock.setSpeed(2);
-			clock.start();
-			try {
-				Thread.sleep(Duration.ofMillis(2500));
+		clock.setSpeed(2.0); // 2x faster
+		clock.start();
 
-				clock.stop();
+		server.getScheduler().performTicks(50); // 2.5s wall time
+		clock.stop();
 
-				assertEquals(5000, clock.getTimeMillis());
-				assertEquals(5.0, clock.getTimeSeconds(), 1e-12);
-				assertTrue(clock.isPaused());
-				assertFalse(clock.isRunning());
-			} catch (InterruptedException e) {
-				e.printStackTrace();
-			}
-
-		});
-		testThread.start();
+		// Should be 5s game time because of double speed
+		assertEquals(100, clock.getTimeTicks());
+		assertEquals(5.0, clock.getTimeSeconds(), 1e-12);
 	}
 }
