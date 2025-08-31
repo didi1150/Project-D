@@ -1,11 +1,13 @@
 package dev.core.event;
 
+import dev.bukkit.event.BukkitEventBus;
 import org.bukkit.event.block.BlockBreakEvent;
 import org.bukkit.event.player.PlayerJoinEvent;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.NoSuchElementException;
 
@@ -13,18 +15,22 @@ import static org.junit.jupiter.api.Assertions.*;
 
 public class EventBusTest {
 
-    private static EventBus eventBus;
+    private static EventBusInterface eventBus;
     private static EventAction<PlayerJoinEvent> playerJoinEventAction;
 
     private static int countInteger;
 
     @BeforeAll
     static void setup(){
-        eventBus = EventBus.getInstance();
+        eventBus = BukkitEventBus.getInstance();
         playerJoinEventAction = new EventAction<>(e -> {countInteger--;}, PlayerJoinEvent.class);
         eventBus.subscribe(playerJoinEventAction);
         EventAction<BlockBreakEvent> blockBreakEventAction = new EventAction<>(e -> {countInteger += 2;}, BlockBreakEvent.class);
         eventBus.subscribe(blockBreakEventAction);
+        eventBus.subscribe(new EventAction<>(e -> countInteger += 10, Event.class));
+        eventBus.subscribe(new EventAction<>(e -> countInteger += 100, CancellableEvent.class, 3));
+        eventBus.subscribe(new EventAction<>(e -> countInteger *= 0, CancellableEvent.class, 5));
+        eventBus.subscribe(new EventAction<>(e -> e.setCancelled(true), CancellableEvent.class, 4));
     }
 
     @BeforeEach
@@ -69,6 +75,17 @@ public class EventBusTest {
             assertTrue(countInteger != 0);
         }
         assertEquals(1, countInteger);
+    }
+
+    @Test
+    void test() {
+        List<Event> events = new ArrayList<>(List.of(new Event[]{new CancellableEvent(), new CancellableEvent()}));
+        for (Event event : events) {
+            eventBus.sendEvent(event);
+        }
+        assertEquals(0, countInteger);
+
+
     }
 
 }
