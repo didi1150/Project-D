@@ -36,4 +36,8 @@ public abstract class Stat {
 		modifierBucket.add(statModifier);
 	}
 
+	public void removeModifier(StatModifier statModifier) {
+		modifierBucket.remove(statModifier);
+	}
+
 }

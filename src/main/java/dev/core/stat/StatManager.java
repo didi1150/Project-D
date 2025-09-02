@@ -4,15 +4,11 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.Map.Entry;
 
-import dev.core.entity.RPGEntity;
-
 public class StatManager {
 
 	private final Map<StatType, Stat> stats;
-	private RPGEntity entity;
 
-	public StatManager(Map<StatType, Stat> preStats, RPGEntity entity) {
-		this.entity = entity;
+	public StatManager(Map<StatType, Stat> preStats) {
 		this.stats = new HashMap<StatType, Stat>();
 
 		for (Entry<StatType, Stat> entry : preStats.entrySet()) {
@@ -22,6 +18,10 @@ public class StatManager {
 
 	public void addStatModifier(StatModifier statModifier) {
 		stats.get(statModifier.statType).addModifier(statModifier);
+	}
+
+	public void removeStatModifier(StatModifier statModifier) {
+		stats.get(statModifier.statType).removeModifier(statModifier);
 	}
 
 	public void tick(long now) {
@@ -41,6 +41,10 @@ public class StatManager {
 	public double getMaxValue(StatType type, long now) {
 		Stat stat = stats.get(type);
 		return stat.getMax(now);
+	}
+
+	public void modifyStat(StatType type, double delta) {
+		stats.get(type).modify(delta);
 	}
 
 }

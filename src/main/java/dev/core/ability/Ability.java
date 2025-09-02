@@ -1,11 +1,26 @@
 package dev.core.ability;
 
-public abstract class Ability {
+import dev.core.entity.RPGEntity;
 
-	private AbilityAction abilityAction;
+public interface Ability {
 
-	private String name;
-	
-	private String id;
+	String getId();
+
+	String getName();
+
+	String getDescription();
+
+	AbilityTriggerType getTriggerType();
+
+	AbilityAction getAction();
+
+	Effect activate(RPGEntity caster);
+
+	/**
+	 * Cooldown in millis
+	 */
+	long getCooldown();
+
+	AbilityCost getCost();
 
 }

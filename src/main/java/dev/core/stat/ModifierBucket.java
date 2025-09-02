@@ -32,6 +32,10 @@ public class ModifierBucket {
 		dirty = true;
 	}
 
+	public void remove(StatModifier statModifier) {
+		modifiers.remove(statModifier);
+	}
+
 	public void removeExpired(long now) {
 		if (modifiers.removeIf(mod -> mod.expired(now))) {
 			dirty = true;

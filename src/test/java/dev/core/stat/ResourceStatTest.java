@@ -2,18 +2,19 @@ package dev.core.stat;
 
 import static org.junit.Assert.assertEquals;
 
-import org.bukkit.plugin.Plugin;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockbukkit.mockbukkit.MockBukkit;
 
-import dev.bukkit.game.GameClock;
+import dev.core.MockClock;
+import dev.core.game.StopWatch;
 
 public class ResourceStatTest {
 
-	private Plugin plugin;
-	private GameClock clock;
+	private MockClock scheduler;
+
+	private StopWatch stopWatch;
 	private ResourceStat healthStat;
 	private CombatStat healthRegenStat;
 	private CombatStat healthMaxStat;
@@ -23,28 +24,26 @@ public class ResourceStatTest {
 	void setup() {
 		// Start a mock server and plugin
 		MockBukkit.mock();
-		plugin = MockBukkit.createMockPlugin();
-		clock = new GameClock(plugin); // plugin is required
-		clock.start();
+		scheduler = new MockClock();
+		stopWatch = new StopWatch(scheduler);
 		healthRegenStat = new CombatStat("HEALTH_REGEN", 5); // 5 hp per 5 seconds
 		healthMaxStat = new CombatStat("HEALTH_MAX", 100);
 		healAndShieldPowerStat = new CombatStat("HEAL_AND_SHIELD_POWER", 0);
 
-		long now = clock.getTimeTicks();
+		long now = stopWatch.getTimeMillis();
 		healthStat = new ResourceStat("HEALTH", t -> healthMaxStat.getCurrent(t),
 				t -> healthRegenStat.getCurrent(t) * (1 + healAndShieldPowerStat.getCurrent(t) / 100), now);
 	}
 
 	@AfterEach
 	void tearDown() {
-		clock.stop();
-		clock.reset();
+		stopWatch.reset();
 		MockBukkit.unmock();
 	}
 
 	@Test
 	void testSimpleRegen() {
-		long startTime = clock.getTimeTicks();
+		long startTime = stopWatch.getTimeMillis();
 		healthStat.setCurrent(0);
 		assertEquals(0, healthStat.getCurrent(startTime), 1e-12);
 
@@ -59,7 +58,7 @@ public class ResourceStatTest {
 
 	@Test
 	void testFullRegen() {
-		long startTime = clock.getTimeTicks();
+		long startTime = stopWatch.getTimeMillis();
 		healthStat.setCurrent(0);
 
 		for (int i = 1; i <= 100; i++) {
@@ -73,7 +72,7 @@ public class ResourceStatTest {
 
 	@Test
 	void testRegenWithMaxChange() {
-		long startTime = clock.getTimeTicks();
+		long startTime = stopWatch.getTimeMillis();
 		healthStat.setCurrent(0);
 
 		for (int i = 1; i <= 10; i++) {
@@ -100,7 +99,7 @@ public class ResourceStatTest {
 
 	@Test
 	void testHealAndShieldPower() {
-		long startTime = clock.getTimeTicks();
+		long startTime = stopWatch.getTimeMillis();
 		healAndShieldPowerStat.addModifier(
 				new StatModifier(50, ModifierType.FLAT, StatType.HEAL_AND_SHIELD_POWER, "test_heal_power", startTime));
 
@@ -117,7 +116,7 @@ public class ResourceStatTest {
 
 	@Test
 	void testInstantHeal() {
-		long startTime = clock.getTimeTicks();
+		long startTime = stopWatch.getTimeMillis();
 		healthStat.setCurrent(0);
 
 		healthStat.modify(50);
@@ -134,7 +133,7 @@ public class ResourceStatTest {
 
 	@Test
 	void testRegenStopsAtMax() {
-		long startTime = clock.getTimeTicks();
+		long startTime = stopWatch.getTimeMillis();
 		healthStat.setCurrent(95);
 
 		for (int i = 1; i <= 10; i++) {
@@ -148,7 +147,7 @@ public class ResourceStatTest {
 
 	@Test
 	void testNegativeRegen() {
-		long startTime = clock.getTimeTicks();
+		long startTime = stopWatch.getTimeMillis();
 		healthRegenStat.setCurrent(-2.0);
 		healthStat.setCurrent(50);
 
@@ -163,7 +162,7 @@ public class ResourceStatTest {
 
 	@Test
 	void testZeroTimeDelta() {
-		long time = clock.getTimeTicks();
+		long time = stopWatch.getTimeMillis();
 		healthStat.setCurrent(50);
 
 		healthStat.tick(time);
