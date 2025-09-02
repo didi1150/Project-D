@@ -65,7 +65,7 @@ public class EventAction<E> implements Comparable<EventAction<E>> {
     }
 
     @Override
-    public int compareTo(EventAction eventAction) {
+    public int compareTo(EventAction<E> eventAction) {
         return eventAction.getPriority() - this.getPriority();
     }
 }

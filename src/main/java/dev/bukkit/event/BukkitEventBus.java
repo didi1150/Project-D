@@ -13,74 +13,89 @@ import java.util.stream.Collectors;
 
 public class BukkitEventBus implements EventBusInterface {
 
-    private static final BukkitEventBus instance = new BukkitEventBus();
-    public static BukkitEventBus getInstance() {
-        return instance;
-    }
+	private static final BukkitEventBus instance = new BukkitEventBus();
 
-    private final List<EventAction<?>> subscribed;
+	public static BukkitEventBus getInstance() {
+		return instance;
+	}
 
-    private BukkitEventBus() {
-        subscribed = new ArrayList<>();
-    }
+	private final List<EventAction<?>> subscribed;
 
-    public List<EventAction<?>> getSubscribed() {
-        return subscribed;
-    }
+	private BukkitEventBus() {
+		subscribed = new ArrayList<>();
+	}
 
-    //can be used in an event-call to execute all the subscribed actions
-    public <E> List<EventAction<E>> getSubscribedOfType(Class<E> type) {
-        return subscribed.stream()
-                .filter(eventAction -> eventAction.getType().equals(type))
-                .map(eventAction -> (EventAction<E>) eventAction)
-                .sorted()
-                .collect(Collectors.toList());
-    }
+	public List<EventAction<?>> getSubscribed() {
+		return subscribed;
+	}
 
-    public EventAction<?> getSubscribedWithId(String id) {
-        return subscribed.stream()
-                .filter(eventAction -> eventAction.getId().equals(id))
-                .findFirst().orElseThrow(() -> new NoSuchElementException("No such EventAction with the given id"));
-    }
+	// can be used in an event-call to execute all the subscribed actions
+	public <E> List<EventAction<E>> getSubscribedOfType(Class<E> type) {
+		return subscribed.stream().filter(eventAction -> eventAction.getType().equals(type))
+				.map(eventAction -> (EventAction<E>) eventAction).sorted().collect(Collectors.toList());
+	}
 
-    public void subscribe(EventAction<?> eventAction) {
-        if (subscribed.contains(eventAction)) return;
-        subscribed.add(eventAction);
-    }
+	public EventAction<?> getSubscribedWithId(String id) {
+		return subscribed.stream().filter(eventAction -> eventAction.getId().equals(id)).findFirst()
+				.orElseThrow(() -> new NoSuchElementException("No such EventAction with the given id"));
+	}
 
-    public void unsubscribe(String id) {
-        subscribed.removeIf(eventAction -> eventAction.getId().equals(id));
-    }
+	public void subscribe(EventAction<?> eventAction) {
+		if (subscribed.contains(eventAction))
+			return;
+		subscribed.add(eventAction);
+	}
 
-    public void unsubscribe(EventAction<?> eventAction) {
-        subscribed.removeIf(e -> e.equals(eventAction));
-    }
+	@Override
+	public <E> void subscribeOnce(EventAction<E> eventAction) {
+		final EventAction<E>[] holder = new EventAction[1];
 
-    public <E> void sendEvent(E event) {
-        List<EventAction<E>> eventActions = getSubscribedOfType((Class<E>) event.getClass());
-        for (EventAction<E> eventAction : eventActions) {
-            if (event instanceof CancellableEvent cancellableEvent) {
-                if (cancellableEvent.isCancelled()) break;
-            }
-            if (event instanceof Cancellable cancellable) {
-                if (cancellable.isCancelled()) break;
-            }
-            eventAction.execute(event);
-        }
-    }
+		holder[0] = new EventAction<>(event -> {
+			eventAction.execute(event);
+			unsubscribe(holder[0]);
+		}, eventAction.getType(), eventAction.getPriority());
 
-    public <E> void sendEvent(E event, Function<E, Boolean> condition) {
-        List<EventAction<E>> eventActions = getSubscribedOfType((Class<E>) event.getClass());
-        for (EventAction<E> eventAction : eventActions) {
-            if (event instanceof CancellableEvent cancellableEvent) {
-                if (cancellableEvent.isCancelled()) break;
-            }
-            if (event instanceof Cancellable cancellable) {
-                if (cancellable.isCancelled()) break;
-            }
-            if (condition.apply(event)) break;
-            eventAction.execute(event);
-        }
-    }
+		subscribe(holder[0]);
+	}
+
+	public void unsubscribe(String id) {
+		subscribed.removeIf(eventAction -> eventAction.getId().equals(id));
+	}
+
+	public void unsubscribe(EventAction<?> eventAction) {
+		subscribed.removeIf(e -> e.equals(eventAction));
+	}
+
+	public <E> void sendEvent(E event) {
+		List<EventAction<E>> eventActions = getSubscribedOfType((Class<E>) event.getClass());
+		for (EventAction<E> eventAction : eventActions) {
+			if (event instanceof CancellableEvent cancellableEvent) {
+				if (cancellableEvent.isCancelled())
+					break;
+			}
+			if (event instanceof Cancellable cancellable) {
+				if (cancellable.isCancelled())
+					break;
+			}
+			eventAction.execute(event);
+		}
+	}
+
+	public <E> void sendEvent(E event, Function<E, Boolean> condition) {
+		List<EventAction<E>> eventActions = getSubscribedOfType((Class<E>) event.getClass());
+		for (EventAction<E> eventAction : eventActions) {
+			if (event instanceof CancellableEvent cancellableEvent) {
+				if (cancellableEvent.isCancelled())
+					break;
+			}
+			if (event instanceof Cancellable cancellable) {
+				if (cancellable.isCancelled())
+					break;
+			}
+			if (condition.apply(event))
+				break;
+			eventAction.execute(event);
+		}
+	}
 
 }

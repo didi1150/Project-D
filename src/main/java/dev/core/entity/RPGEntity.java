@@ -4,6 +4,7 @@ import java.util.UUID;
 
 import dev.core.ability.AbilityAction;
 import dev.core.ability.EffectManagerInterface;
+import dev.core.event.EventBusInterface;
 import dev.core.item.EquipmentManager;
 import dev.core.stat.StatManager;
 import dev.core.stat.StatModifier;
@@ -22,10 +23,10 @@ public abstract class RPGEntity {
 	private boolean alive = true;
 
 	public RPGEntity(StatManager statManager, UUID uuid, String name, EntityType entityType,
-			EffectManagerInterface effectManagerInterface) {
+			EffectManagerInterface effectManagerInterface, EventBusInterface eventBusInterface) {
 		this.statManager = statManager;
 		this.effectManagerInterface = effectManagerInterface;
-		this.equipmentManager = new EquipmentManager(this);
+		this.equipmentManager = new EquipmentManager(this, eventBusInterface, effectManagerInterface);
 		this.uuid = uuid;
 		this.name = name;
 		this.entityType = entityType;
@@ -37,11 +38,11 @@ public abstract class RPGEntity {
 		statManager.tick(now);
 		effectManagerInterface.tick(now);
 		equipmentManager.tick(now);
-		checkAlive(now);
+		checkAlive();
 	}
 
-	private void checkAlive(long now) {
-		if (getHealth(now) <= 0 && alive) {
+	private void checkAlive() {
+		if (getHealth() <= 0 && alive) {
 			alive = false;
 			onDeath();
 		}
@@ -54,14 +55,14 @@ public abstract class RPGEntity {
 
 	// =========================- Combat ==========================
 
-	public void damage(double amount, long now) {
+	public void damage(double amount) {
 		statManager.modifyStat(StatType.HEALTH_RESOURCE, -amount);
-		checkAlive(now);
+		checkAlive();
 		// TODO: Notify GameContext / trigger event
 	}
 
 	public void damageByEntity(double amount, RPGEntity source, long now) {
-		damage(amount, now);
+		damage(amount);
 		// TODO: trigger "damagedByEntity" event with source
 	}
 
@@ -73,7 +74,7 @@ public abstract class RPGEntity {
 	// =========================- Abilities ==========================
 
 	public void triggerAbility(AbilityAction abilityAction) {
-		equipmentManager.triggerAbility(abilityAction, effectManagerInterface);
+		equipmentManager.triggerAbility(abilityAction);
 	}
 
 	// =========================- Getters ==========================
@@ -108,12 +109,12 @@ public abstract class RPGEntity {
 
 	// =========================- Convenience ==========================
 
-	public double getHealth(long now) {
-		return statManager.getCurrentValue(StatType.HEALTH_RESOURCE, now);
+	public double getHealth() {
+		return statManager.getCurrentValue(StatType.HEALTH_RESOURCE, System.currentTimeMillis());
 	}
 
-	public double getMaxHealth(long now) {
-		return statManager.getCurrentValue(StatType.HEALTH_MAX, now);
+	public double getMaxHealth() {
+		return statManager.getCurrentValue(StatType.HEALTH_MAX, System.currentTimeMillis());
 	}
 
 	public void addStatModifier(StatModifier mod) {

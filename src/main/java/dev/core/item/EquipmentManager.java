@@ -11,6 +11,9 @@ import dev.core.ability.AbilityTriggerType;
 import dev.core.ability.Effect;
 import dev.core.ability.EffectManagerInterface;
 import dev.core.entity.RPGEntity;
+import dev.core.event.Event;
+import dev.core.event.EventAction;
+import dev.core.event.EventBusInterface;
 import dev.core.stat.StatModifier;
 import dev.core.stat.StatType;
 
@@ -24,12 +27,25 @@ public class EquipmentManager {
 	private Map<EquipmentSlot, List<StatModifier>> appliedActiveStats;
 	private Map<RPGItem, List<StatModifier>> appliedPassiveStats;
 
-	public EquipmentManager(RPGEntity holder) {
+	/**
+	 * Ability ID, EventAction ID
+	 */
+
+	private Map<String, String> registeredAutoAbilities;
+
+	private EventBusInterface eventBus;
+	private EffectManagerInterface effectManager;
+
+	public EquipmentManager(RPGEntity holder, EventBusInterface eventBusInterface,
+			EffectManagerInterface effectManagerInterface) {
+		this.eventBus = eventBusInterface;
+		this.effectManager = effectManagerInterface;
 		this.equippedActiveItems = new HashMap<>();
 		this.inventoryPassiveItems = new ArrayList<>();
 		this.holder = holder;
 		this.appliedActiveStats = new HashMap<>();
 		this.appliedPassiveStats = new HashMap<>();
+		this.registeredAutoAbilities = new HashMap<String, String>();
 	}
 
 	/**
@@ -100,7 +116,7 @@ public class EquipmentManager {
 	/**
 	 * Trigger manual abilities based on player action
 	 */
-	public void triggerAbility(AbilityAction abilityAction, EffectManagerInterface effectManagerInterface) {
+	public void triggerAbility(AbilityAction abilityAction) {
 		// Check equipped items for manual abilities
 		for (Map.Entry<EquipmentSlot, RPGItem> entry : equippedActiveItems.entrySet()) {
 			RPGItem item = entry.getValue();
@@ -109,7 +125,7 @@ public class EquipmentManager {
 			List<Ability> manualAbilities = getManualAbilities(item, abilityAction);
 
 			for (Ability ability : manualAbilities) {
-				triggerSingleAbility(ability, effectManagerInterface);
+				triggerSingleAbility(ability, effectManager);
 			}
 		}
 	}
@@ -235,9 +251,11 @@ public class EquipmentManager {
 	private void registerAutomaticAbilities(RPGItem item) {
 		List<Ability> autoAbilities = getAutomaticAbilities(item);
 		for (Ability ability : autoAbilities) {
-
-			// TODO: Register with abilityManager event system
-			// abilityManager.registerAutomaticAbility(holder, ability);
+			EventAction<? extends Event> eventAction = new EventAction<>(t -> {
+				triggerSingleAbility(ability, effectManager);
+			}, ability.getTriggerEvent().getClass());
+			registeredAutoAbilities.put(ability.getId(), eventAction.getId());
+			eventBus.subscribe(eventAction);
 		}
 	}
 
@@ -245,8 +263,7 @@ public class EquipmentManager {
 		// Unregister automatic abilities when item is unequipped
 		List<Ability> autoAbilities = getAutomaticAbilities(item);
 		for (Ability ability : autoAbilities) {
-			// TODO: Unregister with abilityManager event system
-			// abilityManager.unregisterAutomaticAbility(holder, ability);
+			eventBus.unsubscribe(registeredAutoAbilities.get(ability.getId()));
 		}
 	}
 
@@ -256,7 +273,13 @@ public class EquipmentManager {
 		}
 
 		Effect castedEffect = effectManagerInterface.cast(holder, ability);
-		// TODO: Cancel or track effect
+		if (castedEffect.getCancelEvent() != null) {
+			EventAction<? extends Event> eventAction = new EventAction<>(t -> {
+				castedEffect.cancel();
+			}, castedEffect.getCancelEvent().getClass());
+			eventBus.subscribeOnce(eventAction);
+		}
+
 	}
 
 	// ========================================== UTILITY
@@ -265,8 +288,9 @@ public class EquipmentManager {
 	/**
 	 * Get total stat value including all bonuses from equipped and inventory items
 	 */
-	public double getTotalStatValue(String statName, long now) {
-		double baseValue = holder.getStatManager().getCurrentValue(StatType.valueOf(statName), now);
+	public double getTotalStatValue(String statName) {
+		double baseValue = holder.getStatManager().getCurrentValue(StatType.valueOf(statName),
+				System.currentTimeMillis());
 		double totalModifiers = 0;
 
 		// Add active stat bonuses from equipped items

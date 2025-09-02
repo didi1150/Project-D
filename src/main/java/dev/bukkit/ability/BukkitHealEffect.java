@@ -6,11 +6,11 @@ import dev.core.entity.RPGEntity;
 
 /**
  * Nonpractical class, just for showcase purposes at the moment
- * */
-public class BukkitHealAbility extends Effect {
+ */
+public class BukkitHealEffect extends Effect {
 
-	public BukkitHealAbility() {
-		// TODO Auto-generated constructor stub
+	public BukkitHealEffect() {
+		super(null, 1);
 	}
 
 	public void displayParticles(RPGEntity caster) {
@@ -27,6 +27,11 @@ public class BukkitHealAbility extends Effect {
 	@Override
 	public void cancel() {
 
+	}
+
+	@Override
+	public boolean hasExpired(long now) {
+		return true;
 	}
 
 }

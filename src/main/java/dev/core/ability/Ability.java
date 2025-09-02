@@ -1,6 +1,7 @@
 package dev.core.ability;
 
 import dev.core.entity.RPGEntity;
+import dev.core.event.Event;
 
 public interface Ability {
 
@@ -11,6 +12,8 @@ public interface Ability {
 	String getDescription();
 
 	AbilityTriggerType getTriggerType();
+	
+	Event getTriggerEvent();
 
 	AbilityAction getAction();
 

@@ -44,12 +44,12 @@ public class BukkitEffectManager implements EffectManagerInterface {
 		}
 
 		if (ability instanceof HealAbility) {
-			BukkitHealAbility bukkitHealAbility = new BukkitHealAbility();
-			bukkitHealAbility.cast(entity, () -> setCooldown(entity, ability));
+			BukkitHealEffect bukkitHealEffect = new BukkitHealEffect();
+			bukkitHealEffect.cast(entity, () -> setCooldown(entity, ability));
 			List<Effect> effectsList = activeEffects.getOrDefault(entity, new ArrayList<Effect>());
-			effectsList.add(bukkitHealAbility);
+			effectsList.add(bukkitHealEffect);
 			activeEffects.put(entity, effectsList);
-			return bukkitHealAbility;
+			return bukkitHealEffect;
 		}
 		return null;
 	}
@@ -109,7 +109,7 @@ public class BukkitEffectManager implements EffectManagerInterface {
 	}
 
 	/**
-	 * Clear expired cooldowns for an entity (optional cleanup method)
+	 * Clear expired cooldowns for an entity
 	 */
 	public void cleanupExpiredCooldowns(RPGEntity entity) {
 		Map<String, Long> entityCooldowns = cooldowns.get(entity);
@@ -201,7 +201,32 @@ public class BukkitEffectManager implements EffectManagerInterface {
 
 	@Override
 	public void tick(long now) {
-		
+
+		// 1. Tick active effects and cleanup
+	    for (Map.Entry<RPGEntity, List<Effect>> entry : new ArrayList<>(activeEffects.entrySet())) {
+	        RPGEntity entity = entry.getKey();
+	        List<Effect> effects = entry.getValue();
+
+	        // Tick each effect
+	        for (Effect effect : new ArrayList<>(effects)) {
+	            effect.tick(entity, now);
+
+	            if (effect.hasExpired(now)) {
+	                effect.cancel(); // ensure cleanup
+	                effects.remove(effect);
+	            }
+	        }
+
+	        // Remove entity from map if no active effects left
+	        if (effects.isEmpty()) {
+	            activeEffects.remove(entity);
+	        }
+	    }
+
+	    // 2. Cleanup expired cooldowns
+	    for (RPGEntity entity : new ArrayList<>(cooldowns.keySet())) {
+	        cleanupExpiredCooldowns(entity);
+	    }
 	}
 
 }

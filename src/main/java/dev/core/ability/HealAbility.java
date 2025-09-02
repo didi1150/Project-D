@@ -1,6 +1,7 @@
 package dev.core.ability;
 
 import dev.core.entity.RPGEntity;
+import dev.core.event.Event;
 
 public class HealAbility implements Ability {
 
@@ -52,6 +53,11 @@ public class HealAbility implements Ability {
 	@Override
 	public AbilityCost getCost() {
 		// TODO Auto-generated method stub
+		return null;
+	}
+
+	@Override
+	public Event getTriggerEvent() {
 		return null;
 	}
 
