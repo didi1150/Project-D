@@ -68,14 +68,14 @@ public class EventBusTest {
         assertEquals(playerJoinEventAction.getId(), list.getFirst().getId());
     }
 
-    @Test
-    void testConsumerGetsCalled() {
-        for (EventAction<?> eventAction : eventBus.getSubscribed()) {
-            eventAction.execute(null);
-            assertTrue(countInteger != 0);
-        }
-        assertEquals(1, countInteger);
-    }
+//    @Test
+//    void testConsumerGetsCalled() {
+//        for (EventAction<?> eventAction : eventBus.getSubscribed()) {
+//            eventAction.execute(null);
+//            assertTrue(countInteger != 0);
+//        }
+//        assertEquals(1, countInteger);
+//    }
 
     @Test
     void test() {

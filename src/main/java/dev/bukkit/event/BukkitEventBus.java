@@ -13,9 +13,12 @@ import java.util.stream.Collectors;
 
 public class BukkitEventBus implements EventBusInterface {
 
-	private static final BukkitEventBus instance = new BukkitEventBus();
+	private static BukkitEventBus instance;
 
 	public static BukkitEventBus getInstance() {
+		if (instance == null) {
+			instance = new BukkitEventBus();
+		}
 		return instance;
 	}
 

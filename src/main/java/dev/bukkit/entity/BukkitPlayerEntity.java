@@ -15,6 +15,7 @@ public class BukkitPlayerEntity extends RPGEntity {
 	public BukkitPlayerEntity(StatManager statManager, Player player) {
 		super(statManager, player.getUniqueId(), player.getName(), EntityType.PLAYER, BukkitEffectManager.getInstance(),
 				BukkitEventBus.getInstance());
+		this.player = player;
 	}
 
 	public Player getPlayer() {

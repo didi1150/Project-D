@@ -1,8 +1,11 @@
 package dev.core.item;
 
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
+
+import dev.core.ability.impl.ParticleTestAbility;
 
 public class RPGItemRegistry {
 
@@ -14,6 +17,9 @@ public class RPGItemRegistry {
 	private RPGItemRegistry() {
 		this.allItems = new HashMap<String, RPGItem>();
 		this.allItemSets = new HashMap<String, RPGItemSet>();
+
+		addItem(new RPGItem("test_particles", "Particle Test", EquipmentSlot.MAIN_HAND, Arrays.asList(),
+				Arrays.asList(), Arrays.asList(new ParticleTestAbility())));
 	}
 
 	public static RPGItemRegistry getInstance() {

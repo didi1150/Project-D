@@ -17,17 +17,19 @@ public class RPGItem {
 	private final EquipmentSlot equipmentSlot;
 	private final Optional<RPGItemSet> itemSet;
 
-	public RPGItem(String id, String name, EquipmentSlot equipmentSlot) {
-		this(id, name, equipmentSlot, null);
+	public RPGItem(String id, String name, EquipmentSlot equipmentSlot, List<StatModifier> passiveStats,
+			List<StatModifier> activeStats, List<Ability> abilities) {
+		this(id, name, equipmentSlot, null, activeStats, activeStats, abilities);
 	}
 
-	public RPGItem(String id, String name, EquipmentSlot equipmentSlot, RPGItemSet itemSet) {
+	public RPGItem(String id, String name, EquipmentSlot equipmentSlot, RPGItemSet itemSet,
+			List<StatModifier> passiveStats, List<StatModifier> activeStats, List<Ability> abilities) {
+		this.passiveStats = passiveStats;
+		this.activeStats = activeStats;
+		this.abilities = abilities;
 		this.itemSet = Optional.ofNullable(itemSet);
 		this.id = id;
 		this.name = name;
-		this.passiveStats = new ArrayList<StatModifier>();
-		this.activeStats = new ArrayList<StatModifier>();
-		this.abilities = new ArrayList<>();
 		this.equipmentSlot = equipmentSlot;
 	}
 

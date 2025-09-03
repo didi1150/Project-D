@@ -36,7 +36,6 @@ public abstract class RPGEntity {
 
 	public void tick(long now) {
 		statManager.tick(now);
-		effectManagerInterface.tick(now);
 		equipmentManager.tick(now);
 		checkAlive();
 	}

@@ -6,10 +6,13 @@ import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 
+import org.bukkit.Bukkit;
+
 import dev.core.ability.Ability;
 import dev.core.ability.Effect;
 import dev.core.ability.EffectManagerInterface;
 import dev.core.ability.HealAbility;
+import dev.core.ability.impl.ParticleTestAbility;
 import dev.core.entity.RPGEntity;
 import dev.core.stat.StatType;
 
@@ -51,6 +54,16 @@ public class BukkitEffectManager implements EffectManagerInterface {
 			activeEffects.put(entity, effectsList);
 			return bukkitHealEffect;
 		}
+
+		if (ability instanceof ParticleTestAbility) {
+			BukkitParticleTestEffect effect = new BukkitParticleTestEffect();
+			Bukkit.broadcastMessage("Cooldown: " + ability.getCooldown());
+			effect.cast(entity, () -> setCooldown(entity, ability));
+			List<Effect> effectsList = activeEffects.getOrDefault(entity, new ArrayList<Effect>());
+			effectsList.add(effect);
+			activeEffects.put(entity, effectsList);
+			return effect;
+		}
 		return null;
 	}
 
@@ -91,7 +104,9 @@ public class BukkitEffectManager implements EffectManagerInterface {
 	}
 
 	private boolean isOnCooldown(RPGEntity entity, Ability ability) {
-		return remainingCooldown(entity, ability) > 0;
+		long remainingCooldown = remainingCooldown(entity, ability);
+		Bukkit.broadcastMessage(remainingCooldown + "ms left");
+		return remainingCooldown > 0;
 	}
 
 	/**
@@ -203,30 +218,30 @@ public class BukkitEffectManager implements EffectManagerInterface {
 	public void tick(long now) {
 
 		// 1. Tick active effects and cleanup
-	    for (Map.Entry<RPGEntity, List<Effect>> entry : new ArrayList<>(activeEffects.entrySet())) {
-	        RPGEntity entity = entry.getKey();
-	        List<Effect> effects = entry.getValue();
+		for (Map.Entry<RPGEntity, List<Effect>> entry : new ArrayList<>(activeEffects.entrySet())) {
+			RPGEntity entity = entry.getKey();
+			List<Effect> effects = entry.getValue();
 
-	        // Tick each effect
-	        for (Effect effect : new ArrayList<>(effects)) {
-	            effect.tick(entity, now);
+			// Tick each effect
+			for (Effect effect : new ArrayList<>(effects)) {
+				effect.tick(entity, now);
 
-	            if (effect.hasExpired(now)) {
-	                effect.cancel(); // ensure cleanup
-	                effects.remove(effect);
-	            }
-	        }
+				if (effect.hasExpired(now)) {
+					effect.cancel(); // ensure cleanup
+					effects.remove(effect);
+				}
+			}
 
-	        // Remove entity from map if no active effects left
-	        if (effects.isEmpty()) {
-	            activeEffects.remove(entity);
-	        }
-	    }
+			// Remove entity from map if no active effects left
+			if (effects.isEmpty()) {
+				activeEffects.remove(entity);
+			}
+		}
 
-	    // 2. Cleanup expired cooldowns
-	    for (RPGEntity entity : new ArrayList<>(cooldowns.keySet())) {
-	        cleanupExpiredCooldowns(entity);
-	    }
+		// 2. Cleanup expired cooldowns
+		for (RPGEntity entity : new ArrayList<>(cooldowns.keySet())) {
+			cleanupExpiredCooldowns(entity);
+		}
 	}
 
 }
