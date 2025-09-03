@@ -5,8 +5,11 @@ import java.util.List;
 
 import org.bukkit.ChatColor;
 import org.bukkit.Material;
+import org.bukkit.NamespacedKey;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
+import org.bukkit.persistence.PersistentDataContainer;
+import org.bukkit.persistence.PersistentDataType;
 
 import dev.core.ability.Ability;
 import dev.core.item.RPGItem;
@@ -14,6 +17,8 @@ import dev.core.item.RPGItemSet;
 import dev.core.stat.StatModifier;
 
 public class ItemStackAdapter {
+
+	private static final NamespacedKey ITEM_ID_KEY = new NamespacedKey("project_d", "rpgitem_id");
 
 	public static ItemStack toItemStack(RPGItem rpgItem, Material material) {
 		ItemStack itemStack = new ItemStack(material);
@@ -33,7 +38,7 @@ public class ItemStackAdapter {
 			for (StatModifier stat : rpgItem.getPassiveStats()) {
 				lore.add(ChatColor.BLUE + formatStat(stat));
 			}
-			lore.add(""); // empty line
+			lore.add("");
 		}
 
 		// --- Active stats ---
@@ -42,7 +47,7 @@ public class ItemStackAdapter {
 			for (StatModifier stat : rpgItem.getActiveStats()) {
 				lore.add(ChatColor.GREEN + formatStat(stat));
 			}
-			lore.add(""); // empty line
+			lore.add("");
 		}
 
 		// --- Abilities ---
@@ -51,9 +56,9 @@ public class ItemStackAdapter {
 			for (Ability ability : rpgItem.getAbilities()) {
 				lore.add(ChatColor.YELLOW + ability.getName() + ChatColor.GRAY + " - " + ability.getDescription());
 				if (ability.getCooldown() > 0) {
-					lore.add(ChatColor.DARK_GRAY + "Cooldown: " + ability.getCooldown() / 1000 + "s");
+					lore.add(ChatColor.DARK_GRAY + "Cooldown: " + ability.getCooldown() / 1000.0 + "s");
 				}
-				lore.add(""); // spacing between abilities
+				lore.add("");
 			}
 		}
 
@@ -68,15 +73,29 @@ public class ItemStackAdapter {
 		}
 
 		meta.setLore(lore);
-		itemStack.setItemMeta(meta);
 
+		// --- Persist RPG Item ID ---
+		PersistentDataContainer pdc = meta.getPersistentDataContainer();
+		pdc.set(ITEM_ID_KEY, PersistentDataType.STRING, rpgItem.getId());
+
+		itemStack.setItemMeta(meta);
 		return itemStack;
 	}
 
-	private static String formatStat(StatModifier stat) {
-		// Example: "+50 Health" or "+10% Crit Chance"
-		String sign = stat.amount >= 0 ? "+" : "-";
-		return sign + stat.amount + " " + stat.statType.name();
+	public static String getRpgItemId(ItemStack itemStack) {
+		if (itemStack == null || !itemStack.hasItemMeta()) {
+			return null;
+		}
+		ItemMeta meta = itemStack.getItemMeta();
+		if (meta == null) {
+			return null;
+		}
+		PersistentDataContainer pdc = meta.getPersistentDataContainer();
+		return pdc.get(ITEM_ID_KEY, PersistentDataType.STRING);
 	}
 
+	private static String formatStat(StatModifier stat) {
+		String sign = stat.amount >= 0 ? "+" : "";
+		return sign + stat.amount + " " + stat.statType.name();
+	}
 }
