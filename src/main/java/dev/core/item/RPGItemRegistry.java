@@ -8,10 +8,12 @@ public class RPGItemRegistry {
 
 	private static RPGItemRegistry instance;
 
-	private Map<String, RPGItem> allItems;
+	private final Map<String, RPGItem> allItems;
+	private final Map<String, RPGItemSet> allItemSets;
 
 	private RPGItemRegistry() {
 		this.allItems = new HashMap<String, RPGItem>();
+		this.allItemSets = new HashMap<String, RPGItemSet>();
 	}
 
 	public static RPGItemRegistry getInstance() {
@@ -22,6 +24,9 @@ public class RPGItemRegistry {
 	}
 
 	private void addItem(RPGItem item) {
+		if (allItems.containsKey(item.getId())) {
+			return;
+		}
 		allItems.put(item.getId(), item);
 	}
 
@@ -30,6 +35,20 @@ public class RPGItemRegistry {
 			return Optional.empty();
 		}
 		return Optional.of(allItems.get(id));
+	}
+
+	private void addItemSet(RPGItemSet itemSet) {
+		if (allItemSets.containsKey(itemSet.getId())) {
+			return;
+		}
+		allItemSets.put(itemSet.getId(), itemSet);
+	}
+
+	public Optional<RPGItemSet> getItemSet(String id) {
+		if (!allItemSets.containsKey(id)) {
+			return Optional.empty();
+		}
+		return Optional.of(allItemSets.get(id));
 	}
 
 }

@@ -2,6 +2,7 @@ package dev.core.item;
 
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 
@@ -10,6 +11,7 @@ import dev.core.ability.AbilityAction;
 import dev.core.ability.AbilityTriggerType;
 import dev.core.ability.Effect;
 import dev.core.ability.EffectManagerInterface;
+import dev.core.ability.SetBonus;
 import dev.core.entity.RPGEntity;
 import dev.core.event.Event;
 import dev.core.event.EventAction;
@@ -19,19 +21,23 @@ import dev.core.stat.StatType;
 
 public class EquipmentManager {
 
-	private Map<EquipmentSlot, RPGItem> equippedActiveItems;
-	private List<RPGItem> inventoryPassiveItems; // Items in inventory that provide passive stats
-	private RPGEntity holder;
+	private final Map<EquipmentSlot, RPGItem> equippedActiveItems;
+	private final List<RPGItem> inventoryPassiveItems; // Items in inventory that provide passive stats
+	private final RPGEntity holder;
 
 	// Track applied stat modifiers for easy removal
-	private Map<EquipmentSlot, List<StatModifier>> appliedActiveStats;
-	private Map<RPGItem, List<StatModifier>> appliedPassiveStats;
+	private final Map<EquipmentSlot, List<StatModifier>> appliedActiveStats;
+	private final Map<RPGItem, List<StatModifier>> appliedPassiveStats;
+
+	private final Map<RPGItemSet, Integer> activeSetCounts;
+	private final Map<RPGItemSet, SetBonus> appliedBonuses;
 
 	/**
 	 * Ability ID, EventAction ID
 	 */
 
-	private Map<String, String> registeredAutoAbilities;
+	private final Map<String, String> registeredAutoAbilities;
+	private final List<Ability> temporaryAbilities;
 
 	private EventBusInterface eventBus;
 	private EffectManagerInterface effectManager;
@@ -46,6 +52,9 @@ public class EquipmentManager {
 		this.appliedActiveStats = new HashMap<>();
 		this.appliedPassiveStats = new HashMap<>();
 		this.registeredAutoAbilities = new HashMap<String, String>();
+		this.temporaryAbilities = new ArrayList<Ability>();
+		this.activeSetCounts = new HashMap<RPGItemSet, Integer>();
+		this.appliedBonuses = new HashMap<RPGItemSet, SetBonus>();
 	}
 
 	/**
@@ -70,6 +79,8 @@ public class EquipmentManager {
 
 		// Register automatic abilities for this equipped item
 		registerAutomaticAbilities(item);
+
+		recalcSets();
 	}
 
 	/**
@@ -90,8 +101,10 @@ public class EquipmentManager {
 		// Remove from equipped items
 		equippedActiveItems.remove(slot);
 
-		// Optionally add back to inventory for passive stats
+		// add back to inventory for passive stats
 		addToInventory(currentItem);
+
+		recalcSets();
 	}
 
 	/**
@@ -113,6 +126,29 @@ public class EquipmentManager {
 		}
 	}
 
+	public void addTemporaryAbility(Ability ability) {
+		if (!temporaryAbilities.contains(ability)) {
+			temporaryAbilities.add(ability);
+
+			if (ability.getTriggerType() == AbilityTriggerType.AUTOMATIC) {
+				EventAction<? extends Event> eventAction = new EventAction<>(event -> {
+					triggerSingleAbility(ability, effectManager);
+				}, ability.getTriggerEvent().getClass());
+				registeredAutoAbilities.put(ability.getId(), eventAction.getId());
+				eventBus.subscribe(eventAction);
+			}
+		}
+	}
+
+	public void removeTemporaryAbility(Ability ability) {
+		temporaryAbilities.remove(ability);
+		if (ability.getTriggerType() == AbilityTriggerType.AUTOMATIC) {
+			if (registeredAutoAbilities.containsKey(ability.getId())) {
+				eventBus.unsubscribe(registeredAutoAbilities.get(ability.getId()));
+			}
+		}
+	}
+
 	/**
 	 * Trigger manual abilities based on player action
 	 */
@@ -126,6 +162,13 @@ public class EquipmentManager {
 
 			for (Ability ability : manualAbilities) {
 				triggerSingleAbility(ability, effectManager);
+			}
+		}
+
+		// Trigger set abilities
+		for (Ability setAbility : temporaryAbilities) {
+			if (setAbility.getTriggerType() == AbilityTriggerType.MANUAL && setAbility.getAction() == abilityAction) {
+				triggerSingleAbility(setAbility, effectManager);
 			}
 		}
 	}
@@ -172,6 +215,46 @@ public class EquipmentManager {
 
 	// ========================================================= PRIVATE HELPER
 	// METHODS ======================================
+
+	private void recalcSets() {
+		// 1. Count pieces per set
+		Map<RPGItemSet, Integer> counts = new HashMap<>();
+		for (RPGItem item : equippedActiveItems.values()) {
+			item.getItemSet().ifPresent(set -> {
+				counts.put(set, counts.getOrDefault(set, 0) + 1);
+			});
+		}
+
+		// 2. Remove bonuses that no longer apply
+		for (Iterator<Map.Entry<RPGItemSet, SetBonus>> it = appliedBonuses.entrySet().iterator(); it.hasNext();) {
+			Map.Entry<RPGItemSet, SetBonus> entry = it.next();
+			RPGItemSet set = entry.getKey();
+			SetBonus bonus = entry.getValue();
+
+			int currentCount = counts.getOrDefault(set, 0);
+			if (set.getBonusForPieces(currentCount).orElse(null) != bonus) {
+				bonus.remove(holder); // remove stats + abilities
+				it.remove();
+			}
+		}
+
+		// 3. Apply new bonuses
+		for (Map.Entry<RPGItemSet, Integer> entry : counts.entrySet()) {
+			RPGItemSet set = entry.getKey();
+			int pieceCount = entry.getValue();
+
+			set.getBonusForPieces(pieceCount).ifPresent(bonus -> {
+				if (!appliedBonuses.containsKey(set)) {
+					bonus.apply(holder); // apply stats + abilities
+					appliedBonuses.put(set, bonus);
+				}
+			});
+		}
+
+		// 4. Update active counts
+		activeSetCounts.clear();
+		activeSetCounts.putAll(counts);
+	}
 
 	private void applyActiveStats(EquipmentSlot slot, RPGItem item) {
 		List<StatModifier> activeStats = item.getActiveStats();
