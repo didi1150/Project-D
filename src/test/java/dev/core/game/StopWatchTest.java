@@ -5,11 +5,9 @@ import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 
-import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.mockbukkit.mockbukkit.MockBukkit;
 
 import dev.core.MockClock;
 
@@ -29,10 +27,6 @@ class StopWatchTest {
 		stopWatch.reset();
 	}
 
-	@AfterAll
-	static void tearDownMock() {
-		MockBukkit.unmock();
-	}
 
 	@Test
 	void testRunFiveSeconds() {

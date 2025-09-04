@@ -1,12 +1,20 @@
-package dev.bukkit.event;
+package dev.bukkit.event.bukkitListeners;
 
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
+import org.bukkit.event.entity.EntityDamageByEntityEvent;
 import org.bukkit.event.entity.EntityDamageEvent;
 import org.bukkit.event.entity.PlayerDeathEvent;
 import org.bukkit.event.inventory.InventoryClickEvent;
-import org.bukkit.event.player.*;
+import org.bukkit.event.player.PlayerChangedWorldEvent;
+import org.bukkit.event.player.PlayerInteractEvent;
+import org.bukkit.event.player.PlayerItemHeldEvent;
+import org.bukkit.event.player.PlayerJoinEvent;
+import org.bukkit.event.player.PlayerQuitEvent;
+import org.bukkit.event.player.PlayerSwapHandItemsEvent;
 import org.spigotmc.event.player.PlayerSpawnLocationEvent;
+
+import dev.bukkit.event.BukkitEventBus;
 
 public class EventListener implements Listener {
 
@@ -29,6 +37,11 @@ public class EventListener implements Listener {
 	}
 
 	@EventHandler
+	public void onPlayerHandsSwap(PlayerSwapHandItemsEvent event) {
+		BukkitEventBus.getInstance().sendEvent(event);
+	}
+
+	@EventHandler
 	public void onPlayerChangedWorld(PlayerChangedWorldEvent event) {
 		BukkitEventBus.getInstance().sendEvent(event);
 	}
@@ -45,6 +58,11 @@ public class EventListener implements Listener {
 
 	@EventHandler
 	public void onDamaged(EntityDamageEvent event) {
+		BukkitEventBus.getInstance().sendEvent(event);
+	}
+
+	@EventHandler
+	public void onDamagedByEntity(EntityDamageByEntityEvent event) {
 		BukkitEventBus.getInstance().sendEvent(event);
 	}
 

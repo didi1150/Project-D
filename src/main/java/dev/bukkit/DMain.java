@@ -7,7 +7,9 @@ import org.bukkit.scheduler.BukkitTask;
 import dev.bukkit.ability.BukkitEffectManager;
 import dev.bukkit.command.CommandManager;
 import dev.bukkit.event.BukkitEventBus;
-import dev.bukkit.event.EventListener;
+import dev.bukkit.event.bukkitListeners.CancelledListener;
+import dev.bukkit.event.bukkitListeners.CombatListener;
+import dev.bukkit.event.bukkitListeners.EventListener;
 import dev.bukkit.event.subscribers.PlayerSubscriber;
 import dev.core.ability.EffectManagerInterface;
 import dev.core.entity.EntityManager;
@@ -20,6 +22,7 @@ public final class DMain extends JavaPlugin {
 	private RPGItemRegistry itemRegistry;
 	private EntityManager entityManager;
 	private BukkitTask runTaskTimer;
+	private CombatListener combatListener;
 
 	@Override
 	public void onEnable() {
@@ -33,7 +36,9 @@ public final class DMain extends JavaPlugin {
 		eventBusInterface = BukkitEventBus.getInstance();
 		CommandManager.getInstance().registerCommands(this);
 		Bukkit.getPluginManager().registerEvents(new EventListener(), this);
-
+		Bukkit.getPluginManager().registerEvents(new CancelledListener(), this);
+		combatListener = new CombatListener(this);
+		Bukkit.getPluginManager().registerEvents(combatListener, this);
 		new PlayerSubscriber(eventBusInterface, this).subscribe();
 
 		runTaskTimer = Bukkit.getScheduler().runTaskTimer(this, () -> {
@@ -46,5 +51,6 @@ public final class DMain extends JavaPlugin {
 	public void onDisable() {
 		runTaskTimer.cancel();
 		effectManagerInterface.cancelAll();
+		combatListener.cleanup();
 	}
 }

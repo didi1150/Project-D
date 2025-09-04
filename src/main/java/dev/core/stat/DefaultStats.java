@@ -25,7 +25,7 @@ public class DefaultStats {
 		stats.put(StatType.ATTACK_SPEED, new CombatStat("ATTACK_SPEED", 1));
 		stats.put(StatType.LETHALITY, new CombatStat("LETHALITY", 0));
 		stats.put(StatType.ARMOR_PENETRATION, new CombatStat("ARMOR_PENETRATION", 0));
-		stats.put(StatType.CRIT_CHANCE, new CombatStat("CRIT_CHANCE", 0));
+		stats.put(StatType.CRIT_CHANCE, new CombatStat("CRIT_CHANCE", 100));
 		stats.put(StatType.MOVE_SPEED, new CombatStat("MOVE_SPEED", 100));
 		CombatStat healthRegenStat = new CombatStat("HEALTH_REGEN", 2);
 		stats.put(StatType.HEALTH_REGEN, healthRegenStat);

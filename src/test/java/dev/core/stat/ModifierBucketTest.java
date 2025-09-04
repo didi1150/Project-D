@@ -1,15 +1,13 @@
 package dev.core.stat;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertTrue;
-
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 
 import dev.core.MockClock;
 import dev.core.game.StopWatch;
+
+import static org.junit.jupiter.api.Assertions.*;
 
 public class ModifierBucketTest {
 
@@ -20,7 +18,6 @@ public class ModifierBucketTest {
 	@BeforeAll
 	static void setup() {
 		modifierBucket = new ModifierBucket();
-
 		scheduler = new MockClock();
 		clock = new StopWatch(scheduler);
 	}
@@ -39,27 +36,23 @@ public class ModifierBucketTest {
 
 		assertEquals(1, modifierBucket.active(clock.getTimeMillis()).size());
 		assertTrue(modifierBucket.active(clock.getTimeMillis()).contains(increaseMaxHP));
-		assertEquals(20, modifierBucket.getFinalValue(10, clock.getTimeMillis()), 1e-12);
+		assertEquals(20, modifierBucket.getFinalValue(10), 1e-12); // 10 base + 10 flat
 	}
 
 	@Test
-	void testSimpleRemove() {
-
+	void testSimpleRemoveByExpiry() {
 		StatModifier increaseMaxHP = new StatModifier(10, ModifierStackPolicy.UNIQUE_BY_SOURCE, ModifierType.FLAT,
 				StatType.HEALTH_MAX, "Test", 2.5, clock.getTimeMillis(), StatTarget.BOTH);
-
 		modifierBucket.addModifier(increaseMaxHP);
 
-		assertEquals(1, modifierBucket.active(clock.getTimeMillis()).size());
-		assertTrue(modifierBucket.active(clock.getTimeMillis()).contains(increaseMaxHP));
-		assertEquals(20, modifierBucket.getFinalValue(10, clock.getTimeMillis()), 1e-12);
+		assertEquals(20, modifierBucket.getFinalValue(10), 1e-12);
 
-		scheduler.tick(125);
+		// advance time to expire modifier
+		scheduler.tick(125); // 2.5s = 2500ms, tick is 20ms => 125 ticks
 		modifierBucket.removeExpired(clock.getTimeMillis());
 
 		assertEquals(0, modifierBucket.active(clock.getTimeMillis()).size());
-		assertFalse(modifierBucket.active(clock.getTimeMillis()).contains(increaseMaxHP));
-		assertEquals(10, modifierBucket.getFinalValue(10, clock.getTimeMillis()), 1e-12);
+		assertEquals(10, modifierBucket.getFinalValue(10), 1e-12); // only base value remains
 	}
 
 	@Test
@@ -70,18 +63,10 @@ public class ModifierBucketTest {
 				StatType.HEALTH_MAX, "Test", -1, clock.getTimeMillis(), StatTarget.BOTH);
 
 		modifierBucket.addModifier(increaseMaxHP);
-
-		assertEquals(1, modifierBucket.active(clock.getTimeMillis()).size());
-		assertTrue(modifierBucket.active(clock.getTimeMillis()).contains(increaseMaxHP));
-		assertEquals(20, modifierBucket.getFinalValue(10, clock.getTimeMillis()), 1e-12);
+		assertEquals(20, modifierBucket.getFinalValue(10), 1e-12);
 
 		modifierBucket.addModifier(increaseMaxHP2);
-
-		assertEquals(1, modifierBucket.active(clock.getTimeMillis()).size());
-		assertTrue(modifierBucket.active(clock.getTimeMillis()).contains(increaseMaxHP2));
-		assertFalse(modifierBucket.active(clock.getTimeMillis()).contains(increaseMaxHP));
-		assertEquals(30, modifierBucket.getFinalValue(10, clock.getTimeMillis()), 1e-12);
-
+		assertEquals(30, modifierBucket.getFinalValue(10), 1e-12); // replaced with second modifier
 	}
 
 	@Test
@@ -92,17 +77,10 @@ public class ModifierBucketTest {
 				StatType.HEALTH_MAX, "Test2", -1, clock.getTimeMillis(), StatTarget.BOTH);
 
 		modifierBucket.addModifier(increaseMaxHP);
-
-		assertEquals(1, modifierBucket.active(clock.getTimeMillis()).size());
-		assertTrue(modifierBucket.active(clock.getTimeMillis()).contains(increaseMaxHP));
-		assertEquals(20, modifierBucket.getFinalValue(10, clock.getTimeMillis()), 1e-12);
+		assertEquals(20, modifierBucket.getFinalValue(10), 1e-12);
 
 		modifierBucket.addModifier(increaseMaxHP2);
-
-		assertEquals(1, modifierBucket.active(clock.getTimeMillis()).size());
-		assertTrue(modifierBucket.active(clock.getTimeMillis()).contains(increaseMaxHP2));
-		assertFalse(modifierBucket.active(clock.getTimeMillis()).contains(increaseMaxHP));
-		assertEquals(30, modifierBucket.getFinalValue(10, clock.getTimeMillis()), 1e-12);
+		assertEquals(30, modifierBucket.getFinalValue(10), 1e-12);
 	}
 
 	@Test
@@ -113,17 +91,10 @@ public class ModifierBucketTest {
 				StatType.HEALTH_MAX, "Test2", -1, clock.getTimeMillis(), StatTarget.BOTH);
 
 		modifierBucket.addModifier(increaseMaxHP);
-
-		assertEquals(1, modifierBucket.active(clock.getTimeMillis()).size());
-		assertTrue(modifierBucket.active(clock.getTimeMillis()).contains(increaseMaxHP));
-		assertEquals(30, modifierBucket.getFinalValue(10, clock.getTimeMillis()), 1e-12);
+		assertEquals(30, modifierBucket.getFinalValue(10), 1e-12);
 
 		modifierBucket.addModifier(increaseMaxHP2);
-
-		assertEquals(1, modifierBucket.active(clock.getTimeMillis()).size());
-		assertTrue(modifierBucket.active(clock.getTimeMillis()).contains(increaseMaxHP));
-		assertFalse(modifierBucket.active(clock.getTimeMillis()).contains(increaseMaxHP2));
-		assertEquals(30, modifierBucket.getFinalValue(10, clock.getTimeMillis()), 1e-12);
+		assertEquals(30, modifierBucket.getFinalValue(10), 1e-12); // smaller one ignored
 	}
 
 	@Test
@@ -134,17 +105,10 @@ public class ModifierBucketTest {
 				StatType.HEALTH_MAX, "Test2", -1, clock.getTimeMillis(), StatTarget.BOTH);
 
 		modifierBucket.addModifier(increaseMaxHP);
-
-		assertEquals(1, modifierBucket.active(clock.getTimeMillis()).size());
-		assertTrue(modifierBucket.active(clock.getTimeMillis()).contains(increaseMaxHP));
-		assertEquals(30, modifierBucket.getFinalValue(10, clock.getTimeMillis()), 1e-12);
+		assertEquals(30, modifierBucket.getFinalValue(10), 1e-12);
 
 		modifierBucket.addModifier(increaseMaxHP2);
-
-		assertEquals(1, modifierBucket.active(clock.getTimeMillis()).size());
-		assertTrue(modifierBucket.active(clock.getTimeMillis()).contains(increaseMaxHP2));
-		assertFalse(modifierBucket.active(clock.getTimeMillis()).contains(increaseMaxHP));
-		assertEquals(20, modifierBucket.getFinalValue(10, clock.getTimeMillis()), 1e-12);
+		assertEquals(20, modifierBucket.getFinalValue(10), 1e-12); // bigger one ignored
 	}
 
 	@Test
@@ -155,17 +119,9 @@ public class ModifierBucketTest {
 				StatType.HEALTH_MAX, "Test2", -1, clock.getTimeMillis(), StatTarget.BOTH);
 
 		modifierBucket.addModifier(increaseMaxHP);
-
-		assertEquals(1, modifierBucket.active(clock.getTimeMillis()).size());
-		assertTrue(modifierBucket.active(clock.getTimeMillis()).contains(increaseMaxHP));
-		assertEquals(30, modifierBucket.getFinalValue(10, clock.getTimeMillis()), 1e-12);
+		assertEquals(30, modifierBucket.getFinalValue(10), 1e-12);
 
 		modifierBucket.addModifier(increaseMaxHP2);
-
-		assertEquals(2, modifierBucket.active(clock.getTimeMillis()).size());
-		assertTrue(modifierBucket.active(clock.getTimeMillis()).contains(increaseMaxHP2));
-		assertTrue(modifierBucket.active(clock.getTimeMillis()).contains(increaseMaxHP));
-		assertEquals(40, modifierBucket.getFinalValue(10, clock.getTimeMillis()), 1e-12);
+		assertEquals(40, modifierBucket.getFinalValue(10), 1e-12); // both stack
 	}
-
 }

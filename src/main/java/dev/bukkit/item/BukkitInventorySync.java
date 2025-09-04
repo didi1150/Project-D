@@ -1,15 +1,20 @@
 package dev.bukkit.item;
 
+import java.util.Optional;
+
+import org.bukkit.Bukkit;
+import org.bukkit.attribute.Attribute;
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.ItemStack;
 
+import dev.bukkit.entity.BukkitPlayerEntity;
+import dev.core.entity.EntityManager;
 import dev.core.entity.RPGEntity;
-import dev.core.item.EquipmentSlot;
 import dev.core.item.EquipmentManager;
+import dev.core.item.EquipmentSlot;
 import dev.core.item.RPGItem;
 import dev.core.item.RPGItemRegistry;
-
-import java.util.Optional;
+import dev.core.stat.StatType;
 
 public class BukkitInventorySync {
 
@@ -36,6 +41,33 @@ public class BukkitInventorySync {
 		for (ItemStack stack : player.getInventory().getContents()) {
 			addPassiveIfApplicable(manager, stack);
 		}
+		syncAttackSpeed(player);
+	}
+
+	public static void updateMainHand(RPGEntity rpgEntity, Player player, int newSlot) {
+		EquipmentManager manager = rpgEntity.getEquipmentManager();
+		ItemStack newMainHandItem = player.getInventory().getItem(newSlot);
+
+		RPGItem newItem = resolveRpgItem(newMainHandItem);
+
+		manager.equipItem(EquipmentSlot.MAIN_HAND, newItem);
+		double currentValue = rpgEntity.getStatManager().getCurrentValue(StatType.ATTACK_DAMAGE,
+				System.currentTimeMillis());
+		Bukkit.broadcastMessage("Current AD after swap in Mainhand: " + currentValue);
+		syncAttackSpeed(player);
+	}
+
+	public static void updateMainAndOffHand(RPGEntity rpgEntity, Player player, ItemStack offHand, ItemStack mainHand) {
+		EquipmentManager manager = rpgEntity.getEquipmentManager();
+		manager.unequipItem(EquipmentSlot.MAIN_HAND);
+		manager.unequipItem(EquipmentSlot.OFF_HAND);
+
+		RPGItem mainItem = resolveRpgItem(mainHand);
+		manager.equipItem(EquipmentSlot.MAIN_HAND, mainItem);
+
+		RPGItem offItem = resolveRpgItem(offHand);
+		manager.equipItem(EquipmentSlot.OFF_HAND, offItem);
+		syncAttackSpeed(player);
 	}
 
 	/**
@@ -63,6 +95,7 @@ public class BukkitInventorySync {
 		for (ItemStack stack : player.getInventory().getContents()) {
 			addPassiveIfApplicable(manager, stack);
 		}
+		syncAttackSpeed(player);
 	}
 
 	public static void updateSlot(RPGEntity rpgEntity, EquipmentSlot slot, ItemStack newStack) {
@@ -84,9 +117,12 @@ public class BukkitInventorySync {
 			}
 		}
 
-		// No RPG item in this slot → unequip if necessary
+		// No RPG item in this slot -> unequip if necessary
 		if (currentlyEquipped != null) {
 			rpgEntity.getEquipmentManager().unequipItem(slot);
+		}
+		if (rpgEntity instanceof BukkitPlayerEntity playerEntity) {
+			syncAttackSpeed(playerEntity.getPlayer());
 		}
 	}
 
@@ -94,41 +130,44 @@ public class BukkitInventorySync {
 	 * Updates a slot by Bukkit slot index. 0–8: hotbar 9–35: main inventory 36–39:
 	 * armor (boots, leggings, chest, helmet) 40: offhand
 	 */
-	public static void updateSlotByIndex(RPGEntity rpgEntity, Player player, int slotIndex) {
+	public static void updateSlotByIndex(RPGEntity rpgEntity, Player player, int slotIndex, int previousSlot) {
 		ItemStack newStack = player.getInventory().getItem(slotIndex);
-		EquipmentSlot mappedSlot = mapIndexToEquipmentSlot(slotIndex, player);
+		EquipmentSlot mappedSlot = mapIndexToEquipmentSlot(slotIndex, player, previousSlot);
 
 		if (mappedSlot != null) {
 			updateSlot(rpgEntity, mappedSlot, newStack);
 		} else {
-			// Non-equipment slots → treat as passive inventory
+
+			// Non-equipment slots -> treat as passive inventory
 			String itemId = ItemStackAdapter.getRpgItemId(newStack);
 			if (itemId != null) {
 				RPGItemRegistry.getInstance().getItem(itemId)
 						.ifPresent(item -> rpgEntity.getEquipmentManager().addToInventory(item));
 			}
 		}
+
+		syncAttackSpeed(player);
 	}
 
 	/**
 	 * Maps a Bukkit inventory slot index to an EquipmentSlot. Returns null if it's
 	 * not an equipment slot.
 	 */
-	private static EquipmentSlot mapIndexToEquipmentSlot(int slotIndex, Player player) {
+	private static EquipmentSlot mapIndexToEquipmentSlot(int slotIndex, Player player, int previousSlot) {
 		switch (slotIndex) {
 		case 40:
 			return EquipmentSlot.OFF_HAND;
 		case 36:
-			return EquipmentSlot.FEET; // boots
+			return EquipmentSlot.FEET;
 		case 37:
-			return EquipmentSlot.LEGS; // leggings
+			return EquipmentSlot.LEGS;
 		case 38:
-			return EquipmentSlot.CHEST; // chestplate
+			return EquipmentSlot.CHEST;
 		case 39:
-			return EquipmentSlot.HEAD; // helmet
+			return EquipmentSlot.HEAD;
 		default:
 			// Handle main hand: Bukkit doesn't give it directly,
-			// but PlayerItemHeldEvent gives you the hotbar slot (0–8).
+			// but PlayerItemHeldEvent gives the hotbar slot (0–8).
 			int heldSlot = player.getInventory().getHeldItemSlot();
 			if (slotIndex == heldSlot) {
 				return EquipmentSlot.MAIN_HAND;
@@ -187,5 +226,29 @@ public class BukkitInventorySync {
 			}
 		}
 		return false;
+	}
+
+	private static double toMinecraftAttackSpeed(double rpgSpeed) {
+		// Base mapping: 1.0 RPG speed = 4.0 vanilla (hand)
+		double baseMcSpeed = 4.0;
+
+		// Scale linearly
+		double mcValue = baseMcSpeed * rpgSpeed;
+
+		// Clamp to valid range
+		if (mcValue < 0)
+			mcValue = 0;
+		if (mcValue > 1024)
+			mcValue = 1024;
+
+		return mcValue;
+	}
+
+	private static void syncAttackSpeed(Player player) {
+		EntityManager.getInstance().getEntity(player.getUniqueId()).ifPresent(entity -> {
+			double currentValue = entity.getStatManager().getCurrentValue(StatType.ATTACK_SPEED,
+					System.currentTimeMillis());
+			player.getAttribute(Attribute.ATTACK_SPEED).setBaseValue(toMinecraftAttackSpeed(currentValue));
+		});
 	}
 }

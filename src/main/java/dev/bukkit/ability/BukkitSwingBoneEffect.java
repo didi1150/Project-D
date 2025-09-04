@@ -5,6 +5,7 @@ import java.util.List;
 import java.util.Random;
 import java.util.UUID;
 
+import org.bukkit.Bukkit;
 import org.bukkit.Location;
 import org.bukkit.Material;
 import org.bukkit.Particle;
@@ -20,9 +21,12 @@ import org.bukkit.persistence.PersistentDataType;
 import org.bukkit.util.Vector;
 
 import dev.bukkit.entity.BukkitPlayerEntity;
+import dev.bukkit.event.bukkitListeners.CombatListener;
 import dev.bukkit.item.ItemStackAdapter;
 import dev.core.ability.Effect;
+import dev.core.entity.EntityManager;
 import dev.core.entity.RPGEntity;
+import dev.core.event.impl.RPGEntityDamageEvent.DamageType;
 import dev.core.stat.StatType;
 
 public class BukkitSwingBoneEffect extends Effect {
@@ -42,6 +46,9 @@ public class BukkitSwingBoneEffect extends Effect {
 	private Runnable resetCooldown;
 	private String uuid;
 	private ItemStack newItemStack;
+
+	private static final int BONE_DAMAGE = 0;
+	private static final double RETURN_DISTANCE_THRESHOLD = 0.5; // Distance to player to auto-complete return
 
 	public BukkitSwingBoneEffect() {
 		super(null, 1850, true);
@@ -154,6 +161,11 @@ public class BukkitSwingBoneEffect extends Effect {
 			}
 			dealDamage(playerEntity, now, backwardHits);
 
+			if (teleportLoc.distanceSquared(player.getLocation()) <= RETURN_DISTANCE_THRESHOLD) {
+				cleanup(player, teleportLoc, false);
+				resetCooldown.run();
+				return;
+			}
 		} else { // End of animation
 			cleanup(player, teleportLoc, false);
 			return;
@@ -166,11 +178,7 @@ public class BukkitSwingBoneEffect extends Effect {
 	}
 
 	private void cleanup(Player player, Location loc, boolean cooldown) {
-		ticks = 0;
-		if (armorStand != null && armorStand.isValid()) {
-			armorStand.remove();
-		}
-		inAnimation = false;
+		cancel();
 		PlayerInventory inv = player.getInventory();
 		for (int i = 0; i < inv.getSize(); i++) {
 			ItemStack item = inv.getItem(i);
@@ -204,8 +212,17 @@ public class BukkitSwingBoneEffect extends Effect {
 				if (!hitList.contains(le.getUniqueId())) {
 					hitList.add(le.getUniqueId());
 
-					double attackDamage = playerEntity.getStatManager().getCurrentValue(StatType.ATTACK_DAMAGE, now);
-					le.damage(hitOutward ? attackDamage : attackDamage * 2);
+					double multiplier = hitReturn ? 2 : 1;
+					double attackDamage = (playerEntity.getStatManager().getCurrentValue(StatType.ATTACK_DAMAGE, now)
+							+ BONE_DAMAGE) * multiplier;
+					Bukkit.broadcastMessage("hit Entity for " + (hitReturn ? "double damage" : "single damage") + " ("
+							+ attackDamage + ")");
+					EntityManager.getInstance().getEntity(entity.getUniqueId()).ifPresentOrElse(target -> {
+						target.dealRPGDamage(playerEntity, target, attackDamage, DamageType.PHYSICAL);
+					}, () -> {
+						// Visuals
+						CombatListener.damageMob(le, attackDamage, player);
+					});
 					Vector knockbackDirection = le.getLocation().toVector()
 							.subtract(armorStand.getLocation().toVector()).normalize();
 					le.setVelocity(knockbackDirection.multiply(0.1));

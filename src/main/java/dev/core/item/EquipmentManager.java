@@ -66,6 +66,9 @@ public class EquipmentManager {
 			unequipItem(slot);
 		}
 
+		if (item == null) {
+			return;
+		}
 		// Remove item from passive inventory if it was there
 		if (inventoryPassiveItems.contains(item)) {
 			removeFromInventory(item);
@@ -258,6 +261,7 @@ public class EquipmentManager {
 
 	private void applyActiveStats(EquipmentSlot slot, RPGItem item) {
 		List<StatModifier> activeStats = item.getActiveStats();
+		System.out.println("Applied stats from slot " + slot.name() + " (" + activeStats.size() + ")");
 		if (activeStats.isEmpty()) {
 			return;
 		}

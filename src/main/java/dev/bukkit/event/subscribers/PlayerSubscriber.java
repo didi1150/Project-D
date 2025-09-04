@@ -3,8 +3,8 @@ package dev.bukkit.event.subscribers;
 import java.util.Optional;
 
 import org.bukkit.Bukkit;
+import org.bukkit.GameMode;
 import org.bukkit.entity.Player;
-import org.bukkit.event.entity.PlayerDeathEvent;
 import org.bukkit.event.inventory.InventoryClickEvent;
 import org.bukkit.event.player.PlayerInteractEvent;
 import org.bukkit.event.player.PlayerItemHeldEvent;
@@ -12,6 +12,7 @@ import org.bukkit.event.player.PlayerJoinEvent;
 import org.bukkit.event.player.PlayerMoveEvent;
 import org.bukkit.event.player.PlayerQuitEvent;
 import org.bukkit.event.player.PlayerRespawnEvent;
+import org.bukkit.event.player.PlayerSwapHandItemsEvent;
 import org.bukkit.event.player.PlayerToggleSneakEvent;
 import org.bukkit.plugin.Plugin;
 import org.spigotmc.event.player.PlayerSpawnLocationEvent;
@@ -23,8 +24,10 @@ import dev.core.entity.EntityManager;
 import dev.core.entity.RPGEntity;
 import dev.core.event.EventAction;
 import dev.core.event.EventBusInterface;
+import dev.core.event.impl.RPGEntityDeathEvent;
 import dev.core.stat.DefaultStats;
 import dev.core.stat.StatManager;
+import dev.core.stat.StatType;
 
 public class PlayerSubscriber {
 
@@ -50,6 +53,7 @@ public class PlayerSubscriber {
 		subscribeRespawn();
 		subscribeInventoryClick();
 		subscribeSpawnWorld();
+		subscribeSwapHands();
 	}
 
 	public void subscribeJoin() {
@@ -87,11 +91,31 @@ public class PlayerSubscriber {
 		eventBus.subscribe(new EventAction<>(event -> {
 			Optional<RPGEntity> optional = EntityManager.getInstance().getEntity(event.getPlayer().getUniqueId());
 			optional.ifPresent(rpgEntity -> {
+				Bukkit.broadcastMessage("StatManager: " + rpgEntity.getStatManager() + " Old Slot: "
+						+ event.getPreviousSlot() + " Current AD: " + rpgEntity.getStatManager()
+								.getCurrentValue(StatType.ATTACK_DAMAGE, System.currentTimeMillis()));
 				Bukkit.getScheduler().runTask(plugin, () -> {
-					BukkitInventorySync.updateSlotByIndex(rpgEntity, event.getPlayer(), event.getNewSlot());
+					BukkitInventorySync.updateMainHand(rpgEntity, event.getPlayer(), event.getNewSlot());
+					Bukkit.broadcastMessage("StatManager: " + rpgEntity.getStatManager() + " New Slot: "
+							+ event.getNewSlot() + " Changed AD: " + rpgEntity.getStatManager()
+									.getCurrentValue(StatType.ATTACK_DAMAGE, System.currentTimeMillis()));
 				});
+
 			});
 		}, PlayerItemHeldEvent.class));
+	}
+
+	public void subscribeSwapHands() {
+		eventBus.subscribe(new EventAction<>(event -> {
+			Optional<RPGEntity> optional = EntityManager.getInstance().getEntity(event.getPlayer().getUniqueId());
+			optional.ifPresent(rpgEntity -> {
+				Bukkit.getScheduler().runTask(plugin, () -> {
+					BukkitInventorySync.updateMainAndOffHand(rpgEntity, event.getPlayer(), event.getOffHandItem(),
+							event.getMainHandItem());
+				});
+
+			});
+		}, PlayerSwapHandItemsEvent.class));
 	}
 
 	public void subscribeInteract() {
@@ -141,12 +165,6 @@ public class PlayerSubscriber {
 		}, PlayerToggleSneakEvent.class));
 	}
 
-	public void subscribeDeath() {
-		eventBus.subscribe(new EventAction<>(event -> {
-			// TODO
-		}, PlayerDeathEvent.class));
-	}
-
 	public void subscribeRespawn() {
 		eventBus.subscribe(new EventAction<>(event -> {
 			Optional<RPGEntity> optional = EntityManager.getInstance().getEntity(event.getPlayer().getUniqueId());
@@ -163,13 +181,28 @@ public class PlayerSubscriber {
 			if (event.getWhoClicked() instanceof Player player) {
 				Optional<RPGEntity> optional = EntityManager.getInstance().getEntity(player.getUniqueId());
 				if (optional.isPresent()) {
-					int slot = event.getSlot();
 					Bukkit.getScheduler().runTask(plugin, () -> {
-						BukkitInventorySync.updateSlotByIndex(optional.get(), player, slot);
+						BukkitInventorySync.syncInventoryDiff(optional.get(), player);
 					});
 				}
 			}
 		}, InventoryClickEvent.class));
 
+	}
+
+	public void subscribeDeath() {
+		eventBus.subscribe(new EventAction<>(event -> {
+			if (event.getTarget() instanceof BukkitPlayerEntity entity) {
+				entity.getPlayer().setGameMode(GameMode.SPECTATOR);
+				Bukkit.broadcastMessage(
+						"Player " + entity.getPlayer().getDisplayName() + " is dead. Respawning in 3s.");
+				Bukkit.getScheduler().runTaskLater(plugin, () -> {
+					EntityManager.getInstance().revive(entity.getUuid());
+					entity.setHealth(entity.getMaxHealth());
+					entity.getPlayer().setGameMode(GameMode.SURVIVAL);
+					entity.setAlive(true);
+				}, 20 * 3);
+			}
+		}, RPGEntityDeathEvent.class));
 	}
 }

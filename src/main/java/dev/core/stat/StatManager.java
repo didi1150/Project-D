@@ -27,6 +27,9 @@ public class StatManager {
 	public void tick(long now) {
 		for (Stat stat : stats.values()) {
 			stat.modifierBucket.removeExpired(now);
+			if (stat instanceof ResourceStat rs) {
+				rs.tick(now);
+			}
 		}
 	}
 
@@ -41,6 +44,11 @@ public class StatManager {
 	public double getMaxValue(StatType type, long now) {
 		Stat stat = stats.get(type);
 		return stat.getMax(now);
+	}
+
+	public void setCurrentValue(StatType type, double value) {
+		Stat stat = stats.get(type);
+		stat.setCurrent(value);
 	}
 
 	public void modifyStat(StatType type, double delta) {

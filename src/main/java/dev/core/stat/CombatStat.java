@@ -8,7 +8,7 @@ public class CombatStat extends Stat {
 
 	@Override
 	public double getCurrent(long now) {
-		return modifierBucket.getFinalValue(current, now);
+		return modifierBucket.getFinalValue(current);
 	}
 
 	@Override

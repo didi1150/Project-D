@@ -8,7 +8,7 @@ import java.util.stream.Collectors;
 
 import org.bukkit.event.Cancellable;
 
-import dev.core.event.CancellableEvent;
+import dev.core.event.CoreCancellable;
 import dev.core.event.EventAction;
 import dev.core.event.EventBusInterface;
 
@@ -73,9 +73,10 @@ public class BukkitEventBus implements EventBusInterface {
 	public <E> void sendEvent(E event) {
 		List<EventAction<E>> eventActions = getSubscribedOfType((Class<E>) event.getClass());
 		for (EventAction<E> eventAction : eventActions) {
-			if (event instanceof CancellableEvent cancellableEvent) {
-				if (cancellableEvent.isCancelled())
+			if (event instanceof CoreCancellable coreCancellable) {
+				if (coreCancellable.isCancelled()) {
 					break;
+				}
 			}
 			if (event instanceof Cancellable cancellable) {
 				if (cancellable.isCancelled())
@@ -88,9 +89,10 @@ public class BukkitEventBus implements EventBusInterface {
 	public <E> void sendEvent(E event, Function<E, Boolean> condition) {
 		List<EventAction<E>> eventActions = getSubscribedOfType((Class<E>) event.getClass());
 		for (EventAction<E> eventAction : eventActions) {
-			if (event instanceof CancellableEvent cancellableEvent) {
-				if (cancellableEvent.isCancelled())
+			if (event instanceof CoreCancellable coreCancellable) {
+				if (coreCancellable.isCancelled()) {
 					break;
+				}
 			}
 			if (event instanceof Cancellable cancellable) {
 				if (cancellable.isCancelled())
