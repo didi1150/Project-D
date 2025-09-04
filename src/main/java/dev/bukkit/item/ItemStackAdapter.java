@@ -2,6 +2,7 @@ package dev.bukkit.item;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.UUID;
 
 import org.bukkit.ChatColor;
 import org.bukkit.Material;
@@ -19,6 +20,7 @@ import dev.core.stat.StatModifier;
 public class ItemStackAdapter {
 
 	private static final NamespacedKey ITEM_ID_KEY = new NamespacedKey("project_d", "rpgitem_id");
+	public static final NamespacedKey UUID_ID_KEY = new NamespacedKey("project_d", "uuid");
 
 	public static ItemStack toItemStack(RPGItem rpgItem, Material material) {
 		ItemStack itemStack = new ItemStack(material);
@@ -77,6 +79,7 @@ public class ItemStackAdapter {
 		// --- Persist RPG Item ID ---
 		PersistentDataContainer pdc = meta.getPersistentDataContainer();
 		pdc.set(ITEM_ID_KEY, PersistentDataType.STRING, rpgItem.getId());
+		pdc.set(UUID_ID_KEY, PersistentDataType.STRING, UUID.randomUUID().toString());
 
 		itemStack.setItemMeta(meta);
 		return itemStack;

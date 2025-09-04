@@ -6,6 +6,10 @@ import java.util.Map;
 import java.util.Optional;
 
 import dev.core.ability.impl.ParticleTestAbility;
+import dev.core.ability.impl.SwingBoneAbility;
+import dev.core.stat.ModifierType;
+import dev.core.stat.StatModifier;
+import dev.core.stat.StatType;
 
 public class RPGItemRegistry {
 
@@ -20,6 +24,11 @@ public class RPGItemRegistry {
 
 		addItem(new RPGItem("test_particles", "Particle Test", EquipmentSlot.MAIN_HAND, Arrays.asList(),
 				Arrays.asList(), Arrays.asList(new ParticleTestAbility())));
+		addItem(RPGItem.builder("BONEMERANG", "Bonemerang", EquipmentSlot.MAIN_HAND)
+				.withAbilities(Arrays.asList(new SwingBoneAbility()))
+				.withActiveStats(Arrays.asList(new StatModifier(270, ModifierType.FLAT, StatType.ATTACK_DAMAGE,
+						"BONE_SWING", System.currentTimeMillis())))
+				.build());
 	}
 
 	public static RPGItemRegistry getInstance() {

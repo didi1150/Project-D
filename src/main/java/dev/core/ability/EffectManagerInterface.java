@@ -12,4 +12,5 @@ public interface EffectManagerInterface {
 
 	void tick(long now);
 
+	void cancelAll();
 }

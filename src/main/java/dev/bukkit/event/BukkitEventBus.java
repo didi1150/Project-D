@@ -1,15 +1,16 @@
 package dev.bukkit.event;
 
-import dev.core.event.CancellableEvent;
-import dev.core.event.EventAction;
-import dev.core.event.EventBusInterface;
-import org.bukkit.event.Cancellable;
-
 import java.util.ArrayList;
 import java.util.List;
 import java.util.NoSuchElementException;
 import java.util.function.Function;
 import java.util.stream.Collectors;
+
+import org.bukkit.event.Cancellable;
+
+import dev.core.event.CancellableEvent;
+import dev.core.event.EventAction;
+import dev.core.event.EventBusInterface;
 
 public class BukkitEventBus implements EventBusInterface {
 

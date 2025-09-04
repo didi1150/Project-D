@@ -10,7 +10,7 @@ import dev.core.entity.RPGEntity;
 public class BukkitHealEffect extends Effect {
 
 	public BukkitHealEffect() {
-		super(null, 1);
+		super(null, 1, false);
 	}
 
 	public void displayParticles(RPGEntity caster) {
@@ -20,7 +20,7 @@ public class BukkitHealEffect extends Effect {
 	}
 
 	@Override
-	public void cast(RPGEntity caster, Runnable startCooldown) {
+	public void cast(RPGEntity caster, Runnable startCooldown, Runnable resetCooldown) {
 		displayParticles(caster);
 	}
 

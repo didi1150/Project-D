@@ -9,11 +9,11 @@ import dev.core.entity.RPGEntity;
 public class BukkitParticleTestEffect extends Effect {
 
 	public BukkitParticleTestEffect() {
-		super(null, 1);
+		super(null, 1, false);
 	}
 
 	@Override
-	public void cast(RPGEntity caster, Runnable startCooldown) {
+	public void cast(RPGEntity caster, Runnable startCooldown, Runnable resetCooldown) {
 		if (caster instanceof BukkitPlayerEntity playerEntity) {
 			startCooldown.run();
 			playerEntity.getPlayer().playEffect(playerEntity.getPlayer().getLocation(), org.bukkit.Effect.BLAZE_SHOOT,

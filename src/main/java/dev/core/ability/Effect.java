@@ -8,11 +8,13 @@ public abstract class Effect {
 	private final Event cancelEvent;
 	private final long startTime; // when this effect started
 	private final long duration; // how long this effect lasts (ms), <= 0 means infinite
+	private final boolean singleInstance;
 
-	public Effect(Event cancelEvent, long duration) {
+	public Effect(Event cancelEvent, long duration, boolean singleInstance) {
 		this.cancelEvent = cancelEvent;
 		this.startTime = System.currentTimeMillis();
 		this.duration = duration;
+		this.singleInstance = singleInstance;
 	}
 
 	/**
@@ -20,7 +22,7 @@ public abstract class Effect {
 	 * should be invoked when the effect decides it's appropriate to trigger
 	 * cooldown.
 	 */
-	public abstract void cast(RPGEntity caster, Runnable startCooldown);
+	public abstract void cast(RPGEntity caster, Runnable startCooldown, Runnable resetCooldown);
 
 	/**
 	 * Called when the effect is forcefully ended (dispelled, interrupted, etc).
@@ -51,5 +53,9 @@ public abstract class Effect {
 
 	public long getDuration() {
 		return duration;
+	}
+
+	public boolean isSingleInstance() {
+		return singleInstance;
 	}
 }
