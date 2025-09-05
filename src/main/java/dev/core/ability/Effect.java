@@ -9,12 +9,14 @@ public abstract class Effect {
 	private final long startTime; // when this effect started
 	private final long duration; // how long this effect lasts (ms), <= 0 means infinite
 	private final boolean singleInstance;
+	private final String cooldownKey;
 
-	public Effect(Event cancelEvent, long duration, boolean singleInstance) {
+	public Effect(Event cancelEvent, long duration, boolean singleInstance, String cooldownKey) {
 		this.cancelEvent = cancelEvent;
 		this.startTime = System.currentTimeMillis();
 		this.duration = duration;
 		this.singleInstance = singleInstance;
+		this.cooldownKey = cooldownKey;
 	}
 
 	/**
@@ -57,5 +59,9 @@ public abstract class Effect {
 
 	public boolean isSingleInstance() {
 		return singleInstance;
+	}
+
+	public String getCooldownKey() {
+		return cooldownKey;
 	}
 }

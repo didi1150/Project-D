@@ -8,8 +8,8 @@ import dev.core.entity.RPGEntity;
 
 public class BukkitParticleTestEffect extends Effect {
 
-	public BukkitParticleTestEffect() {
-		super(null, 1, false);
+	public BukkitParticleTestEffect(String cooldownKey) {
+		super(null, 1, false, cooldownKey);
 	}
 
 	@Override

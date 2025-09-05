@@ -20,9 +20,10 @@ import org.bukkit.inventory.meta.ItemMeta;
 import org.bukkit.persistence.PersistentDataType;
 import org.bukkit.util.Vector;
 
+import dev.bukkit.DMain;
 import dev.bukkit.entity.BukkitPlayerEntity;
-import dev.bukkit.event.bukkitListeners.CombatListener;
 import dev.bukkit.item.ItemStackAdapter;
+import dev.bukkit.utils.DamageUtils;
 import dev.core.ability.Effect;
 import dev.core.entity.EntityManager;
 import dev.core.entity.RPGEntity;
@@ -50,8 +51,12 @@ public class BukkitSwingBoneEffect extends Effect {
 	private static final int BONE_DAMAGE = 0;
 	private static final double RETURN_DISTANCE_THRESHOLD = 0.5; // Distance to player to auto-complete return
 
-	public BukkitSwingBoneEffect() {
-		super(null, 1850, true);
+	public BukkitSwingBoneEffect(String cooldownKey) {
+		super(null, 1850, true, cooldownKey);
+	}
+
+	public String getUuid() {
+		return uuid;
 	}
 
 	private void startBoneProjectile(Player player) {
@@ -179,6 +184,39 @@ public class BukkitSwingBoneEffect extends Effect {
 
 	private void cleanup(Player player, Location loc, boolean cooldown) {
 		cancel();
+
+		if (startCooldown != null && cooldown) {
+			player.getWorld().spawnParticle(Particle.SNOWFLAKE, loc, 50);
+			startCooldown.run();
+			long baseCooldownTime = 3000;
+			EntityManager.getInstance().getEntity(player.getUniqueId()).ifPresentOrElse(entity -> {
+				long reducedCooldownTime = (long) (baseCooldownTime * 100 / (100
+						+ entity.getStatManager().getCurrentValue(StatType.ABILITY_HASTE, System.currentTimeMillis())));
+				Bukkit.getScheduler().runTaskLater(DMain.getInstance(), () -> {
+					resetItem(player);
+
+					player.playSound(loc, Sound.BLOCK_WOOD_PLACE, new Random().nextFloat(0.3f, 0.6f),
+							new Random().nextFloat(1.25f, 1.5f));
+				}, reducedCooldownTime / 1000 * 20);
+			}, () -> {
+				Bukkit.getScheduler().runTaskLater(DMain.getInstance(), () -> {
+					resetItem(player);
+
+					player.playSound(loc, Sound.BLOCK_WOOD_PLACE, new Random().nextFloat(0.3f, 0.6f),
+							new Random().nextFloat(1.25f, 1.5f));
+				}, baseCooldownTime / 1000 * 20);
+			});
+			player.playSound(loc, Sound.ENTITY_ITEM_BREAK, new Random().nextFloat(0.3f, 0.6f),
+					new Random().nextFloat(0.8f, 1.2f));
+		} else {
+			resetItem(player);
+			resetCooldown.run();
+			player.playSound(loc, Sound.BLOCK_WOOD_PLACE, new Random().nextFloat(0.3f, 0.6f),
+					new Random().nextFloat(1.25f, 1.5f));
+		}
+	}
+
+	private void resetItem(Player player) {
 		PlayerInventory inv = player.getInventory();
 		for (int i = 0; i < inv.getSize(); i++) {
 			ItemStack item = inv.getItem(i);
@@ -188,17 +226,6 @@ public class BukkitSwingBoneEffect extends Effect {
 				inv.setItem(i, newItemStack);
 				break;
 			}
-		}
-
-		if (startCooldown != null && cooldown) {
-			player.getWorld().spawnParticle(Particle.SNOWFLAKE, loc, 50);
-			startCooldown.run();
-			player.playSound(loc, Sound.ENTITY_ITEM_BREAK, new Random().nextFloat(0.3f, 0.6f),
-					new Random().nextFloat(0.8f, 1.2f));
-		} else {
-			resetCooldown.run();
-			player.playSound(loc, Sound.BLOCK_WOOD_PLACE, new Random().nextFloat(0.3f, 0.6f),
-					new Random().nextFloat(1.25f, 1.5f));
 		}
 	}
 
@@ -215,13 +242,11 @@ public class BukkitSwingBoneEffect extends Effect {
 					double multiplier = hitReturn ? 2 : 1;
 					double attackDamage = (playerEntity.getStatManager().getCurrentValue(StatType.ATTACK_DAMAGE, now)
 							+ BONE_DAMAGE) * multiplier;
-					Bukkit.broadcastMessage("hit Entity for " + (hitReturn ? "double damage" : "single damage") + " ("
-							+ attackDamage + ")");
 					EntityManager.getInstance().getEntity(entity.getUniqueId()).ifPresentOrElse(target -> {
 						target.dealRPGDamage(playerEntity, target, attackDamage, DamageType.PHYSICAL);
 					}, () -> {
 						// Visuals
-						CombatListener.damageMob(le, attackDamage, player);
+						DamageUtils.damageMob(le, attackDamage, player);
 					});
 					Vector knockbackDirection = le.getLocation().toVector()
 							.subtract(armorStand.getLocation().toVector()).normalize();

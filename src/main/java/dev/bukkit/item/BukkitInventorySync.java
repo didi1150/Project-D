@@ -53,7 +53,6 @@ public class BukkitInventorySync {
 		manager.equipItem(EquipmentSlot.MAIN_HAND, newItem);
 		double currentValue = rpgEntity.getStatManager().getCurrentValue(StatType.ATTACK_DAMAGE,
 				System.currentTimeMillis());
-		Bukkit.broadcastMessage("Current AD after swap in Mainhand: " + currentValue);
 		syncAttackSpeed(player);
 	}
 

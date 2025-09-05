@@ -26,7 +26,7 @@ public class RPGItemRegistry {
 				Arrays.asList(), Arrays.asList(new ParticleTestAbility())));
 		addItem(RPGItem.builder("BONEMERANG", "Bonemerang", EquipmentSlot.MAIN_HAND)
 				.withAbilities(Arrays.asList(new SwingBoneAbility()))
-				.withActiveStats(Arrays.asList(new StatModifier(5, ModifierType.FLAT, StatType.ATTACK_DAMAGE,
+				.withActiveStats(Arrays.asList(new StatModifier(20, ModifierType.FLAT, StatType.ATTACK_DAMAGE,
 						"BONE_SWING", System.currentTimeMillis())))
 				.build());
 	}

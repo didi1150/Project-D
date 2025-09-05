@@ -4,6 +4,7 @@ import dev.core.ability.Ability;
 import dev.core.ability.AbilityAction;
 import dev.core.ability.AbilityCost;
 import dev.core.ability.AbilityTriggerType;
+import dev.core.ability.CooldownScope;
 import dev.core.ability.Effect;
 import dev.core.entity.RPGEntity;
 import dev.core.event.Event;
@@ -58,4 +59,8 @@ public class ParticleTestAbility implements Ability {
 		return AbilityCost.noCost();
 	}
 
+	@Override
+	public CooldownScope getScope() {
+		return CooldownScope.PLAYER;
+	}
 }

@@ -16,6 +16,8 @@ public interface Ability {
 	Event getTriggerEvent();
 
 	AbilityAction getAction();
+	
+	CooldownScope getScope();
 
 	Effect activate(RPGEntity caster);
 

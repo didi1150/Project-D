@@ -8,22 +8,25 @@ import java.util.UUID;
 import org.bukkit.Bukkit;
 import org.bukkit.Location;
 import org.bukkit.World;
-import org.bukkit.damage.DamageSource;
 import org.bukkit.entity.Display;
 import org.bukkit.entity.Entity;
 import org.bukkit.entity.LivingEntity;
-import org.bukkit.entity.Player;
 import org.bukkit.entity.TextDisplay;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
+import org.bukkit.event.entity.CreatureSpawnEvent;
+import org.bukkit.event.entity.CreatureSpawnEvent.SpawnReason;
 import org.bukkit.event.entity.EntityDamageByEntityEvent;
 import org.bukkit.event.entity.EntityDamageEvent;
 import org.bukkit.event.entity.EntityDamageEvent.DamageCause;
+import org.bukkit.metadata.FixedMetadataValue;
 import org.bukkit.plugin.Plugin;
 import org.bukkit.scheduler.BukkitRunnable;
 import org.bukkit.util.Transformation;
 
+import dev.bukkit.entity.VanillaEntityMeta;
+import dev.bukkit.utils.DamageUtils;
 import dev.core.entity.EntityManager;
 import dev.core.entity.RPGDamageResult;
 import dev.core.event.impl.RPGEntityDamageEvent.DamageResult;
@@ -327,9 +330,6 @@ public class CombatListener implements Listener {
 				showPhysicalDamage(event.getEntity().getLocation(), rpgDamage.getDamage(), rpgDamage.getResult());
 			});
 
-			// Debug message
-			Bukkit.broadcastMessage("Damage dealt to: " + entity.getName());
-
 			// Prevent double damage; actual RPG system handles it
 			event.setDamage(0.001);
 
@@ -359,16 +359,27 @@ public class CombatListener implements Listener {
 
 				showPhysicalDamage(event.getEntity().getLocation(), event.getDamage(), DamageResult.NORMAL);
 			});
+
 		});
 	}
 
-	public static void damageMob(LivingEntity le, double damage, Player player) {
-		le.damage(0.001, player);
-		if (le.getHealth() > 0) {
-			le.setHealth(Math.max(le.getHealth() - damage, 0));
-			Bukkit.getPluginManager().callEvent(new EntityDamageByEntityEvent(player, le, DamageCause.CUSTOM,
-					DamageSource.builder(org.bukkit.damage.DamageType.GENERIC).build(), damage));
+	@EventHandler
+	public void onEntitySpawn(CreatureSpawnEvent event) {
+		if (event.getSpawnReason() == SpawnReason.CUSTOM) {
+			return;
 		}
+		LivingEntity entity = event.getEntity();
+		if (entity.isInvisible()) {
+			return;
+		}
+
+		VanillaEntityMeta meta = new VanillaEntityMeta(1, DamageUtils.getRelation(entity));
+
+		// Store metadata
+		entity.setMetadata("VANILLA_META", new FixedMetadataValue(plugin, meta));
+
+		// Set initial custom name
+		DamageUtils.updateName(entity);
 	}
 
 }

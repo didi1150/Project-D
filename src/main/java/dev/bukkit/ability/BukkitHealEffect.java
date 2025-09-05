@@ -9,8 +9,8 @@ import dev.core.entity.RPGEntity;
  */
 public class BukkitHealEffect extends Effect {
 
-	public BukkitHealEffect() {
-		super(null, 1, false);
+	public BukkitHealEffect(String cooldownKey) {
+		super(null, 1, false, cooldownKey);
 	}
 
 	public void displayParticles(RPGEntity caster) {

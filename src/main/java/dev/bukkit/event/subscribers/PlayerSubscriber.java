@@ -91,14 +91,8 @@ public class PlayerSubscriber {
 		eventBus.subscribe(new EventAction<>(event -> {
 			Optional<RPGEntity> optional = EntityManager.getInstance().getEntity(event.getPlayer().getUniqueId());
 			optional.ifPresent(rpgEntity -> {
-				Bukkit.broadcastMessage("StatManager: " + rpgEntity.getStatManager() + " Old Slot: "
-						+ event.getPreviousSlot() + " Current AD: " + rpgEntity.getStatManager()
-								.getCurrentValue(StatType.ATTACK_DAMAGE, System.currentTimeMillis()));
 				Bukkit.getScheduler().runTask(plugin, () -> {
 					BukkitInventorySync.updateMainHand(rpgEntity, event.getPlayer(), event.getNewSlot());
-					Bukkit.broadcastMessage("StatManager: " + rpgEntity.getStatManager() + " New Slot: "
-							+ event.getNewSlot() + " Changed AD: " + rpgEntity.getStatManager()
-									.getCurrentValue(StatType.ATTACK_DAMAGE, System.currentTimeMillis()));
 				});
 
 			});

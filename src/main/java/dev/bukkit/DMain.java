@@ -24,8 +24,11 @@ public final class DMain extends JavaPlugin {
 	private BukkitTask runTaskTimer;
 	private CombatListener combatListener;
 
+	private static DMain instance;
+
 	@Override
 	public void onEnable() {
+		instance = this;
 		// Plugin startup logic
 		Bukkit.getConsoleSender().sendMessage("Dmain started.");
 
@@ -35,8 +38,8 @@ public final class DMain extends JavaPlugin {
 
 		eventBusInterface = BukkitEventBus.getInstance();
 		CommandManager.getInstance().registerCommands(this);
-		Bukkit.getPluginManager().registerEvents(new EventListener(), this);
-		Bukkit.getPluginManager().registerEvents(new CancelledListener(), this);
+		Bukkit.getPluginManager().registerEvents(new EventListener(this), this);
+		Bukkit.getPluginManager().registerEvents(new CancelledListener(this), this);
 		combatListener = new CombatListener(this);
 		Bukkit.getPluginManager().registerEvents(combatListener, this);
 		new PlayerSubscriber(eventBusInterface, this).subscribe();
@@ -52,5 +55,9 @@ public final class DMain extends JavaPlugin {
 		runTaskTimer.cancel();
 		effectManagerInterface.cancelAll();
 		combatListener.cleanup();
+	}
+
+	public static DMain getInstance() {
+		return instance;
 	}
 }
