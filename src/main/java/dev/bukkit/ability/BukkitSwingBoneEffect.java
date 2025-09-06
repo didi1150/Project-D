@@ -12,6 +12,7 @@ import org.bukkit.Particle;
 import org.bukkit.Sound;
 import org.bukkit.entity.ArmorStand;
 import org.bukkit.entity.Entity;
+import org.bukkit.entity.EntityType;
 import org.bukkit.entity.LivingEntity;
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.ItemStack;
@@ -235,7 +236,7 @@ public class BukkitSwingBoneEffect extends Effect {
 				.getNearbyEntities(armorStand.getLocation().clone().add(0, 1.575, 0), 0.4, 0.4, 0.4);
 
 		for (Entity entity : nearbyEntities) {
-			if (entity instanceof LivingEntity le && entity != player) {
+			if (entity instanceof LivingEntity le && entity != player && entity.getType() != EntityType.PLAYER) {
 				if (!hitList.contains(le.getUniqueId())) {
 					hitList.add(le.getUniqueId());
 
