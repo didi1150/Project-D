@@ -23,7 +23,7 @@ import org.bukkit.util.Vector;
 
 import dev.bukkit.DMain;
 import dev.bukkit.entity.BukkitPlayerEntity;
-import dev.bukkit.item.ItemStackAdapter;
+import dev.bukkit.item.BukkitItemStackAdapter;
 import dev.bukkit.utils.DamageUtils;
 import dev.core.ability.Effect;
 import dev.core.entity.EntityManager;
@@ -106,7 +106,7 @@ public class BukkitSwingBoneEffect extends Effect {
 		if (caster instanceof BukkitPlayerEntity playerEntity) {
 			Player player = playerEntity.getPlayer();
 			uuid = player.getInventory().getItemInMainHand().getItemMeta().getPersistentDataContainer()
-					.get(ItemStackAdapter.UUID_ID_KEY, PersistentDataType.STRING);
+					.get(BukkitItemStackAdapter.UUID_ID_KEY, PersistentDataType.STRING);
 			newItemStack = copyItemStackWithMaterial(player.getInventory().getItemInMainHand(), Material.GHAST_TEAR);
 			player.getInventory().setItemInMainHand(newItemStack);
 			this.startCooldown = startCooldown;
@@ -222,7 +222,7 @@ public class BukkitSwingBoneEffect extends Effect {
 		for (int i = 0; i < inv.getSize(); i++) {
 			ItemStack item = inv.getItem(i);
 			if (item != null && uuid.equals(item.getItemMeta().getPersistentDataContainer()
-					.get(ItemStackAdapter.UUID_ID_KEY, PersistentDataType.STRING))) {
+					.get(BukkitItemStackAdapter.UUID_ID_KEY, PersistentDataType.STRING))) {
 				newItemStack = copyItemStackWithMaterial(item, Material.BONE);
 				inv.setItem(i, newItemStack);
 				break;

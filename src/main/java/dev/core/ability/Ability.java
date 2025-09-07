@@ -1,31 +1,98 @@
 package dev.core.ability;
 
-import dev.core.entity.RPGEntity;
+import java.util.List;
+
 import dev.core.event.Event;
 
-public interface Ability {
+public abstract class Ability {
 
-	String getId();
+	private final String id;
+	private String name;
+	private List<String> description;
+	private AbilityTriggerType triggerType;
+	/**
+	 * Only set when the ability is automatic
+	 */
+	private Event triggerEvent;
+	private AbilityAction action;
+	private CooldownScope scope;
+	private long cooldown;
+	private AbilityCost cost;
 
-	String getName();
+	public Ability(String id, Event triggerEvent, AbilityCost abilityCost) {
+		this.id = id;
+		this.triggerEvent = triggerEvent;
+		cost = abilityCost;
+	}
 
-	String getDescription();
+	public Ability(String id) {
+		this(id, null, AbilityCost.noCost());
+	}
 
-	AbilityTriggerType getTriggerType();
-	
-	Event getTriggerEvent();
+	public String getId() {
+		return id;
+	}
 
-	AbilityAction getAction();
-	
-	CooldownScope getScope();
+	public String getName() {
+		return name;
+	}
 
-	Effect activate(RPGEntity caster);
+	public void setName(String name) {
+		this.name = name;
+	}
+
+	public List<String> getDescription() {
+		return description;
+	}
+
+	public void setDescription(List<String> description) {
+		this.description = description;
+	}
+
+	public AbilityTriggerType getTriggerType() {
+		return triggerType;
+	}
+
+	public void setTriggerType(AbilityTriggerType triggerType) {
+		this.triggerType = triggerType;
+	}
+
+	public Event getTriggerEvent() {
+		return triggerEvent;
+	}
+
+	public AbilityAction getAction() {
+		return action;
+	}
+
+	public void setAction(AbilityAction action) {
+		this.action = action;
+	}
+
+	public CooldownScope getScope() {
+		return scope;
+	}
+
+	public void setScope(CooldownScope scope) {
+		this.scope = scope;
+	}
 
 	/**
 	 * Cooldown in millis
 	 */
-	long getCooldown();
+	public long getCooldown() {
+		return cooldown;
+	}
 
-	AbilityCost getCost();
+	public void setCooldown(long cooldown) {
+		this.cooldown = cooldown;
+	}
 
+	public AbilityCost getCost() {
+		return cost;
+	}
+
+	public void setCost(AbilityCost cost) {
+		this.cost = cost;
+	}
 }

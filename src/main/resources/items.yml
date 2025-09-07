@@ -1,0 +1,14 @@
+items:
+  BONEMERANG:
+    name: Bonemerang
+    material: BONE
+    slot: MAIN_HAND
+    passive-stats: []
+    active-stats:
+    - amount: 20.0
+      statType: ATTACK_DAMAGE
+      modifierType: FLAT
+      statTarget: BOTH
+      policy: STACK
+    abilities:
+    - BONE_SWING

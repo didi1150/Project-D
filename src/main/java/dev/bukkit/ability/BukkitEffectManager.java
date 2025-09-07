@@ -10,7 +10,7 @@ import org.bukkit.entity.Player;
 import org.bukkit.persistence.PersistentDataType;
 
 import dev.bukkit.entity.BukkitPlayerEntity;
-import dev.bukkit.item.ItemStackAdapter;
+import dev.bukkit.item.BukkitItemStackAdapter;
 import dev.core.ability.Ability;
 import dev.core.ability.CooldownScope;
 import dev.core.ability.Effect;
@@ -112,7 +112,7 @@ public class BukkitEffectManager implements EffectManagerInterface {
 		if (entity instanceof BukkitPlayerEntity playerEntity) {
 			Player player = playerEntity.getPlayer();
 			return player.getInventory().getItemInMainHand().getItemMeta().getPersistentDataContainer()
-					.get(ItemStackAdapter.UUID_ID_KEY, PersistentDataType.STRING);
+					.get(BukkitItemStackAdapter.UUID_ID_KEY, PersistentDataType.STRING);
 		}
 
 		return ability.getId();
@@ -201,7 +201,7 @@ public class BukkitEffectManager implements EffectManagerInterface {
 		if (entity instanceof BukkitPlayerEntity playerEntity) {
 			Player player = playerEntity.getPlayer();
 			return player.getInventory().getItemInMainHand().getItemMeta().getPersistentDataContainer()
-					.get(ItemStackAdapter.UUID_ID_KEY, PersistentDataType.STRING);
+					.get(BukkitItemStackAdapter.UUID_ID_KEY, PersistentDataType.STRING);
 		}
 
 		// Fallback to ability id if no UUID

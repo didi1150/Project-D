@@ -4,3 +4,4 @@ main: dev.bukkit.DMain
 api-version: '1.21'
 commands:
   giveItem: 
+  saveItem: 

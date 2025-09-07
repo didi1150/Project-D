@@ -14,7 +14,7 @@ public class BukkitHealEffect extends Effect {
 	}
 
 	public void displayParticles(RPGEntity caster) {
-		if (caster instanceof BukkitPlayerEntity entity) {
+		if (caster instanceof BukkitPlayerEntity) {
 //			entity.getPlayer().stuff();
 		}
 	}

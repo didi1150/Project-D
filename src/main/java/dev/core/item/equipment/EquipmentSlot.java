@@ -1,4 +1,4 @@
-package dev.core.item;
+package dev.core.item.equipment;
 
 public enum EquipmentSlot {
 

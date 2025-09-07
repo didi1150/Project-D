@@ -1,0 +1,120 @@
+package dev.bukkit.item.display;
+
+import java.util.ArrayList;
+import java.util.List;
+
+import org.bukkit.ChatColor;
+
+import dev.core.ability.Ability;
+import dev.core.ability.AbilityTriggerType;
+import dev.core.item.RPGItem;
+import dev.core.item.display.RPGItemLoreRenderer;
+import dev.core.item.display.StyleTagParser;
+import dev.core.item.display.TextColor;
+import dev.core.item.display.TextStyle;
+import dev.core.item.display.TextStyle.TextFormatter;
+import dev.core.stat.StatModifier;
+
+public class BukkitLoreRenderer implements RPGItemLoreRenderer {
+
+    @Override
+    public List<String> render(RPGItem item) {
+        List<String> lore = new ArrayList<>();
+
+        // Passive stats
+        if (!item.getPassiveStats().isEmpty()) {
+            lore.add(colored(TextColor.GRAY, "Passive Stats:"));
+            for (StatModifier stat : item.getPassiveStats()) {
+                lore.add(colored(TextColor.BLUE, formatStat(stat)));
+            }
+            lore.add("");
+        }
+        // Active stats
+        if (!item.getActiveStats().isEmpty()) {
+            lore.add(colored(TextColor.GRAY, "Active Stats (Only applied when held):"));
+            for (StatModifier stat : item.getActiveStats()) {
+                lore.add(colored(TextColor.GREEN, formatStat(stat)));
+            }
+            lore.add("");
+        }
+
+        // --- Abilities ---
+        List<Ability> abilities = item.getAbilities();
+        if (!abilities.isEmpty()) {
+            lore.add(ChatColor.GOLD + "Item Abilities:");
+
+            StyleTagParser parser = new StyleTagParser(TextColor.GRAY);
+            for (int i = 0; i < abilities.size(); i++) {
+                Ability ability = abilities.get(i);
+                if (i > 1) {
+                    lore.add("");
+
+                }
+                lore.add(ChatColor.YELLOW.toString() + "Ability: " + ability.getName()
+                        + (ability.getTriggerType() == AbilityTriggerType.MANUAL ? " " + ChatColor.DARK_GRAY
+                                + ChatColor.BOLD + ability.getAction().toString().replaceAll("_", " ") : ""));
+
+                for (String line : ability.getDescription()) {
+                    StringBuilder parsedLine = new StringBuilder();
+
+                    for (StyleTagParser.StyledSegment seg : parser.parse(line)) {
+                        parsedLine.append(toChatFormatting(seg.style())).append(seg.text());
+                    }
+
+                    lore.add(parsedLine.toString());
+                }
+
+                if (ability.getCooldown() > 0) {
+                    lore.add(ChatColor.DARK_GRAY + "Cooldown: " + ability.getCooldown() / 1000.0 + "s");
+                }
+            }
+        }
+
+        // --- Item set ---
+        item.getItemSet().ifPresent(set -> {
+            lore.add(colored(TextColor.DARK_PURPLE, "Part of the " + set.getName() + " Set"));
+            set.getBonuses().forEach((pieces, bonus) -> {
+                lore.add(colored(TextColor.GRAY, pieces + "-Piece Bonus: ")
+                        + colored(TextColor.LIGHT_PURPLE, bonus.getDescription()));
+            });
+        });
+
+        return lore;
+    }
+
+    private String formatStat(StatModifier stat) {
+        return BukkitTextColorAdapter.toChatColor(stat.statType.getColor())
+                + stat.statType.formatValue(stat.amount, true);
+    }
+
+    private String colored(TextColor color, String text) {
+        return BukkitTextColorAdapter.toChatColor(color) + text;
+    }
+
+    /**
+     * Converts a TextStyle (color + formatters) into Bukkit ChatColor codes.
+     */
+    private String toChatFormatting(TextStyle style) {
+        StringBuilder sb = new StringBuilder();
+
+        // Apply color
+        sb.append(BukkitTextColorAdapter.toChatColor(style.color()));
+
+        // Apply formatters
+        for (TextFormatter fmt : style.formatters()) {
+            switch (fmt) {
+            case BOLD -> sb.append(ChatColor.BOLD);
+            case ITALIC -> sb.append(ChatColor.ITALIC);
+            case UNDERLINE -> sb.append(ChatColor.UNDERLINE);
+            case STRIKETHROUGH -> sb.append(ChatColor.STRIKETHROUGH);
+            case RESET -> sb.append(ChatColor.RESET).append(BukkitTextColorAdapter.toChatColor(style.color())); // restore
+                                                                                                                // color
+                                                                                                                // after
+                                                                                                                // reset
+            }
+        }
+
+        return sb.toString();
+    }
+
+}

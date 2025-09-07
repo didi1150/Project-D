@@ -1,4 +1,4 @@
-package dev.core.item;
+package dev.core.item.equipment;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -16,6 +16,8 @@ import dev.core.entity.RPGEntity;
 import dev.core.event.Event;
 import dev.core.event.EventAction;
 import dev.core.event.EventBusInterface;
+import dev.core.item.RPGItem;
+import dev.core.item.RPGItemSet;
 import dev.core.stat.StatModifier;
 import dev.core.stat.StatType;
 
@@ -261,7 +263,7 @@ public class EquipmentManager {
 
 	private void applyActiveStats(EquipmentSlot slot, RPGItem item) {
 		List<StatModifier> activeStats = item.getActiveStats();
-		System.out.println("Applied stats from slot " + slot.name() + " (" + activeStats.size() + ")");
+//		System.out.println("Applied stats from slot " + slot.name() + " (" + activeStats.size() + ")");
 		if (activeStats.isEmpty()) {
 			return;
 		}

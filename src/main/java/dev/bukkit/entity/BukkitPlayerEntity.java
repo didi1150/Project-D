@@ -6,74 +6,72 @@ import org.bukkit.entity.Player;
 
 import dev.bukkit.ability.BukkitEffectManager;
 import dev.bukkit.event.BukkitEventBus;
-import dev.bukkit.item.BukkitInventorySync;
 import dev.core.entity.EntityType;
 import dev.core.entity.RPGEntity;
-import dev.core.stat.StatManager;
 import net.md_5.bungee.api.ChatMessageType;
 import net.md_5.bungee.api.chat.TextComponent;
 
 public class BukkitPlayerEntity extends RPGEntity {
 
-	private Player player;
+    private Player player;
 
-	public BukkitPlayerEntity(StatManager statManager, Player player) {
-		super(statManager, player.getUniqueId(), player.getName(), EntityType.PLAYER, BukkitEffectManager.getInstance(),
-				BukkitEventBus.getInstance());
-		this.player = player;
-	}
+    public BukkitPlayerEntity(Player player) {
+        super(player.getUniqueId(), player.getName(), EntityType.PLAYER, BukkitEffectManager.getInstance(),
+                BukkitEventBus.getInstance());
+        this.player = player;
+    }
 
-	public Player getPlayer() {
-		return player;
-	}
+    public Player getPlayer() {
+        return player;
+    }
 
-	@Override
-	public void tick(long now) {
-		super.tick(now);
-		if (isAlive()) {
-			updatePlayerVanillaHealth();
-			updateDisplay();
-		}
-	}
+    @Override
+    public void tick(long now) {
+        super.tick(now);
+        if (isAlive()) {
+            updatePlayerVanillaHealth();
+            updateDisplay();
+        }
+    }
 
-	private double calculateVanillaHearts(double rpgHealth) {
-		if (rpgHealth <= 100) {
-			// Below or at base health: direct conversion (100 HP = 10 hearts)
-			return rpgHealth / 10.0;
-		}
+    private double calculateVanillaHearts(double rpgHealth) {
+        if (rpgHealth <= 100) {
+            // Below or at base health: direct conversion (100 HP = 10 hearts)
+            return rpgHealth / 10.0;
+        }
 
-		// Above base health: use scaling formula
-		double hearts = (100 + (rpgHealth - 100) * 2) / 10.0;
+        // Above base health: use scaling formula
+        double hearts = (100 + (rpgHealth - 100) * 2) / 10.0;
 
-		// Cap at 20 hearts (2 rows maximum)
-		return Math.min(hearts, 20.0);
-	}
+        // Cap at 20 hearts (2 rows maximum)
+        return Math.min(hearts, 20.0);
+    }
 
-	public void updatePlayerVanillaHealth() {
-		double vanillaHearts = calculateVanillaHearts(getMaxHealth());
-		double vanillaHP = vanillaHearts * 2; // Minecraft uses half-hearts (20 HP = 10 hearts)
+    public void updatePlayerVanillaHealth() {
+        double vanillaHearts = calculateVanillaHearts(getMaxHealth());
+        double vanillaHP = vanillaHearts * 2; // Minecraft uses half-hearts (20 HP = 10 hearts)
 
-		// Set max health attribute
-		AttributeInstance healthAttr = player.getAttribute(Attribute.MAX_HEALTH);
-		if (healthAttr != null) {
-			healthAttr.setBaseValue(vanillaHP);
-		}
+        // Set max health attribute
+        AttributeInstance healthAttr = player.getAttribute(Attribute.MAX_HEALTH);
+        if (healthAttr != null) {
+            healthAttr.setBaseValue(vanillaHP);
+        }
 
-		// Update current health proportionally
-		double healthPercentage = getHealth() / getMaxHealth();
-		double health = vanillaHP * healthPercentage;
-		if (health <= 0 || getHealth() <= 0) {
-			onDeath();
-		} else {
-			player.setHealth(health);
-		}
-	}
+        // Update current health proportionally
+        double healthPercentage = getHealth() / getMaxHealth();
+        double health = vanillaHP * healthPercentage;
+        if (health <= 0 || getHealth() <= 0) {
+            onDeath();
+        } else {
+            player.setHealth(health);
+        }
+    }
 
-	private void updateDisplay() {
-		String combinedText = String.format("§c %,.0f§7/§c%,.0f ❤   §b %,.0f§7/§b%,.0f ✦", getHealth(), getMaxHealth(),
-				getMana(), getMaxMana());
+    private void updateDisplay() {
+        String combinedText = String.format("§c %,.0f§7/§c%,.0f ❤   §b %,.0f§7/§b%,.0f ✦", getHealth(), getMaxHealth(),
+                getMana(), getMaxMana());
 
-		player.spigot().sendMessage(ChatMessageType.ACTION_BAR, new TextComponent(combinedText));
-	}
+        player.spigot().sendMessage(ChatMessageType.ACTION_BAR, new TextComponent(combinedText));
+    }
 
 }

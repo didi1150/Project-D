@@ -1,0 +1,21 @@
+abilities:
+  BONE_SWING:
+    name: Swing
+    description:
+      - "Throw the bone a short distance,"
+      - "dealing the damage an arrow would."
+      - ""
+      - "Deals <red><bold>double damage</bold></red> when coming"
+      - "back. Pierces up to <yellow>10</yellow> foes."
+    triggerType: MANUAL
+    action: RIGHT_CLICK
+    cooldownScope: ITEM
+    cooldown: 3000
+  PARTICLE_TEST_ABILITY:
+    name: Particle Test
+    description:
+    - "Tests Particles"
+    triggerType: MANUAL
+    action: RIGHT_CLICK
+    cooldownScope: PLAYER
+    cooldown: 0
