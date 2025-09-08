@@ -2,6 +2,7 @@ package dev.bukkit.item.display;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map.Entry;
 
 import org.bukkit.ChatColor;
 
@@ -14,6 +15,7 @@ import dev.core.item.display.TextColor;
 import dev.core.item.display.TextStyle;
 import dev.core.item.display.TextStyle.TextFormatter;
 import dev.core.stat.StatModifier;
+import dev.core.stat.StatType;
 
 public class BukkitLoreRenderer implements RPGItemLoreRenderer {
 
@@ -64,9 +66,22 @@ public class BukkitLoreRenderer implements RPGItemLoreRenderer {
                     lore.add(parsedLine.toString());
                 }
 
+                lore.add("");
+
+                lore.add(ChatColor.DARK_GRAY + "Cost: ");
+                if (ability.getCost().hasCost()) {
+                    for (Entry<String, Double> entry : ability.getCost().getResourceCosts().entrySet()) {
+                        StatType type = StatType.valueOf(entry.getKey());
+                        lore.add(BukkitTextColorAdapter.colored(type.getColor(),
+                                type.formatValue(entry.getValue(), true)));
+                    }
+                }
+                lore.add("");
+
                 if (ability.getCooldown() > 0) {
                     lore.add(ChatColor.DARK_GRAY + "Cooldown: " + ability.getCooldown() / 1000.0 + "s");
                 }
+
             }
         }
 

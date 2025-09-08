@@ -94,7 +94,7 @@ public enum StatType {
 
 		// Format value based on stat type
 		String formattedValue;
-		if (this == CRIT_CHANCE || this == MOVE_SPEED || this == ATTACK_SPEED) {
+		if (this == CRIT_CHANCE || this == ATTACK_SPEED) {
 			// Percentage stats
 			formattedValue = String.format("%.1f%%", value * 100);
 		} else if (value == (long) value) {

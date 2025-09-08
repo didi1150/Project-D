@@ -19,7 +19,7 @@ public class BukkitItemStackAdapter {
 
     private static final NamespacedKey ITEM_ID_KEY = new NamespacedKey("project_d", "rpgitem_id");
     public static final NamespacedKey UUID_ID_KEY = new NamespacedKey("project_d", "uuid");
-    public static final NamespacedKey UPDATEABLE_KEY = new NamespacedKey("yourplugin", "updateable_timestamp");
+    public static final NamespacedKey UPDATEABLE_KEY = new NamespacedKey("project_d", "updateable_timestamp");
     private static RPGItemLoreRenderer renderer = new BukkitLoreRenderer();
 
     public static void setRenderer(RPGItemLoreRenderer renderer) {
@@ -36,6 +36,7 @@ public class BukkitItemStackAdapter {
 
         meta.setDisplayName(BukkitTextColorAdapter.colored(TextColor.GOLD, rpgItem.getName()));
         meta.setLore(renderer.render(rpgItem));
+        meta.setUnbreakable(true);
 
         // Persist item id & uuid
         PersistentDataContainer pdc = meta.getPersistentDataContainer();

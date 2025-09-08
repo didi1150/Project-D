@@ -8,18 +8,21 @@ import dev.bukkit.ability.BukkitEffectManager;
 import dev.bukkit.event.BukkitEventBus;
 import dev.core.entity.EntityType;
 import dev.core.entity.RPGEntity;
+import dev.core.storage.database.PlayerProgression;
 import net.md_5.bungee.api.ChatMessageType;
 import net.md_5.bungee.api.chat.TextComponent;
 
 public class BukkitPlayerEntity extends RPGEntity {
 
     private Player player;
+    private PlayerProgression playerProgression;
 //    private BukkitPlayerInventoryUpdater inventoryUpdater;
 
     public BukkitPlayerEntity(Player player) {
         super(player.getUniqueId(), player.getName(), EntityType.PLAYER, BukkitEffectManager.getInstance(),
                 BukkitEventBus.getInstance());
         this.player = player;
+        this.playerProgression = new PlayerProgression(player.getUniqueId());
 //        this.inventoryUpdater = new BukkitPlayerInventoryUpdater(player, 5);
     }
 
@@ -80,5 +83,9 @@ public class BukkitPlayerEntity extends RPGEntity {
 //    public BukkitPlayerInventoryUpdater getInventoryUpdater() {
 //        return inventoryUpdater;
 //    }
+
+    public PlayerProgression getPlayerProgression() {
+        return playerProgression;
+    }
 
 }

@@ -14,6 +14,9 @@ import dev.bukkit.event.bukkitListeners.CombatListener;
 import dev.bukkit.event.bukkitListeners.EventListener;
 import dev.bukkit.event.subscribers.PlayerSubscriber;
 import dev.bukkit.storage.BukkitConfigManager;
+import dev.bukkit.storage.progression.BukkitConfigProgressionDatabase;
+import dev.bukkit.storage.progression.ClassProgressionService;
+import dev.bukkit.storage.progression.HashMapProgressionCache;
 import dev.core.ability.Ability;
 import dev.core.ability.AbilityRegistry;
 import dev.core.ability.EffectManagerInterface;
@@ -29,6 +32,8 @@ import dev.core.stat.Stat;
 import dev.core.stat.StatType;
 import dev.core.stat.loader.StatLoader;
 import dev.core.storage.config.ConfigProvider;
+import dev.core.storage.database.ProgressionCacheStrategy;
+import dev.core.storage.database.ProgressionDatabaseStrategy;
 
 public final class DMain extends JavaPlugin {
     private EventBusInterface eventBusInterface;
@@ -40,6 +45,7 @@ public final class DMain extends JavaPlugin {
 
     private static DMain instance;
     private BukkitConfigManager configManager;
+    private ClassProgressionService progressionService;
 
     @Override
     public void onEnable() {
@@ -70,13 +76,20 @@ public final class DMain extends JavaPlugin {
         Bukkit.getConsoleSender().sendMessage("Loaded " + items.size() + " item(s).");
         itemRegistry.addAll(items);
 
+        ConfigProvider provider = configManager.getProvider("progression.yml");
+
+        ProgressionCacheStrategy cache = new HashMapProgressionCache();
+        ProgressionDatabaseStrategy database = new BukkitConfigProgressionDatabase(provider);
+
+        progressionService = new ClassProgressionService(cache, database);
+
         eventBusInterface = BukkitEventBus.getInstance();
-        CommandManager.getInstance(itemsConfig).registerCommands(this);
+        CommandManager.getInstance(itemsConfig, progressionService).registerCommands(this);
         Bukkit.getPluginManager().registerEvents(new EventListener(this), this);
         Bukkit.getPluginManager().registerEvents(new CancelledListener(this), this);
         combatListener = new CombatListener(this);
         Bukkit.getPluginManager().registerEvents(combatListener, this);
-        new PlayerSubscriber(eventBusInterface, this).subscribe();
+        new PlayerSubscriber(progressionService, eventBusInterface, this).subscribe();
 
         runTaskTimer = Bukkit.getScheduler().runTaskTimer(this, () -> {
             effectManagerInterface.tick(System.currentTimeMillis());

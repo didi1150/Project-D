@@ -19,21 +19,27 @@ import org.spigotmc.event.player.PlayerSpawnLocationEvent;
 
 import dev.bukkit.entity.BukkitPlayerEntity;
 import dev.bukkit.item.BukkitInventorySync;
+import dev.bukkit.storage.progression.ClassProgressionService;
 import dev.core.ability.AbilityAction;
 import dev.core.entity.EntityManager;
 import dev.core.entity.RPGEntity;
+import dev.core.entity.rpgclass.RPGClassType;
 import dev.core.event.EventAction;
 import dev.core.event.EventBusInterface;
 import dev.core.event.impl.RPGEntityDeathEvent;
+import dev.core.storage.database.PlayerClassProgression;
 
 public class PlayerSubscriber {
 
     private EventBusInterface eventBus;
+    private ClassProgressionService classProgressionService;
 
     final double STILL = -0.0784000015258789;
     private Plugin plugin;
 
-    public PlayerSubscriber(EventBusInterface eventBus, Plugin plugin) {
+    public PlayerSubscriber(ClassProgressionService classProgressionService, EventBusInterface eventBus,
+            Plugin plugin) {
+        this.classProgressionService = classProgressionService;
         this.eventBus = eventBus;
         this.plugin = plugin;
     }
@@ -59,6 +65,17 @@ public class PlayerSubscriber {
             Bukkit.getScheduler().runTask(plugin, () -> {
                 EntityManager.getInstance().registerEntity(playerEntity);
                 BukkitInventorySync.syncInventory(playerEntity, event.getPlayer());
+                for (RPGClassType rpgClassType : RPGClassType.values()) {
+                    PlayerClassProgression progression = playerEntity.getPlayerProgression()
+                            .getProgression(rpgClassType);
+                    PlayerClassProgression cachedProgression = classProgressionService
+                            .getProgression(event.getPlayer().getUniqueId(), rpgClassType);
+                    progression.setLevel(cachedProgression.getLevel());
+                    progression.setUsableItems(cachedProgression.getUsableItems());
+                    progression.setXp(cachedProgression.getXp());
+                }
+                playerEntity.getPlayerProgression().setActiveClass(
+                        classProgressionService.getActiveClass(playerEntity.getUuid()), playerEntity.getStatManager());
             });
         }, PlayerJoinEvent.class));
     }
@@ -66,7 +83,6 @@ public class PlayerSubscriber {
     public void subscribeSpawnWorld() {
         eventBus.subscribe(new EventAction<>(event -> {
             Optional<RPGEntity> optional = EntityManager.getInstance().getEntity(event.getPlayer().getUniqueId());
-            System.out.println("Player found: " + optional.isPresent());
             optional.ifPresent(rpgEntity -> {
                 Bukkit.getScheduler().runTaskLater(plugin, () -> {
                     BukkitInventorySync.syncInventory(rpgEntity, event.getPlayer());
@@ -78,6 +94,7 @@ public class PlayerSubscriber {
     public void subscribeQuit() {
         eventBus.subscribe(new EventAction<>(event -> {
             BukkitPlayerEntity playerEntity = new BukkitPlayerEntity(event.getPlayer());
+            classProgressionService.saveAll(playerEntity.getUuid());
             EntityManager.getInstance().removeEntity(playerEntity.getUuid());
         }, PlayerQuitEvent.class));
     }

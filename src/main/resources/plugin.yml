@@ -5,3 +5,7 @@ api-version: '1.21'
 commands:
   giveItem: 
   saveItem: 
+  showProgress: 
+  selectActive: 
+  showStats: 
+  setXp: 
