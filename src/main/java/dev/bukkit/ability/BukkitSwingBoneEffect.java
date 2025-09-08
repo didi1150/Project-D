@@ -223,7 +223,7 @@ public class BukkitSwingBoneEffect extends Effect {
         PlayerInventory inv = player.getInventory();
         for (int i = 0; i < inv.getSize(); i++) {
             ItemStack item = inv.getItem(i);
-            if (item != null && uuid.equals(BukkitItemStackAdapter.getUUID(item).toString())) {
+            if (item != null && uuid != null && uuid.equals(BukkitItemStackAdapter.getUUID(item).toString())) {
                 newItemStack = copyItemStackWithMaterial(item, Material.BONE);
                 inv.setItem(i, newItemStack);
                 return true;

@@ -63,8 +63,8 @@ public class BukkitItemStackAdapter {
         if (stack == null || !stack.hasItemMeta()) {
             return null;
         }
-        return UUID.fromString(
-                stack.getItemMeta().getPersistentDataContainer().get(UUID_ID_KEY, PersistentDataType.STRING));
+        String name = stack.getItemMeta().getPersistentDataContainer().get(UUID_ID_KEY, PersistentDataType.STRING);
+        return name == null ? null : UUID.fromString(name);
     }
 
     /**
