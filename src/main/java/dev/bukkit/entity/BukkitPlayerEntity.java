@@ -14,11 +14,13 @@ import net.md_5.bungee.api.chat.TextComponent;
 public class BukkitPlayerEntity extends RPGEntity {
 
     private Player player;
+//    private BukkitPlayerInventoryUpdater inventoryUpdater;
 
     public BukkitPlayerEntity(Player player) {
         super(player.getUniqueId(), player.getName(), EntityType.PLAYER, BukkitEffectManager.getInstance(),
                 BukkitEventBus.getInstance());
         this.player = player;
+//        this.inventoryUpdater = new BukkitPlayerInventoryUpdater(player, 5);
     }
 
     public Player getPlayer() {
@@ -31,6 +33,7 @@ public class BukkitPlayerEntity extends RPGEntity {
         if (isAlive()) {
             updatePlayerVanillaHealth();
             updateDisplay();
+//            inventoryUpdater.tick();
         }
     }
 
@@ -73,5 +76,9 @@ public class BukkitPlayerEntity extends RPGEntity {
 
         player.spigot().sendMessage(ChatMessageType.ACTION_BAR, new TextComponent(combinedText));
     }
+
+//    public BukkitPlayerInventoryUpdater getInventoryUpdater() {
+//        return inventoryUpdater;
+//    }
 
 }

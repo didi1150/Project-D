@@ -28,7 +28,7 @@ public class BukkitConfigProvider implements ConfigProvider {
 //				throw new RuntimeException("Could not create config file: " + fileName, e);
 //			}
 			System.out.println("Did not find " + fileName + ", copying default " + fileName + "...");
-			plugin.saveResource(fileName, false);
+			plugin.saveResource(fileName, true);
 			System.out.println("Successfully copied default " + fileName);
 		}
 

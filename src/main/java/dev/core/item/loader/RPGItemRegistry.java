@@ -9,14 +9,14 @@ import dev.core.item.RPGItemSet;
 
 public class RPGItemRegistry {
 
-	private static RPGItemRegistry instance;
+    private static RPGItemRegistry instance;
 
-	private final Map<String, RPGItem> allItems;
-	private final Map<String, RPGItemSet> allItemSets;
+    private final Map<String, RPGItem> allItems;
+    private final Map<String, RPGItemSet> allItemSets;
 
-	private RPGItemRegistry() {
-		this.allItems = new HashMap<String, RPGItem>();
-		this.allItemSets = new HashMap<String, RPGItemSet>();
+    private RPGItemRegistry() {
+        this.allItems = new HashMap<String, RPGItem>();
+        this.allItemSets = new HashMap<String, RPGItemSet>();
 
 //		addItem(new RPGItem("test_particles", "Particle Test", EquipmentSlot.MAIN_HAND, Arrays.asList(),
 //				Arrays.asList(), Arrays.asList(new ParticleTestAbility())));
@@ -24,31 +24,35 @@ public class RPGItemRegistry {
 //				.withAbilities(Arrays.asList(new SwingBoneAbility())).withActiveStats(Arrays.asList(new StatModifier(20,
 //						ModifierType.FLAT, StatType.ATTACK_DAMAGE, "BONE_SWING", System.currentTimeMillis())))
 //				.withMaterial("BONE").build());
-	}
+    }
 
-	public static RPGItemRegistry getInstance() {
-		if (instance == null) {
-			instance = new RPGItemRegistry();
-		}
-		return instance;
-	}
+    public static RPGItemRegistry getInstance() {
+        if (instance == null) {
+            instance = new RPGItemRegistry();
+        }
+        return instance;
+    }
 
-	public void addAll(Map<String, RPGItem> items) {
-		this.allItems.putAll(items);
-	}
+    public void addAll(Map<String, RPGItem> items) {
+        this.allItems.putAll(items);
+    }
 
-	public Optional<RPGItem> getItem(String id) {
-		if (!allItems.containsKey(id)) {
-			return Optional.empty();
-		}
-		return Optional.of(allItems.get(id));
-	}
+    public Optional<RPGItem> getItem(String id) {
+        if (!allItems.containsKey(id)) {
+            return Optional.empty();
+        }
+        return Optional.of(allItems.get(id));
+    }
 
-	public Optional<RPGItemSet> getItemSet(String id) {
-		if (!allItemSets.containsKey(id)) {
-			return Optional.empty();
-		}
-		return Optional.of(allItemSets.get(id));
-	}
+    public Optional<RPGItemSet> getItemSet(String id) {
+        if (!allItemSets.containsKey(id)) {
+            return Optional.empty();
+        }
+        return Optional.of(allItemSets.get(id));
+    }
+
+    public Map<String, RPGItem> allItems() {
+        return new HashMap<String, RPGItem>(allItems);
+    }
 
 }
