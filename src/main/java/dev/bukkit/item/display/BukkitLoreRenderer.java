@@ -17,6 +17,9 @@ import dev.core.item.display.TextStyle.TextFormatter;
 import dev.core.stat.StatModifier;
 import dev.core.stat.StatType;
 
+import static dev.bukkit.item.display.BukkitTextColorAdapter.colored;
+import static dev.bukkit.item.display.BukkitTextColorAdapter.toChatFormatting;
+
 public class BukkitLoreRenderer implements RPGItemLoreRenderer {
 
     @Override
@@ -72,7 +75,7 @@ public class BukkitLoreRenderer implements RPGItemLoreRenderer {
                 if (ability.getCost().hasCost()) {
                     for (Entry<String, Double> entry : ability.getCost().getResourceCosts().entrySet()) {
                         StatType type = StatType.valueOf(entry.getKey());
-                        lore.add(BukkitTextColorAdapter.colored(type.getColor(),
+                        lore.add(colored(type.getColor(),
                                 type.formatValue(entry.getValue(), true)));
                     }
                 }
@@ -100,36 +103,6 @@ public class BukkitLoreRenderer implements RPGItemLoreRenderer {
     private String formatStat(StatModifier stat) {
         return BukkitTextColorAdapter.toChatColor(stat.statType.getColor())
                 + stat.statType.formatValue(stat.amount, true);
-    }
-
-    private String colored(TextColor color, String text) {
-        return BukkitTextColorAdapter.toChatColor(color) + text;
-    }
-
-    /**
-     * Converts a TextStyle (color + formatters) into Bukkit ChatColor codes.
-     */
-    private String toChatFormatting(TextStyle style) {
-        StringBuilder sb = new StringBuilder();
-
-        // Apply color
-        sb.append(BukkitTextColorAdapter.toChatColor(style.color()));
-
-        // Apply formatters
-        for (TextFormatter fmt : style.formatters()) {
-            switch (fmt) {
-            case BOLD -> sb.append(ChatColor.BOLD);
-            case ITALIC -> sb.append(ChatColor.ITALIC);
-            case UNDERLINE -> sb.append(ChatColor.UNDERLINE);
-            case STRIKETHROUGH -> sb.append(ChatColor.STRIKETHROUGH);
-            case RESET -> sb.append(ChatColor.RESET).append(BukkitTextColorAdapter.toChatColor(style.color())); // restore
-                                                                                                                // color
-                                                                                                                // after
-                                                                                                                // reset
-            }
-        }
-
-        return sb.toString();
     }
 
 }
