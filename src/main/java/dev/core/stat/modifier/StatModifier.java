@@ -1,4 +1,7 @@
-package dev.core.stat;
+package dev.core.stat.modifier;
+
+import dev.core.stat.StatTarget;
+import dev.core.stat.StatType;
 
 public class StatModifier {
 

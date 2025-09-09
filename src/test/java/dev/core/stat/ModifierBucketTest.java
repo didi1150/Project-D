@@ -6,6 +6,10 @@ import org.junit.jupiter.api.Test;
 
 import dev.core.MockClock;
 import dev.core.game.StopWatch;
+import dev.core.stat.modifier.ModifierBucket;
+import dev.core.stat.modifier.ModifierStackPolicy;
+import dev.core.stat.modifier.ModifierType;
+import dev.core.stat.modifier.StatModifier;
 
 import static org.junit.jupiter.api.Assertions.*;
 

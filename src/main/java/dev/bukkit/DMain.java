@@ -6,6 +6,10 @@ import org.bukkit.Bukkit;
 import org.bukkit.plugin.java.JavaPlugin;
 import org.bukkit.scheduler.BukkitTask;
 
+import com.comphenix.protocol.ProtocolLib;
+import com.comphenix.protocol.ProtocolLibrary;
+import com.comphenix.protocol.ProtocolManager;
+
 import dev.bukkit.ability.BukkitEffectManager;
 import dev.bukkit.command.CommandManager;
 import dev.bukkit.event.BukkitEventBus;
@@ -46,6 +50,7 @@ public final class DMain extends JavaPlugin {
     private static DMain instance;
     private BukkitConfigManager configManager;
     private ClassProgressionService progressionService;
+    private ProtocolManager protocolManager;
 
     @Override
     public void onEnable() {
@@ -56,6 +61,7 @@ public final class DMain extends JavaPlugin {
         entityManager = EntityManager.getInstance();
         effectManagerInterface = BukkitEffectManager.getInstance();
         itemRegistry = RPGItemRegistry.getInstance();
+        protocolManager = ProtocolLibrary.getProtocolManager();
         AbilityRegistry.preregister();
 
         configManager = new BukkitConfigManager(this);
@@ -86,7 +92,7 @@ public final class DMain extends JavaPlugin {
         eventBusInterface = BukkitEventBus.getInstance();
         CommandManager.getInstance(itemsConfig, progressionService).registerCommands(this);
         Bukkit.getPluginManager().registerEvents(new EventListener(this), this);
-        Bukkit.getPluginManager().registerEvents(new CancelledListener(this), this);
+        Bukkit.getPluginManager().registerEvents(new CancelledListener(this, protocolManager), this);
         combatListener = new CombatListener(this);
         Bukkit.getPluginManager().registerEvents(combatListener, this);
         new PlayerSubscriber(progressionService, eventBusInterface, this).subscribe();

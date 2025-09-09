@@ -1,5 +1,8 @@
 package dev.core.stat;
 
+import dev.core.stat.modifier.ModifierBucket;
+import dev.core.stat.modifier.StatModifier;
+
 public abstract class Stat {
 
 	private final String name;

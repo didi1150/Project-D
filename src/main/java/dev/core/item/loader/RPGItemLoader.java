@@ -9,11 +9,11 @@ import dev.core.ability.Ability;
 import dev.core.ability.AbilityRegistry;
 import dev.core.item.RPGItem;
 import dev.core.item.equipment.EquipmentSlot;
-import dev.core.stat.ModifierStackPolicy;
-import dev.core.stat.ModifierType;
-import dev.core.stat.StatModifier;
 import dev.core.stat.StatTarget;
 import dev.core.stat.StatType;
+import dev.core.stat.modifier.ModifierStackPolicy;
+import dev.core.stat.modifier.ModifierType;
+import dev.core.stat.modifier.StatModifier;
 import dev.core.storage.config.ConfigProvider;
 import dev.core.storage.config.ConfigSection;
 

@@ -1,4 +1,4 @@
-package dev.core.stat;
+package dev.core.stat.modifier;
 
 import dev.core.stat.stackpolicy.MaxOnlyStrategy;
 import dev.core.stat.stackpolicy.MinOnlyStrategy;

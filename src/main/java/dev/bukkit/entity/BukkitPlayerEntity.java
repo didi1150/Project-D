@@ -1,14 +1,14 @@
 package dev.bukkit.entity;
 
-import org.bukkit.attribute.Attribute;
-import org.bukkit.attribute.AttributeInstance;
 import org.bukkit.entity.Player;
 
 import dev.bukkit.ability.BukkitEffectManager;
 import dev.bukkit.event.BukkitEventBus;
+import dev.bukkit.item.BukkitInventorySync;
+import dev.bukkit.stat.BukkitStatManager;
 import dev.core.entity.EntityType;
 import dev.core.entity.RPGEntity;
-import dev.core.storage.database.PlayerProgression;
+import dev.core.progression.PlayerProgression;
 import net.md_5.bungee.api.ChatMessageType;
 import net.md_5.bungee.api.chat.TextComponent;
 
@@ -16,14 +16,14 @@ public class BukkitPlayerEntity extends RPGEntity {
 
     private Player player;
     private PlayerProgression playerProgression;
-//    private BukkitPlayerInventoryUpdater inventoryUpdater;
+    private BukkitStatManager bukkitStatManager;
 
     public BukkitPlayerEntity(Player player) {
         super(player.getUniqueId(), player.getName(), EntityType.PLAYER, BukkitEffectManager.getInstance(),
                 BukkitEventBus.getInstance());
         this.player = player;
         this.playerProgression = new PlayerProgression(player.getUniqueId());
-//        this.inventoryUpdater = new BukkitPlayerInventoryUpdater(player, 5);
+        this.bukkitStatManager = new BukkitStatManager(player, getStatManager());
     }
 
     public Player getPlayer() {
@@ -34,42 +34,9 @@ public class BukkitPlayerEntity extends RPGEntity {
     public void tick(long now) {
         super.tick(now);
         if (isAlive()) {
-            updatePlayerVanillaHealth();
             updateDisplay();
-//            inventoryUpdater.tick();
-        }
-    }
-
-    private double calculateVanillaHearts(double rpgHealth) {
-        if (rpgHealth <= 100) {
-            // Below or at base health: direct conversion (100 HP = 10 hearts)
-            return rpgHealth / 10.0;
-        }
-
-        // Above base health: use scaling formula
-        double hearts = (100 + (rpgHealth - 100) * 2) / 10.0;
-
-        // Cap at 20 hearts (2 rows maximum)
-        return Math.min(hearts, 20.0);
-    }
-
-    public void updatePlayerVanillaHealth() {
-        double vanillaHearts = calculateVanillaHearts(getMaxHealth());
-        double vanillaHP = vanillaHearts * 2; // Minecraft uses half-hearts (20 HP = 10 hearts)
-
-        // Set max health attribute
-        AttributeInstance healthAttr = player.getAttribute(Attribute.MAX_HEALTH);
-        if (healthAttr != null) {
-            healthAttr.setBaseValue(vanillaHP);
-        }
-
-        // Update current health proportionally
-        double healthPercentage = getHealth() / getMaxHealth();
-        double health = vanillaHP * healthPercentage;
-        if (health <= 0 || getHealth() <= 0) {
-            onDeath();
-        } else {
-            player.setHealth(health);
+            bukkitStatManager.tick(now, this::onDeath);
+            BukkitInventorySync.syncInventoryDiff(this, player);
         }
     }
 
@@ -79,10 +46,6 @@ public class BukkitPlayerEntity extends RPGEntity {
 
         player.spigot().sendMessage(ChatMessageType.ACTION_BAR, new TextComponent(combinedText));
     }
-
-//    public BukkitPlayerInventoryUpdater getInventoryUpdater() {
-//        return inventoryUpdater;
-//    }
 
     public PlayerProgression getPlayerProgression() {
         return playerProgression;

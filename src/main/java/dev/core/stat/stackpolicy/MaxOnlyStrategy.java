@@ -1,7 +1,7 @@
 package dev.core.stat.stackpolicy;
 
-import dev.core.stat.ModifierBucket;
-import dev.core.stat.StatModifier;
+import dev.core.stat.modifier.ModifierBucket;
+import dev.core.stat.modifier.StatModifier;
 
 public class MaxOnlyStrategy implements StackingStrategy {
 

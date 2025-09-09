@@ -27,7 +27,7 @@ import dev.core.entity.rpgclass.RPGClassType;
 import dev.core.event.EventAction;
 import dev.core.event.EventBusInterface;
 import dev.core.event.impl.RPGEntityDeathEvent;
-import dev.core.storage.database.PlayerClassProgression;
+import dev.core.progression.PlayerClassProgression;
 
 public class PlayerSubscriber {
 

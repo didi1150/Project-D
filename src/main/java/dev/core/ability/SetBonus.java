@@ -3,7 +3,7 @@ package dev.core.ability;
 import java.util.List;
 
 import dev.core.entity.RPGEntity;
-import dev.core.stat.StatModifier;
+import dev.core.stat.modifier.StatModifier;
 
 public class SetBonus {
 	private final String description;

@@ -5,6 +5,7 @@ import java.util.Optional;
 import java.util.UUID;
 
 import dev.core.entity.rpgclass.RPGClassType;
+import dev.core.progression.PlayerClassProgression;
 
 public interface ProgressionCacheStrategy {
 

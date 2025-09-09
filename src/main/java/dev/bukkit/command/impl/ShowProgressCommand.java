@@ -14,7 +14,7 @@ import dev.bukkit.entity.BukkitPlayerEntity;
 import dev.core.entity.EntityManager;
 import dev.core.entity.RPGEntity;
 import dev.core.entity.rpgclass.RPGClassType;
-import dev.core.storage.database.PlayerClassProgression;
+import dev.core.progression.PlayerClassProgression;
 
 public class ShowProgressCommand implements TabExecutor {
 
@@ -52,6 +52,8 @@ public class ShowProgressCommand implements TabExecutor {
                     player.sendMessage(classPrefix + ChatColor.WHITE + classType.name() + ":");
                     player.sendMessage(ChatColor.GRAY + "  Level: " + ChatColor.YELLOW + progression.getLevel());
                     player.sendMessage(ChatColor.GRAY + "  XP: " + ChatColor.GREEN + progression.getXp());
+                    player.sendMessage(ChatColor.GRAY + "  XP til next level: " + ChatColor.GREEN
+                            + progression.getXpToNextLevel());
                     player.sendMessage(ChatColor.GRAY + "  Usable Items: " + ChatColor.LIGHT_PURPLE
                             + progression.getUsableItems());
                     player.sendMessage(""); // Empty line for spacing

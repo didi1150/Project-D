@@ -1,5 +1,8 @@
 package dev.bukkit.item.display;
 
+import static dev.bukkit.item.display.BukkitTextColorAdapter.colored;
+import static dev.bukkit.item.display.BukkitTextColorAdapter.toChatFormatting;
+
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map.Entry;
@@ -12,13 +15,8 @@ import dev.core.item.RPGItem;
 import dev.core.item.display.RPGItemLoreRenderer;
 import dev.core.item.display.StyleTagParser;
 import dev.core.item.display.TextColor;
-import dev.core.item.display.TextStyle;
-import dev.core.item.display.TextStyle.TextFormatter;
-import dev.core.stat.StatModifier;
 import dev.core.stat.StatType;
-
-import static dev.bukkit.item.display.BukkitTextColorAdapter.colored;
-import static dev.bukkit.item.display.BukkitTextColorAdapter.toChatFormatting;
+import dev.core.stat.modifier.StatModifier;
 
 public class BukkitLoreRenderer implements RPGItemLoreRenderer {
 

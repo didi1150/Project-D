@@ -1,4 +1,4 @@
-package dev.core.stat;
+package dev.core.stat.modifier;
 
 public enum ModifierType {
 

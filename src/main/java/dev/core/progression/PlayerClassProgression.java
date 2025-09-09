@@ -1,26 +1,27 @@
-package dev.core.storage.database;
+package dev.core.progression;
 
 import java.util.HashMap;
 import java.util.Map;
 
 import dev.core.entity.rpgclass.RPGClassType;
-import dev.core.stat.CombatStat;
 import dev.core.stat.DefaultStats;
-import dev.core.stat.ResourceStat;
 import dev.core.stat.Stat;
 import dev.core.stat.StatType;
+import dev.core.stat.impl.CombatStat;
+import dev.core.stat.impl.ResourceStat;
+import dev.core.storage.database.ExperienceTable;
 
 public class PlayerClassProgression {
 
     private final RPGClassType classType;
     private int level;
-    private int xp;
+    private int totalXp; // total XP, not per-level
     private int usableItems;
 
     public PlayerClassProgression(RPGClassType classType) {
         this.classType = classType;
-        this.level = 1;
-        this.xp = 0;
+        this.level = 0;
+        this.totalXp = 0;
         this.usableItems = 5; // default
     }
 
@@ -29,63 +30,26 @@ public class PlayerClassProgression {
     }
 
     public void setLevel(int newLevel) {
-        if (newLevel < 1) {
-            newLevel = 1;
-        }
+        if (newLevel < 0)
+            newLevel = 0;
 
-        int oldLevel = this.level;
         this.level = newLevel;
-
-        // Update usable items based on level change
-        int levelDifference = newLevel - oldLevel;
-        this.usableItems += levelDifference; // 1 slot per level
-
-        // Ensure minimum usable items (5 at level 1)
-        if (this.usableItems < 5) {
-            this.usableItems = 5;
-        }
-
-        // Adjust XP to be appropriate for the new level
-        // Set XP to the minimum required for this level
-        if (newLevel > 1) {
-            this.xp = Math.max(0,
-                    ExperienceTable.getXpForLevel(newLevel) - ExperienceTable.getXpForLevel(newLevel - 1));
-        } else {
-            this.xp = 0;
-        }
+        this.totalXp = ExperienceTable.getXpForLevel(newLevel); // set to minimum XP of new level
+        this.usableItems = 5 + newLevel; // 1 slot per level, min 5
     }
 
     public void setXp(int newXp) {
-        if (newXp < 0) {
+        if (newXp < 0)
             newXp = 0;
-        }
-
-        this.xp = newXp;
-
-        // Check if we need to level up
-        while (this.level < Integer.MAX_VALUE && this.xp >= ExperienceTable.getXpForLevel(this.level + 1)) {
-            this.xp -= ExperienceTable.getXpForLevel(this.level + 1);
-            this.level++;
-            this.usableItems++; // 1 slot per level
-        }
-
-        // Check if we need to level down (in case XP was set to a lower value)
-        while (this.level > 1) {
-            int xpRequiredForCurrentLevel = ExperienceTable.getXpForLevel(this.level)
-                    - ExperienceTable.getXpForLevel(this.level - 1);
-            if (this.xp >= 0) {
-                break; // XP is valid for current level
-            }
-
-            // Need to level down
-            this.level--;
-            this.usableItems = Math.max(5, this.usableItems - 1); // Don't go below 5
-            this.xp += xpRequiredForCurrentLevel;
-        }
+        this.totalXp = newXp;
+        recalcLevelAndItems();
     }
 
-    public void setUsableItems(int usableItems) {
-        this.usableItems = Math.max(5, usableItems); // Ensure minimum of 5
+    public void addXp(int amount) {
+        if (amount <= 0)
+            return;
+        this.totalXp += amount;
+        recalcLevelAndItems();
     }
 
     public int getLevel() {
@@ -93,24 +57,41 @@ public class PlayerClassProgression {
     }
 
     public int getXp() {
-        return xp;
+        return totalXp;
+    }
+
+    /**
+     * XP relative to current level
+     */
+    public int getRelativeXp() {
+        return totalXp - ExperienceTable.getXpForLevel(level);
+    }
+
+    /**
+     * XP left until next level
+     */
+    public int getXpToNextLevel() {
+        return ExperienceTable.getXpForLevel(level + 1) - totalXp;
+    }
+
+    private void recalcLevelAndItems() {
+        int newLevel = 1;
+        int cap = ExperienceTable.getLevelCap();
+
+        while (newLevel < cap && totalXp >= ExperienceTable.getXpForLevel(newLevel + 1)) {
+            newLevel++;
+        }
+
+        this.level = newLevel;
+        this.usableItems = 5 + (newLevel - 1); // min 5, +1 per level
+    }
+
+    public void setUsableItems(int usableItems) {
+        this.usableItems = Math.max(5, usableItems); // Ensure minimum of 5
     }
 
     public int getUsableItems() {
         return usableItems;
-    }
-
-    public void addXp(int amount) {
-        if (amount <= 0) {
-            return;
-        }
-
-        xp += amount;
-        while (level < Integer.MAX_VALUE && xp >= ExperienceTable.getXpForLevel(level + 1)) {
-            xp -= ExperienceTable.getXpForLevel(level + 1);
-            level++;
-            usableItems++; // simple rule: 1 slot per level
-        }
     }
 
     public Map<StatType, Stat> getBaseStats() {

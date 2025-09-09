@@ -1,4 +1,4 @@
-package dev.core.storage.database;
+package dev.core.progression;
 
 import java.util.HashMap;
 import java.util.Map;

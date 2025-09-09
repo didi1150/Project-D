@@ -1,6 +1,9 @@
-package dev.core.stat;
+package dev.core.stat.impl;
 
 import java.util.function.LongFunction;
+
+import dev.core.stat.Stat;
+import dev.core.stat.modifier.ModifierBucket;
 
 /**
  * A class representing a resource of an entity <br>

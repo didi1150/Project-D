@@ -1,4 +1,6 @@
-package dev.core.stat;
+package dev.core.stat.impl;
+
+import dev.core.stat.Stat;
 
 public class CombatStat extends Stat {
 

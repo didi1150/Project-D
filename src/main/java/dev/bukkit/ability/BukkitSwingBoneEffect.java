@@ -29,6 +29,7 @@ import dev.core.ability.Effect;
 import dev.core.entity.EntityManager;
 import dev.core.entity.RPGEntity;
 import dev.core.event.impl.RPGEntityDamageEvent.DamageType;
+import dev.core.item.equipment.EquipmentSlot;
 import dev.core.stat.StatType;
 
 public class BukkitSwingBoneEffect extends Effect {
@@ -52,6 +53,7 @@ public class BukkitSwingBoneEffect extends Effect {
 
     private static final int BONE_DAMAGE = 0;
     private static final double RETURN_DISTANCE_THRESHOLD = 0.5; // Distance to player to auto-complete return
+    private static final String BONE_ID = "BONEMERANG";
 
     public BukkitSwingBoneEffect(String cooldownKey) {
         super(null, 1850, true, cooldownKey);
@@ -106,12 +108,23 @@ public class BukkitSwingBoneEffect extends Effect {
         }
         if (caster instanceof BukkitPlayerEntity playerEntity) {
             Player player = playerEntity.getPlayer();
-            uuid = BukkitItemStackAdapter.getUUID(player.getInventory().getItemInMainHand()).toString();
+            String rpgItemId = BukkitItemStackAdapter.getRpgItemId(player.getInventory().getItemInMainHand());
+
+            UUID uuid2 = BukkitItemStackAdapter.getUUID(player.getInventory().getItemInMainHand());
+            if (rpgItemId == null || !rpgItemId.equals(BONE_ID)) {
+                Bukkit.broadcastMessage("Invalid " + rpgItemId);
+                return;
+            }
+            Bukkit.broadcastMessage("Valid " + rpgItemId);
+            if (uuid2 != null) {
+                uuid = uuid2.toString();
+            }
             newItemStack = copyItemStackWithMaterial(player.getInventory().getItemInMainHand(), Material.GHAST_TEAR);
             player.getInventory().setItemInMainHand(newItemStack);
             this.startCooldown = startCooldown;
             startBoneProjectile(player);
         }
+
     }
 
     @Override
@@ -223,7 +236,8 @@ public class BukkitSwingBoneEffect extends Effect {
         PlayerInventory inv = player.getInventory();
         for (int i = 0; i < inv.getSize(); i++) {
             ItemStack item = inv.getItem(i);
-            if (item != null && uuid != null && uuid.equals(BukkitItemStackAdapter.getUUID(item).toString())) {
+            UUID uuid2 = BukkitItemStackAdapter.getUUID(item);
+            if (item != null && uuid2 != null && uuid.equals(uuid2.toString())) {
                 newItemStack = copyItemStackWithMaterial(item, Material.BONE);
                 inv.setItem(i, newItemStack);
                 return true;
@@ -249,7 +263,7 @@ public class BukkitSwingBoneEffect extends Effect {
                         target.dealRPGDamage(playerEntity, target, attackDamage, DamageType.PHYSICAL);
                     }, () -> {
                         // Visuals
-                        DamageUtils.damageMob(le, attackDamage, player);
+                        DamageUtils.damageMob(le, attackDamage, playerEntity);
                     });
                     Vector knockbackDirection = le.getLocation().toVector()
                             .subtract(armorStand.getLocation().toVector()).normalize();

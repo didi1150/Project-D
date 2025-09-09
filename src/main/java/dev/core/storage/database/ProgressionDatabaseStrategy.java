@@ -4,6 +4,7 @@ import java.util.Map;
 import java.util.UUID;
 
 import dev.core.entity.rpgclass.RPGClassType;
+import dev.core.progression.PlayerClassProgression;
 
 public interface ProgressionDatabaseStrategy {
 

@@ -47,7 +47,7 @@ public class BukkitEffectManager implements EffectManagerInterface {
 		}
 		Effect effect = null;
 		for (Entry<String, Double> entry : ability.getCost().getResourceCosts().entrySet()) {
-			entity.getStatManager().modifyStat(StatType.valueOf(entry.getKey()), entry.getValue());
+			entity.getStatManager().modifyStat(StatType.valueOf(entry.getKey()), -entry.getValue());
 		}
 
 		String cooldownKey = getCooldownKey(entity, ability);

@@ -18,8 +18,8 @@ import dev.core.event.EventAction;
 import dev.core.event.EventBusInterface;
 import dev.core.item.RPGItem;
 import dev.core.item.RPGItemSet;
-import dev.core.stat.StatModifier;
 import dev.core.stat.StatType;
+import dev.core.stat.modifier.StatModifier;
 
 public class EquipmentManager {
 

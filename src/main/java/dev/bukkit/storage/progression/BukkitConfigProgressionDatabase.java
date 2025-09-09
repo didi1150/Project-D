@@ -5,9 +5,9 @@ import java.util.Map;
 import java.util.UUID;
 
 import dev.core.entity.rpgclass.RPGClassType;
+import dev.core.progression.PlayerClassProgression;
 import dev.core.storage.config.ConfigProvider;
 import dev.core.storage.config.ConfigSection;
-import dev.core.storage.database.PlayerClassProgression;
 import dev.core.storage.database.ProgressionDatabaseStrategy;
 
 public class BukkitConfigProgressionDatabase implements ProgressionDatabaseStrategy {

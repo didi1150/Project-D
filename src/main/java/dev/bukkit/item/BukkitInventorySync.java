@@ -2,18 +2,14 @@ package dev.bukkit.item;
 
 import java.util.Optional;
 
-import org.bukkit.attribute.Attribute;
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.ItemStack;
 
-import dev.bukkit.entity.BukkitPlayerEntity;
-import dev.core.entity.EntityManager;
 import dev.core.entity.RPGEntity;
 import dev.core.item.RPGItem;
 import dev.core.item.equipment.EquipmentManager;
 import dev.core.item.equipment.EquipmentSlot;
 import dev.core.item.loader.RPGItemRegistry;
-import dev.core.stat.StatType;
 
 public class BukkitInventorySync {
 
@@ -40,7 +36,6 @@ public class BukkitInventorySync {
         for (ItemStack stack : player.getInventory().getContents()) {
             addPassiveIfApplicable(manager, stack);
         }
-        syncAttackSpeed(player);
     }
 
     public static void updateMainHand(RPGEntity rpgEntity, Player player, int newSlot) {
@@ -50,8 +45,6 @@ public class BukkitInventorySync {
         RPGItem newItem = resolveRpgItem(newMainHandItem);
 
         manager.equipItem(EquipmentSlot.MAIN_HAND, newItem);
-
-        syncAttackSpeed(player);
     }
 
     public static void updateMainAndOffHand(RPGEntity rpgEntity, Player player, ItemStack offHand, ItemStack mainHand) {
@@ -64,7 +57,6 @@ public class BukkitInventorySync {
 
         RPGItem offItem = resolveRpgItem(offHand);
         manager.equipItem(EquipmentSlot.OFF_HAND, offItem);
-        syncAttackSpeed(player);
     }
 
     /**
@@ -92,7 +84,6 @@ public class BukkitInventorySync {
         for (ItemStack stack : player.getInventory().getContents()) {
             addPassiveIfApplicable(manager, stack);
         }
-        syncAttackSpeed(player);
     }
 
     public static void updateSlot(RPGEntity rpgEntity, EquipmentSlot slot, ItemStack newStack) {
@@ -118,9 +109,6 @@ public class BukkitInventorySync {
         if (currentlyEquipped != null) {
             rpgEntity.getEquipmentManager().unequipItem(slot);
         }
-        if (rpgEntity instanceof BukkitPlayerEntity playerEntity) {
-            syncAttackSpeed(playerEntity.getPlayer());
-        }
     }
 
     /**
@@ -142,8 +130,6 @@ public class BukkitInventorySync {
                         .ifPresent(item -> rpgEntity.getEquipmentManager().addToInventory(item));
             }
         }
-
-        syncAttackSpeed(player);
     }
 
     /**
@@ -223,29 +209,5 @@ public class BukkitInventorySync {
             }
         }
         return false;
-    }
-
-    private static double toMinecraftAttackSpeed(double rpgSpeed) {
-        // Base mapping: 1.0 RPG speed = 4.0 vanilla (hand)
-        double baseMcSpeed = 4.0;
-
-        // Scale linearly
-        double mcValue = baseMcSpeed * rpgSpeed;
-
-        // Clamp to valid range
-        if (mcValue < 0)
-            mcValue = 0;
-        if (mcValue > 1024)
-            mcValue = 1024;
-
-        return mcValue;
-    }
-
-    private static void syncAttackSpeed(Player player) {
-        EntityManager.getInstance().getEntity(player.getUniqueId()).ifPresent(entity -> {
-            double currentValue = entity.getStatManager().getCurrentValue(StatType.ATTACK_SPEED,
-                    System.currentTimeMillis());
-            player.getAttribute(Attribute.ATTACK_SPEED).setBaseValue(toMinecraftAttackSpeed(currentValue));
-        });
     }
 }

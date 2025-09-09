@@ -9,6 +9,10 @@ import org.mockbukkit.mockbukkit.MockBukkit;
 
 import dev.core.MockClock;
 import dev.core.game.StopWatch;
+import dev.core.stat.impl.CombatStat;
+import dev.core.stat.impl.ResourceStat;
+import dev.core.stat.modifier.ModifierType;
+import dev.core.stat.modifier.StatModifier;
 
 public class ResourceStatTest {
 

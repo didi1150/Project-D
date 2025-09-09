@@ -4,6 +4,9 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.Map.Entry;
 
+import dev.core.stat.impl.ResourceStat;
+import dev.core.stat.modifier.StatModifier;
+
 public class StatManager {
 
     private final Map<StatType, Stat> stats;

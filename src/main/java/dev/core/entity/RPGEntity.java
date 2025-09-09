@@ -16,8 +16,8 @@ import dev.core.event.impl.RPGEntityHealEvent.HealReason;
 import dev.core.item.equipment.EquipmentManager;
 import dev.core.stat.DefaultStats;
 import dev.core.stat.StatManager;
-import dev.core.stat.StatModifier;
 import dev.core.stat.StatType;
+import dev.core.stat.modifier.StatModifier;
 
 public abstract class RPGEntity {
 
@@ -32,6 +32,7 @@ public abstract class RPGEntity {
     private boolean alive = true;
     private EventBusInterface eventBusInterface;
     private RPGClassType classType;
+    private RPGEntityAttackTracker attackTracker;
 
     public RPGEntity(UUID uuid, String name, EntityType entityType, EffectManagerInterface effectManagerInterface,
             EventBusInterface eventBusInterface) {
@@ -50,6 +51,7 @@ public abstract class RPGEntity {
         this.name = name;
         this.entityType = entityType;
         this.classType = classType;
+        this.attackTracker = new RPGEntityAttackTracker(this);
     }
 
     public RPGClassType getClassType() {
@@ -79,51 +81,148 @@ public abstract class RPGEntity {
         EntityManager.getInstance().markDead(uuid);
     }
 
+    public void recordSwing() {
+        attackTracker.recordSwing();
+    }
+
+    public boolean canAttack() {
+        return attackTracker.canAttack();
+    }
+
     // =========================- Combat ==========================
+
+//    public RPGDamageResult dealRPGDamage(RPGEntity attacker, RPGEntity target, double baseDamage,
+//            DamageType damageType) {
+//        boolean crit = false;
+//        if (attacker != null) {
+//            double critChance = attacker.getStatManager().getCurrentValue(StatType.CRIT_CHANCE,
+//                    System.currentTimeMillis());
+//            int roll = new Random().nextInt(101);
+//            if (roll < critChance) {
+//                baseDamage = baseDamage * 1.75;
+//                crit = true;
+//            }
+//        }
+//        // Step 1: Fire event
+//        RPGEntityDamageEvent event = new RPGEntityDamageEvent(attacker, target, baseDamage, damageType);
+//        eventBusInterface.sendEvent(event);
+//
+//        // Step 2: Check cancel
+//        if (event.isCancelled()) {
+//            return new RPGDamageResult(DamageResult.DENY, 0);
+//        }
+//
+//        // Step 3: Apply defenses
+//        double reduced = applyDefense(event.getAmount(), event.getDamageType(), target);
+//
+//        // Step 4: Apply to target
+//        target.setHealth(target.getHealth() - reduced);
+//        checkAlive();
+//        return crit ? new RPGDamageResult(DamageResult.CRIT, baseDamage)
+//                : new RPGDamageResult(DamageResult.NORMAL, baseDamage);
+////	    eventBusInterface.sendEvent(new RPGDamageAppliedEvent(attacker, target, reduced));
+//    }
+//
+//    private double applyDefense(double amount, DamageType damageType, RPGEntity target) {
+//        if (damageType == DamageType.PHYSICAL) {
+//            double armour = target.getStatManager().getCurrentValue(StatType.ARMOR, System.currentTimeMillis());
+//            double multiplier = 100.0 / (100.0 + armour);
+//            return amount * multiplier;
+//        } else if (damageType == DamageType.MAGIC) {
+//            double mr = target.getStatManager().getCurrentValue(StatType.MAGIC_RESIST, System.currentTimeMillis());
+//            double multiplier = 100.0 / (100.0 + mr);
+//            return amount * multiplier;
+//        }
+//        return amount;
+//    }
 
     public RPGDamageResult dealRPGDamage(RPGEntity attacker, RPGEntity target, double baseDamage,
             DamageType damageType) {
         boolean crit = false;
+        double finalDamage = baseDamage;
+
+        // Step 1: Apply critical strike (before penetration calculations)
         if (attacker != null) {
             double critChance = attacker.getStatManager().getCurrentValue(StatType.CRIT_CHANCE,
                     System.currentTimeMillis());
             int roll = new Random().nextInt(101);
             if (roll < critChance) {
-                baseDamage = baseDamage * 1.75;
+                finalDamage = baseDamage * 1.75;
                 crit = true;
             }
         }
-        // Step 1: Fire event
-        RPGEntityDamageEvent event = new RPGEntityDamageEvent(attacker, target, baseDamage, damageType);
+
+        // Step 2: Fire event with post-crit damage
+        RPGEntityDamageEvent event = new RPGEntityDamageEvent(attacker, target, finalDamage, damageType);
         eventBusInterface.sendEvent(event);
 
-        // Step 2: Check cancel
+        // Step 3: Check cancel
         if (event.isCancelled()) {
             return new RPGDamageResult(DamageResult.DENY, 0);
         }
 
-        // Step 3: Apply defenses
-        double reduced = applyDefense(event.getAmount(), event.getDamageType(), target);
+        // Step 4: Apply penetration and defenses (LoL system)
+        double reducedDamage = applyAllDefenses(event.getAmount(), event.getDamageType(), attacker, target);
 
-        // Step 4: Apply to target
-        target.setHealth(target.getHealth() - reduced);
-        checkAlive();
-        return crit ? new RPGDamageResult(DamageResult.CRIT, baseDamage)
-                : new RPGDamageResult(DamageResult.NORMAL, baseDamage);
-//	    eventBusInterface.sendEvent(new RPGDamageAppliedEvent(attacker, target, reduced));
+        // Step 5: Apply to target
+        target.setHealth(target.getHealth() - reducedDamage);
+        target.checkAlive();
+
+        return crit ? new RPGDamageResult(DamageResult.CRIT, reducedDamage)
+                : new RPGDamageResult(DamageResult.NORMAL, reducedDamage);
     }
 
-    private double applyDefense(double amount, DamageType damageType, RPGEntity target) {
+    private double applyAllDefenses(double damage, DamageType damageType, RPGEntity attacker, RPGEntity target) {
         if (damageType == DamageType.PHYSICAL) {
-            double armour = target.getStatManager().getCurrentValue(StatType.ARMOR, System.currentTimeMillis());
-            double multiplier = 100.0 / (100.0 + armour);
-            return amount * multiplier;
+            return applyPhysicalDefense(damage, attacker, target);
         } else if (damageType == DamageType.MAGIC) {
-            double mr = target.getStatManager().getCurrentValue(StatType.MAGIC_RESIST, System.currentTimeMillis());
-            double multiplier = 100.0 / (100.0 + mr);
-            return amount * multiplier;
+            return applyMagicDefense(damage, attacker, target);
         }
-        return amount;
+        return damage; // True damage bypasses all defenses
+    }
+
+    private double applyPhysicalDefense(double damage, RPGEntity attacker, RPGEntity target) {
+        double targetArmor = target.getStatManager().getCurrentValue(StatType.ARMOR, System.currentTimeMillis());
+        double effectiveArmor = targetArmor;
+
+        if (attacker != null) {
+            // Step 1: Apply Lethality (flat armor reduction)
+            double lethality = attacker.getStatManager().getCurrentValue(StatType.LETHALITY,
+                    System.currentTimeMillis());
+            effectiveArmor = Math.max(0, effectiveArmor - lethality);
+
+            // Step 2: Apply Armor Penetration (percentage)
+            double armorPen = attacker.getStatManager().getCurrentValue(StatType.ARMOR_PENETRATION,
+                    System.currentTimeMillis());
+            effectiveArmor = effectiveArmor * (1.0 - (armorPen / 100.0));
+        }
+
+        // Step 3: Calculate damage reduction
+        double damageMultiplier;
+        if (effectiveArmor >= 0) {
+            damageMultiplier = 100.0 / (100.0 + effectiveArmor);
+        } else {
+            // Negative armor increases damage
+            damageMultiplier = 2.0 - (100.0 / (100.0 - effectiveArmor));
+        }
+
+        return damage * damageMultiplier;
+    }
+
+    private double applyMagicDefense(double damage, RPGEntity attacker, RPGEntity target) {
+        double targetMR = target.getStatManager().getCurrentValue(StatType.MAGIC_RESIST, System.currentTimeMillis());
+        double effectiveMR = targetMR;
+
+        // Calculate damage reduction without penetration
+        double damageMultiplier;
+        if (effectiveMR >= 0) {
+            damageMultiplier = 100.0 / (100.0 + effectiveMR);
+        } else {
+            // Negative MR increases damage
+            damageMultiplier = 2.0 - (100.0 / (100.0 - effectiveMR));
+        }
+
+        return damage * damageMultiplier;
     }
 
     public void healRPGEntity(RPGEntity healer, RPGEntity target, double baseHeal, HealReason healReason) {

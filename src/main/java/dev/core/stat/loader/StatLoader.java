@@ -4,10 +4,10 @@ import java.util.HashMap;
 import java.util.Map;
 
 import dev.core.entity.rpgclass.RPGClassType;
-import dev.core.stat.CombatStat;
-import dev.core.stat.ResourceStat;
 import dev.core.stat.Stat;
 import dev.core.stat.StatType;
+import dev.core.stat.impl.CombatStat;
+import dev.core.stat.impl.ResourceStat;
 import dev.core.storage.config.ConfigProvider;
 import dev.core.storage.config.ConfigSection;
 
