@@ -49,12 +49,12 @@ public class EventAction<E> implements Comparable<EventAction<E>> {
         return type;
     }
 
-    public void execute(E event) {
-        action.accept(event);
-    }
-
     public int getPriority() {
         return priority;
+    }
+
+    public void execute(E event) {
+        action.accept(event);
     }
 
     @Override

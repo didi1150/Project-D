@@ -2,6 +2,7 @@ package dev.bukkit;
 
 import java.util.Map;
 
+import dev.core.event.impl.TickEvent;
 import org.bukkit.Bukkit;
 import org.bukkit.plugin.java.JavaPlugin;
 import org.bukkit.scheduler.BukkitTask;
@@ -52,6 +53,8 @@ public final class DMain extends JavaPlugin {
     private ClassProgressionService progressionService;
     private ProtocolManager protocolManager;
 
+    private long lastMillis;
+
     @Override
     public void onEnable() {
         instance = this;
@@ -97,7 +100,12 @@ public final class DMain extends JavaPlugin {
         Bukkit.getPluginManager().registerEvents(combatListener, this);
         new PlayerSubscriber(progressionService, eventBusInterface, this).subscribe();
 
+        lastMillis = System.currentTimeMillis();
         runTaskTimer = Bukkit.getScheduler().runTaskTimer(this, () -> {
+            float tickDelta = (System.currentTimeMillis() - lastMillis) / 1000f * 20f;
+            lastMillis = System.currentTimeMillis();
+            eventBusInterface.sendEvent(new TickEvent(tickDelta));
+
             effectManagerInterface.tick(System.currentTimeMillis());
             entityManager.tick(System.currentTimeMillis());
         }, 0, 1);

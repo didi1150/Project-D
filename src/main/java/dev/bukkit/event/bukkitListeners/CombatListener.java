@@ -5,6 +5,10 @@ import java.util.Map;
 import java.util.Random;
 import java.util.UUID;
 
+import dev.bukkit.event.BukkitEventBus;
+import dev.core.event.EventAction;
+import dev.core.event.EventActionAbstract;
+import dev.core.event.impl.TickEvent;
 import org.bukkit.Location;
 import org.bukkit.World;
 import org.bukkit.entity.Display;
@@ -132,19 +136,19 @@ public class CombatListener implements Listener {
         return rainbow.toString();
     }
 
-    private void animateTextDisplay(TextDisplay textDisplay, DamageResult result) {
-        new BukkitRunnable() {
-            private int ticks = 0;
-            private final Location startLoc = textDisplay.getLocation().clone();
-            private final int duration = result == DamageResult.CRIT ? 50 : 40; // Crits last longer
+	private void animateTextDisplay(TextDisplay textDisplay, DamageResult result) {
+		EventAction<TickEvent> eventAction = new EventActionAbstract<>(TickEvent.class) {
+			private float ticks = 0;
+			private final Location startLoc = textDisplay.getLocation().clone();
+			private final int duration = result == DamageResult.CRIT ? 50 : 40; // Crits last longer
 
-            @Override
-            public void run() {
-                if (!textDisplay.isValid() || ticks >= duration) {
-                    textDisplay.remove();
-                    this.cancel();
-                    return;
-                }
+			@Override
+			public void onAction(TickEvent tickEvent) {
+				if (!textDisplay.isValid() || ticks >= duration) {
+					textDisplay.remove();
+					BukkitEventBus.getInstance().unsubscribe(this);
+					return;
+				}
 
                 // Different animations based on result
                 if (result == DamageResult.CRIT) {
@@ -164,26 +168,27 @@ public class CombatListener implements Listener {
                     textDisplay.setTransformation(transformation);
                 }
 
-                ticks++;
-            }
-        }.runTaskTimer(plugin, 1L, 1L);
-    }
+				ticks += tickEvent.getTickDelta();
+			}
+		};
+		BukkitEventBus.getInstance().subscribe(eventAction);
+	}
 
-    private void animateNormal(TextDisplay textDisplay, int ticks, Location startLoc) {
-        // Gentle upward float with slight side-to-side motion
-        double y = Math.sin(ticks * 0.1) * 0.05 + (ticks * 0.04);
-        double x = Math.sin(ticks * 0.15) * 0.2;
-        double z = Math.cos(ticks * 0.15) * 0.2;
+	private void animateNormal(TextDisplay textDisplay, float ticks, Location startLoc) {
+		// Gentle upward float with slight side-to-side motion
+		double y = Math.sin(ticks * 0.1) * 0.05 + (ticks * 0.04);
+		double x = Math.sin(ticks * 0.15) * 0.2;
+		double z = Math.cos(ticks * 0.15) * 0.2;
 
         Location newLoc = startLoc.clone().add(x, y, z);
         textDisplay.teleport(newLoc);
     }
 
-    private void animateCritical(TextDisplay textDisplay, int ticks, Location startLoc) {
-        // More dramatic animation for critical hits
-        double y = Math.sin(ticks * 0.15) * 0.1 + (ticks * 0.06);
-        double x = Math.sin(ticks * 0.2) * 0.4;
-        double z = Math.cos(ticks * 0.2) * 0.4;
+	private void animateCritical(TextDisplay textDisplay, float ticks, Location startLoc) {
+		// More dramatic animation for critical hits
+		double y = Math.sin(ticks * 0.15) * 0.1 + (ticks * 0.06);
+		double x = Math.sin(ticks * 0.2) * 0.4;
+		double z = Math.cos(ticks * 0.2) * 0.4;
 
         // Bounce
         if (ticks < 10) {
