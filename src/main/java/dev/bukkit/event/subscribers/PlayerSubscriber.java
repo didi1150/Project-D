@@ -5,7 +5,11 @@ import java.util.Optional;
 import org.bukkit.Bukkit;
 import org.bukkit.GameMode;
 import org.bukkit.entity.Player;
+import org.bukkit.event.entity.EntityPickupItemEvent;
 import org.bukkit.event.inventory.InventoryClickEvent;
+import org.bukkit.event.inventory.InventoryCloseEvent;
+import org.bukkit.event.inventory.InventoryDragEvent;
+import org.bukkit.event.player.PlayerDropItemEvent;
 import org.bukkit.event.player.PlayerInteractEvent;
 import org.bukkit.event.player.PlayerItemHeldEvent;
 import org.bukkit.event.player.PlayerJoinEvent;
@@ -31,175 +35,212 @@ import dev.core.progression.PlayerClassProgression;
 
 public class PlayerSubscriber {
 
-	private EventBusInterface eventBus;
-	private ClassProgressionService classProgressionService;
+    private EventBusInterface eventBus;
+    private ClassProgressionService classProgressionService;
 
-	final double STILL = -0.0784000015258789;
-	private Plugin plugin;
+    final double STILL = -0.0784000015258789;
+    private Plugin plugin;
 
-	public PlayerSubscriber(ClassProgressionService classProgressionService, EventBusInterface eventBus,
-			Plugin plugin) {
-		this.classProgressionService = classProgressionService;
-		this.eventBus = eventBus;
-		this.plugin = plugin;
-	}
+    public PlayerSubscriber(ClassProgressionService classProgressionService, EventBusInterface eventBus,
+            Plugin plugin) {
+        this.classProgressionService = classProgressionService;
+        this.eventBus = eventBus;
+        this.plugin = plugin;
+    }
 
-	public void subscribe() {
-		subscribeJoin();
-		subscribeQuit();
-		subscribeInteract();
-		subscribeQuit();
-		subscribeSwap();
-		subscribeShift();
-		subscribeJump();
-		subscribeDeath();
-		subscribeRespawn();
-		subscribeInventoryClick();
-		subscribeSpawnWorld();
-		subscribeSwapHands();
-	}
+    public void subscribe() {
+        subscribeJoin();
+        subscribeQuit();
+        subscribeInteract();
+        subscribeQuit();
+        subscribeSwap();
+        subscribeShift();
+        subscribeJump();
+        subscribeDeath();
+        subscribeRespawn();
+        subscribeInventoryClick();
+        subscribeSpawnWorld();
+        subscribeSwapHands();
+        subscribeInventoryDrag();
+        subscribeInventoryClose();
+    }
 
-	public void subscribeJoin() {
-		eventBus.subscribe(new EventAction<>(event -> {
-			BukkitPlayerEntity playerEntity = new BukkitPlayerEntity(event.getPlayer());
-			EntityManager.getInstance().registerEntity(playerEntity);
-			BukkitInventorySync.syncInventory(playerEntity, event.getPlayer());
-			for (RPGClassType rpgClassType : RPGClassType.values()) {
-				PlayerClassProgression progression = playerEntity.getPlayerProgression().getProgression(rpgClassType);
-				PlayerClassProgression cachedProgression = classProgressionService
-						.getProgression(event.getPlayer().getUniqueId(), rpgClassType);
-				progression.setLevel(cachedProgression.getLevel());
-				progression.setUsableItems(cachedProgression.getUsableItems());
-				progression.setXp(cachedProgression.getXp());
-			}
-			playerEntity.getPlayerProgression().setActiveClass(
-					classProgressionService.getActiveClass(playerEntity.getUuid()), playerEntity.getStatManager());
-		}, PlayerJoinEvent.class));
-	}
+    public void subscribeJoin() {
+        eventBus.subscribe(new EventAction<>(event -> {
+            BukkitPlayerEntity playerEntity = new BukkitPlayerEntity(event.getPlayer());
+            EntityManager.getInstance().registerEntity(playerEntity);
+            BukkitInventorySync.syncInventory(playerEntity, event.getPlayer());
+            for (RPGClassType rpgClassType : RPGClassType.values()) {
+                PlayerClassProgression progression = playerEntity.getPlayerProgression().getProgression(rpgClassType);
+                PlayerClassProgression cachedProgression = classProgressionService
+                        .getProgression(event.getPlayer().getUniqueId(), rpgClassType);
+                progression.setLevel(cachedProgression.getLevel());
+                progression.setUsableItems(cachedProgression.getUsableItems());
+                progression.setXp(cachedProgression.getXp());
+            }
+            playerEntity.getPlayerProgression().setActiveClass(
+                    classProgressionService.getActiveClass(playerEntity.getUuid()), playerEntity.getStatManager());
+        }, PlayerJoinEvent.class));
+    }
 
-	public void subscribeSpawnWorld() {
-		eventBus.subscribe(new EventAction<>(event -> {
-			Optional<RPGEntity> optional = EntityManager.getInstance().getEntity(event.getPlayer().getUniqueId());
-			optional.ifPresent(rpgEntity -> {
-				BukkitInventorySync.syncInventory(rpgEntity, event.getPlayer());
-			});
-		}, PlayerSpawnLocationEvent.class));
-	}
+    public void subscribeSpawnWorld() {
+        eventBus.subscribe(new EventAction<>(event -> {
+            Optional<RPGEntity> optional = EntityManager.getInstance().getEntity(event.getPlayer().getUniqueId());
+            optional.ifPresent(rpgEntity -> {
+                BukkitInventorySync.syncInventory(rpgEntity, event.getPlayer());
+            });
+        }, PlayerSpawnLocationEvent.class));
+    }
 
-	public void subscribeQuit() {
-		eventBus.subscribe(new EventAction<>(event -> {
-			BukkitPlayerEntity playerEntity = new BukkitPlayerEntity(event.getPlayer());
-			classProgressionService.saveAll(playerEntity.getUuid());
-			EntityManager.getInstance().removeEntity(playerEntity.getUuid());
-		}, PlayerQuitEvent.class));
-	}
+    public void subscribeQuit() {
+        eventBus.subscribe(new EventAction<>(event -> {
+            BukkitPlayerEntity playerEntity = new BukkitPlayerEntity(event.getPlayer());
+            classProgressionService.saveAll(playerEntity.getUuid());
+            EntityManager.getInstance().removeEntity(playerEntity.getUuid());
+        }, PlayerQuitEvent.class));
+    }
 
-	public void subscribeSwap() {
-		eventBus.subscribe(new EventAction<>(event -> {
-			Optional<RPGEntity> optional = EntityManager.getInstance().getEntity(event.getPlayer().getUniqueId());
-			optional.ifPresent(rpgEntity -> {
-				BukkitInventorySync.updateMainHand(rpgEntity, event.getPlayer(), event.getNewSlot());
-			});
-		}, PlayerItemHeldEvent.class));
-	}
+    public void subscribeSwap() {
+        eventBus.subscribe(new EventAction<>(event -> {
+            Optional<RPGEntity> optional = EntityManager.getInstance().getEntity(event.getPlayer().getUniqueId());
+            optional.ifPresent(rpgEntity -> {
+                BukkitInventorySync.updateMainHand(rpgEntity, event.getPlayer(), event.getNewSlot());
+            });
+        }, PlayerItemHeldEvent.class));
+    }
 
-	public void subscribeSwapHands() {
-		eventBus.subscribe(new EventAction<>(event -> {
-			Optional<RPGEntity> optional = EntityManager.getInstance().getEntity(event.getPlayer().getUniqueId());
-			optional.ifPresent(rpgEntity -> {
-				BukkitInventorySync.updateMainAndOffHand(rpgEntity, event.getPlayer(), event.getOffHandItem(),
-						event.getMainHandItem());
-			});
-		}, PlayerSwapHandItemsEvent.class));
-	}
+    public void subscribeSwapHands() {
+        eventBus.subscribe(new EventAction<>(event -> {
+            Optional<RPGEntity> optional = EntityManager.getInstance().getEntity(event.getPlayer().getUniqueId());
+            optional.ifPresent(rpgEntity -> {
+                BukkitInventorySync.updateMainAndOffHand(rpgEntity, event.getPlayer(), event.getOffHandItem(),
+                        event.getMainHandItem());
+            });
+        }, PlayerSwapHandItemsEvent.class));
+    }
 
-	public void subscribeInteract() {
-		eventBus.subscribe(new EventAction<>(event -> {
-			Optional<RPGEntity> optional = EntityManager.getInstance().getEntity(event.getPlayer().getUniqueId());
-			if (optional.isPresent()) {
-				if (event.getAction().toString().contains("RIGHT_CLICK")) {
-					if (event.getPlayer().isSneaking()) {
-						optional.get().triggerAbility(AbilityAction.SHIFT_RIGHT_CLICK);
-						optional.get().triggerAbility(AbilityAction.RIGHT_CLICK);
-					} else {
-						optional.get().triggerAbility(AbilityAction.RIGHT_CLICK);
-					}
-				}
+    public void subscribeInteract() {
+        eventBus.subscribe(new EventAction<>(event -> {
+            Optional<RPGEntity> optional = EntityManager.getInstance().getEntity(event.getPlayer().getUniqueId());
+            if (optional.isPresent()) {
+                if (event.getAction().toString().contains("RIGHT_CLICK")) {
+                    if (event.getPlayer().isSneaking()) {
+                        optional.get().triggerAbility(AbilityAction.SHIFT_RIGHT_CLICK);
+                        optional.get().triggerAbility(AbilityAction.RIGHT_CLICK);
+                    } else {
+                        optional.get().triggerAbility(AbilityAction.RIGHT_CLICK);
+                    }
+                }
 
-				if (event.getAction().toString().contains("LEFT_CLICK")) {
-					if (event.getPlayer().isSneaking()) {
-						optional.get().triggerAbility(AbilityAction.SHIFT_LEFT_CLICK);
-						optional.get().triggerAbility(AbilityAction.LEFT_CLICK);
-					} else {
-						optional.get().triggerAbility(AbilityAction.LEFT_CLICK);
-					}
-				}
-			}
-		}, PlayerInteractEvent.class));
-	}
+                if (event.getAction().toString().contains("LEFT_CLICK")) {
+                    if (event.getPlayer().isSneaking()) {
+                        optional.get().triggerAbility(AbilityAction.SHIFT_LEFT_CLICK);
+                        optional.get().triggerAbility(AbilityAction.LEFT_CLICK);
+                    } else {
+                        optional.get().triggerAbility(AbilityAction.LEFT_CLICK);
+                    }
+                }
+            }
+        }, PlayerInteractEvent.class));
+    }
 
-	public void subscribeJump() {
-		eventBus.subscribe(new EventAction<>(event -> {
-			Optional<RPGEntity> optional = EntityManager.getInstance().getEntity(event.getPlayer().getUniqueId());
-			if (optional.isPresent()) {
-				Player player = event.getPlayer();
-				boolean isJumping = player.getVelocity().getY() > STILL;
-				if (isJumping) {
-					optional.get().triggerAbility(AbilityAction.JUMP);
-				}
-			}
-		}, PlayerMoveEvent.class));
-	}
+    public void subscribeJump() {
+        eventBus.subscribe(new EventAction<>(event -> {
+            Optional<RPGEntity> optional = EntityManager.getInstance().getEntity(event.getPlayer().getUniqueId());
+            if (optional.isPresent()) {
+                Player player = event.getPlayer();
+                boolean isJumping = player.getVelocity().getY() > STILL;
+                if (isJumping) {
+                    optional.get().triggerAbility(AbilityAction.JUMP);
+                }
+            }
+        }, PlayerMoveEvent.class));
+    }
 
-	public void subscribeShift() {
-		eventBus.subscribe(new EventAction<>(event -> {
-			Optional<RPGEntity> optional = EntityManager.getInstance().getEntity(event.getPlayer().getUniqueId());
-			if (optional.isPresent()) {
-				if (event.isSneaking()) {
-					optional.get().triggerAbility(AbilityAction.SHIFT);
-				}
-			}
-		}, PlayerToggleSneakEvent.class));
-	}
+    public void subscribeShift() {
+        eventBus.subscribe(new EventAction<>(event -> {
+            Optional<RPGEntity> optional = EntityManager.getInstance().getEntity(event.getPlayer().getUniqueId());
+            if (optional.isPresent()) {
+                if (event.isSneaking()) {
+                    optional.get().triggerAbility(AbilityAction.SHIFT);
+                }
+            }
+        }, PlayerToggleSneakEvent.class));
+    }
 
-	public void subscribeRespawn() {
-		eventBus.subscribe(new EventAction<>(event -> {
-			Optional<RPGEntity> optional = EntityManager.getInstance().getEntity(event.getPlayer().getUniqueId());
-			if (optional.isPresent()) {
-				Bukkit.getScheduler().runTask(plugin, () -> {
-					BukkitInventorySync.syncInventory(optional.get(), event.getPlayer());
-				});
-			}
-		}, PlayerRespawnEvent.class));
-	}
+    public void subscribeRespawn() {
+        eventBus.subscribe(new EventAction<>(event -> {
+            Optional<RPGEntity> optional = EntityManager.getInstance().getEntity(event.getPlayer().getUniqueId());
+            if (optional.isPresent()) {
+                Bukkit.getScheduler().runTask(plugin, () -> {
+                    BukkitInventorySync.syncInventory(optional.get(), event.getPlayer());
+                });
+            }
+        }, PlayerRespawnEvent.class));
+    }
 
-	public void subscribeInventoryClick() {
-		eventBus.subscribe(new EventAction<>(event -> {
-			if (event.getWhoClicked() instanceof Player player) {
-				Optional<RPGEntity> optional = EntityManager.getInstance().getEntity(player.getUniqueId());
-				if (optional.isPresent()) {
-					Bukkit.getScheduler().runTask(plugin, () -> {
-						BukkitInventorySync.syncInventoryDiff(optional.get(), player);
-					});
-				}
-			}
-		}, InventoryClickEvent.class));
+    public void subscribeInventoryClick() {
+        eventBus.subscribe(new EventAction<>(event -> {
+            if (event.getWhoClicked() instanceof Player player) {
+                Optional<RPGEntity> optional = EntityManager.getInstance().getEntity(player.getUniqueId());
+                if (optional.isPresent()) {
+                    BukkitInventorySync.syncInventoryDiff(optional.get(), player);
+                }
+            }
+        }, InventoryClickEvent.class));
+    }
 
-	}
+    public void subscribeInventoryDrag() {
+        eventBus.subscribe(new EventAction<>(event -> {
+            if (event.getWhoClicked() instanceof Player player) {
+                Optional<RPGEntity> optional = EntityManager.getInstance().getEntity(player.getUniqueId());
+                if (optional.isPresent()) {
+                    BukkitInventorySync.syncInventoryDiff(optional.get(), player);
+                }
+            }
+        }, InventoryDragEvent.class));
+    }
 
-	public void subscribeDeath() {
-		eventBus.subscribe(new EventAction<>(event -> {
-			if (event.getTarget() instanceof BukkitPlayerEntity entity) {
-				entity.getPlayer().setGameMode(GameMode.SPECTATOR);
-				Bukkit.broadcastMessage(
-						"Player " + entity.getPlayer().getDisplayName() + " is dead. Respawning in 3s.");
-				Bukkit.getScheduler().runTaskLater(plugin, () -> {
-					EntityManager.getInstance().revive(entity.getUuid());
-					entity.setHealth(entity.getMaxHealth());
-					entity.getPlayer().setGameMode(GameMode.SURVIVAL);
-					entity.setAlive(true);
-				}, 20 * 3);
-			}
-		}, RPGEntityDeathEvent.class));
-	}
+    public void subscribeInventoryClose() {
+        eventBus.subscribe(new EventAction<>(event -> {
+            if (event.getPlayer() instanceof Player player) {
+                EntityManager.getInstance().getEntity(player.getUniqueId())
+                        .ifPresent(rpg -> BukkitInventorySync.syncInventoryDiff(rpg, player));
+            }
+        }, InventoryCloseEvent.class));
+    }
+
+    public void subscribePickup() {
+        eventBus.subscribe(new EventAction<>(event -> {
+            if (event.getEntity() instanceof Player player) {
+                EntityManager.getInstance().getEntity(player.getUniqueId())
+                        .ifPresent(rpg -> BukkitInventorySync.syncInventoryDiff(rpg, player));
+            }
+        }, EntityPickupItemEvent.class));
+    }
+
+    public void subscribeDropItem() {
+        eventBus.subscribe(new EventAction<>(event -> {
+            if (event.getPlayer() instanceof Player player) {
+                EntityManager.getInstance().getEntity(player.getUniqueId())
+                        .ifPresent(rpg -> BukkitInventorySync.syncInventoryDiff(rpg, player));
+            }
+        }, PlayerDropItemEvent.class));
+    }
+
+    public void subscribeDeath() {
+        eventBus.subscribe(new EventAction<>(event -> {
+            if (event.getTarget() instanceof BukkitPlayerEntity entity) {
+                entity.getPlayer().setGameMode(GameMode.SPECTATOR);
+                Bukkit.broadcastMessage(
+                        "Player " + entity.getPlayer().getDisplayName() + " is dead. Respawning in 3s.");
+                Bukkit.getScheduler().runTaskLater(plugin, () -> {
+                    EntityManager.getInstance().revive(entity.getUuid());
+                    entity.setHealth(entity.getMaxHealth());
+                    entity.getPlayer().setGameMode(GameMode.SURVIVAL);
+                    entity.setAlive(true);
+                }, 20 * 3);
+            }
+        }, RPGEntityDeathEvent.class));
+    }
 }

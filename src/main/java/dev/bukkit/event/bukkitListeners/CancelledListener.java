@@ -27,58 +27,58 @@ import dev.core.entity.RPGEntity;
 
 public class CancelledListener implements Listener {
 
-	private Plugin plugin;
+    private Plugin plugin;
 
-	public CancelledListener(Plugin plugin, ProtocolManager protocolManager) {
-		this.plugin = plugin;
+    public CancelledListener(Plugin plugin, ProtocolManager protocolManager) {
+        this.plugin = plugin;
 
-		protocolManager.addPacketListener(
-				new PacketAdapter(plugin, ListenerPriority.NORMAL, PacketType.Play.Client.ARM_ANIMATION) {
-					@Override
-					public void onPacketReceiving(PacketEvent event) {
-						Player player = event.getPlayer();
-						Optional<RPGEntity> optional = EntityManager.getInstance().getEntity(player.getUniqueId());
-						if (optional.isEmpty()) {
-							return;
-						} else {
-							optional.get().recordSwing();
-							if (!optional.get().canAttack()) {
-								event.setCancelled(true); // cancel arm swing packet
-							}
-						}
-					}
-				});
-	}
+        protocolManager.addPacketListener(
+                new PacketAdapter(plugin, ListenerPriority.NORMAL, PacketType.Play.Client.ARM_ANIMATION) {
+                    @Override
+                    public void onPacketReceiving(PacketEvent event) {
+                        Player player = event.getPlayer();
+                        Optional<RPGEntity> optional = EntityManager.getInstance().getEntity(player.getUniqueId());
+                        if (optional.isEmpty()) {
+                            return;
+                        } else {
+                            optional.get().recordSwing();
+                            if (!optional.get().canAttack()) {
+                                event.setCancelled(true); // cancel arm swing packet
+                            }
+                        }
+                    }
+                });
+    }
 
-	@EventHandler
-	public void onRegen(EntityRegainHealthEvent event) {
-		if (event.getEntityType() == EntityType.PLAYER) {
-			event.setCancelled(true);
-		}
+    @EventHandler
+    public void onRegen(EntityRegainHealthEvent event) {
+        if (event.getEntityType() == EntityType.PLAYER) {
+            event.setCancelled(true);
+        }
 
-		if (event.getEntity() instanceof LivingEntity living) {
-			Bukkit.getScheduler().runTaskLater(plugin, () -> DamageUtils.updateName(living), 1L);
-		}
-	}
+        if (event.getEntity() instanceof LivingEntity living) {
+            Bukkit.getScheduler().runTaskLater(plugin, () -> DamageUtils.updateName(living), 1L);
+        }
+    }
 
-	@EventHandler
-	public void onChangeFood(FoodLevelChangeEvent event) {
-		event.setCancelled(true);
-	}
+    @EventHandler
+    public void onChangeFood(FoodLevelChangeEvent event) {
+        event.setCancelled(true);
+    }
 
-	@EventHandler(priority = EventPriority.MONITOR)
-	public void onDamage(EntityDamageEvent event) {
-		if (event.getEntity() instanceof LivingEntity le) {
-//            Bukkit.getScheduler().runTaskLater(plugin, () -> {
-			DamageUtils.updateName(le);
-//            }, 1L);
-		}
-	}
+    @EventHandler(priority = EventPriority.MONITOR)
+    public void onDamage(EntityDamageEvent event) {
+        if (event.getEntity() instanceof LivingEntity le) {
+            Bukkit.getScheduler().runTaskLater(plugin, () -> {
+                DamageUtils.updateName(le);
+            }, 1L);
+        }
+    }
 
-	@EventHandler
-	public void onEntityDrop(EntityDropItemEvent event) {
-		event.getItemDrop().remove();
-		event.setCancelled(true);
-	}
+    @EventHandler
+    public void onEntityDrop(EntityDropItemEvent event) {
+        event.getItemDrop().remove();
+        event.setCancelled(true);
+    }
 
 }

@@ -1,12 +1,15 @@
 package dev.bukkit.stat;
 
+import java.util.HashSet;
 import java.util.Map.Entry;
 
+import org.bukkit.Registry;
 import org.bukkit.attribute.Attribute;
 import org.bukkit.attribute.AttributeInstance;
+import org.bukkit.attribute.AttributeModifier;
 import org.bukkit.entity.Entity;
 import org.bukkit.entity.LivingEntity;
-import org.bukkit.entity.Player;
+import org.bukkit.inventory.EquipmentSlotGroup;
 
 import dev.core.stat.Stat;
 import dev.core.stat.StatManager;
@@ -31,9 +34,9 @@ public class BukkitStatManager {
             StatType type = entry.getKey();
             Stat stat = entry.getValue();
 
+            stripVanillaItemModifiers(entity);
             switch (type) {
             case ATTACK_SPEED: {
-                entity.getAttribute(Attribute.ATTACK_SPEED).getModifiers().clear();
                 double current = stat.getCurrent(now);
                 entity.getAttribute(Attribute.ATTACK_SPEED).setBaseValue(current > 1024 ? 1024 : current);
                 break;
@@ -62,6 +65,26 @@ public class BukkitStatManager {
 
         updatePlayerVanillaHealth(statManager.getCurrentValue(StatType.HEALTH_RESOURCE, now),
                 statManager.getCurrentValue(StatType.HEALTH_MAX, now), onDeath);
+    }
+
+    private void stripVanillaItemModifiers(LivingEntity entity) {
+        for (Attribute attribute : Registry.ATTRIBUTE) {
+            AttributeInstance instance = entity.getAttribute(attribute);
+            if (instance == null) {
+                continue;
+            }
+
+            // Remove only modifiers that come from equipment
+            for (AttributeModifier mod : new HashSet<>(instance.getModifiers())) {
+                if (isVanillaItemModifier(mod)) {
+                    instance.removeModifier(mod);
+                }
+            }
+        }
+    }
+
+    private boolean isVanillaItemModifier(AttributeModifier mod) {
+        return mod.getSlotGroup() != null;
     }
 
     private double calculateVanillaHearts(double rpgHealth) {

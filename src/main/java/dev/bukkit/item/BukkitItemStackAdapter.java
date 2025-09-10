@@ -4,6 +4,7 @@ import java.util.UUID;
 
 import org.bukkit.Material;
 import org.bukkit.NamespacedKey;
+import org.bukkit.inventory.ItemFlag;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
 import org.bukkit.persistence.PersistentDataContainer;
@@ -37,7 +38,8 @@ public class BukkitItemStackAdapter {
         meta.setDisplayName(BukkitTextColorAdapter.colored(TextColor.GOLD, rpgItem.getName()));
         meta.setLore(renderer.render(rpgItem));
         meta.setUnbreakable(true);
-		meta.setHideTooltip(true);
+        meta.addItemFlags(ItemFlag.HIDE_UNBREAKABLE, ItemFlag.HIDE_ATTRIBUTES);
+        meta.getAttributeModifiers().clear();
 
         // Persist item id & uuid
         PersistentDataContainer pdc = meta.getPersistentDataContainer();
