@@ -8,6 +8,9 @@ public enum MessageLevel {
     WARNING_LEVEL(2, TextColor.GOLD),
     ERROR_LEVEL(3, TextColor.RED);
 
+    public static final String PLUGIN_PREFIX = "Project-D";
+    public static final String DEBUG_PREFIX = "[" + PLUGIN_PREFIX + " | DEBUG] ";
+
     private final int level;
     private final TextColor color;
 
@@ -25,7 +28,8 @@ public enum MessageLevel {
     }
 
     public String getPrefix() {
+        if (this == NORMAL_LEVEL) return "";
         String s = this.toString();
-        return s.substring(0, s.indexOf('_'));
+        return "[" + PLUGIN_PREFIX + " | " + s.substring(0, s.indexOf('_')) + "] ";
     }
 }

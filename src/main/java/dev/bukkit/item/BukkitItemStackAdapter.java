@@ -1,5 +1,6 @@
 package dev.bukkit.item;
 
+import java.util.Objects;
 import java.util.UUID;
 
 import org.bukkit.Material;
@@ -39,7 +40,9 @@ public class BukkitItemStackAdapter {
         meta.setLore(renderer.render(rpgItem));
         meta.setUnbreakable(true);
         meta.addItemFlags(ItemFlag.HIDE_UNBREAKABLE, ItemFlag.HIDE_ATTRIBUTES);
-        meta.getAttributeModifiers().clear();
+        if (meta.getAttributeModifiers() != null) {
+            meta.getAttributeModifiers().clear();
+        }
 
         // Persist item id & uuid
         PersistentDataContainer pdc = meta.getPersistentDataContainer();

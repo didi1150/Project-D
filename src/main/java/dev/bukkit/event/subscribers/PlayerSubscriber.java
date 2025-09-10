@@ -2,7 +2,11 @@ package dev.bukkit.event.subscribers;
 
 import java.util.Optional;
 
+import dev.bukkit.utils.BukkitMessageSender;
+import dev.core.utils.MessageComponent;
+import dev.core.utils.MessageText;
 import org.bukkit.Bukkit;
+import org.bukkit.ChatColor;
 import org.bukkit.GameMode;
 import org.bukkit.entity.Player;
 import org.bukkit.event.entity.EntityPickupItemEvent;
@@ -81,6 +85,22 @@ public class PlayerSubscriber {
             playerEntity.getPlayerProgression().setActiveClass(
                     classProgressionService.getActiveClass(playerEntity.getUuid()), playerEntity.getStatManager());
         }, PlayerJoinEvent.class));
+		eventBus.subscribe(new EventAction<>( event -> {
+            BukkitMessageSender.getInstance().sendLine(event.getPlayer(), ChatColor.AQUA.toString());
+			BukkitMessageSender.getInstance().sendCenteredMessage(event.getPlayer(), MessageComponent.of(MessageText.INFO_PLAYER_JOINED, event.getPlayer().getName()));
+            BukkitMessageSender.getInstance().sendLine(event.getPlayer(), ChatColor.AQUA.toString());
+            event.setJoinMessage("");
+//			BukkitMessageSender.getInstance().sendMessage(event.getPlayer(), MessageComponent.of("&a&m                                                                             "), false);
+//			BukkitMessageSender.getInstance().sendMessage(event.getPlayer(), MessageComponent.of("<red>Okay, so, this message is longer than 1 line of text. The color code should pass and it should center</red>"));
+//			BukkitMessageSender.getInstance().sendDebugMessage(event.getPlayer(), MessageComponent.of("If no <diff-option> is provided, the default behavior will be given by the stash.showStat, and stash.showPatch config variables. You can also use stash.showIncludeUntracked to set whether --include-untracked is enabled by default. Show the changes recorded in the stash entry as a diff between the stashed contents and the commit back when the stash entry was first created. By default, the command shows the diffstat, but it will accept any format known to git diff (e.g., git stash show -p stash@{1} to view the second most recent entry in patch form). If no <diff-option> is provided, the default behavior will be given by the stash.showStat, and stash.showPatch config variables. You can also use stash.showIncludeUntracked to set whether --include-untracked is enabled by default."));
+//			BukkitMessageSender.getInstance().sendMessage(event.getPlayer(), MessageComponent.of("&a&m                                                                             "));
+//			BukkitMessageSender.getInstance().sendCenteredMessage(event.getPlayer(), MessageComponent.of("<red>Okay, so, this message is longer than 1 line of text. The color code should pass and it should center</red>"));
+//			BukkitMessageSender.getInstance().sendCenteredMessage(MessageComponent.of("Okay, so, this message is longer than 1 line of text. The color code should pass and it should center"));
+//			BukkitMessageSender.getInstance().sendLine(event.getPlayer(), "<bold><blue> </blue></bold>");
+//			BukkitMessageSender.getInstance().sendMessage(event.getPlayer(), MessageComponent.of("&a&m                                                                              "), false);
+//			BukkitMessageSender.getInstance().sendLine(event.getPlayer(), ChatColor.AQUA.toString());
+//			BukkitMessageSender.getInstance().sendCenteredDebugMessage(event.getPlayer(), MessageComponent.of( "If no <diff-option> is provided, the default behavior will be given by the stash.showStat, and stash.showPatch config variables. You can also use stash.showIncludeUntracked to set whether --include-untracked is enabled by default. Show the changes recorded in the stash entry as a diff between the stashed contents and the commit back when the stash entry was first created. By default, the command shows the diffstat, but it will accept any format known to git diff (e.g., git stash show -p stash@{1} to view the second most recent entry in patch form). If no <diff-option> is provided, the default behavior will be given by the stash.showStat, and stash.showPatch config variables. You can also use stash.showIncludeUntracked to set whether --include-untracked is enabled by default."));
+		}, PlayerJoinEvent.class, EventAction.LOWEST_PRIORITY));
     }
 
     public void subscribeSpawnWorld() {
