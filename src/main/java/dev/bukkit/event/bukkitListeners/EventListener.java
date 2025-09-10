@@ -1,6 +1,7 @@
 package dev.bukkit.event.bukkitListeners;
 
 import org.bukkit.event.EventHandler;
+import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
 import org.bukkit.event.entity.EntityDamageByEntityEvent;
 import org.bukkit.event.entity.EntityDamageEvent;
@@ -28,7 +29,7 @@ public class EventListener implements Listener {
 		this.plugin = plugin;
 	}
 
-	@EventHandler
+	@EventHandler(priority = EventPriority.MONITOR)
 	public void onPlayerJoin(PlayerJoinEvent event) {
 		BukkitEventBus.getInstance().sendEvent(event);
 	}
@@ -44,7 +45,7 @@ public class EventListener implements Listener {
 		BukkitEventBus.getInstance().sendEvent(event);
 	}
 
-	@EventHandler
+	@EventHandler(priority = EventPriority.LOWEST)
 	public void onPlayerHandsSwap(PlayerSwapHandItemsEvent event) {
 		BukkitEventBus.getInstance().sendEvent(event);
 	}
@@ -54,7 +55,7 @@ public class EventListener implements Listener {
 		BukkitEventBus.getInstance().sendEvent(event);
 	}
 
-	@EventHandler
+	@EventHandler(priority = EventPriority.LOWEST)
 	public void onSwap(PlayerItemHeldEvent event) {
 		BukkitEventBus.getInstance().sendEvent(event);
 	}
@@ -64,12 +65,12 @@ public class EventListener implements Listener {
 		BukkitEventBus.getInstance().sendEvent(event);
 	}
 
-	@EventHandler
+	@EventHandler(priority = EventPriority.LOW)
 	public void onDamaged(EntityDamageEvent event) {
 		BukkitEventBus.getInstance().sendEvent(event);
 	}
 
-	@EventHandler
+	@EventHandler(priority = EventPriority.LOW)
 	public void onDamagedByEntity(EntityDamageByEntityEvent event) {
 		BukkitEventBus.getInstance().sendEvent(event);
 	}

@@ -37,6 +37,7 @@ public class BukkitItemStackAdapter {
         meta.setDisplayName(BukkitTextColorAdapter.colored(TextColor.GOLD, rpgItem.getName()));
         meta.setLore(renderer.render(rpgItem));
         meta.setUnbreakable(true);
+		meta.setHideTooltip(true);
 
         // Persist item id & uuid
         PersistentDataContainer pdc = meta.getPersistentDataContainer();

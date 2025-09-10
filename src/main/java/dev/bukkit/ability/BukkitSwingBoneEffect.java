@@ -29,7 +29,6 @@ import dev.core.ability.Effect;
 import dev.core.entity.EntityManager;
 import dev.core.entity.RPGEntity;
 import dev.core.event.impl.RPGEntityDamageEvent.DamageType;
-import dev.core.item.equipment.EquipmentSlot;
 import dev.core.stat.StatType;
 
 public class BukkitSwingBoneEffect extends Effect {
@@ -53,7 +52,7 @@ public class BukkitSwingBoneEffect extends Effect {
 
     private static final int BONE_DAMAGE = 0;
     private static final double RETURN_DISTANCE_THRESHOLD = 0.5; // Distance to player to auto-complete return
-    private static final String BONE_ID = "BONEMERANG";
+//    private static final String BONE_ID = "BONEMERANG";
 
     public BukkitSwingBoneEffect(String cooldownKey) {
         super(null, 1850, true, cooldownKey);
@@ -108,14 +107,14 @@ public class BukkitSwingBoneEffect extends Effect {
         }
         if (caster instanceof BukkitPlayerEntity playerEntity) {
             Player player = playerEntity.getPlayer();
-            String rpgItemId = BukkitItemStackAdapter.getRpgItemId(player.getInventory().getItemInMainHand());
+//            String rpgItemId = BukkitItemStackAdapter.getRpgItemId(player.getInventory().getItemInMainHand());
 
             UUID uuid2 = BukkitItemStackAdapter.getUUID(player.getInventory().getItemInMainHand());
-            if (rpgItemId == null || !rpgItemId.equals(BONE_ID)) {
-                Bukkit.broadcastMessage("Invalid " + rpgItemId);
-                return;
-            }
-            Bukkit.broadcastMessage("Valid " + rpgItemId);
+//            if (rpgItemId == null || !rpgItemId.equals(BONE_ID)) {
+//                Bukkit.broadcastMessage("Invalid " + rpgItemId);
+//                return;
+//            }
+//            Bukkit.broadcastMessage("Valid " + rpgItemId);
             if (uuid2 != null) {
                 uuid = uuid2.toString();
             }

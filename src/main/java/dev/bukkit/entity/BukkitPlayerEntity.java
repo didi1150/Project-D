@@ -4,7 +4,6 @@ import org.bukkit.entity.Player;
 
 import dev.bukkit.ability.BukkitEffectManager;
 import dev.bukkit.event.BukkitEventBus;
-import dev.bukkit.item.BukkitInventorySync;
 import dev.bukkit.stat.BukkitStatManager;
 import dev.core.entity.EntityType;
 import dev.core.entity.RPGEntity;
@@ -36,7 +35,7 @@ public class BukkitPlayerEntity extends RPGEntity {
         if (isAlive()) {
             updateDisplay();
             bukkitStatManager.tick(now, this::onDeath);
-            BukkitInventorySync.syncInventoryDiff(this, player);
+//            BukkitInventorySync.syncInventoryDiff(this, player);
         }
     }
 
