@@ -9,7 +9,6 @@ import org.bukkit.attribute.AttributeInstance;
 import org.bukkit.attribute.AttributeModifier;
 import org.bukkit.entity.Entity;
 import org.bukkit.entity.LivingEntity;
-import org.bukkit.inventory.EquipmentSlotGroup;
 
 import dev.core.stat.Stat;
 import dev.core.stat.StatManager;

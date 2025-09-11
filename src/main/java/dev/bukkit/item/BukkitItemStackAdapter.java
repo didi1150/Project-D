@@ -1,6 +1,5 @@
 package dev.bukkit.item;
 
-import java.util.Objects;
 import java.util.UUID;
 
 import org.bukkit.Material;

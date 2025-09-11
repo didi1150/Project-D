@@ -2,9 +2,6 @@ package dev.bukkit.event.subscribers;
 
 import java.util.Optional;
 
-import dev.bukkit.utils.BukkitMessageSender;
-import dev.core.utils.MessageComponent;
-import dev.core.utils.MessageText;
 import org.bukkit.Bukkit;
 import org.bukkit.ChatColor;
 import org.bukkit.GameMode;
@@ -28,6 +25,7 @@ import org.spigotmc.event.player.PlayerSpawnLocationEvent;
 import dev.bukkit.entity.BukkitPlayerEntity;
 import dev.bukkit.item.BukkitInventorySync;
 import dev.bukkit.storage.progression.ClassProgressionService;
+import dev.bukkit.utils.BukkitMessageSender;
 import dev.core.ability.AbilityAction;
 import dev.core.entity.EntityManager;
 import dev.core.entity.RPGEntity;
@@ -36,6 +34,8 @@ import dev.core.event.EventAction;
 import dev.core.event.EventBusInterface;
 import dev.core.event.impl.RPGEntityDeathEvent;
 import dev.core.progression.PlayerClassProgression;
+import dev.core.utils.MessageComponent;
+import dev.core.utils.MessageText;
 
 public class PlayerSubscriber {
 
@@ -67,6 +67,8 @@ public class PlayerSubscriber {
         subscribeSwapHands();
         subscribeInventoryDrag();
         subscribeInventoryClose();
+        subscribePickup();
+        subscribeDropItem();
     }
 
     public void subscribeJoin() {
@@ -85,9 +87,10 @@ public class PlayerSubscriber {
             playerEntity.getPlayerProgression().setActiveClass(
                     classProgressionService.getActiveClass(playerEntity.getUuid()), playerEntity.getStatManager());
         }, PlayerJoinEvent.class));
-		eventBus.subscribe(new EventAction<>( event -> {
+        eventBus.subscribe(new EventAction<>(event -> {
             BukkitMessageSender.getInstance().sendLine(event.getPlayer(), ChatColor.AQUA.toString());
-			BukkitMessageSender.getInstance().sendCenteredMessage(event.getPlayer(), MessageComponent.of(MessageText.INFO_PLAYER_JOINED, event.getPlayer().getName()));
+            BukkitMessageSender.getInstance().sendCenteredMessage(event.getPlayer(),
+                    MessageComponent.of(MessageText.INFO_PLAYER_JOINED, event.getPlayer().getName()));
             BukkitMessageSender.getInstance().sendLine(event.getPlayer(), ChatColor.AQUA.toString());
             event.setJoinMessage("");
 //			BukkitMessageSender.getInstance().sendMessage(event.getPlayer(), MessageComponent.of("&a&m                                                                             "), false);
@@ -100,7 +103,7 @@ public class PlayerSubscriber {
 //			BukkitMessageSender.getInstance().sendMessage(event.getPlayer(), MessageComponent.of("&a&m                                                                              "), false);
 //			BukkitMessageSender.getInstance().sendLine(event.getPlayer(), ChatColor.AQUA.toString());
 //			BukkitMessageSender.getInstance().sendCenteredDebugMessage(event.getPlayer(), MessageComponent.of( "If no <diff-option> is provided, the default behavior will be given by the stash.showStat, and stash.showPatch config variables. You can also use stash.showIncludeUntracked to set whether --include-untracked is enabled by default. Show the changes recorded in the stash entry as a diff between the stashed contents and the commit back when the stash entry was first created. By default, the command shows the diffstat, but it will accept any format known to git diff (e.g., git stash show -p stash@{1} to view the second most recent entry in patch form). If no <diff-option> is provided, the default behavior will be given by the stash.showStat, and stash.showPatch config variables. You can also use stash.showIncludeUntracked to set whether --include-untracked is enabled by default."));
-		}, PlayerJoinEvent.class, EventAction.LOWEST_PRIORITY));
+        }, PlayerJoinEvent.class, EventAction.LOWEST_PRIORITY));
     }
 
     public void subscribeSpawnWorld() {
@@ -233,8 +236,11 @@ public class PlayerSubscriber {
     public void subscribePickup() {
         eventBus.subscribe(new EventAction<>(event -> {
             if (event.getEntity() instanceof Player player) {
-                EntityManager.getInstance().getEntity(player.getUniqueId())
-                        .ifPresent(rpg -> BukkitInventorySync.syncInventoryDiff(rpg, player));
+                Bukkit.getScheduler().runTask(plugin, () -> {
+                    EntityManager.getInstance().getEntity(player.getUniqueId()).ifPresent(rpg -> {
+                        BukkitInventorySync.syncInventoryDiff(rpg, player);
+                    });
+                });
             }
         }, EntityPickupItemEvent.class));
     }
@@ -242,8 +248,11 @@ public class PlayerSubscriber {
     public void subscribeDropItem() {
         eventBus.subscribe(new EventAction<>(event -> {
             if (event.getPlayer() instanceof Player player) {
-                EntityManager.getInstance().getEntity(player.getUniqueId())
-                        .ifPresent(rpg -> BukkitInventorySync.syncInventoryDiff(rpg, player));
+                Bukkit.getScheduler().runTask(plugin, () -> {
+                    EntityManager.getInstance().getEntity(player.getUniqueId()).ifPresent(rpg -> {
+                        BukkitInventorySync.syncInventoryDiff(rpg, player);
+                    });
+                });
             }
         }, PlayerDropItemEvent.class));
     }

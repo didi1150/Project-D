@@ -29,7 +29,6 @@ import dev.core.ability.Effect;
 import dev.core.entity.EntityManager;
 import dev.core.entity.RPGEntity;
 import dev.core.event.impl.RPGEntityDamageEvent.DamageType;
-import dev.core.item.loader.RPGItemRegistry;
 import dev.core.stat.StatType;
 
 public class BukkitSwingBoneEffect extends Effect {

@@ -99,7 +99,7 @@ public class EventListener implements Listener {
         BukkitEventBus.getInstance().sendEvent(event);
     }
 
-    @EventHandler(priority = EventPriority.MONITOR)
+    @EventHandler
     public void onDrop(PlayerDropItemEvent event) {
         BukkitEventBus.getInstance().sendEvent(event);
     }
