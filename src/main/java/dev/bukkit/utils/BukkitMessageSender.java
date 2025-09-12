@@ -1,6 +1,10 @@
 package dev.bukkit.utils;
 
-import dev.bukkit.command.CommandManager;
+import org.bukkit.Bukkit;
+import org.bukkit.ChatColor;
+import org.bukkit.command.CommandSender;
+import org.bukkit.entity.Player;
+
 import dev.bukkit.item.display.BukkitTextColorAdapter;
 import dev.core.item.display.StyleTagParser;
 import dev.core.item.display.TextColor;
@@ -8,10 +12,6 @@ import dev.core.utils.DefaultFontInfo;
 import dev.core.utils.MessageComponent;
 import dev.core.utils.MessageLevel;
 import dev.core.utils.MessageSenderInterface;
-import org.bukkit.Bukkit;
-import org.bukkit.ChatColor;
-import org.bukkit.command.CommandSender;
-import org.bukkit.entity.Player;
 
 public class BukkitMessageSender implements MessageSenderInterface {
 

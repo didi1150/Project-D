@@ -3,6 +3,7 @@ package dev.bukkit.command;
 import org.bukkit.command.CommandExecutor;
 import org.bukkit.plugin.java.JavaPlugin;
 
+import dev.bukkit.command.impl.DungeonCommand;
 import dev.bukkit.command.impl.GiveItemCommand;
 import dev.bukkit.command.impl.SaveItemCommand;
 import dev.bukkit.command.impl.SelectActiveCommand;
@@ -36,6 +37,7 @@ public class CommandManager {
         commandMap.put("selectActive", new SelectActiveCommand(classProgressionService));
         commandMap.put("showStats", new ShowStatsCommand());
         commandMap.put("setXp", new SetXPCommand(classProgressionService));
+        commandMap.put("dungeon", new DungeonCommand());
     }
 
     public void registerCommands(JavaPlugin javaPlugin) {

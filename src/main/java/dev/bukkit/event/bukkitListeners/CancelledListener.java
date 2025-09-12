@@ -3,15 +3,21 @@ package dev.bukkit.event.bukkitListeners;
 import java.util.Optional;
 
 import org.bukkit.Bukkit;
+import org.bukkit.entity.Entity;
 import org.bukkit.entity.EntityType;
 import org.bukkit.entity.LivingEntity;
+import org.bukkit.entity.Mob;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
+import org.bukkit.event.block.BlockExplodeEvent;
+import org.bukkit.event.entity.EntityDamageByEntityEvent;
 import org.bukkit.event.entity.EntityDamageEvent;
-import org.bukkit.event.entity.EntityDropItemEvent;
+import org.bukkit.event.entity.EntityDeathEvent;
+import org.bukkit.event.entity.EntityExplodeEvent;
 import org.bukkit.event.entity.EntityRegainHealthEvent;
+import org.bukkit.event.entity.EntityTargetLivingEntityEvent;
 import org.bukkit.event.entity.FoodLevelChangeEvent;
 import org.bukkit.plugin.Plugin;
 
@@ -68,6 +74,9 @@ public class CancelledListener implements Listener {
 
     @EventHandler(priority = EventPriority.MONITOR)
     public void onDamage(EntityDamageEvent event) {
+        if (event.isCancelled()) {
+            return;
+        }
         if (event.getEntity() instanceof LivingEntity le) {
             Bukkit.getScheduler().runTaskLater(plugin, () -> {
                 DamageUtils.updateName(le);
@@ -75,10 +84,46 @@ public class CancelledListener implements Listener {
         }
     }
 
-    @EventHandler
-    public void onEntityDrop(EntityDropItemEvent event) {
-        event.getItemDrop().remove();
-        event.setCancelled(true);
+    @EventHandler(priority = EventPriority.MONITOR)
+    public void onMobDamagedByOtherMob(EntityDamageByEntityEvent event) {
+        Entity entity = event.getEntity();
+        Entity damager = event.getDamager();
+
+        if (entity.hasMetadata("DUNGEON") && damager.hasMetadata("DUNGEON")) {
+            event.setCancelled(true);
+        }
     }
 
+    @EventHandler
+    public void onTarget(EntityTargetLivingEntityEvent event) {
+        if (!(event.getEntity() instanceof Mob))
+            return;
+
+        LivingEntity target = event.getTarget();
+        if (target == null)
+            return;
+
+        // Prevent mobs from targeting other mobs
+        if (!(target instanceof Player)) {
+            if (event.getEntity().hasMetadata("DUNGEON") && target.hasMetadata("DUNGEON")) {
+                event.setCancelled(true);
+            }
+        }
+    }
+
+    @EventHandler
+    public void onDeathDrop(EntityDeathEvent event) {
+        event.getDrops().clear();
+        event.setDroppedExp(0);
+    }
+
+    @EventHandler
+    public void onExplode(EntityExplodeEvent event) {
+        event.blockList().clear();
+    }
+
+    @EventHandler
+    public void onExplode(BlockExplodeEvent event) {
+        event.blockList().clear();
+    }
 }

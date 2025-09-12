@@ -24,6 +24,7 @@ import org.bukkit.plugin.Plugin;
 import org.bukkit.scheduler.BukkitRunnable;
 import org.bukkit.util.Transformation;
 
+import dev.bukkit.entity.BukkitEntityFactory;
 import dev.bukkit.entity.VanillaEntityMeta;
 import dev.bukkit.event.BukkitEventBus;
 import dev.bukkit.utils.DamageUtils;
@@ -399,7 +400,7 @@ public class CombatListener implements Listener {
             return;
         }
 
-        VanillaEntityMeta meta = new VanillaEntityMeta(1, DamageUtils.getRelation(entity));
+        VanillaEntityMeta meta = new VanillaEntityMeta(1, BukkitEntityFactory.getRelation(entity));
 
         // Store metadata
         entity.setMetadata("VANILLA_META", new FixedMetadataValue(plugin, meta));
