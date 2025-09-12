@@ -48,4 +48,9 @@ public class Point3D {
         return 31 * (31 * x + y) + z;
     }
 
+    @Override
+    public String toString() {
+        return String.format("%d %d %d", x, y, z);
+    }
+
 }

@@ -10,20 +10,16 @@ public class QuadraticRoom extends DungeonRoom {
     protected void generateRoomStructure() {
         int halfSize = size / 2;
 
+        // Generate floor blocks first
         for (int x = center.getX() - halfSize; x <= center.getX() + halfSize; x++) {
             for (int z = center.getZ() - halfSize; z <= center.getZ() + halfSize; z++) {
                 addRoomBlocks(x, z);
-
-                // Walls on edges
-                if (x == center.getX() - halfSize || x == center.getX() + halfSize || z == center.getZ() - halfSize
-                        || z == center.getZ() + halfSize) {
-                    for (int y = center.getY(); y < center.getY() + height; y++) {
-                        wallBlocks.add(new Point3D(x, y, z));
-                        airBlocks.remove(new Point3D(x, y, z));
-                    }
-                }
             }
         }
+
+        // Add walls using the standard method (consistent with SpawnRoom and
+        // EndPortalRoom)
+        addWallsForBlocks();
     }
 
     @Override
@@ -45,7 +41,7 @@ public class QuadraticRoom extends DungeonRoom {
 
     @Override
     public RoomType getType() {
-        return RoomType.QUADRATIC;
+        return RoomType.SQUARE_ROOM; // Updated to match the new RoomType enum
     }
 
 }

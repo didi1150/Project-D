@@ -1,3 +1,91 @@
+//package dev.core.game.dungeon;
+//
+//import java.util.Random;
+//
+//public class TunnelFactory {
+//
+//    public static DungeonTunnel createTunnel(TunnelType type, String id, DungeonRoom startRoom, DungeonRoom endRoom,
+//            Direction direction, int width) {
+//
+//        // Calculate connection points with special handling for L-shaped rooms
+//        Point3D startPoint = calculateOptimalConnection(startRoom, direction);
+//        Point3D endPoint = calculateOptimalConnection(endRoom, direction.opposite());
+//
+//        // Normalize Y to the lower of the two centers
+//        int connectionY = Math.min(startRoom.getCenter().getY(), endRoom.getCenter().getY());
+//        startPoint = new Point3D(startPoint.getX(), connectionY, startPoint.getZ());
+//        endPoint = new Point3D(endPoint.getX(), connectionY, endPoint.getZ());
+//
+//        int tunnelHeight = Math.min(startRoom.getHeight(), endRoom.getHeight());
+//
+//        TunnelConnection startConnection = new TunnelConnection(startRoom, direction, startPoint, tunnelHeight);
+//        TunnelConnection endConnection = new TunnelConnection(endRoom, direction.opposite(), endPoint, tunnelHeight);
+//
+//        // Auto-pick L_SHAPED if not aligned on either axis
+//        if (startPoint.getX() != endPoint.getX() && startPoint.getZ() != endPoint.getZ()) {
+//            type = TunnelType.L_SHAPED;
+//        }
+//
+//        switch (type) {
+//        case STRAIGHT:
+//            return new StraightTunnel(id, startConnection, endConnection, width);
+//        case L_SHAPED:
+//            return new LShapedTunnel(id, startConnection, endConnection, width);
+//        default:
+//            return new StraightTunnel(id, startConnection, endConnection, width);
+//        }
+//    }
+//
+//    public static DungeonTunnel createRandomTunnel(String id, DungeonRoom startRoom, DungeonRoom endRoom,
+//            Direction direction, Random random) {
+//        TunnelType type = TunnelType.values()[random.nextInt(TunnelType.values().length)];
+//        int width = 3 + random.nextInt(3); // Width between 3–5
+//        return createTunnel(type, id, startRoom, endRoom, direction, width);
+//    }
+//
+//    /**
+//     * Calculate optimal connection point with special handling for L-shaped rooms
+//     */
+//    private static Point3D calculateOptimalConnection(DungeonRoom room, Direction direction) {
+//        // For L-shaped rooms, try to use the alternative connection point if the
+//        // primary isn't valid
+//        if (room instanceof LShapedRoom) {
+//            LShapedRoom lRoom = (LShapedRoom) room;
+//
+//            // First try the primary connection point
+//            Point3D primaryPoint = lRoom.getConnectionPoint(direction);
+//            if (lRoom.hasValidConnectionPoint(direction)) {
+//                return primaryPoint;
+//            }
+//
+//            // If primary isn't valid, try alternative
+//            Point3D alternativePoint = lRoom.getAlternativeConnectionPoint(direction);
+//            return alternativePoint;
+//        }
+//
+//        // For other room types, use the standard midpoint calculation
+//        return calculateMidpointConnection(room, direction);
+//    }
+//
+//    private static Point3D calculateMidpointConnection(DungeonRoom room, Direction direction) {
+//        Point3D center = room.getCenter();
+//        int halfSize = room.getSize() / 2;
+//
+//        switch (direction) {
+//        case NORTH:
+//            return new Point3D(center.getX(), center.getY(), center.getZ() - halfSize);
+//        case SOUTH:
+//            return new Point3D(center.getX(), center.getY(), center.getZ() + halfSize);
+//        case EAST:
+//            return new Point3D(center.getX() + halfSize, center.getY(), center.getZ());
+//        case WEST:
+//            return new Point3D(center.getX() - halfSize, center.getY(), center.getZ());
+//        default:
+//            return center;
+//        }
+//    }
+//}
+
 package dev.core.game.dungeon;
 
 import java.util.Random;
@@ -32,7 +120,7 @@ public class TunnelFactory {
 
     public static DungeonTunnel createRandomTunnel(String id, DungeonRoom startRoom, DungeonRoom endRoom,
             Direction direction, Random random) {
-        TunnelType type = TunnelType.STRAIGHT; // For now, only straight tunnels
+        TunnelType type = TunnelType.values()[random.nextInt(TunnelType.values().length - 1)];
         int width = 3 + random.nextInt(3); // Width between 3-5
 
         return createTunnel(type, id, startRoom, endRoom, direction, width);
@@ -42,7 +130,7 @@ public class TunnelFactory {
         Point3D basePoint = room.getConnectionPoint(direction);
 
 // For L-shaped and round rooms, we need to find a better connection point
-        if (room.getType() == RoomType.L_SHAPE || room.getType() == RoomType.ROUND) {
+        if (room.getType() == RoomType.L_SHAPED_ROOM || room.getType() == RoomType.CIRCULAR_ROOM) {
             return findValidConnectionPoint(room, direction, basePoint);
         }
 

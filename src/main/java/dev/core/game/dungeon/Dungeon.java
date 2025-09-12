@@ -15,6 +15,8 @@ public class Dungeon {
     private final Set<Point3D> allRoofBlocks;
     private final Set<Point3D> allAirBlocks;
     private final Set<Point3D> allDecorativeBlocks;
+    private final Set<Point3D> endPortal;
+    private final Set<Point3D> ceremonyArea;
     private final List<SpawnLocation> allSpawnLocations;
     private final List<DecorationElement> allDecorations;
 
@@ -28,6 +30,8 @@ public class Dungeon {
         this.allDecorativeBlocks = new HashSet<>();
         this.allSpawnLocations = new ArrayList<>();
         this.allDecorations = new ArrayList<>();
+        this.endPortal = new HashSet<>();
+        this.ceremonyArea = new HashSet<>();
 
         // Combine all room blocks
         for (DungeonRoom room : rooms) {
@@ -47,6 +51,13 @@ public class Dungeon {
             allRoofBlocks.addAll(tunnel.getRoofBlocks());
             allAirBlocks.addAll(tunnel.getAirBlocks());
         }
+
+        rooms.forEach(room -> {
+            if (room instanceof EndPortalRoom endPortalRoom) {
+                endPortal.addAll(endPortalRoom.getPortalStructure());
+                ceremonyArea.addAll(endPortalRoom.getCeremonyArea());
+            }
+        });
     }
 
     public List<DungeonRoom> getRooms() {

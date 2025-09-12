@@ -127,6 +127,10 @@ public class DecorationGenerator {
             for (Direction dir : Direction.values()) {
                 Point3D adjacent = dir.apply(airPos, 1);
                 if (room.getWallBlocks().contains(adjacent)) {
+                    // Check if location is NOT inside wall
+                    if (room.getWallBlocks().contains(airPos)) {
+                        break;
+                    }
                     wallAdjacentPositions.add(airPos);
                     break;
                 }

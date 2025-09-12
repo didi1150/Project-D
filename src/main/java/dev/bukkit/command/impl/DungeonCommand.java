@@ -45,7 +45,7 @@ public class DungeonCommand implements CommandExecutor {
         if (args.length > 0) {
             try {
                 roomCount = Integer.parseInt(args[0]);
-                roomCount = Math.max(1, Math.min(50, roomCount)); // Limit between 1-50
+                roomCount = Math.max(1, roomCount); // Limit between 1-50
             } catch (NumberFormatException e) {
                 player.sendMessage("§cInvalid room count! Using default: 10");
             }

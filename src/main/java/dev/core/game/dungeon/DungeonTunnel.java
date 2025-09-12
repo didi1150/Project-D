@@ -17,6 +17,7 @@ public abstract class DungeonTunnel {
     protected final Set<Point3D> roofBlocks;
     protected final Set<Point3D> airBlocks;
     protected final List<Point3D> centerPath;
+    protected final BoundingBox boundingBox;
 
     public DungeonTunnel(String id, TunnelConnection startConnection, TunnelConnection endConnection, int width) {
         this.id = id;
@@ -30,6 +31,10 @@ public abstract class DungeonTunnel {
         this.roofBlocks = new HashSet<>();
         this.airBlocks = new HashSet<>();
         this.centerPath = new ArrayList<>();
+
+        Point3D start = startConnection.getConnectionPoint();
+        Point3D end = endConnection.getConnectionPoint();
+        boundingBox = new BoundingBox(start, end);
 
         generateTunnel();
         createConnectionFillers();
@@ -54,7 +59,7 @@ public abstract class DungeonTunnel {
         Direction tunnelDirection = calculateTunnelDirection(centerPoint);
         Direction[] perpendiculars = getPerpendicularDirections(tunnelDirection);
 
-        int halfWidth = width / 2;
+        int halfWidth = (int) Math.ceil(width / 2.0);
 
         // Create floor, air, and roof for the cross-section
         for (int w = -halfWidth; w <= halfWidth; w++) {
@@ -134,13 +139,13 @@ public abstract class DungeonTunnel {
         int fillerHeight = connection.getFillerWallHeight();
 
         // Create filler walls from tunnel height to room height
-        int halfWidth = width / 2;
+        int halfWidth = (int) Math.ceil(width / 2.0);
         Direction[] perpendiculars = getPerpendicularDirections(direction);
 
         for (int w = -halfWidth; w <= halfWidth; w++) {
             Point3D crossPoint = perpendiculars[0].apply(connectionPoint, w);
 
-            for (int h = height; h < connection.getRoomHeight(); h++) {
+            for (int h = height; h < fillerHeight; h++) {
                 Point3D fillerPos = new Point3D(crossPoint.getX(), connectionPoint.getY() + h, crossPoint.getZ());
                 wallBlocks.add(fillerPos);
             }
@@ -206,7 +211,7 @@ public abstract class DungeonTunnel {
 
         // For L-shaped and round rooms, ensure the entrance aligns with the room
         // geometry
-        if (room.getType() == RoomType.L_SHAPE || room.getType() == RoomType.ROUND) {
+        if (room.getType() == RoomType.L_SHAPED_ROOM || room.getType() == RoomType.CIRCULAR_ROOM) {
             // Move one step into the room to check if it's a valid interior space
             Point3D interiorCheck = direction.opposite().apply(entrancePoint, 1);
             Point3D interiorFloor = new Point3D(interiorCheck.getX(), room.getCenter().getY() - 1,
@@ -256,6 +261,10 @@ public abstract class DungeonTunnel {
 
     public List<Point3D> getCenterPath() {
         return new ArrayList<>(centerPath);
+    }
+
+    public BoundingBox getBoundingBox() {
+        return boundingBox;
     }
 
 }

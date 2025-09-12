@@ -25,6 +25,7 @@ import dev.core.game.dungeon.Direction;
 import dev.core.game.dungeon.Dungeon;
 import dev.core.game.dungeon.DungeonRoom;
 import dev.core.game.dungeon.DungeonTunnel;
+import dev.core.game.dungeon.EndPortalRoom;
 import dev.core.game.dungeon.Point3D;
 import dev.core.game.dungeon.SpawnLocation;
 
@@ -39,6 +40,7 @@ public class DungeonBuilderBukkit {
     private final List<Material> wallMaterials;
     private final List<Material> roofMaterials;
     private final List<Material> glowingWallMaterials;
+    private final List<Material> portalPlatformMaterials;
 
     // Decoration material mappings
     private final Map<String, Material> decorationMaterials;
@@ -53,15 +55,16 @@ public class DungeonBuilderBukkit {
     private final double floorVariationChance;
     private final double roofVariationChance;
     private final double glowingBlockChance;
+    private final double portalPlatformVariationChance;
 
     public DungeonBuilderBukkit(Plugin plugin, World world) {
         this(plugin, world, createDefaultFloorMaterials(), createDefaultWallMaterials(), createDefaultRoofMaterials(),
-                createDefaultGlowingMaterials(), true, true, 5);
+                createDefaultGlowingMaterials(), createDefaultPortalPlatformMaterials(), true, true, 5);
     }
 
     public DungeonBuilderBukkit(Plugin plugin, World world, List<Material> floorMaterials, List<Material> wallMaterials,
-            List<Material> roofMaterials, List<Material> glowingWallMaterials, boolean useGlowingBlocks,
-            boolean useWallTorches, int lightingDensity) {
+            List<Material> roofMaterials, List<Material> glowingWallMaterials, List<Material> portalPlatformMaterials,
+            boolean useGlowingBlocks, boolean useWallTorches, int lightingDensity) {
         this.plugin = plugin;
         this.world = world;
         this.random = new Random();
@@ -69,6 +72,7 @@ public class DungeonBuilderBukkit {
         this.wallMaterials = new ArrayList<>(wallMaterials);
         this.roofMaterials = new ArrayList<>(roofMaterials);
         this.glowingWallMaterials = new ArrayList<>(glowingWallMaterials);
+        this.portalPlatformMaterials = new ArrayList<>(portalPlatformMaterials);
         this.useGlowingBlocks = useGlowingBlocks;
         this.useWallTorches = useWallTorches;
         this.lightingDensity = Math.max(1, Math.min(10, lightingDensity));
@@ -81,12 +85,19 @@ public class DungeonBuilderBukkit {
         this.floorVariationChance = 0.15; // 15% chance for variety
         this.roofVariationChance = 0.20; // 20% chance for variety
         this.glowingBlockChance = 0.08; // 8% chance for glowing blocks
+        this.portalPlatformVariationChance = 0.25; // 25% chance for variety
     }
 
     private static List<Material> createDefaultFloorMaterials() {
         return Arrays.asList(Material.STONE_BRICKS, // Primary
                 Material.CRACKED_STONE_BRICKS, Material.MOSSY_STONE_BRICKS, Material.COBBLESTONE,
                 Material.MOSSY_COBBLESTONE);
+    }
+
+    private static List<Material> createDefaultPortalPlatformMaterials() {
+        return Arrays.asList(Material.POLISHED_BLACKSTONE_BRICKS, // Primary
+                Material.REDSTONE_BLOCK, Material.GOLD_BLOCK, Material.EMERALD_BLOCK, Material.CRYING_OBSIDIAN,
+                Material.BLACKSTONE_SLAB, Material.POLISHED_BLACKSTONE_BRICK_SLAB);
     }
 
     private static List<Material> createDefaultWallMaterials() {
@@ -110,7 +121,7 @@ public class DungeonBuilderBukkit {
         // Vegetation
         materials.put("vine", Material.VINE);
         materials.put("oak_leaves", Material.OAK_LEAVES);
-        materials.put("grass", Material.GRASS_BLOCK);
+        materials.put("grass", Material.SHORT_GRASS);
         materials.put("fern", Material.FERN);
         materials.put("dead_bush", Material.DEAD_BUSH);
         materials.put("brown_mushroom", Material.BROWN_MUSHROOM);
@@ -143,6 +154,8 @@ public class DungeonBuilderBukkit {
             private final java.util.List<Point3D> airBlocks = new java.util.ArrayList<>(dungeon.getAllAirBlocks());
             private final java.util.List<DecorationElement> decorations = new java.util.ArrayList<>(
                     dungeon.getAllDecorations());
+            private final List<SpawnLocation> spawnLocations = new ArrayList<SpawnLocation>(
+                    dungeon.getAllSpawnLocations());
             private int decorationIndex = 0;
             private int stage = 0; // 0 = floor, 1 = walls, 2 = roof, 3 = air, 4 = decorations, 5 = lighting, 6 =
                                    // complete
@@ -210,10 +223,10 @@ public class DungeonBuilderBukkit {
                     } else if (stage == 5) { // Lighting stage
                         addLighting(dungeon);
                         stage = 6;
-                    } else if (stage == 6) {
-                        spawnMobs(dungeon);
-                        Bukkit.broadcastMessage("§a95% done - Spawned Mobs...");
+                    } else if (stage == 6) { // Placing Mobs
+                        spawnMobs(spawnLocations);
                         stage = 7;
+                        Bukkit.broadcastMessage("§a95% done - Spawning Mobs...");
                     }
 
                     if (stage == 7) {
@@ -234,8 +247,8 @@ public class DungeonBuilderBukkit {
         }.runTaskTimer(plugin, 0L, 1L);
     }
 
-    private void spawnMobs(Dungeon dungeon) {
-        for (SpawnLocation spawnLocation : dungeon.getAllSpawnLocations()) {
+    private void spawnMobs(List<SpawnLocation> spawnLocations) {
+        for (SpawnLocation spawnLocation : spawnLocations) {
             BukkitEntityFactory.spawnHostileVanillaDungeonMob(spawnLocation.getMaxEnemyLevel(), spawnLocation, world);
         }
     }
@@ -416,6 +429,9 @@ public class DungeonBuilderBukkit {
         // Add center torches in rooms
         for (DungeonRoom room : dungeon.getRooms()) {
             addRoomCenterLighting(room);
+            if (room instanceof EndPortalRoom endPortalRoom) {
+                buildEndPortal(endPortalRoom);
+            }
             if (useWallTorches) {
                 addWallTorches(room);
             }
@@ -446,6 +462,36 @@ public class DungeonBuilderBukkit {
                         }
                     }
                 }
+            }
+        }
+    }
+
+    private void buildEndPortal(EndPortalRoom room) {
+        // 1. Place the portal frame
+        for (Point3D framePos : room.getPortalStructure()) {
+            Block frameBlock = world.getBlockAt(framePos.getX(), framePos.getY(), framePos.getZ());
+            frameBlock.setType(Material.OBSIDIAN);
+        }
+
+        // 2. Place the ceremonial platform
+        for (Point3D platformPos : room.getCeremonyArea()) {
+            Block platformBlock = world.getBlockAt(platformPos.getX(), platformPos.getY(), platformPos.getZ());
+            platformBlock.setType(selectMaterial(portalPlatformMaterials, portalPlatformVariationChance));
+        }
+
+        // 3. Light up the portal
+        lightPortal(room.getPortalCenter());
+    }
+
+    private void lightPortal(Point3D portalCenter) {
+        int portalWidth = 4;
+        int portalHeight = 5;
+
+        for (int x = -portalWidth / 2 + 1; x <= portalWidth / 2 - 1; x++) {
+            for (int y = 1; y < portalHeight; y++) {
+                Point3D portalPos = new Point3D(portalCenter.getX() + x, portalCenter.getY() + y, portalCenter.getZ());
+                Block portalBlock = world.getBlockAt(portalPos.getX(), portalPos.getY(), portalPos.getZ());
+                portalBlock.setType(Material.NETHER_PORTAL);
             }
         }
     }
@@ -553,6 +599,7 @@ public class DungeonBuilderBukkit {
         private List<Material> wallMaterials = createDefaultWallMaterials();
         private List<Material> roofMaterials = createDefaultRoofMaterials();
         private List<Material> glowingWallMaterials = createDefaultGlowingMaterials();
+        private List<Material> portalPlatformMaterials = createDefaultPortalPlatformMaterials();
         private boolean useGlowingBlocks = true;
         private boolean useWallTorches = true;
         private int lightingDensity = 5;
@@ -582,6 +629,11 @@ public class DungeonBuilderBukkit {
             return this;
         }
 
+        public Builder portalPlatformMaterials(Material... materials) {
+            this.portalPlatformMaterials = Arrays.asList(materials);
+            return this;
+        }
+
         public Builder useGlowingBlocks(boolean useGlowingBlocks) {
             this.useGlowingBlocks = useGlowingBlocks;
             return this;
@@ -599,7 +651,7 @@ public class DungeonBuilderBukkit {
 
         public DungeonBuilderBukkit build() {
             return new DungeonBuilderBukkit(plugin, world, floorMaterials, wallMaterials, roofMaterials,
-                    glowingWallMaterials, useGlowingBlocks, useWallTorches, lightingDensity);
+                    glowingWallMaterials, portalPlatformMaterials, useGlowingBlocks, useWallTorches, lightingDensity);
         }
     }
 }

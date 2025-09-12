@@ -23,7 +23,7 @@ public class RoundRoom extends DungeonRoom {
             }
         }
 
-        // Add walls
+        // Add walls using the standard method
         addWallsForBlocks();
     }
 
@@ -46,7 +46,7 @@ public class RoundRoom extends DungeonRoom {
 
     @Override
     public RoomType getType() {
-        return RoomType.ROUND;
+        return RoomType.CIRCULAR_ROOM; // Updated to match the new RoomType enum
     }
 
 }

@@ -54,7 +54,9 @@ public abstract class DungeonRoom {
         generateSpawnLocationsAndDecorations();
     }
 
-    private void generateSpawnLocationsAndDecorations() {
+    // This method can be overridden by special rooms (like SpawnRoom) to customize
+    // spawn/decoration generation
+    protected void generateSpawnLocationsAndDecorations() {
         Random roomRandom = new Random(id.hashCode()); // Consistent generation based on room ID
 
         // Generate spawn locations
@@ -115,6 +117,27 @@ public abstract class DungeonRoom {
         other.connections.put(direction.opposite(), this);
     }
 
+    /*
+     **
+     * Check if the room has a valid connection point in the given direction Default
+     * implementation for rectangular rooms
+     */
+    public boolean hasValidConnectionPoint(Direction direction) {
+        Point3D connectionPoint = getConnectionPoint(direction);
+
+        // Check if there's a floor block at the expected position
+        Point3D floorPoint = new Point3D(connectionPoint.getX(), connectionPoint.getY() - 1, connectionPoint.getZ());
+        return floorBlocks.contains(floorPoint);
+    }
+
+    /**
+     * Get alternative connection point - default implementation returns the same
+     * point Override in specialized room types for better connection handling
+     */
+    public Point3D getAlternativeConnectionPoint(Direction direction) {
+        return getConnectionPoint(direction);
+    }
+
     // Getters
     public String getId() {
         return id;
@@ -137,11 +160,11 @@ public abstract class DungeonRoom {
     }
 
     public Set<Point3D> getFloorBlocks() {
-        return floorBlocks;
+        return new HashSet<>(floorBlocks);
     }
 
     public Set<Point3D> getWallBlocks() {
-        return wallBlocks;
+        return new HashSet<>(wallBlocks);
     }
 
     public Set<Point3D> getRoofBlocks() {
@@ -149,7 +172,7 @@ public abstract class DungeonRoom {
     }
 
     public Set<Point3D> getAirBlocks() {
-        return airBlocks;
+        return new HashSet<>(airBlocks);
     }
 
     // New getters for spawn locations and decorations
@@ -181,4 +204,11 @@ public abstract class DungeonRoom {
         return decorations.stream().filter(decoration -> decoration.getType() == type)
                 .collect(java.util.stream.Collectors.toList());
     }
+
+    public BoundingBox getBoundingBox() {
+        Point3D min = new Point3D(center.getX() - size / 2, center.getY(), center.getZ() - size / 2);
+        Point3D max = new Point3D(center.getX() + size / 2, center.getY() + height, center.getZ() + size / 2);
+        return new BoundingBox(min, max);
+    }
+
 }
