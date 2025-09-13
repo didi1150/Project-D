@@ -17,7 +17,7 @@ public abstract class DungeonTunnel {
     protected final Set<Point3D> roofBlocks;
     protected final Set<Point3D> airBlocks;
     protected final List<Point3D> centerPath;
-    protected final BoundingBox boundingBox;
+    protected BoundingBox boundingBox;
 
     public DungeonTunnel(String id, TunnelConnection startConnection, TunnelConnection endConnection, int width) {
         this.id = id;
@@ -32,12 +32,12 @@ public abstract class DungeonTunnel {
         this.airBlocks = new HashSet<>();
         this.centerPath = new ArrayList<>();
 
-        Point3D start = startConnection.getConnectionPoint();
-        Point3D end = endConnection.getConnectionPoint();
-        boundingBox = new BoundingBox(start, end);
-
         generateTunnel();
         createConnectionFillers();
+    }
+
+    public void setBoundingBox(BoundingBox boundingBox) {
+        this.boundingBox = boundingBox;
     }
 
     protected abstract void generateTunnel();
@@ -165,61 +165,76 @@ public abstract class DungeonTunnel {
         }
     }
 
+    /**
+     * Improved room entrance clearing that prevents holes in exterior walls
+     */
     public void clearRoomEntrances() {
         clearRoomEntrance(startConnection);
         clearRoomEntrance(endConnection);
     }
 
     private void clearRoomEntrance(TunnelConnection connection) {
+        System.out.println("Clearing entrance for: " + connection.getRoom().getId());
+
         DungeonRoom room = connection.getRoom();
         Point3D connectionPoint = connection.getConnectionPoint();
         Direction direction = connection.getDirection();
 
-        // Calculate the exact entrance area that needs to be cleared
+        // Verify that our tunnel path actually reaches this connection point
+        if (!centerPath.contains(connectionPoint)) {
+            System.err.println("ERROR: Tunnel path doesn't include connection point: " + connectionPoint);
+            System.err.println("Path start: " + centerPath.get(0));
+            System.err.println("Path end: " + centerPath.get(centerPath.size() - 1));
+            // Add the connection point to the path if missing
+            if (connection == startConnection && !centerPath.get(0).equals(connectionPoint)) {
+                centerPath.add(0, connectionPoint);
+            } else if (connection == endConnection && !centerPath.get(centerPath.size() - 1).equals(connectionPoint)) {
+                centerPath.add(connectionPoint);
+            }
+        }
+
         Direction[] perpendiculars = getPerpendicularDirections(direction);
         int halfWidth = width / 2;
 
         Set<Point3D> wallsToRemove = new HashSet<>();
         Set<Point3D> airToAdd = new HashSet<>();
 
+        // Clear entrance area based on tunnel width
         for (int w = -halfWidth; w <= halfWidth; w++) {
             Point3D entrancePoint = perpendiculars[0].apply(connectionPoint, w);
 
-            // Only clear if this point is actually accessible in the room
+            // Validate this is a proper entrance point
             if (isValidEntrancePoint(room, entrancePoint, direction)) {
                 for (int h = 0; h < height; h++) {
                     Point3D wallPos = new Point3D(entrancePoint.getX(), connectionPoint.getY() + h,
                             entrancePoint.getZ());
-                    wallsToRemove.add(wallPos);
-                    airToAdd.add(wallPos);
+
+                    if (room.getWallBlocks().contains(wallPos)) {
+                        wallsToRemove.add(wallPos);
+                        airToAdd.add(wallPos);
+                    }
                 }
             }
         }
 
-        // Apply changes to room
-        room.getWallBlocks().removeAll(wallsToRemove);
-        room.getAirBlocks().addAll(airToAdd);
+        room.removeWallsForAirBlocks(wallsToRemove, airToAdd);
+        System.out.println("Cleared " + wallsToRemove.size() + " wall blocks for entrance");
     }
 
     private boolean isValidEntrancePoint(DungeonRoom room, Point3D entrancePoint, Direction direction) {
-        // Check if the entrance point connects to a valid floor position in the room
-        Point3D floorCheck = new Point3D(entrancePoint.getX(), room.getCenter().getY() - 1, entrancePoint.getZ());
+        Point3D roomCenter = room.getCenter();
 
+        // Check if there's a floor block at this entrance position
+        Point3D floorCheck = new Point3D(entrancePoint.getX(), roomCenter.getY() - 1, entrancePoint.getZ());
         if (!room.getFloorBlocks().contains(floorCheck)) {
             return false;
         }
 
-        // For L-shaped and round rooms, ensure the entrance aligns with the room
-        // geometry
-        if (room.getType() == RoomType.L_SHAPED_ROOM || room.getType() == RoomType.CIRCULAR_ROOM) {
-            // Move one step into the room to check if it's a valid interior space
-            Point3D interiorCheck = direction.opposite().apply(entrancePoint, 1);
-            Point3D interiorFloor = new Point3D(interiorCheck.getX(), room.getCenter().getY() - 1,
-                    interiorCheck.getZ());
-            return room.getFloorBlocks().contains(interiorFloor);
-        }
+        // Check if there's interior space behind the entrance
+        Point3D interiorCheck = direction.opposite().apply(entrancePoint, 1);
+        Point3D interiorFloor = new Point3D(interiorCheck.getX(), roomCenter.getY() - 1, interiorCheck.getZ());
 
-        return true;
+        return room.getFloorBlocks().contains(interiorFloor);
     }
 
     // Getters
@@ -267,4 +282,39 @@ public abstract class DungeonTunnel {
         return boundingBox;
     }
 
+    public BoundingBox getEnhancedBoundingBox() {
+        if (centerPath.isEmpty()) {
+            return boundingBox; // Fallback to original
+        }
+
+        int minX = Integer.MAX_VALUE, maxX = Integer.MIN_VALUE;
+        int minY = Integer.MAX_VALUE, maxY = Integer.MIN_VALUE;
+        int minZ = Integer.MAX_VALUE, maxZ = Integer.MIN_VALUE;
+
+        int halfWidth = (int) Math.ceil(width / 2.0);
+
+        // For each point in the tunnel path, calculate the area it occupies
+        for (Point3D pathPoint : centerPath) {
+            Direction tunnelDirection = calculateTunnelDirection(pathPoint);
+            Direction[] perpendiculars = getPerpendicularDirections(tunnelDirection);
+
+            // Calculate the bounds for this cross-section
+            for (int w = -halfWidth; w <= halfWidth; w++) {
+                Point3D crossPoint = perpendiculars[0].apply(pathPoint, w);
+
+                minX = Math.min(minX, crossPoint.getX());
+                maxX = Math.max(maxX, crossPoint.getX());
+                minZ = Math.min(minZ, crossPoint.getZ());
+                maxZ = Math.max(maxZ, crossPoint.getZ());
+            }
+
+            // Account for tunnel height
+            minY = Math.min(minY, pathPoint.getY() - 1); // Floor
+            maxY = Math.max(maxY, pathPoint.getY() + height); // Roof
+        }
+
+        Point3D min = new Point3D(minX, minY, minZ);
+        Point3D max = new Point3D(maxX, maxY, maxZ);
+        return new BoundingBox(min, max);
+    }
 }

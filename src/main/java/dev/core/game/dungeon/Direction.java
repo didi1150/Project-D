@@ -30,4 +30,15 @@ public enum Direction {
             return this;
         }
     }
+
+    /**
+     * Get direction based on delta values
+     */
+    public static Direction getDirectionFromDelta(int deltaX, int deltaZ) {
+        if (Math.abs(deltaX) > Math.abs(deltaZ)) {
+            return deltaX > 0 ? EAST : WEST;
+        } else {
+            return deltaZ > 0 ? SOUTH : NORTH;
+        }
+    }
 }

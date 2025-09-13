@@ -24,6 +24,7 @@ public abstract class DungeonRoom {
     protected final List<SpawnLocation> spawnLocations;
     protected final List<DecorationElement> decorations;
     protected final Set<Point3D> decorativeBlocks; // Additional blocks for decorations
+    protected BoundingBox boundingBox;
 
     public DungeonRoom(String id, Point3D center, int size, int height) {
         this.id = id;
@@ -39,6 +40,10 @@ public abstract class DungeonRoom {
         this.decorations = new ArrayList<>();
         this.decorativeBlocks = new HashSet<>();
         generateBlocks();
+    }
+
+    public void setBoundingBox(BoundingBox boundingBox) {
+        this.boundingBox = boundingBox;
     }
 
     // Abstract methods that each room type must implement
@@ -59,10 +64,6 @@ public abstract class DungeonRoom {
     protected void generateSpawnLocationsAndDecorations() {
         Random roomRandom = new Random(id.hashCode()); // Consistent generation based on room ID
 
-        // Generate spawn locations
-        SpawnLocationGenerator spawnGenerator = new SpawnLocationGenerator(roomRandom);
-        spawnLocations.addAll(spawnGenerator.generateSpawnLocations(this));
-
         // Generate decorations
         DecorationGenerator decorationGenerator = new DecorationGenerator(roomRandom);
         decorations.addAll(decorationGenerator.generateDecorations(this));
@@ -71,6 +72,14 @@ public abstract class DungeonRoom {
         for (DecorationElement decoration : decorations) {
             decorativeBlocks.addAll(decoration.getOccupiedPositions());
         }
+        // Generate spawn locations
+        SpawnLocationGenerator spawnGenerator = new SpawnLocationGenerator(roomRandom);
+        spawnLocations.addAll(spawnGenerator.generateSpawnLocations(this));
+    }
+
+    protected void removeWallsForAirBlocks(Set<Point3D> wallsToRemove, Set<Point3D> airBlocksToAdd) {
+        wallBlocks.removeAll(wallsToRemove);
+        airBlocks.addAll(airBlocksToAdd);
     }
 
     protected void addRoomBlocks(int x, int z) {
@@ -104,7 +113,7 @@ public abstract class DungeonRoom {
         airBlocks.removeAll(borderBlocks);
     }
 
-    private void generateRoof() {
+    protected void generateRoof() {
         // Generate roof blocks for all floor positions
         for (Point3D floor : floorBlocks) {
             Point3D roofPos = new Point3D(floor.getX(), center.getY() + height, floor.getZ());
@@ -206,9 +215,6 @@ public abstract class DungeonRoom {
     }
 
     public BoundingBox getBoundingBox() {
-        Point3D min = new Point3D(center.getX() - size / 2, center.getY(), center.getZ() - size / 2);
-        Point3D max = new Point3D(center.getX() + size / 2, center.getY() + height, center.getZ() + size / 2);
-        return new BoundingBox(min, max);
+        return boundingBox;
     }
-
 }

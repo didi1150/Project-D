@@ -1,18 +1,42 @@
 package dev.bukkit.command;
 
+import java.lang.reflect.Field;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Objects;
+import java.util.Optional;
+
+import org.bukkit.Bukkit;
+import org.bukkit.ChatColor;
+import org.bukkit.World;
+import org.bukkit.WorldCreator;
+import org.bukkit.command.CommandMap;
+import org.bukkit.plugin.Plugin;
+import org.bukkit.plugin.java.JavaPlugin;
+import org.jetbrains.annotations.Nullable;
+
 import dev.bukkit.DMain;
-import dev.bukkit.command.impl.*;
 import dev.bukkit.entity.BukkitPlayerEntity;
 import dev.bukkit.game.dungeon.BukkitVoidWorldGenerator;
 import dev.bukkit.game.dungeon.DungeonBuilderBukkit;
 import dev.bukkit.item.BukkitInventorySync;
 import dev.bukkit.item.BukkitItemStackAdapter;
 import dev.bukkit.item.display.BukkitTextColorAdapter;
+import dev.bukkit.storage.progression.ClassProgressionService;
 import dev.bukkit.utils.BukkitMessageSender;
 import dev.core.entity.EntityManager;
 import dev.core.entity.RPGEntity;
 import dev.core.entity.rpgclass.RPGClassType;
-import dev.core.game.dungeon.*;
+import dev.core.game.dungeon.DecorationElement;
+import dev.core.game.dungeon.Dungeon;
+import dev.core.game.dungeon.DungeonGenerator;
+import dev.core.game.dungeon.DungeonRoom;
+import dev.core.game.dungeon.DungeonStatistics;
+import dev.core.game.dungeon.Point3D;
+import dev.core.game.dungeon.SpawnLocation;
 import dev.core.item.RPGItem;
 import dev.core.item.equipment.EquipmentSlot;
 import dev.core.item.loader.RPGItemLoader;
@@ -20,25 +44,11 @@ import dev.core.item.loader.RPGItemRegistry;
 import dev.core.progression.PlayerClassProgression;
 import dev.core.stat.Stat;
 import dev.core.stat.StatType;
+import dev.core.storage.config.ConfigProvider;
 import dev.core.utils.MessageComponent;
 import dev.core.utils.MessageLevel;
 import me.kodysimpson.simpapi.command.CommandList;
 import me.kodysimpson.simpapi.command.SubCommand;
-import org.bukkit.Bukkit;
-import org.bukkit.ChatColor;
-import org.bukkit.World;
-import org.bukkit.WorldCreator;
-import org.bukkit.command.CommandExecutor;
-import org.bukkit.command.CommandMap;
-import org.bukkit.plugin.Plugin;
-import org.bukkit.plugin.java.JavaPlugin;
-
-import dev.bukkit.storage.progression.ClassProgressionService;
-import dev.core.storage.config.ConfigProvider;
-import org.jetbrains.annotations.Nullable;
-
-import java.lang.reflect.Field;
-import java.util.*;
 
 public class CommandManager {
 

@@ -99,8 +99,8 @@ public class SpawnLocationGenerator {
             double distanceFromCenter = Math.sqrt(
                     Math.pow(floor.getX() - roomCenter.getX(), 2) + Math.pow(floor.getZ() - roomCenter.getZ(), 2));
 
-            if (distanceFromCenter >= 2 && !usedPositions.contains(spawnPos)
-                    && room.getAirBlocks().contains(spawnPos)) {
+            if (distanceFromCenter >= 2 && !usedPositions.contains(spawnPos) && room.getAirBlocks().contains(spawnPos)
+                    && !room.getDecorativeBlocks().contains(spawnPos)) {
                 candidatePositions.add(spawnPos);
             }
         }

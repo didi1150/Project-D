@@ -10,18 +10,29 @@ public class EndPortalRoom extends DungeonRoom {
     private final Point3D portalCenter;
     private final Set<Point3D> portalStructure;
     private final Set<Point3D> ceremonyArea;
+    private Direction connectionDirection; // Track where the connection will be
 
     public EndPortalRoom(String id, Point3D center, int size) {
         super(id, center, Math.max(30, size), 20); // Minimum size 20, height 20 for grandeur
         this.portalCenter = new Point3D(center.getX(), center.getY() + 1, center.getZ());
         this.portalStructure = new HashSet<>();
         this.ceremonyArea = new HashSet<>();
+        this.connectionDirection = null; // Will be set when connection is made
         Random roomRandom = new Random(id.hashCode());
 
         generateEndPortalSpawnLocations(roomRandom);
-
-        generateEndPortalRoomDecorations(roomRandom);
         generatePortalStructure();
+        generateEndPortalRoomDecorations(roomRandom);
+    }
+
+    // Method to set connection direction when tunnel is created
+    public void setConnectionDirection(Direction direction) {
+        this.connectionDirection = direction;
+        // Regenerate decorations to avoid blocking the entrance
+        decorations.clear();
+        decorativeBlocks.clear();
+        Random roomRandom = new Random(id.hashCode());
+        generateEndPortalRoomDecorations(roomRandom);
     }
 
     @Override
@@ -71,7 +82,6 @@ public class EndPortalRoom extends DungeonRoom {
                 }
             }
         }
-
     }
 
     // Override spawn generation for boss room characteristics
@@ -117,29 +127,74 @@ public class EndPortalRoom extends DungeonRoom {
         int radius = size / 2;
         int margin = 2; // ensure clearance from walls
 
-        // Altars
+        // Get connection point if connection direction is known
+        Point3D connectionPoint = null;
+        if (connectionDirection != null) {
+            connectionPoint = getConnectionPoint(connectionDirection);
+        }
+
+        // Altars - but skip the one closest to the connection point
+        List<Direction> altarDirections = new ArrayList<>();
         for (Direction dir : Direction.values()) {
+            altarDirections.add(dir);
+        }
+
+        // If we have a connection direction, remove the closest altar direction
+        if (connectionDirection != null) {
+            // Remove the direction that would place an altar closest to the entrance
+            Direction closestAltarDirection = findClosestAltarDirection(connectionDirection);
+            altarDirections.remove(closestAltarDirection);
+        }
+
+        // Create altars in the remaining directions
+        for (Direction dir : altarDirections) {
             Point3D altarPos = dir.apply(portalCenter, radius - margin - 2).add(new Point3D(0, -1, 0));
+
+            // Double-check distance from connection point
+            if (connectionPoint != null) {
+                double distanceToConnection = altarPos.distance(connectionPoint);
+                if (distanceToConnection < 8) { // If too close to entrance, skip
+                    continue;
+                }
+            }
+
             endDecorations.add(createCeremonialAltar("altar_" + dir.name().toLowerCase(), altarPos));
         }
 
-        // Torch pillars
+        // Torch pillars - arranged in a hexagon around the portal
         int pillarRadius = Math.max(4, radius - 3);
         outer: for (int i = 0; i < 6; i++) {
             double angle = (2 * Math.PI * i) / 6;
             int x = (int) (portalCenter.getX() + pillarRadius * Math.cos(angle));
             int z = (int) (portalCenter.getZ() + pillarRadius * Math.sin(angle));
             Point3D pillarPos = new Point3D(x, portalCenter.getY() - 1, z);
+
+            // Check if pillar would conflict with altars or connection
             for (DecorationElement decorationElement : endDecorations) {
                 if (decorationElement.getId().contains("altar")
                         && decorationElement.getOccupiedPositions().contains(pillarPos)) {
                     continue outer;
                 }
             }
+
+            // Check distance from connection point
+            if (connectionPoint != null && pillarPos.distance(connectionPoint) < 6) {
+                continue;
+            }
+
             endDecorations.add(createTorchPillar("pillar_" + i, pillarPos));
         }
 
         return endDecorations;
+    }
+
+    /**
+     * Find which altar direction would be closest to the connection entrance
+     */
+    private Direction findClosestAltarDirection(Direction connectionDir) {
+        // The altar that would be closest to the entrance is the one
+        // in the same direction as the connection
+        return connectionDir;
     }
 
     private DecorationElement createCeremonialAltar(String id, Point3D position) {

@@ -13,6 +13,7 @@ import org.bukkit.World;
 import org.bukkit.block.Block;
 import org.bukkit.block.BlockFace;
 import org.bukkit.block.data.Directional;
+import org.bukkit.block.data.MultipleFacing;
 import org.bukkit.block.data.Waterlogged;
 import org.bukkit.block.data.type.RedstoneWallTorch;
 import org.bukkit.plugin.Plugin;
@@ -134,6 +135,7 @@ public class DungeonBuilderBukkit {
         materials.put("stone_bricks", Material.STONE_BRICKS);
         materials.put("cobblestone", Material.COBBLESTONE);
         materials.put("chiseled_stone_bricks", Material.CHISELED_STONE_BRICKS);
+        materials.put("mossy_cobblestone", Material.MOSSY_COBBLESTONE);
 
         // Decorative items
         materials.put("candle", Material.CANDLE);
@@ -141,6 +143,13 @@ public class DungeonBuilderBukkit {
         materials.put("bookshelf", Material.BOOKSHELF);
         materials.put("oak_planks", Material.OAK_PLANKS);
         materials.put("cobweb", Material.COBWEB);
+
+        // Prison and structural elements
+        materials.put("iron_bars", Material.IRON_BARS);
+        materials.put("chain", Material.CHAIN);
+
+        // Glowing elements
+        materials.put("glow_lichen", Material.GLOW_LICHEN);
 
         return materials;
     }
@@ -275,8 +284,20 @@ public class DungeonBuilderBukkit {
             case WALL_VEGETATION:
                 placeWallVegetation(block, material, position);
                 break;
+            case WALL_VINES:
+                placeWallVines(block, material, position);
+                break;
+            case GLOWING_LICHEN:
+                placeGlowingLichen(block, material, position);
+                break;
             case WATER_FEATURE:
                 placeWaterFeature(block, material, blockTypeName, position);
+                break;
+            case FOUNTAIN:
+                placeFountain(block, material, blockTypeName, position, decoration);
+                break;
+            case PRISON_CELL:
+                placePrisonCell(block, material, blockTypeName, position, decoration);
                 break;
             case ALTAR:
                 placeAltarBlock(block, material, blockTypeName, decoration);
@@ -293,26 +314,72 @@ public class DungeonBuilderBukkit {
 
     private void placeWallVegetation(Block block, Material material, Point3D position) {
         if (material == Material.VINE) {
-            // Find adjacent wall for vine placement
-            Block targetBlock = null;
+            placeVineOnWall(block, position);
+        } else {
+            block.setType(material);
+        }
+    }
+
+    private void placeWallVines(Block block, Material material, Point3D position) {
+        if (material == Material.VINE) {
+            placeVineOnWall(block, position);
+        } else {
+            block.setType(material);
+        }
+    }
+
+    private void placeVineOnWall(Block block, Point3D position) {
+        // Find adjacent wall for vine placement
+        BlockFace attachedFace = null;
+
+        for (BlockFace face : Arrays.asList(BlockFace.NORTH, BlockFace.SOUTH, BlockFace.EAST, BlockFace.WEST)) {
+            Block adjacent = block.getRelative(face);
+            if (adjacent.getType().isSolid()) {
+                attachedFace = face;
+                break;
+            }
+        }
+
+        if (attachedFace != null) {
+            block.setType(Material.VINE);
+
+            if (block.getBlockData() instanceof MultipleFacing) {
+                MultipleFacing vine = (MultipleFacing) block.getBlockData();
+                vine.setFace(attachedFace, true);
+                block.setBlockData(vine);
+            }
+        } else {
+            // Fallback to leaves if no wall found
+            block.setType(Material.OAK_LEAVES);
+        }
+    }
+
+    private void placeGlowingLichen(Block block, Material material, Point3D position) {
+        if (material == Material.GLOW_LICHEN) {
+            // Find adjacent wall for lichen placement
             BlockFace attachedFace = null;
 
-            for (BlockFace face : Arrays.asList(BlockFace.NORTH, BlockFace.SOUTH, BlockFace.EAST, BlockFace.WEST)) {
+            for (BlockFace face : Arrays.asList(BlockFace.NORTH, BlockFace.SOUTH, BlockFace.EAST, BlockFace.WEST,
+                    BlockFace.UP, BlockFace.DOWN)) {
                 Block adjacent = block.getRelative(face);
                 if (adjacent.getType().isSolid()) {
-                    targetBlock = adjacent;
-                    attachedFace = face.getOppositeFace();
+                    attachedFace = face;
                     break;
                 }
             }
 
-            if (targetBlock != null && attachedFace != null) {
-                block.setType(Material.VINE);
-                // Note: In 1.21, vine directional data might need special handling
-                // This is a simplified approach
+            if (attachedFace != null) {
+                block.setType(Material.GLOW_LICHEN);
+
+                // Set lichen direction data for 1.21
+                if (block.getBlockData() instanceof MultipleFacing) {
+                    MultipleFacing lichen = (MultipleFacing) block.getBlockData();
+                    lichen.setFace(attachedFace, true);
+                    block.setBlockData(lichen);
+                }
             } else {
-                // Fallback to leaves if no wall found
-                block.setType(Material.OAK_LEAVES);
+                // Fallback to glowstone if no wall found
+                block.setType(Material.GLOWSTONE);
             }
         } else {
             block.setType(material);
@@ -327,6 +394,63 @@ public class DungeonBuilderBukkit {
             Waterlogged waterlogged = (Waterlogged) block.getBlockData();
             waterlogged.setWaterlogged(true);
             block.setBlockData(waterlogged);
+        }
+    }
+
+    private void placeFountain(Block block, Material material, String blockTypeName, Point3D position,
+            DecorationElement decoration) {
+        block.setType(material);
+
+        // Handle special fountain water placement
+        if (material == Material.WATER) {
+            // Ensure water flows properly
+            if (block.getBlockData() instanceof Waterlogged) {
+                Waterlogged waterlogged = (Waterlogged) block.getBlockData();
+                waterlogged.setWaterlogged(true);
+                block.setBlockData(waterlogged);
+            }
+        }
+
+        // Handle fountain decorative elements
+        if (material == Material.CANDLE) {
+            // Ensure candle is placed on solid block
+            Block below = block.getRelative(BlockFace.DOWN);
+            if (!below.getType().isSolid()) {
+                return; // Don't place candle if no solid block below
+            }
+        }
+    }
+
+    private void placePrisonCell(Block block, Material material, String blockTypeName, Point3D position,
+            DecorationElement decoration) {
+        if (material == Material.IRON_BARS) {
+            block.setType(Material.IRON_BARS);
+
+            // Connect iron bars to adjacent bars or walls
+            if (block.getBlockData() instanceof MultipleFacing) {
+                MultipleFacing bars = (MultipleFacing) block.getBlockData();
+
+                // Check all horizontal directions for connections
+                for (BlockFace face : Arrays.asList(BlockFace.NORTH, BlockFace.SOUTH, BlockFace.EAST, BlockFace.WEST)) {
+                    Block adjacent = block.getRelative(face);
+                    if (adjacent.getType() == Material.IRON_BARS || adjacent.getType().isSolid()) {
+                        bars.setFace(face, true);
+                    }
+                }
+
+                block.setBlockData(bars);
+            }
+        } else if (material == Material.CHAIN) {
+            block.setType(Material.CHAIN);
+
+            // Set chain orientation (vertical by default)
+            if (block.getBlockData() instanceof Directional) {
+                Directional chain = (Directional) block.getBlockData();
+                chain.setFacing(BlockFace.UP); // Chains hang vertically
+                block.setBlockData(chain);
+            }
+        } else {
+            block.setType(material);
         }
     }
 
@@ -422,7 +546,8 @@ public class DungeonBuilderBukkit {
     private boolean isLightSource(Material material) {
         return material == Material.TORCH || material == Material.WALL_TORCH || material == Material.GLOWSTONE
                 || material == Material.SEA_LANTERN || material == Material.SHROOMLIGHT || material == Material.END_ROD
-                || material == Material.REDSTONE_LAMP || material == Material.CANDLE;
+                || material == Material.REDSTONE_LAMP || material == Material.CANDLE
+                || material == Material.GLOW_LICHEN;
     }
 
     private void addLighting(Dungeon dungeon) {

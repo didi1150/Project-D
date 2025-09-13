@@ -8,5 +8,9 @@ public enum DecorationType {
     ALTAR, // Ceremonial structures
     BARREL_GROUP, // Storage containers
     BOOKSHELF_AREA, // Library sections
-    COBWEB_CLUSTER // Atmospheric cobwebs
+    COBWEB_CLUSTER, // Atmospheric cobwebs
+    FOUNTAIN, // Water fountain structures
+    PRISON_CELL, // Iron bars and chains
+    WALL_VINES, // Vines growing on walls
+    GLOWING_LICHEN // Glowing lichen patches
 }

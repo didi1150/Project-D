@@ -1,91 +1,3 @@
-//package dev.core.game.dungeon;
-//
-//import java.util.Random;
-//
-//public class TunnelFactory {
-//
-//    public static DungeonTunnel createTunnel(TunnelType type, String id, DungeonRoom startRoom, DungeonRoom endRoom,
-//            Direction direction, int width) {
-//
-//        // Calculate connection points with special handling for L-shaped rooms
-//        Point3D startPoint = calculateOptimalConnection(startRoom, direction);
-//        Point3D endPoint = calculateOptimalConnection(endRoom, direction.opposite());
-//
-//        // Normalize Y to the lower of the two centers
-//        int connectionY = Math.min(startRoom.getCenter().getY(), endRoom.getCenter().getY());
-//        startPoint = new Point3D(startPoint.getX(), connectionY, startPoint.getZ());
-//        endPoint = new Point3D(endPoint.getX(), connectionY, endPoint.getZ());
-//
-//        int tunnelHeight = Math.min(startRoom.getHeight(), endRoom.getHeight());
-//
-//        TunnelConnection startConnection = new TunnelConnection(startRoom, direction, startPoint, tunnelHeight);
-//        TunnelConnection endConnection = new TunnelConnection(endRoom, direction.opposite(), endPoint, tunnelHeight);
-//
-//        // Auto-pick L_SHAPED if not aligned on either axis
-//        if (startPoint.getX() != endPoint.getX() && startPoint.getZ() != endPoint.getZ()) {
-//            type = TunnelType.L_SHAPED;
-//        }
-//
-//        switch (type) {
-//        case STRAIGHT:
-//            return new StraightTunnel(id, startConnection, endConnection, width);
-//        case L_SHAPED:
-//            return new LShapedTunnel(id, startConnection, endConnection, width);
-//        default:
-//            return new StraightTunnel(id, startConnection, endConnection, width);
-//        }
-//    }
-//
-//    public static DungeonTunnel createRandomTunnel(String id, DungeonRoom startRoom, DungeonRoom endRoom,
-//            Direction direction, Random random) {
-//        TunnelType type = TunnelType.values()[random.nextInt(TunnelType.values().length)];
-//        int width = 3 + random.nextInt(3); // Width between 3–5
-//        return createTunnel(type, id, startRoom, endRoom, direction, width);
-//    }
-//
-//    /**
-//     * Calculate optimal connection point with special handling for L-shaped rooms
-//     */
-//    private static Point3D calculateOptimalConnection(DungeonRoom room, Direction direction) {
-//        // For L-shaped rooms, try to use the alternative connection point if the
-//        // primary isn't valid
-//        if (room instanceof LShapedRoom) {
-//            LShapedRoom lRoom = (LShapedRoom) room;
-//
-//            // First try the primary connection point
-//            Point3D primaryPoint = lRoom.getConnectionPoint(direction);
-//            if (lRoom.hasValidConnectionPoint(direction)) {
-//                return primaryPoint;
-//            }
-//
-//            // If primary isn't valid, try alternative
-//            Point3D alternativePoint = lRoom.getAlternativeConnectionPoint(direction);
-//            return alternativePoint;
-//        }
-//
-//        // For other room types, use the standard midpoint calculation
-//        return calculateMidpointConnection(room, direction);
-//    }
-//
-//    private static Point3D calculateMidpointConnection(DungeonRoom room, Direction direction) {
-//        Point3D center = room.getCenter();
-//        int halfSize = room.getSize() / 2;
-//
-//        switch (direction) {
-//        case NORTH:
-//            return new Point3D(center.getX(), center.getY(), center.getZ() - halfSize);
-//        case SOUTH:
-//            return new Point3D(center.getX(), center.getY(), center.getZ() + halfSize);
-//        case EAST:
-//            return new Point3D(center.getX() + halfSize, center.getY(), center.getZ());
-//        case WEST:
-//            return new Point3D(center.getX() - halfSize, center.getY(), center.getZ());
-//        default:
-//            return center;
-//        }
-//    }
-//}
-
 package dev.core.game.dungeon;
 
 import java.util.Random;
@@ -93,13 +5,13 @@ import java.util.Random;
 public class TunnelFactory {
 
     public static DungeonTunnel createTunnel(TunnelType type, String id, DungeonRoom startRoom, DungeonRoom endRoom,
-            Direction direction, int width) {
+            Direction direction, int width, int maxTunnelDistance) {
 
-// Calculate proper connection points
-        Point3D startPoint = calculateOptimalConnectionPoint(startRoom, direction);
-        Point3D endPoint = calculateOptimalConnectionPoint(endRoom, direction.opposite());
+        // Ensure connection points are exactly aligned
+        Point3D startPoint = startRoom.getConnectionPoint(direction);
+        Point3D endPoint = endRoom.getConnectionPoint(direction.opposite());
 
-// Ensure connection points are at the same Y level
+        // Force same Y level
         int connectionY = Math.min(startRoom.getCenter().getY(), endRoom.getCenter().getY());
         startPoint = new Point3D(startPoint.getX(), connectionY, startPoint.getZ());
         endPoint = new Point3D(endPoint.getX(), connectionY, endPoint.getZ());
@@ -109,75 +21,150 @@ public class TunnelFactory {
         TunnelConnection startConnection = new TunnelConnection(startRoom, direction, startPoint, tunnelHeight);
         TunnelConnection endConnection = new TunnelConnection(endRoom, direction.opposite(), endPoint, tunnelHeight);
 
-        switch (type) {
+        // Auto-select tunnel type based on alignment and distance
+        TunnelType selectedType = selectOptimalTunnelType(startPoint, endPoint, type, maxTunnelDistance);
+
+        switch (selectedType) {
         case STRAIGHT:
             return new StraightTunnel(id, startConnection, endConnection, width);
-// Add more tunnel types here as needed
+        case L_SHAPED:
+            return new LShapedTunnel(id, startConnection, endConnection, width);
+        default:
+            return new StraightTunnel(id, startConnection, endConnection, width);
+        }
+    }
+
+    /**
+     * Create a tunnel with proper alignment based on room connection points. This
+     * method ensures tunnels connect correctly and follow distance constraints.
+     */
+    public static DungeonTunnel createAlignedTunnel(String id, DungeonRoom startRoom, DungeonRoom endRoom,
+            Direction direction, Random random, int maxTunnelDistance) {
+
+        // Calculate the actual connection points
+        Point3D startPoint = startRoom.getConnectionPoint(direction);
+        Point3D endPoint = endRoom.getConnectionPoint(direction.opposite());
+
+        // Ensure same Y level for proper tunnel connection
+        int connectionY = Math.min(startRoom.getCenter().getY(), endRoom.getCenter().getY());
+        startPoint = new Point3D(startPoint.getX(), connectionY, startPoint.getZ());
+        endPoint = new Point3D(endPoint.getX(), connectionY, endPoint.getZ());
+
+//        // Validate distance constraint
+//        if (totalDistance > maxTunnelDistance) {
+//            System.out.println("Tunnel distance " + totalDistance + " exceeds maximum " + maxTunnelDistance);
+//            return null;
+//        }
+
+        // Determine tunnel type based on alignment and constraints
+        TunnelType tunnelType = determineOptimalTunnelType(startPoint, endPoint, maxTunnelDistance);
+
+        int width = 3 + random.nextInt(3); // Width between 3-5
+        int tunnelHeight = Math.min(startRoom.getHeight(), endRoom.getHeight());
+
+        TunnelConnection startConnection = new TunnelConnection(startRoom, direction, startPoint, tunnelHeight);
+        TunnelConnection endConnection = new TunnelConnection(endRoom, direction.opposite(), endPoint, tunnelHeight);
+
+        switch (tunnelType) {
+        case STRAIGHT:
+            return new StraightTunnel(id, startConnection, endConnection, width);
+        case L_SHAPED:
+            return new LShapedTunnel(id, startConnection, endConnection, width);
         default:
             return new StraightTunnel(id, startConnection, endConnection, width);
         }
     }
 
     public static DungeonTunnel createRandomTunnel(String id, DungeonRoom startRoom, DungeonRoom endRoom,
-            Direction direction, Random random) {
-        TunnelType type = TunnelType.values()[random.nextInt(TunnelType.values().length - 1)];
-        int width = 3 + random.nextInt(3); // Width between 3-5
-
-        return createTunnel(type, id, startRoom, endRoom, direction, width);
+            Direction direction, Random random, int maxTunnelDistance) {
+        return createAlignedTunnel(id, startRoom, endRoom, direction, random, maxTunnelDistance);
     }
 
-    private static Point3D calculateOptimalConnectionPoint(DungeonRoom room, Direction direction) {
-        Point3D basePoint = room.getConnectionPoint(direction);
+    /**
+     * Determine the optimal tunnel type based on connection points and distance
+     * constraints
+     */
+    private static TunnelType determineOptimalTunnelType(Point3D start, Point3D end, int maxTunnelDistance) {
+        int deltaX = Math.abs(end.getX() - start.getX());
+        int deltaZ = Math.abs(end.getZ() - start.getZ());
 
-// For L-shaped and round rooms, we need to find a better connection point
-        if (room.getType() == RoomType.L_SHAPED_ROOM || room.getType() == RoomType.CIRCULAR_ROOM) {
-            return findValidConnectionPoint(room, direction, basePoint);
+        // For very short max distances, prefer straight tunnels only
+        if (maxTunnelDistance <= 20) {
+            return TunnelType.STRAIGHT;
         }
 
-        return basePoint;
-    }
-
-    private static Point3D findValidConnectionPoint(DungeonRoom room, Direction direction, Point3D defaultPoint) {
-// Search for a valid connection point that actually has floor beneath it
-        int searchRadius = 2;
-        Point3D roomCenter = room.getCenter();
-
-        for (int offset = 0; offset <= searchRadius; offset++) {
-            for (int side = -1; side <= 1; side += 2) {
-                Point3D candidate = calculateCandidatePoint(defaultPoint, direction, offset * side);
-                Point3D floorCheck = new Point3D(candidate.getX(), roomCenter.getY() - 1, candidate.getZ());
-
-                if (room.getFloorBlocks().contains(floorCheck)) {
-// Ensure there's also room interior space behind this point
-                    Point3D interiorCheck = direction.opposite().apply(candidate, 1);
-                    Point3D interiorFloor = new Point3D(interiorCheck.getX(), roomCenter.getY() - 1,
-                            interiorCheck.getZ());
-
-                    if (room.getFloorBlocks().contains(interiorFloor)) {
-                        return candidate;
-                    }
-                }
-            }
+        // If points are perfectly aligned on one axis, use straight tunnel
+        if (deltaX == 0 || deltaZ == 0) {
+            return TunnelType.STRAIGHT;
         }
 
-        return defaultPoint; // Fallback to original point
+        // If both deltas are small, L-shaped is fine
+        if (deltaX <= 10 && deltaZ <= 10) {
+            return TunnelType.L_SHAPED;
+        }
+
+        // For larger distances with both X and Z components, prefer L-shaped
+        if (deltaX > 0 && deltaZ > 0) {
+            return TunnelType.L_SHAPED;
+        }
+
+        return TunnelType.STRAIGHT;
     }
 
-    private static Point3D calculateCandidatePoint(Point3D basePoint, Direction direction, int offset) {
-        Direction[] perpendiculars = getPerpendicularDirections(direction);
-        return perpendiculars[0].apply(basePoint, offset);
+    private static TunnelType selectOptimalTunnelType(Point3D start, Point3D end, TunnelType requestedType,
+            int maxDistance) {
+        int deltaX = Math.abs(end.getX() - start.getX());
+        int deltaZ = Math.abs(end.getZ() - start.getZ());
+        int totalDistance = deltaX + deltaZ;
+
+        // If distance is within max and points are aligned, force straight tunnel
+        if (totalDistance <= maxDistance && (deltaX == 0 || deltaZ == 0)) {
+            return TunnelType.STRAIGHT;
+        }
+
+        // If distance is within max but not aligned, use L-shaped
+        if (totalDistance <= maxDistance && deltaX > 0 && deltaZ > 0) {
+            return TunnelType.L_SHAPED;
+        }
+
+        // For longer distances, honor the requested type but prefer L-shaped for
+        // non-aligned
+        if (deltaX > 0 && deltaZ > 0) {
+            return TunnelType.L_SHAPED;
+        }
+
+        return TunnelType.STRAIGHT;
     }
 
-    private static Direction[] getPerpendicularDirections(Direction dir) {
-        switch (dir) {
-        case NORTH:
-        case SOUTH:
-            return new Direction[] { Direction.EAST, Direction.WEST };
-        case EAST:
-        case WEST:
-            return new Direction[] { Direction.NORTH, Direction.SOUTH };
+    // Add this method to TunnelFactory.java
+
+    public static DungeonTunnel createAlignedTunnelWithWidth(String id, DungeonRoom startRoom, DungeonRoom endRoom,
+            Direction direction, Random random, int maxTunnelDistance, int width) {
+
+        // Calculate the actual connection points
+        Point3D startPoint = startRoom.getConnectionPoint(direction);
+        Point3D endPoint = endRoom.getConnectionPoint(direction.opposite());
+
+        // Ensure same Y level for proper tunnel connection
+        int connectionY = Math.min(startRoom.getCenter().getY(), endRoom.getCenter().getY());
+        startPoint = new Point3D(startPoint.getX(), connectionY, startPoint.getZ());
+        endPoint = new Point3D(endPoint.getX(), connectionY, endPoint.getZ());
+
+        // Determine tunnel type based on alignment and constraints
+        TunnelType tunnelType = determineOptimalTunnelType(startPoint, endPoint, maxTunnelDistance);
+
+        int tunnelHeight = Math.min(startRoom.getHeight(), endRoom.getHeight());
+
+        TunnelConnection startConnection = new TunnelConnection(startRoom, direction, startPoint, tunnelHeight);
+        TunnelConnection endConnection = new TunnelConnection(endRoom, direction.opposite(), endPoint, tunnelHeight);
+
+        switch (tunnelType) {
+        case STRAIGHT:
+            return new StraightTunnel(id, startConnection, endConnection, width);
+        case L_SHAPED:
+            return new LShapedTunnel(id, startConnection, endConnection, width);
         default:
-            return new Direction[] { Direction.EAST, Direction.WEST };
+            return new StraightTunnel(id, startConnection, endConnection, width);
         }
     }
 

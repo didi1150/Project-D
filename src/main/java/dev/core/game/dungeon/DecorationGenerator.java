@@ -107,7 +107,7 @@ public class DecorationGenerator {
             }
 
             if (candidate != null && !usedPositions.contains(candidate)
-                    && roomCenter.distance(candidate) < room.getSize() / 2) {
+                    && roomCenter.distance(candidate) < room.getSize() / 2 - 2) {
                 return candidate;
             }
         }
