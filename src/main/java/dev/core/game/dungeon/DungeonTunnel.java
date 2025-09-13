@@ -210,6 +210,7 @@ public abstract class DungeonTunnel {
                             entrancePoint.getZ());
 
                     if (room.getWallBlocks().contains(wallPos)) {
+                        System.out.println("\tRemoving " + wallPos);
                         wallsToRemove.add(wallPos);
                         airToAdd.add(wallPos);
                     }
@@ -219,6 +220,7 @@ public abstract class DungeonTunnel {
 
         room.removeWallsForAirBlocks(wallsToRemove, airToAdd);
         System.out.println("Cleared " + wallsToRemove.size() + " wall blocks for entrance");
+        room.generateSpawnLocationsAndDecorations();
     }
 
     private boolean isValidEntrancePoint(DungeonRoom room, Point3D entrancePoint, Direction direction) {
@@ -228,6 +230,15 @@ public abstract class DungeonTunnel {
         Point3D floorCheck = new Point3D(entrancePoint.getX(), roomCenter.getY() - 1, entrancePoint.getZ());
         if (!room.getFloorBlocks().contains(floorCheck)) {
             return false;
+        }
+
+        Direction[] perpendiculars = getPerpendicularDirections(direction);
+        for (int i = -1; i <= 1; i++) {
+            Point3D airCheck = perpendiculars[0].apply(entrancePoint, i);
+            if (!room.getAirBlocks().contains(airCheck) && !room.getWallBlocks().contains(airCheck)) {
+                // Neighbour not part of this room -> edge block
+                return false;
+            }
         }
 
         // Check if there's interior space behind the entrance

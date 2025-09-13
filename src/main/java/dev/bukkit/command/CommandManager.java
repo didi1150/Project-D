@@ -20,7 +20,7 @@ import org.jetbrains.annotations.Nullable;
 
 import dev.bukkit.DMain;
 import dev.bukkit.entity.BukkitPlayerEntity;
-import dev.bukkit.game.dungeon.BukkitVoidWorldGenerator;
+import dev.bukkit.game.dungeon.BukkitStoneWorldGenerator;
 import dev.bukkit.game.dungeon.DungeonBuilderBukkit;
 import dev.bukkit.item.BukkitInventorySync;
 import dev.bukkit.item.BukkitItemStackAdapter;
@@ -255,7 +255,7 @@ public class CommandManager {
                         .setPlayerCommandAction(2, (player, args) -> {
                             Plugin plugin = DMain.getInstance();
 
-                            World world = Bukkit.createWorld(new WorldCreator(args[1]).generator(new BukkitVoidWorldGenerator()));
+                            World world = Bukkit.createWorld(new WorldCreator(args[1]).generator(new BukkitStoneWorldGenerator()));
 
                             int tmpRoomCount = 10;
 

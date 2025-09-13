@@ -12,7 +12,7 @@ public class DungeonGenerator {
     private final List<DungeonTunnel> tunnels;
     private int roomCounter;
     private int tunnelCounter;
-    private int maxTunnelDistance = 40;
+    private int maxTunnelDistance = 50;
 
     public DungeonGenerator(long seed) {
         this.random = new Random(seed);
@@ -203,50 +203,177 @@ public class DungeonGenerator {
         List<Direction> availableDirections = getAvailableDirectionsForRoom(currentRoom);
 
         for (Direction dir : availableDirections) {
-            Point3D newRoomCenter = calculateNewRoomCenter(currentRoom, dir);
-
-            // Estimate tunnel width that will be used (you may want to make this more
-            // precise)
-            int estimatedTunnelWidth = 3 + random.nextInt(3); // Width between 3-5
-
-            // Main path rooms - use the enhanced room creation method that considers
-            // connections
-            DungeonRoom newRoom = RoomFactory.createRoomWithConnectionDirection("main_room_" + (roomCounter + 1),
-                    newRoomCenter, random, dir.opposite(), // The new room needs to connect back to current room
-                    attemptNumber > 5, estimatedTunnelWidth);
-
-            if (isValidRoomPlacement(newRoom) && canRoomConnect(newRoom, dir.opposite())) {
-                newRoom.setBoundingBox(createRoomBoundingBox(newRoom));
-                roomCounter++;
+            DungeonRoom newRoom = tryGenerateRoomInDirection(currentRoom, dir, attemptNumber > 5, false);
+            if (newRoom != null) {
                 return newRoom;
             }
         }
-
         return null;
     }
 
     private DungeonRoom generateBranchRoom(DungeonRoom currentRoom, Direction direction, int depth) {
-        Point3D newRoomCenter = calculateNewRoomCenter(currentRoom, direction);
-
         // Branch rooms can be smaller and more varied
         boolean favorSmaller = depth > 0; // Deeper branch rooms tend to be smaller
-        String roomId = "branch_room_" + (roomCounter + 1);
+        return tryGenerateRoomInDirection(currentRoom, direction, favorSmaller, true);
+    }
 
-        // Estimate tunnel width that will be used
-        int estimatedTunnelWidth = 3 + random.nextInt(3); // Width between 3-5
+    /**
+     * ENHANCED: Smart placement with multiple attempts and adaptive parameters
+     */
+    private DungeonRoom tryGenerateRoomInDirection(DungeonRoom currentRoom, Direction direction, boolean favorSmaller,
+            boolean isBranch) {
+        // Try multiple positions with decreasing distance requirements
+        int[] distanceAttempts = isBranch ? new int[] { 15, 12, 10, 8, 6 } : // Branch rooms: closer placement allowed
+                new int[] { 25, 20, 15, 12, 10 }; // Main path: prefer more spacing
 
-        // Use enhanced room creation that considers connection requirements
-        DungeonRoom newRoom = RoomFactory.createRoomWithConnectionDirection(roomId, newRoomCenter, random,
-                direction.opposite(), // New room needs to connect back to current room
-                favorSmaller, estimatedTunnelWidth);
+        // Try different room configurations
+        RoomType[] roomTypes = { RoomType.SQUARE_ROOM, RoomType.CIRCULAR_ROOM, RoomType.L_SHAPED_ROOM };
 
-        if (isValidRoomPlacement(newRoom) && canRoomConnect(newRoom, direction.opposite())) {
-            newRoom.setBoundingBox(createRoomBoundingBox(newRoom));
-            roomCounter++;
-            return newRoom;
+        for (int distance : distanceAttempts) {
+            for (RoomType roomType : roomTypes) {
+                // Skip L-shaped if it can't connect in the required direction
+                if (roomType == RoomType.L_SHAPED_ROOM && !canLShapedRoomConnect(direction.opposite())) {
+                    continue;
+                }
+
+                Point3D newRoomCenter = calculateNewRoomCenterWithDistance(currentRoom, direction, distance);
+
+                // Try multiple room sizes
+                int[] sizes = favorSmaller ? new int[] { 6, 8, 10 } : new int[] { 8, 10, 12, 14 };
+
+                for (int size : sizes) {
+                    DungeonRoom newRoom = createRoomWithType(roomType, newRoomCenter, size, direction.opposite(),
+                            favorSmaller);
+
+                    if (newRoom != null && isValidRoomPlacementAdaptive(newRoom, isBranch)) {
+                        newRoom.setBoundingBox(createRoomBoundingBox(newRoom));
+                        roomCounter++;
+                        System.out.println("Successfully placed " + roomType + " at distance " + distance + ", size "
+                                + size + (isBranch ? " (branch)" : " (main)"));
+                        return newRoom;
+                    }
+                }
+            }
         }
 
+        System.out.println("Failed to place room in direction " + direction + (isBranch ? " (branch)" : " (main)")
+                + " after trying all configurations");
         return null;
+    }
+
+    private boolean canLShapedRoomConnect(Direction requiredDirection) {
+        // L-shaped rooms can connect in exactly 2 directions based on their orientation
+        // We need to check if any orientation supports the required direction
+        for (LShapedRoom.LOrientation orientation : LShapedRoom.LOrientation.values()) {
+            Direction[] arms = getArmsForOrientation(orientation);
+            for (Direction arm : arms) {
+                if (arm == requiredDirection) {
+                    return true;
+                }
+            }
+        }
+        return false;
+    }
+
+    private Direction[] getArmsForOrientation(LShapedRoom.LOrientation orientation) {
+        switch (orientation) {
+        case NORTH_EAST:
+            return new Direction[] { Direction.NORTH, Direction.EAST };
+        case NORTH_WEST:
+            return new Direction[] { Direction.NORTH, Direction.WEST };
+        case SOUTH_EAST:
+            return new Direction[] { Direction.SOUTH, Direction.EAST };
+        case SOUTH_WEST:
+            return new Direction[] { Direction.SOUTH, Direction.WEST };
+        default:
+            return new Direction[] { Direction.NORTH, Direction.EAST };
+        }
+    }
+
+    private DungeonRoom createRoomWithType(RoomType roomType, Point3D center, int size, Direction requiredConnection,
+            boolean favorSmaller) {
+        String roomId = (roomType == RoomType.L_SHAPED_ROOM ? "l_room_"
+                : roomType == RoomType.CIRCULAR_ROOM ? "round_room_" : "square_room_") + (roomCounter + 1);
+
+        int height = 5 + random.nextInt(favorSmaller ? 6 : 10);
+        int estimatedTunnelWidth = 3 + random.nextInt(3);
+
+        try {
+            return RoomFactory.createRoomWithConnectionDirection(roomId, center, random, requiredConnection,
+                    favorSmaller, estimatedTunnelWidth);
+        } catch (Exception e) {
+            System.out.println("Failed to create room of type " + roomType + ": " + e.getMessage());
+            return null;
+        }
+    }
+
+    /**
+     * ENHANCED: Adaptive validation with space-aware separation requirements
+     */
+    private boolean isValidRoomPlacementAdaptive(DungeonRoom newRoom, boolean isBranch) {
+        BoundingBox newBox = createRoomBoundingBox(newRoom);
+
+        // Adaptive separation based on room size and type
+        int baseSeparation = Math.max(3, newRoom.getSize() / 4);
+        int minSeparation = isBranch ? Math.max(2, baseSeparation - 1) : baseSeparation;
+
+        // Check available space in the area
+        int nearbyRooms = 0;
+        double totalNearbyDistance = 0;
+
+        // Check against all existing rooms
+        for (DungeonRoom existing : rooms) {
+            BoundingBox existingBox = existing.getBoundingBox();
+
+            if (!newBox.hasMinimumSeparationFrom(existingBox, minSeparation)) {
+                return false;
+            }
+
+            // Track density for adaptive behavior
+            double distance = newBox.manhattanDistanceTo(existingBox);
+            if (distance < 50) { // Within local area
+                nearbyRooms++;
+                totalNearbyDistance += distance;
+            }
+        }
+
+        // Check against tunnels with reduced separation for branches
+        int tunnelSeparation = isBranch ? 2 : 3;
+        for (DungeonTunnel tunnel : tunnels) {
+            BoundingBox tunnelBox = tunnel.getBoundingBox();
+            if (tunnelBox != null && !newBox.hasMinimumSeparationFrom(tunnelBox, tunnelSeparation)) {
+                return false;
+            }
+        }
+
+        // Space-aware branching: reject if area is too crowded for main path rooms
+        if (!isBranch && nearbyRooms > 3) {
+            double avgDistance = totalNearbyDistance / nearbyRooms;
+            if (avgDistance < 20) { // Too crowded for main path
+                System.out.println("Area too crowded for main path room (avg distance: " + avgDistance + ")");
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    /**
+     * ENHANCED: Dynamic distance scaling based on space constraints
+     */
+    private Point3D calculateNewRoomCenterWithDistance(DungeonRoom currentRoom, Direction direction, int distance) {
+        Point3D connectionPoint = currentRoom.getConnectionPoint(direction);
+        Point3D newConnectionPoint = direction.apply(connectionPoint, distance);
+
+        // Estimate room size and calculate center offset
+        int estimatedSize = 8;
+        int offset = estimatedSize / 2;
+
+        Point3D centerOffset = direction.opposite().apply(new Point3D(0, 0, 0), offset);
+
+        return new Point3D(newConnectionPoint.getX() - centerOffset.getX(), currentRoom.getCenter().getY(), // Keep same
+                                                                                                            // Y level
+                newConnectionPoint.getZ() - centerOffset.getZ());
     }
 
     private DungeonTunnel createTunnel(DungeonRoom from, DungeonRoom to, Direction direction) {
@@ -293,33 +420,6 @@ public class DungeonGenerator {
             return lRoom.isArmDirection(direction);
         }
         // Other room types can connect in any direction
-        return true;
-    }
-
-    // Enhanced room validation for more complex layouts
-    private boolean isValidRoomPlacement(DungeonRoom newRoom) {
-        BoundingBox newBox = createRoomBoundingBox(newRoom);
-
-        // Check against all existing rooms with appropriate separation
-        for (DungeonRoom existing : rooms) {
-            BoundingBox existingBox = existing.getBoundingBox();
-
-            // Smaller separation for branch rooms to allow denser layouts
-            int minSeparation = (newRoom.getSize() <= 8) ? 4 : 6;
-
-            if (!newBox.hasMinimumSeparationFrom(existingBox, minSeparation)) {
-                return false;
-            }
-        }
-
-        // Check against tunnels
-        for (DungeonTunnel tunnel : tunnels) {
-            BoundingBox tunnelBox = tunnel.getBoundingBox();
-            if (tunnelBox != null && !newBox.hasMinimumSeparationFrom(tunnelBox, 3)) {
-                return false;
-            }
-        }
-
         return true;
     }
 
@@ -382,40 +482,6 @@ public class DungeonGenerator {
         return available;
     }
 
-    private Point3D calculateNewRoomCenter(DungeonRoom currentRoom, Direction direction) {
-        // Get current room's connection point
-        Point3D connectionPoint = currentRoom.getConnectionPoint(direction);
-
-        // Calculate distance based on room sizes and constraints
-        int distance = calculateOptimalDistance(currentRoom);
-
-        // Move in the specified direction
-        Point3D newConnectionPoint = direction.apply(connectionPoint, distance);
-
-        // Estimate new room size to calculate center offset
-        int estimatedSize = 8 + random.nextInt(4); // 8-12
-        int offset = estimatedSize / 2;
-
-        // Calculate center by moving back from the connection point
-        Point3D centerOffset = direction.opposite().apply(new Point3D(0, 0, 0), offset);
-
-        return new Point3D(newConnectionPoint.getX() - centerOffset.getX(), currentRoom.getCenter().getY(), // Keep same
-                                                                                                            // Y level
-                newConnectionPoint.getZ() - centerOffset.getZ());
-    }
-
-    private int calculateOptimalDistance(DungeonRoom currentRoom) {
-        // Base distance that ensures rooms don't overlap
-        int baseDistance = Math.max(currentRoom.getSize() / 2 + 8, 15);
-
-        // Add variation but respect max tunnel distance
-        int variation = random.nextInt(8) - 4; // -4 to +4
-        int distance = baseDistance + variation;
-
-        // Ensure we don't exceed max tunnel distance
-        return Math.min(distance, maxTunnelDistance - 5);
-    }
-
     private Direction findBestConnectionDirection(DungeonRoom from, DungeonRoom to) {
         Point3D fromCenter = from.getCenter();
         Point3D toCenter = to.getCenter();
@@ -459,10 +525,8 @@ public class DungeonGenerator {
 
         Direction endDirection = availableDirections.isEmpty() ? Direction.NORTH : availableDirections.get(0);
 
-        Point3D endCenter = calculateNewRoomCenter(lastRoom, endDirection);
-
-        // Move end room further away for dramatic effect
-        endCenter = endDirection.apply(endCenter, 20);
+        Point3D endCenter = calculateNewRoomCenterWithDistance(lastRoom, endDirection, 30); // Fixed distance for end
+                                                                                            // room
 
         EndPortalRoom endRoom = new EndPortalRoom("end_portal_room", endCenter, 18);
         endRoom.setBoundingBox(createRoomBoundingBox(endRoom));

@@ -5,16 +5,19 @@ import java.util.List;
 import java.util.Random;
 
 import org.bukkit.Location;
+import org.bukkit.Material;
 import org.bukkit.World;
+import org.bukkit.block.data.BlockData;
 import org.bukkit.generator.BlockPopulator;
 import org.bukkit.generator.ChunkGenerator;
 import org.bukkit.generator.WorldInfo;
 
-public class BukkitVoidWorldGenerator extends ChunkGenerator {
+public class BukkitStoneWorldGenerator extends ChunkGenerator {
+
+    private final BlockData stone = Material.STONE.createBlockData();
 
     @Override
     public void generateBedrock(WorldInfo worldInfo, Random random, int chunkX, int chunkZ, ChunkData chunkData) {
-
     }
 
     @Override
@@ -27,6 +30,11 @@ public class BukkitVoidWorldGenerator extends ChunkGenerator {
 
     @Override
     public void generateSurface(WorldInfo worldInfo, Random random, int chunkX, int chunkZ, ChunkData chunkData) {
+        // Fill the entire chunk from the world's min height up to max height with stone
+        int minY = worldInfo.getMinHeight();
+        int maxY = worldInfo.getMaxHeight();
+
+        chunkData.setRegion(0, minY, 0, 16, maxY, 16, stone);
     }
 
     @Override

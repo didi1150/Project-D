@@ -12,7 +12,7 @@ import org.bukkit.entity.Player;
 import org.bukkit.plugin.Plugin;
 
 import dev.bukkit.DMain;
-import dev.bukkit.game.dungeon.BukkitVoidWorldGenerator;
+import dev.bukkit.game.dungeon.BukkitStoneWorldGenerator;
 import dev.bukkit.game.dungeon.DungeonBuilderBukkit;
 import dev.core.game.dungeon.DecorationElement;
 import dev.core.game.dungeon.Dungeon;
@@ -39,7 +39,7 @@ public class DungeonCommand implements CommandExecutor {
         }
 
         Player player = (Player) sender;
-        World world = Bukkit.createWorld(new WorldCreator(args[1]).generator(new BukkitVoidWorldGenerator()));
+        World world = Bukkit.createWorld(new WorldCreator(args[1]).generator(new BukkitStoneWorldGenerator()));
 
         roomCount = 10;
         if (args.length > 0) {

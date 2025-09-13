@@ -26,6 +26,8 @@ public abstract class DungeonRoom {
     protected final Set<Point3D> decorativeBlocks; // Additional blocks for decorations
     protected BoundingBox boundingBox;
 
+    private boolean generatedSpawnAndDecorations;
+
     public DungeonRoom(String id, Point3D center, int size, int height) {
         this.id = id;
         this.center = center;
@@ -39,6 +41,7 @@ public abstract class DungeonRoom {
         this.spawnLocations = new ArrayList<>();
         this.decorations = new ArrayList<>();
         this.decorativeBlocks = new HashSet<>();
+        generatedSpawnAndDecorations = false;
         generateBlocks();
     }
 
@@ -56,12 +59,15 @@ public abstract class DungeonRoom {
     private void generateBlocks() {
         generateRoomStructure();
         generateRoof();
-        generateSpawnLocationsAndDecorations();
     }
 
     // This method can be overridden by special rooms (like SpawnRoom) to customize
     // spawn/decoration generation
     protected void generateSpawnLocationsAndDecorations() {
+        if (generatedSpawnAndDecorations) {
+            return;
+        }
+        generatedSpawnAndDecorations = true;
         Random roomRandom = new Random(id.hashCode()); // Consistent generation based on room ID
 
         // Generate decorations
