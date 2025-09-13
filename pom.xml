@@ -80,6 +80,11 @@
     </repositories>
 
     <dependencies>
+        <dependency>
+            <groupId>com.github.KodySimpson</groupId>
+            <artifactId>SimpAPI</artifactId>
+            <version>4.6.1</version>
+        </dependency>
      <!-- https://mvnrepository.com/artifact/com.github.dmulloy2/protocollib -->
         <dependency>
             <groupId>com.github.dmulloy2</groupId>
@@ -148,13 +153,13 @@
             <version>5.19.0</version>
             <scope>test</scope>
         </dependency>
-        
+
         <!-- https://mvnrepository.com/artifact/org.jetbrains/annotations -->
         <dependency>
             <groupId>org.jetbrains</groupId>
             <artifactId>annotations</artifactId>
             <version>26.0.2-1</version>
         </dependency>
-        
+
     </dependencies>
 </project>

@@ -1,17 +1,15 @@
 package dev.bukkit.utils;
 
+import dev.core.utils.*;
 import org.bukkit.Bukkit;
 import org.bukkit.ChatColor;
 import org.bukkit.command.CommandSender;
+import org.bukkit.command.ConsoleCommandSender;
 import org.bukkit.entity.Player;
 
 import dev.bukkit.item.display.BukkitTextColorAdapter;
 import dev.core.item.display.StyleTagParser;
 import dev.core.item.display.TextColor;
-import dev.core.utils.DefaultFontInfo;
-import dev.core.utils.MessageComponent;
-import dev.core.utils.MessageLevel;
-import dev.core.utils.MessageSenderInterface;
 
 public class BukkitMessageSender implements MessageSenderInterface {
 
@@ -23,10 +21,14 @@ public class BukkitMessageSender implements MessageSenderInterface {
 
     private BukkitMessageSender() {}
 
+    public void sendMessage(CommandSender commandSender, MessageComponent messageComponent) {
+        MessageLevel level = messageComponent.getLevel();
+        send(commandSender, messageComponent, level.getColor(), level.getPrefix(), false, true);
+    }
+
     @Override
     public void sendMessage(MessageComponent messageComponent) {
-        MessageLevel level = messageComponent.getLevel();
-        send(Bukkit.getConsoleSender(), messageComponent, level.getColor(), level.getPrefix(), false, true);
+        this.sendMessage(Bukkit.getConsoleSender(), messageComponent);
     }
 
     public void sendMessage(MessageComponent messageComponent, boolean shouldLineBreak) {
@@ -41,8 +43,7 @@ public class BukkitMessageSender implements MessageSenderInterface {
     }
 
     public void sendMessage(Player player, MessageComponent messageComponent) {
-        MessageLevel level = messageComponent.getLevel();
-        send(player, messageComponent, level.getColor(), level.getPrefix(), false, true);
+        this.sendMessage(((CommandSender) player), messageComponent);
     }
 
     public void sendMessage(Player player, MessageComponent messageComponent, boolean shouldLineBreak) {
@@ -89,7 +90,7 @@ public class BukkitMessageSender implements MessageSenderInterface {
         sendLine(Bukkit.getConsoleSender(), colorCodes);
     }
 
-    private void sendLine(CommandSender sender, String colorCodes) {
+    public void sendLine(CommandSender sender, String colorCodes) {
 //        String line = "§m                                                                        ";
         String line = "§m                                                                              ";
         StyleTagParser parser = new StyleTagParser(TextColor.WHITE);
@@ -112,9 +113,6 @@ public class BukkitMessageSender implements MessageSenderInterface {
 
         message = levelPrefix + message;
 
-        System.out.println(message);
-        System.out.println();
-
         StyleTagParser parser = new StyleTagParser(defaultColor);
 
         StringBuilder parsedString = new StringBuilder();
@@ -124,16 +122,13 @@ public class BukkitMessageSender implements MessageSenderInterface {
 
         String finalMessage = parsedString.toString();
 
-        System.out.println(finalMessage);
-        System.out.println();
-
-        finalMessage = insertNewLines(finalMessage, shouldLineBreak);
-
-        System.out.println(finalMessage);
-        System.out.println();
+        if (centered) finalMessage = insertNewLines(finalMessage, shouldLineBreak);
 
         for (String line : finalMessage.lines().toList()) {
             if (centered) line = getCenteredMessage(line);
+            if (sender instanceof ConsoleCommandSender) {
+                line = MinecraftColorTranslator.translateToAnsi(line);
+            }
             sender.sendMessage(line);
         }
 //        if (centered) finalMessage = getCenteredMessage(finalMessage);

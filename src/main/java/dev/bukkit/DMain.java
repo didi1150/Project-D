@@ -2,17 +2,16 @@ package dev.bukkit;
 
 import java.util.Map;
 
+import dev.bukkit.command.CommandManager;
 import dev.core.event.impl.TickEvent;
 import org.bukkit.Bukkit;
 import org.bukkit.plugin.java.JavaPlugin;
 import org.bukkit.scheduler.BukkitTask;
 
-import com.comphenix.protocol.ProtocolLib;
 import com.comphenix.protocol.ProtocolLibrary;
 import com.comphenix.protocol.ProtocolManager;
 
 import dev.bukkit.ability.BukkitEffectManager;
-import dev.bukkit.command.CommandManager;
 import dev.bukkit.event.BukkitEventBus;
 import dev.bukkit.event.bukkitListeners.CancelledListener;
 import dev.bukkit.event.bukkitListeners.CombatListener;
