@@ -3,6 +3,8 @@ package dev.bukkit.event.bukkitListeners;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
+import org.bukkit.event.block.BlockBreakEvent;
+import org.bukkit.event.block.BlockPlaceEvent;
 import org.bukkit.event.entity.EntityDamageByEntityEvent;
 import org.bukkit.event.entity.EntityDamageEvent;
 import org.bukkit.event.entity.EntityDeathEvent;
@@ -13,11 +15,14 @@ import org.bukkit.event.inventory.InventoryCloseEvent;
 import org.bukkit.event.inventory.InventoryDragEvent;
 import org.bukkit.event.player.PlayerChangedWorldEvent;
 import org.bukkit.event.player.PlayerDropItemEvent;
+import org.bukkit.event.player.PlayerInteractEntityEvent;
 import org.bukkit.event.player.PlayerInteractEvent;
 import org.bukkit.event.player.PlayerItemHeldEvent;
 import org.bukkit.event.player.PlayerJoinEvent;
+import org.bukkit.event.player.PlayerMoveEvent;
 import org.bukkit.event.player.PlayerQuitEvent;
 import org.bukkit.event.player.PlayerSwapHandItemsEvent;
+import org.bukkit.event.player.PlayerToggleSneakEvent;
 import org.bukkit.plugin.Plugin;
 import org.spigotmc.event.player.PlayerSpawnLocationEvent;
 
@@ -46,6 +51,16 @@ public class EventListener implements Listener {
     @EventHandler
     public void onPlayerInteract(PlayerInteractEvent event) {
         event.setCancelled(false);
+        BukkitEventBus.getInstance().sendEvent(event);
+    }
+
+    @EventHandler
+    public void onBlockPlace(BlockPlaceEvent event) {
+        BukkitEventBus.getInstance().sendEvent(event);
+    }
+
+    @EventHandler
+    public void onBlockBreak(BlockBreakEvent event) {
         BukkitEventBus.getInstance().sendEvent(event);
     }
 
@@ -110,10 +125,25 @@ public class EventListener implements Listener {
     }
 
     @EventHandler
+    public void onMove(PlayerMoveEvent event) {
+        BukkitEventBus.getInstance().sendEvent(event);
+    }
+
+    @EventHandler
+    public void onMove(PlayerToggleSneakEvent event) {
+        BukkitEventBus.getInstance().sendEvent(event);
+    }
+
+    @EventHandler
     public void onDeath(EntityDeathEvent event) {
         event.getEntity().setCustomName(null);
         event.getEntity().setCustomNameVisible(false);
 
         event.getEntity().removeMetadata("VANILLA_META", plugin);
+    }
+
+    @EventHandler
+    public void onInteractEntity(PlayerInteractEntityEvent event) {
+        BukkitEventBus.getInstance().sendEvent(event);
     }
 }

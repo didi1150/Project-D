@@ -1,5 +1,7 @@
 package dev.core.game.dungeon;
 
+import dev.core.game.coords.Point3D;
+
 public class TunnelConnection {
 
     private final DungeonRoom room;

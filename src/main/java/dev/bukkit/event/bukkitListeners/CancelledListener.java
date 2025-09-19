@@ -13,6 +13,7 @@ import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
 import org.bukkit.event.block.BlockExplodeEvent;
 import org.bukkit.event.block.LeavesDecayEvent;
+import org.bukkit.event.entity.CreatureSpawnEvent;
 import org.bukkit.event.entity.EntityDamageByEntityEvent;
 import org.bukkit.event.entity.EntityDamageEvent;
 import org.bukkit.event.entity.EntityDeathEvent;
@@ -20,6 +21,7 @@ import org.bukkit.event.entity.EntityExplodeEvent;
 import org.bukkit.event.entity.EntityRegainHealthEvent;
 import org.bukkit.event.entity.EntityTargetLivingEntityEvent;
 import org.bukkit.event.entity.FoodLevelChangeEvent;
+import org.bukkit.event.entity.CreatureSpawnEvent.SpawnReason;
 import org.bukkit.plugin.Plugin;
 
 import com.comphenix.protocol.PacketType;
@@ -53,6 +55,14 @@ public class CancelledListener implements Listener {
                                 event.setCancelled(true); // cancel arm swing packet
                             }
                         }
+                    }
+                });
+
+        protocolManager.addPacketListener(
+                new PacketAdapter(plugin, ListenerPriority.NORMAL, PacketType.Play.Server.ADVANCEMENTS) {
+                    @Override
+                    public void onPacketSending(PacketEvent event) {
+                        event.setCancelled(true);
                     }
                 });
     }
@@ -97,15 +107,23 @@ public class CancelledListener implements Listener {
 
     @EventHandler
     public void onTarget(EntityTargetLivingEntityEvent event) {
-        if (!(event.getEntity() instanceof Mob))
+        if (!(event.getEntity() instanceof Mob mob)) {
             return;
+        }
 
         LivingEntity target = event.getTarget();
-        if (target == null)
+        if (target == null) {
             return;
+        }
 
         // Prevent mobs from targeting other mobs
-        if (!(target instanceof Player)) {
+        if (target instanceof Player player) {
+            if (EntityManager.getInstance().isDead(player.getUniqueId())) {
+                event.setCancelled(true);
+                mob.setTarget(null);
+            }
+
+        } else {
             if (event.getEntity().hasMetadata("DUNGEON") && target.hasMetadata("DUNGEON")) {
                 event.setCancelled(true);
             }
@@ -131,5 +149,25 @@ public class CancelledListener implements Listener {
     @EventHandler
     public void onLeavesDecay(LeavesDecayEvent event) {
         event.setCancelled(true);
+    }
+
+    @EventHandler
+    public void onEntitySpawn(CreatureSpawnEvent event) {
+        if (event.getSpawnReason() == SpawnReason.CUSTOM) {
+            return;
+        }
+        event.setCancelled(true);
+//        LivingEntity entity = event.getEntity();
+//        if (entity.isInvisible()) {
+//            return;
+//        }
+//
+//        VanillaEntityMeta meta = new VanillaEntityMeta(1, BukkitEntityFactory.getRelation(entity));
+//
+//        // Store metadata
+//        entity.setMetadata("VANILLA_META", new FixedMetadataValue(plugin, meta));
+//
+//        // Set initial custom name
+//        DamageUtils.updateName(entity);
     }
 }

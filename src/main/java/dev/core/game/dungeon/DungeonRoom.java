@@ -8,6 +8,8 @@ import java.util.Map;
 import java.util.Random;
 import java.util.Set;
 
+import dev.core.game.coords.Point3D;
+
 public abstract class DungeonRoom {
 
     protected final String id;

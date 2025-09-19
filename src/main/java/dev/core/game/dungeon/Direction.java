@@ -1,5 +1,7 @@
 package dev.core.game.dungeon;
 
+import dev.core.game.coords.Point3D;
+
 public enum Direction {
     NORTH(0, 0, -1), SOUTH(0, 0, 1), EAST(1, 0, 0), WEST(-1, 0, 0);
 

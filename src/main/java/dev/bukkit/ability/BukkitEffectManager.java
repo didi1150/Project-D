@@ -110,7 +110,7 @@ public class BukkitEffectManager implements EffectManagerInterface {
 
 		// ITEM scope
 		if (entity instanceof BukkitPlayerEntity playerEntity) {
-			Player player = playerEntity.getPlayer();
+			Player player = playerEntity.getPlayer().get();
 			return player.getInventory().getItemInMainHand().getItemMeta().getPersistentDataContainer()
 					.get(BukkitItemStackAdapter.UUID_ID_KEY, PersistentDataType.STRING);
 		}
@@ -199,7 +199,7 @@ public class BukkitEffectManager implements EffectManagerInterface {
 
 		// ITEM scope
 		if (entity instanceof BukkitPlayerEntity playerEntity) {
-			Player player = playerEntity.getPlayer();
+			Player player = playerEntity.getPlayer().get();
 			return player.getInventory().getItemInMainHand().getItemMeta().getPersistentDataContainer()
 					.get(BukkitItemStackAdapter.UUID_ID_KEY, PersistentDataType.STRING);
 		}

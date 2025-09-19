@@ -13,107 +13,124 @@ import java.util.concurrent.ConcurrentHashMap;
 
 public class EntityManager {
 
-	private final Map<UUID, RPGEntity> entities = new ConcurrentHashMap<>();
-	private final Set<UUID> deadEntities = Collections.synchronizedSet(new HashSet<>());
+    private final Map<UUID, RPGEntity> entities = new ConcurrentHashMap<>();
+    private final Set<UUID> deadEntities = Collections.synchronizedSet(new HashSet<>());
+    private final Set<UUID> spectators = Collections.synchronizedSet(new HashSet<>());
 
-	private static EntityManager instance;
+    private static EntityManager instance;
 
-	public static EntityManager getInstance() {
-		if (instance == null) {
-			instance = new EntityManager();
-		}
-		return instance;
-	}
+    public static EntityManager getInstance() {
+        if (instance == null) {
+            instance = new EntityManager();
+        }
+        return instance;
+    }
 
-	/**
-	 * Register a new entity in the manager.
-	 */
-	public void registerEntity(RPGEntity entity) {
-		Objects.requireNonNull(entity, "Entity cannot be null");
-		entities.put(entity.getUuid(), entity);
-	}
+    public void registerSpectator(UUID uuid) {
+        spectators.add(uuid);
+    }
 
-	/**
-	 * Mark an entity as dead but still keep it in memory.
-	 */
-	public void markDead(UUID entityId) {
-		if (entities.containsKey(entityId)) {
-			deadEntities.add(entityId);
-		}
-	}
+    public boolean isSpectator(UUID uuid) {
+        return spectators.contains(uuid);
+    }
 
-	/**
-	 * Revive an entity (remove from dead list).
-	 */
-	public void revive(UUID entityId) {
-		deadEntities.remove(entityId);
-	}
+    public void clearSpectators() {
+        spectators.clear();
+    }
 
-	/**
-	 * Completely remove an entity from the manager.
-	 */
-	public void removeEntity(UUID entityId) {
-		entities.remove(entityId);
-		deadEntities.remove(entityId);
-	}
+    /**
+     * Register a new entity in the manager. If the entity is already present, it
+     * shall be reused
+     */
+    public void registerEntity(RPGEntity entity) {
+        Objects.requireNonNull(entity, "Entity cannot be null");
+        if (entities.containsKey(entity.getUuid())) {
+            return;
+        }
+        entities.put(entity.getUuid(), entity);
+    }
 
-	/**
-	 * Get an entity by its ID.
-	 */
-	public Optional<RPGEntity> getEntity(UUID entityId) {
-		return Optional.ofNullable(entities.get(entityId));
-	}
+    /**
+     * Mark an entity as dead but still keep it in memory.
+     */
+    public void markDead(UUID entityId) {
+        if (entities.containsKey(entityId)) {
+            deadEntities.add(entityId);
+        }
+    }
 
-	/**
-	 * Get all alive entities.
-	 */
-	public List<RPGEntity> getAliveEntities() {
-		List<RPGEntity> alive = new ArrayList<>();
-		for (Map.Entry<UUID, RPGEntity> entry : entities.entrySet()) {
-			if (!deadEntities.contains(entry.getKey())) {
-				alive.add(entry.getValue());
-			}
-		}
-		return alive;
-	}
+    /**
+     * Revive an entity (remove from dead list).
+     */
+    public void revive(UUID entityId) {
+        deadEntities.remove(entityId);
+    }
 
-	/**
-	 * Get all dead entities.
-	 */
-	public List<RPGEntity> getDeadEntities() {
-		List<RPGEntity> dead = new ArrayList<>();
-		for (UUID id : deadEntities) {
-			RPGEntity entity = entities.get(id);
-			if (entity != null) {
-				dead.add(entity);
-			}
-		}
-		return dead;
-	}
+    /**
+     * Completely remove an entity from the manager.
+     */
+    public void removeEntity(UUID entityId) {
+        entities.remove(entityId);
+        deadEntities.remove(entityId);
+    }
 
-	/**
-	 * Check if an entity is alive.
-	 */
-	public boolean isAlive(UUID entityId) {
-		return entities.containsKey(entityId) && !deadEntities.contains(entityId);
-	}
+    /**
+     * Get an entity by its ID.
+     */
+    public Optional<RPGEntity> getEntity(UUID entityId) {
+        return Optional.ofNullable(entities.get(entityId));
+    }
 
-	/**
-	 * Check if an entity is dead.
-	 */
-	public boolean isDead(UUID entityId) {
-		return deadEntities.contains(entityId);
-	}
+    /**
+     * Get all alive entities.
+     */
+    public List<RPGEntity> getAliveEntities() {
+        List<RPGEntity> alive = new ArrayList<>();
+        for (Map.Entry<UUID, RPGEntity> entry : entities.entrySet()) {
+            if (!deadEntities.contains(entry.getKey())) {
+                alive.add(entry.getValue());
+            }
+        }
+        return alive;
+    }
 
-	/**
-	 * Clear all entities.
-	 */
-	public void clear() {
-		entities.clear();
-		deadEntities.clear();
-	}
+    /**
+     * Get all dead entities.
+     */
+    public List<RPGEntity> getDeadEntities() {
+        List<RPGEntity> dead = new ArrayList<>();
+        for (UUID id : deadEntities) {
+            RPGEntity entity = entities.get(id);
+            if (entity != null) {
+                dead.add(entity);
+            }
+        }
+        return dead;
+    }
 
-	public void tick(long now) {
-		entities.entrySet().forEach(entry -> entry.getValue().tick(now));
-	}
+    /**
+     * Check if an entity is alive.
+     */
+    public boolean isAlive(UUID entityId) {
+        return entities.containsKey(entityId) && !deadEntities.contains(entityId);
+    }
+
+    /**
+     * Check if an entity is dead.
+     */
+    public boolean isDead(UUID entityId) {
+        return deadEntities.contains(entityId);
+    }
+
+    /**
+     * Clear all entities.
+     */
+    public void clear() {
+        entities.clear();
+        deadEntities.clear();
+    }
+
+    public void tick(long now) {
+        entities.entrySet().forEach(entry -> entry.getValue().tick(now));
+    }
 }

@@ -6,6 +6,8 @@ import java.util.List;
 import java.util.Random;
 import java.util.Set;
 
+import dev.core.game.coords.Point3D;
+
 public class DecorationGenerator {
     private final Random random;
     private int decorationCounter = 0;

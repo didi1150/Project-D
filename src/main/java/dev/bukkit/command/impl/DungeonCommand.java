@@ -3,6 +3,7 @@ package dev.bukkit.command.impl;
 import java.util.List;
 
 import org.bukkit.Bukkit;
+import org.bukkit.Location;
 import org.bukkit.World;
 import org.bukkit.WorldCreator;
 import org.bukkit.command.Command;
@@ -14,21 +15,26 @@ import org.bukkit.plugin.Plugin;
 import dev.bukkit.DMain;
 import dev.bukkit.game.dungeon.BukkitStoneWorldGenerator;
 import dev.bukkit.game.dungeon.DungeonBuilderBukkit;
+import dev.bukkit.utils.BukkitMessageSender;
+import dev.core.game.coords.Point3D;
 import dev.core.game.dungeon.DecorationElement;
 import dev.core.game.dungeon.Dungeon;
 import dev.core.game.dungeon.DungeonGenerator;
 import dev.core.game.dungeon.DungeonRoom;
 import dev.core.game.dungeon.DungeonStatistics;
-import dev.core.game.dungeon.Point3D;
 import dev.core.game.dungeon.SpawnLocation;
+import dev.core.utils.MessageComponent;
+import dev.core.utils.MessageSenderInterface;
 
 public class DungeonCommand implements CommandExecutor {
 
     private Plugin plugin;
     private int roomCount;
+    private MessageSenderInterface messageSender;
 
     public DungeonCommand() {
         this.plugin = DMain.getInstance();
+        this.messageSender = BukkitMessageSender.getInstance();
     }
 
     @Override
@@ -55,7 +61,7 @@ public class DungeonCommand implements CommandExecutor {
 
         // Generate dungeon in async task
         Bukkit.getScheduler().runTaskAsynchronously(plugin, () -> {
-            DungeonGenerator generator = new DungeonGenerator(System.currentTimeMillis());
+            DungeonGenerator generator = new DungeonGenerator(System.currentTimeMillis(), messageSender);
             Point3D startPoint = new Point3D(0, 64, // Fixed Y level for dungeons
                     0);
 
@@ -66,8 +72,8 @@ public class DungeonCommand implements CommandExecutor {
                 List<SpawnLocation> roomSpawns = room.getSpawnLocations();
                 List<DecorationElement> roomDecorations = room.getDecorations();
 
-                System.out.println("Room " + room.getId() + ": " + roomSpawns.size() + " spawns, "
-                        + roomDecorations.size() + " decorations");
+                messageSender.sendDebugMessage(MessageComponent.of("Room " + room.getId() + ": " + roomSpawns.size()
+                        + " spawns, " + roomDecorations.size() + " decorations"));
             }
 
             // Get dungeon-wide statistics
@@ -81,15 +87,17 @@ public class DungeonCommand implements CommandExecutor {
                 // Build dungeon after clearing (delay by 5 seconds)
                 Bukkit.getScheduler().runTaskLater(plugin, () -> {
                     builder.buildDungeon(dungeon, () -> {
-                        player.sendMessage(
-                                "§aDungeon generation complete! Generated " + dungeon.getRooms().size() + " rooms.");
+                        messageSender.sendCenteredDebugMessage(MessageComponent
+                                .of("Dungeon generation complete! Generated %s rooms.", dungeon.getRooms().size()));
+//                        player.sendMessage(
+//                                "§aDungeon generation complete! Generated " + dungeon.getRooms().size() + " rooms.");
 
                         // Teleport player to start room
                         DungeonRoom startRoom = dungeon.getStartRoom();
                         if (startRoom != null) {
                             Point3D center = startRoom.getCenter();
-                            player.teleport(new org.bukkit.Location(world, center.getX() + 0.5, center.getY() + 1,
-                                    center.getZ() + 0.5));
+                            player.teleport(
+                                    new Location(world, center.getX() + 0.5, center.getY() + 1, center.getZ() + 0.5));
                         }
                     });
                 }, 100L); // 5 second delay

@@ -1,25 +1,22 @@
-package dev.core.game.dungeon;
+package dev.core.game.coords;
 
+import lombok.Getter;
+
+@Getter
 public class Point3D {
 
     private final int x, y, z;
+    private String world;
 
     public Point3D(int x, int y, int z) {
+        this(x, y, z, null);
+    }
+
+    public Point3D(int x, int y, int z, String world) {
         this.x = x;
         this.y = y;
         this.z = z;
-    }
-
-    public int getX() {
-        return x;
-    }
-
-    public int getY() {
-        return y;
-    }
-
-    public int getZ() {
-        return z;
+        this.world = world;
     }
 
     public Point3D add(Point3D other) {
@@ -50,7 +47,6 @@ public class Point3D {
 
     @Override
     public String toString() {
-        return String.format("%d %d %d", x, y, z);
+        return String.format("%d %d %d", x, y, z) + (world == null ? "" : world);
     }
-
 }

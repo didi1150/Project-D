@@ -1,19 +1,12 @@
 package dev.bukkit.command;
 
-import dev.bukkit.entity.BukkitEntityFactory;
-import dev.bukkit.entity.BukkitMobEntity;
-import dev.bukkit.utils.BukkitMessageSender;
-import dev.core.entity.rpgclass.RPGClassType;
-import dev.core.utils.MessageComponent;
-import dev.core.utils.MessageLevel;
-import me.kodysimpson.simpapi.command.SubCommand;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
+
 import org.bukkit.ChatColor;
-import org.bukkit.Location;
-import org.bukkit.World;
 import org.bukkit.command.CommandSender;
-import org.bukkit.entity.Entity;
 import org.bukkit.entity.EntityType;
-import org.bukkit.entity.Mob;
 import org.bukkit.entity.Player;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -21,7 +14,11 @@ import org.junit.jupiter.api.Test;
 import org.mockito.Mock;
 import org.mockito.Mockito;
 
-import java.util.*;
+import dev.bukkit.utils.BukkitMessageSender;
+import dev.core.entity.rpgclass.RPGClassType;
+import dev.core.utils.MessageComponent;
+import dev.core.utils.MessageLevel;
+import me.kodysimpson.simpapi.command.SubCommand;
 
 public class CommandBuilderTest {
 

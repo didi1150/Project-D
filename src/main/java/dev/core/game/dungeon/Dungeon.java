@@ -7,6 +7,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
+import dev.core.game.coords.Point3D;
+
 public class Dungeon {
     private final List<DungeonRoom> rooms;
     private final List<DungeonTunnel> tunnels;

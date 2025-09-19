@@ -106,7 +106,7 @@ public class BukkitSwingBoneEffect extends Effect {
             return;
         }
         if (caster instanceof BukkitPlayerEntity playerEntity) {
-            Player player = playerEntity.getPlayer();
+            Player player = playerEntity.getPlayer().get();
 //            String rpgItemId = BukkitItemStackAdapter.getRpgItemId(player.getInventory().getItemInMainHand());
 
             UUID uuid2 = BukkitItemStackAdapter.getUUID(player.getInventory().getItemInMainHand());
@@ -140,7 +140,7 @@ public class BukkitSwingBoneEffect extends Effect {
         if (!(caster instanceof BukkitPlayerEntity playerEntity)) {
             return;
         }
-        Player player = playerEntity.getPlayer();
+        Player player = playerEntity.getPlayer().get();
 
         if (!inAnimation || armorStand == null || !armorStand.isValid()) {
             return;
@@ -246,7 +246,7 @@ public class BukkitSwingBoneEffect extends Effect {
     }
 
     private void dealDamage(BukkitPlayerEntity playerEntity, long now, List<UUID> hitList) {
-        Player player = playerEntity.getPlayer();
+        Player player = playerEntity.getPlayer().get();
         List<Entity> nearbyEntities = (List<Entity>) player.getWorld()
                 .getNearbyEntities(armorStand.getLocation().clone().add(0, 1.575, 0), 0.4, 0.4, 0.4);
 

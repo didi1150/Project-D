@@ -1,5 +1,7 @@
 package dev.core.game.dungeon;
 
+import dev.core.game.coords.Point3D;
+
 public class SpawnLocation {
     private final Point3D position;
     private final SpawnTier tier;

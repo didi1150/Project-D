@@ -5,6 +5,8 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 
+import dev.core.game.coords.Point3D;
+
 public abstract class DungeonTunnel {
 
     protected final String id;

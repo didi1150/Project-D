@@ -2,6 +2,7 @@ package dev.core.event;
 
 import java.util.List;
 import java.util.function.Function;
+import java.util.function.Predicate;
 
 public interface EventBusInterface {
 
@@ -14,6 +15,8 @@ public interface EventBusInterface {
 	public void subscribe(EventAction<?> eventAction);
 
 	public <E> void subscribeOnce(EventAction<E> eventAction);
+	
+	public <E> void subscribeOnCondition(EventAction<E> eventAction, Predicate<E> predicate);
 
 	public void unsubscribe(String id);
 

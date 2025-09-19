@@ -3,6 +3,7 @@ package dev.bukkit.storage;
 import java.io.File;
 import java.io.IOException;
 
+import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.configuration.file.FileConfiguration;
 import org.bukkit.configuration.file.YamlConfiguration;
 import org.bukkit.plugin.Plugin;
@@ -46,7 +47,11 @@ public class BukkitConfigProvider implements ConfigProvider {
 
     @Override
     public ConfigSection getSection(String path) {
-        return new BukkitConfigSection(config.getConfigurationSection(path));
+        ConfigurationSection section = config.getConfigurationSection(path);
+        if (section == null) {
+            section = config.createSection(path);
+        }
+        return new BukkitConfigSection(section);
     }
 
     @Override

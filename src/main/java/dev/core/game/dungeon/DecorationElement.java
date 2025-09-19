@@ -5,6 +5,8 @@ import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
 
+import dev.core.game.coords.Point3D;
+
 public class DecorationElement {
 
     private final String id;

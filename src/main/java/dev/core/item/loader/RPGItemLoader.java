@@ -7,6 +7,7 @@ import java.util.Map;
 
 import dev.core.ability.Ability;
 import dev.core.ability.AbilityRegistry;
+import dev.core.entity.rpgclass.RPGClassType;
 import dev.core.item.RPGItem;
 import dev.core.item.equipment.EquipmentSlot;
 import dev.core.stat.StatTarget;
@@ -65,8 +66,11 @@ public class RPGItemLoader {
             AbilityRegistry.get(abilityId).ifPresent(abilities::add);
         }
 
+        RPGClassType classType = RPGClassType.valueOf(section.getString("classType", RPGClassType.NONE.name()));
+        int unlockLevel = section.getInt("unlockLevel", 0);
+
         return RPGItem.builder(id, name, slot).withMaterial(material).withPassiveStats(passive).withActiveStats(active)
-                .withAbilities(abilities).build();
+                .withAbilities(abilities).withRpgClassType(classType).withUnlockLevel(unlockLevel).build();
     }
 
     public static void saveAll(ConfigProvider provider, Map<String, RPGItem> items) {
@@ -104,6 +108,9 @@ public class RPGItemLoader {
 
             List<String> abilityIds = item.getAbilities().stream().map(Ability::getId).toList();
             section.set("abilities", abilityIds);
+
+            section.set("classType", item.getRpgClassType().name());
+            section.set("unlockLevel", item.getUnlockLevel());
         }
 
         provider.save();
@@ -143,6 +150,9 @@ public class RPGItemLoader {
 
         List<String> abilityIds = item.getAbilities().stream().map(Ability::getId).toList();
         section.set("abilities", abilityIds);
+        
+        section.set("classType", item.getRpgClassType().name());
+        section.set("unlockLevel", item.getUnlockLevel());
         provider.save();
     }
 }

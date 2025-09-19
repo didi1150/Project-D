@@ -74,7 +74,7 @@ public class SubCommandBuilder {
     }
 
     public SubCommandBuilder setCommandArgumentsList(int argsNumber, String necessaryArg, List<String> tabSuggestions) {
-        return setCommandArgumentsList(argsNumber, necessaryArg, tabSuggestions, null);
+        return setCommandArgumentsList(argsNumber, necessaryArg, tabSuggestions, "string");
     }
 
     public SubCommandBuilder setCommandArgumentsList(int argsNumber, List<String> tabSuggestions, String argType) {

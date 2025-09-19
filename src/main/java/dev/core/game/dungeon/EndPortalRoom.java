@@ -6,6 +6,8 @@ import java.util.List;
 import java.util.Random;
 import java.util.Set;
 
+import dev.core.game.coords.Point3D;
+
 public class EndPortalRoom extends DungeonRoom {
     private final Point3D portalCenter;
     private final Set<Point3D> portalStructure;

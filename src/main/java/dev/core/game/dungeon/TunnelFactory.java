@@ -2,6 +2,8 @@ package dev.core.game.dungeon;
 
 import java.util.Random;
 
+import dev.core.game.coords.Point3D;
+
 public class TunnelFactory {
 
     public static DungeonTunnel createTunnel(TunnelType type, String id, DungeonRoom startRoom, DungeonRoom endRoom,

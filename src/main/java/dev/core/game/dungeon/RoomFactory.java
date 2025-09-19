@@ -2,6 +2,8 @@ package dev.core.game.dungeon;
 
 import java.util.Random;
 
+import dev.core.game.coords.Point3D;
+
 public class RoomFactory {
 
     public static DungeonRoom createRoom(RoomType type, String id, Point3D center, int size, int height) {

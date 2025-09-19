@@ -17,7 +17,7 @@ public class StatLoader {
         Map<RPGClassType, Map<StatType, Stat>> classStats = new HashMap<>();
         ConfigSection root = provider.getRoot().getSection("statDefaults");
 
-        for (RPGClassType type : RPGClassType.values()) {
+        for (RPGClassType type : RPGClassType.validTypes()) {
             Map<StatType, Stat> stats = load(type, root.getSection(type.toString()));
             classStats.put(type, stats);
         }

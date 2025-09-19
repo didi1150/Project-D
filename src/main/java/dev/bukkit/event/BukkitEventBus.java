@@ -4,6 +4,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.NoSuchElementException;
 import java.util.function.Function;
+import java.util.function.Predicate;
 import java.util.stream.Collectors;
 
 import org.bukkit.event.Cancellable;
@@ -59,6 +60,21 @@ public class BukkitEventBus implements EventBusInterface {
         holder[0] = new EventAction<>(event -> {
             eventAction.execute(event);
             unsubscribe(holder[0]);
+        }, eventAction.getType(), eventAction.getPriority());
+
+        subscribe(holder[0]);
+    }
+
+    @Override
+    public <E> void subscribeOnCondition(EventAction<E> eventAction, Predicate<E> predicate) {
+        @SuppressWarnings("unchecked")
+        final EventAction<E>[] holder = new EventAction[1];
+
+        holder[0] = new EventAction<>(event -> {
+            eventAction.execute(event);
+            if (predicate.test(event)) {
+                unsubscribe(holder[0]);
+            }
         }, eventAction.getType(), eventAction.getPriority());
 
         subscribe(holder[0]);

@@ -5,6 +5,10 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Random;
 
+import dev.core.game.coords.Point3D;
+import dev.core.utils.MessageComponent;
+import dev.core.utils.MessageSenderInterface;
+
 public class DungeonGenerator {
 
     private final Random random;
@@ -13,8 +17,10 @@ public class DungeonGenerator {
     private int roomCounter;
     private int tunnelCounter;
     private int maxTunnelDistance = 50;
+    private MessageSenderInterface messageSender;
 
-    public DungeonGenerator(long seed) {
+    public DungeonGenerator(long seed, MessageSenderInterface messageSender) {
+        this.messageSender = messageSender;
         this.random = new Random(seed);
         this.rooms = new ArrayList<>();
         this.tunnels = new ArrayList<>();
@@ -37,16 +43,18 @@ public class DungeonGenerator {
         spawnRoom.setBoundingBox(createRoomBoundingBox(spawnRoom));
         rooms.add(spawnRoom);
         roomCounter++;
-        System.out.println("Generated spawn room");
+        messageSender.sendDebugMessage(MessageComponent.of("Generated spawn room"));
+        messageSender.sendDebugMessage(MessageComponent.of("Generated spawn room"));
 
         // Step 2: Create the main path to end room (guaranteed connectivity)
         List<DungeonRoom> mainPath = generateMainPath(spawnRoom, roomCount);
-        System.out.println("Generated main path with " + mainPath.size() + " rooms");
+        messageSender.sendDebugMessage(MessageComponent.of("Generated main path with " + mainPath.size() + " rooms"));
 
         // Step 3: Add branches and dead ends to remaining connection points
         addBranchesAndDeadEnds(mainPath, roomCount);
 
-        System.out.println("Final dungeon: " + rooms.size() + " rooms, " + tunnels.size() + " tunnels");
+        messageSender.sendDebugMessage(
+                MessageComponent.of("Final dungeon: " + rooms.size() + " rooms, " + tunnels.size() + " tunnels"));
         return new Dungeon(new ArrayList<>(rooms), new ArrayList<>(tunnels));
     }
 
@@ -63,7 +71,7 @@ public class DungeonGenerator {
         for (int i = 0; i < mainPathRooms; i++) {
             DungeonRoom newRoom = generateNextRoomForMainPath(currentRoom, i);
             if (newRoom == null) {
-                System.out.println("Failed to generate main path room " + (i + 1));
+                messageSender.sendDebugMessage(MessageComponent.of("Failed to generate main path room " + (i + 1)));
                 break;
             }
 
@@ -71,7 +79,7 @@ public class DungeonGenerator {
             DungeonTunnel tunnel = createTunnel(currentRoom, newRoom, connectionDir);
 
             if (tunnel == null) {
-                System.out.println("Failed to create main path tunnel");
+                messageSender.sendDebugMessage(MessageComponent.of("Failed to create main path tunnel"));
                 break;
             }
 
@@ -80,7 +88,7 @@ public class DungeonGenerator {
             mainPath.add(newRoom);
             currentRoom = newRoom;
 
-            System.out.println("Main path room " + rooms.size() + " generated");
+            messageSender.sendDebugMessage(MessageComponent.of("Main path room " + rooms.size() + " generated"));
         }
 
         // Generate end room and connect to last main path room
@@ -131,7 +139,8 @@ public class DungeonGenerator {
                 List<DungeonRoom> branch = generateBranch(branchRoot, branchDir, branchLength);
 
                 roomsAdded += branch.size();
-                System.out.println("Added branch of length " + branch.size() + " from room " + branchRoot.getId());
+                messageSender.sendDebugMessage(MessageComponent
+                        .of("Added branch of length " + branch.size() + " from room " + branchRoot.getId()));
             }
         }
     }
@@ -144,13 +153,13 @@ public class DungeonGenerator {
         for (int depth = 0; depth < maxLength; depth++) {
             DungeonRoom newRoom = generateBranchRoom(currentRoom, currentDirection, depth);
             if (newRoom == null) {
-                System.out.println("Failed to generate branch room at depth " + depth);
+                messageSender.sendDebugMessage(MessageComponent.of("Failed to generate branch room at depth " + depth));
                 break;
             }
 
             DungeonTunnel tunnel = createTunnel(currentRoom, newRoom, currentDirection);
             if (tunnel == null) {
-                System.out.println("Failed to create branch tunnel at depth " + depth);
+                messageSender.sendDebugMessage(MessageComponent.of("Failed to create branch tunnel at depth " + depth));
                 break;
             }
 
@@ -162,7 +171,8 @@ public class DungeonGenerator {
             if (depth < maxLength - 1) {
                 List<Direction> nextDirections = getAvailableDirectionsForRoom(newRoom);
                 if (nextDirections.isEmpty()) {
-                    System.out.println("Branch ends at depth " + (depth + 1) + " - no available directions");
+                    messageSender.sendDebugMessage(
+                            MessageComponent.of("Branch ends at depth " + (depth + 1) + " - no available directions"));
                     break; // Dead end
                 }
 
@@ -248,16 +258,17 @@ public class DungeonGenerator {
                     if (newRoom != null && isValidRoomPlacementAdaptive(newRoom, isBranch)) {
                         newRoom.setBoundingBox(createRoomBoundingBox(newRoom));
                         roomCounter++;
-                        System.out.println("Successfully placed " + roomType + " at distance " + distance + ", size "
-                                + size + (isBranch ? " (branch)" : " (main)"));
+                        messageSender.sendDebugMessage(
+                                MessageComponent.of("Successfully placed " + roomType + " at distance " + distance
+                                        + ", size " + size + (isBranch ? " (branch)" : " (main)")));
                         return newRoom;
                     }
                 }
             }
         }
 
-        System.out.println("Failed to place room in direction " + direction + (isBranch ? " (branch)" : " (main)")
-                + " after trying all configurations");
+        messageSender.sendDebugMessage(MessageComponent.of("Failed to place room in direction " + direction
+                + (isBranch ? " (branch)" : " (main)") + " after trying all configurations"));
         return null;
     }
 
@@ -302,7 +313,8 @@ public class DungeonGenerator {
             return RoomFactory.createRoomWithConnectionDirection(roomId, center, random, requiredConnection,
                     favorSmaller, estimatedTunnelWidth);
         } catch (Exception e) {
-            System.out.println("Failed to create room of type " + roomType + ": " + e.getMessage());
+            messageSender.sendDebugMessage(
+                    MessageComponent.of("Failed to create room of type " + roomType + ": " + e.getMessage()));
             return null;
         }
     }
@@ -350,7 +362,8 @@ public class DungeonGenerator {
         if (!isBranch && nearbyRooms > 3) {
             double avgDistance = totalNearbyDistance / nearbyRooms;
             if (avgDistance < 20) { // Too crowded for main path
-                System.out.println("Area too crowded for main path room (avg distance: " + avgDistance + ")");
+                messageSender.sendDebugMessage(
+                        MessageComponent.of("Area too crowded for main path room (avg distance: " + avgDistance + ")"));
                 return false;
             }
         }
@@ -379,10 +392,12 @@ public class DungeonGenerator {
     private DungeonTunnel createTunnel(DungeonRoom from, DungeonRoom to, Direction direction) {
         // Validate that both rooms can actually connect in the specified direction
         if (!canRoomConnect(from, direction) || !canRoomConnect(to, direction.opposite())) {
-            System.out.println("Cannot create tunnel: room connection validation failed");
-            System.out.println("From room " + from.getId() + " (" + from.getType() + ") in direction " + direction);
-            System.out
-                    .println("To room " + to.getId() + " (" + to.getType() + ") in direction " + direction.opposite());
+            messageSender
+                    .sendDebugMessage(MessageComponent.of("Cannot create tunnel: room connection validation failed"));
+            messageSender.sendDebugMessage(MessageComponent
+                    .of("From room " + from.getId() + " (" + from.getType() + ") in direction " + direction));
+            messageSender.sendDebugMessage(MessageComponent
+                    .of("To room " + to.getId() + " (" + to.getType() + ") in direction " + direction.opposite()));
             return null;
         }
 

@@ -9,7 +9,6 @@ import org.bukkit.Location;
 import org.bukkit.World;
 import org.bukkit.entity.Display;
 import org.bukkit.entity.Entity;
-import org.bukkit.entity.LivingEntity;
 import org.bukkit.entity.TextDisplay;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
@@ -19,15 +18,11 @@ import org.bukkit.event.entity.CreatureSpawnEvent.SpawnReason;
 import org.bukkit.event.entity.EntityDamageByEntityEvent;
 import org.bukkit.event.entity.EntityDamageEvent;
 import org.bukkit.event.entity.EntityDamageEvent.DamageCause;
-import org.bukkit.metadata.FixedMetadataValue;
 import org.bukkit.plugin.Plugin;
 import org.bukkit.scheduler.BukkitRunnable;
 import org.bukkit.util.Transformation;
 
-import dev.bukkit.entity.BukkitEntityFactory;
-import dev.bukkit.entity.VanillaEntityMeta;
 import dev.bukkit.event.BukkitEventBus;
-import dev.bukkit.utils.DamageUtils;
 import dev.core.entity.EntityManager;
 import dev.core.entity.RPGDamageResult;
 import dev.core.event.EventAction;
@@ -85,7 +80,14 @@ public class CombatListener implements Listener {
     }
 
     private String formatDamageText(double damage, DamageType type, DamageResult result) {
-        String damageStr = String.format("%.0f", damage);
+        // Format with 2 decimals
+        String damageStr = String.format("%.2f", damage);
+
+        // Trim trailing zeros and decimal point if not needed
+        if (damageStr.indexOf('.') > 0) {
+            damageStr = damageStr.replaceAll("0+$", ""); // remove trailing zeros
+            damageStr = damageStr.replaceAll("\\.$", ""); // remove trailing decimal if left
+        }
 
         if (result == DamageResult.CRIT) {
             return formatCriticalDamage(damageStr);
@@ -315,12 +317,16 @@ public class CombatListener implements Listener {
 
             // If the RPG entity is not alive, do nothing
             if (!entity.isAlive()) {
+                event.setCancelled(true);
                 return;
             }
 
             // Check if the damager is an RPG-managed entity
             EntityManager.getInstance().getEntity(event.getDamager().getUniqueId()).ifPresentOrElse(damager -> {
-
+                if (!damager.isAlive()) {
+                    event.setCancelled(true);
+                    return;
+                }
                 if (event.getCause() == DamageCause.ENTITY_ATTACK
                         || event.getCause() == DamageCause.ENTITY_SWEEP_ATTACK) {
 
@@ -356,6 +362,11 @@ public class CombatListener implements Listener {
             // Case 3: Victim is NOT an RPG entity (vanilla entity)
             // Just show normal physical damage without RPG logic
             EntityManager.getInstance().getEntity(event.getDamager().getUniqueId()).ifPresentOrElse(damager -> {
+                if (!damager.isAlive()) {
+                    event.setCancelled(true);
+                    return;
+                }
+
                 // DAMAGER is an RPG ENtity
                 if (event.getCause() == DamageCause.ENTITY_ATTACK
                         || event.getCause() == DamageCause.ENTITY_SWEEP_ATTACK) {
@@ -378,35 +389,15 @@ public class CombatListener implements Listener {
                     // Apply crit modifier
 
                     event.setDamage(event.getDamage() * 1.75);
-                    showPhysicalDamage(event.getEntity().getLocation(), event.getDamage(), DamageResult.CRIT);
+                    showPhysicalDamage(event.getEntity().getLocation(), event.getFinalDamage(), DamageResult.CRIT);
                 } else {
-                    showPhysicalDamage(event.getEntity().getLocation(), event.getDamage(), DamageResult.NORMAL);
+                    showPhysicalDamage(event.getEntity().getLocation(), event.getFinalDamage(), DamageResult.NORMAL);
                 }
             }, () -> {
 
-                showPhysicalDamage(event.getEntity().getLocation(), event.getDamage(), DamageResult.NORMAL);
+                showPhysicalDamage(event.getEntity().getLocation(), event.getFinalDamage(), DamageResult.NORMAL);
             });
 
         });
     }
-
-    @EventHandler
-    public void onEntitySpawn(CreatureSpawnEvent event) {
-        if (event.getSpawnReason() == SpawnReason.CUSTOM) {
-            return;
-        }
-        LivingEntity entity = event.getEntity();
-        if (entity.isInvisible()) {
-            return;
-        }
-
-        VanillaEntityMeta meta = new VanillaEntityMeta(1, BukkitEntityFactory.getRelation(entity));
-
-        // Store metadata
-        entity.setMetadata("VANILLA_META", new FixedMetadataValue(plugin, meta));
-
-        // Set initial custom name
-        DamageUtils.updateName(entity);
-    }
-
 }

@@ -3,6 +3,8 @@ package dev.core.game.dungeon;
 import java.util.ArrayList;
 import java.util.List;
 
+import dev.core.game.coords.Point3D;
+
 public class StraightTunnel extends DungeonTunnel {
 
     public StraightTunnel(String id, TunnelConnection startConnection, TunnelConnection endConnection, int width) {

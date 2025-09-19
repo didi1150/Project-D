@@ -2,7 +2,9 @@ package dev.bukkit.stat;
 
 import java.util.HashSet;
 import java.util.Map.Entry;
+import java.util.UUID;
 
+import org.bukkit.Bukkit;
 import org.bukkit.Registry;
 import org.bukkit.attribute.Attribute;
 import org.bukkit.attribute.AttributeInstance;
@@ -16,23 +18,22 @@ import dev.core.stat.StatType;
 
 public class BukkitStatManager {
 
-    private LivingEntity entity;
+    private UUID uuid;
     private StatManager statManager;
 
     public BukkitStatManager(Entity entity, StatManager statManager) {
-        if (entity instanceof LivingEntity le) {
-            this.entity = le;
-        } else {
-            throw new IllegalArgumentException("Can't accept a non living entity");
+        if (!(entity instanceof LivingEntity)) {
+            throw new IllegalArgumentException("StatManager can't accept non living entity");
         }
+        this.uuid = entity.getUniqueId();
         this.statManager = statManager;
     }
 
     public void tick(long now, Runnable onDeath) {
+        LivingEntity entity = (LivingEntity) Bukkit.getEntity(uuid);
         for (Entry<StatType, Stat> entry : statManager.getStats().entrySet()) {
             StatType type = entry.getKey();
             Stat stat = entry.getValue();
-
             stripVanillaItemModifiers(entity);
             switch (type) {
             case ATTACK_SPEED: {
@@ -104,7 +105,7 @@ public class BukkitStatManager {
         double vanillaHP = vanillaHearts * 2; // Minecraft uses half-hearts (20 HP = 10 hearts)
 
         // Set max health attribute
-        AttributeInstance healthAttr = entity.getAttribute(Attribute.MAX_HEALTH);
+        AttributeInstance healthAttr = ((LivingEntity) Bukkit.getEntity(uuid)).getAttribute(Attribute.MAX_HEALTH);
         if (healthAttr != null) {
             healthAttr.setBaseValue(vanillaHP);
         }
@@ -115,7 +116,7 @@ public class BukkitStatManager {
         if (health <= 0 || currentHealth <= 0) {
             onDeath.run();
         } else {
-            entity.setHealth(health);
+            ((LivingEntity) Bukkit.getEntity(uuid)).setHealth(health);
         }
     }
 

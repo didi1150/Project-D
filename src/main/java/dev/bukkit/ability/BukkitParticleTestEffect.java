@@ -8,23 +8,23 @@ import dev.core.entity.RPGEntity;
 
 public class BukkitParticleTestEffect extends Effect {
 
-	public BukkitParticleTestEffect(String cooldownKey) {
-		super(null, 1, false, cooldownKey);
-	}
+    public BukkitParticleTestEffect(String cooldownKey) {
+        super(null, 1, false, cooldownKey);
+    }
 
-	@Override
-	public void cast(RPGEntity caster, Runnable startCooldown, Runnable resetCooldown) {
-		if (caster instanceof BukkitPlayerEntity playerEntity) {
-			startCooldown.run();
-			playerEntity.getPlayer().playEffect(playerEntity.getPlayer().getLocation(), org.bukkit.Effect.BLAZE_SHOOT,
-					null);
-			playerEntity.getPlayer().launchProjectile(Fireball.class);
-		}
-	}
+    @Override
+    public void cast(RPGEntity caster, Runnable startCooldown, Runnable resetCooldown) {
+        if (caster instanceof BukkitPlayerEntity playerEntity) {
+            startCooldown.run();
+            playerEntity.getPlayer().get().playEffect(playerEntity.getPlayer().get().getLocation(),
+                    org.bukkit.Effect.BLAZE_SHOOT, null);
+            playerEntity.getPlayer().get().launchProjectile(Fireball.class);
+        }
+    }
 
-	@Override
-	public void cancel() {
+    @Override
+    public void cancel() {
 
-	}
+    }
 
 }

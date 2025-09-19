@@ -20,6 +20,7 @@ import org.bukkit.plugin.Plugin;
 import org.bukkit.scheduler.BukkitRunnable;
 
 import dev.bukkit.entity.BukkitEntityFactory;
+import dev.core.game.coords.Point3D;
 import dev.core.game.dungeon.DecorationElement;
 import dev.core.game.dungeon.DecorationType;
 import dev.core.game.dungeon.Direction;
@@ -27,7 +28,6 @@ import dev.core.game.dungeon.Dungeon;
 import dev.core.game.dungeon.DungeonRoom;
 import dev.core.game.dungeon.DungeonTunnel;
 import dev.core.game.dungeon.EndPortalRoom;
-import dev.core.game.dungeon.Point3D;
 import dev.core.game.dungeon.SpawnLocation;
 
 public class DungeonBuilderBukkit {
@@ -152,6 +152,63 @@ public class DungeonBuilderBukkit {
         materials.put("glow_lichen", Material.GLOW_LICHEN);
 
         return materials;
+    }
+
+    public void resetDungeon(Dungeon dungeon, Runnable onComplete) {
+        new BukkitRunnable() {
+            private int blockIndex = 0;
+            private final java.util.List<Point3D> allBlocks = new java.util.ArrayList<>();
+            private int stage = 0; // 0 = collecting blocks, 1 = resetting blocks, 2 = complete
+
+            {
+                // Collect all blocks that need to be reset to stone
+                allBlocks.addAll(dungeon.getAllFloorBlocks());
+                allBlocks.addAll(dungeon.getAllWallBlocks());
+                allBlocks.addAll(dungeon.getAllRoofBlocks());
+
+                // Also reset air blocks to stone (fill in the entire dungeon)
+                allBlocks.addAll(dungeon.getAllAirBlocks());
+
+                // Reset decoration areas to stone as well
+                for (DecorationElement decoration : dungeon.getAllDecorations()) {
+                    allBlocks.addAll(decoration.getBlockTypes().keySet());
+                }
+            }
+
+            @Override
+            public void run() {
+                int blocksPerTick = 2000; // Higher since we're just setting blocks to stone
+
+                for (int i = 0; i < blocksPerTick; i++) {
+                    if (stage == 0) { // Block resetting stage
+                        if (blockIndex < allBlocks.size()) {
+                            setBlockToStone(allBlocks.get(blockIndex));
+                            blockIndex++;
+
+                            // Progress updates
+                            if (blockIndex % 5000 == 0 || blockIndex == allBlocks.size()) {
+                                int percentage = (int) ((blockIndex / (double) allBlocks.size()) * 100);
+                                Bukkit.broadcastMessage("§cResetting dungeon... " + percentage + "% complete");
+                            }
+                        } else {
+                            stage = 1;
+                        }
+                    } else if (stage == 1) {
+                        cancel();
+                        if (onComplete != null) {
+                            onComplete.run();
+                        }
+                        Bukkit.broadcastMessage("§aDungeon reset complete! All blocks converted to stone.");
+                        return;
+                    }
+                }
+            }
+
+            private void setBlockToStone(Point3D point) {
+                Block block = world.getBlockAt(point.getX(), point.getY(), point.getZ());
+                block.setType(Material.STONE);
+            }
+        }.runTaskTimer(plugin, 0L, 1L);
     }
 
     public void buildDungeon(Dungeon dungeon, Runnable onComplete) {

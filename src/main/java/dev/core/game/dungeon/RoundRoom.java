@@ -3,6 +3,8 @@ package dev.core.game.dungeon;
 import java.util.HashSet;
 import java.util.Set;
 
+import dev.core.game.coords.Point3D;
+
 public class RoundRoom extends DungeonRoom {
 
     public RoundRoom(String id, Point3D center, int size, int height) {

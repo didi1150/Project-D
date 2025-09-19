@@ -3,6 +3,8 @@ package dev.core.game.dungeon;
 import java.util.ArrayList;
 import java.util.List;
 
+import dev.core.game.coords.Point3D;
+
 public class LShapedTunnel extends DungeonTunnel {
 
     private List<BoundingBox> boundingBoxes;
