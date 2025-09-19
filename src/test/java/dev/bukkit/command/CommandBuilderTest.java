@@ -1,9 +1,19 @@
 package dev.bukkit.command;
 
+import dev.bukkit.entity.BukkitEntityFactory;
+import dev.bukkit.entity.BukkitMobEntity;
+import dev.bukkit.utils.BukkitMessageSender;
 import dev.core.entity.rpgclass.RPGClassType;
+import dev.core.utils.MessageComponent;
+import dev.core.utils.MessageLevel;
 import me.kodysimpson.simpapi.command.SubCommand;
 import org.bukkit.ChatColor;
+import org.bukkit.Location;
+import org.bukkit.World;
 import org.bukkit.command.CommandSender;
+import org.bukkit.entity.Entity;
+import org.bukkit.entity.EntityType;
+import org.bukkit.entity.Mob;
 import org.bukkit.entity.Player;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -126,6 +136,25 @@ public class CommandBuilderTest {
                 .addSubCommand(
                         SubCommandBuilder.startBuilding("something")
                 )
+                .addSubCommand(
+                        SubCommandBuilder.startBuilding("entity")
+                                .setCommandAction(7, "spawn", (sender, args) -> {
+                                    EntityType entityType = EntityType.valueOf(args[1]);
+                                    int level = Integer.parseInt(args[2]);
+                                    boolean isElite = Boolean.parseBoolean(args[3]);
+                                    double x = Double.parseDouble(args[4]);
+                                    double y = Double.parseDouble(args[5]);
+                                    double z = Double.parseDouble(args[6]);
+                                    BukkitMessageSender.getInstance().sendMessage(sender, MessageComponent.of(MessageLevel.INFO_LEVEL, "Spawned a %s (level:%s, elite:%s, at:(%s,%s,%s))", entityType, level, isElite, x, y ,z));
+                                })
+                                .setCommandArgumentsList(0, List.of("spawn"))
+                                .setCommandArgumentsList(1, "spawn", Arrays.stream(EntityType.values()).map(Enum::toString).toList(), "entityType")
+                                .setCommandArgumentsList(2, "spawn", "level(Integer)")
+                                .setCommandArgumentsList(3, "spawn", List.of("true", "false"), "isElite")
+                                .setCommandArgumentsList(4, "spawn", List.of("~"), "xPos(Double)")
+                                .setCommandArgumentsList(5, "spawn", List.of("~"), "yPos(Double)")
+                                .setCommandArgumentsList(6, "spawn", List.of("~"), "zPos(Double)")
+                )
                 .build();
 
         CoreCommand coreCommand = new CoreCommand(m.name(), m.description(), m.usage(), m.commandList(), m.aliases(), new ArrayList<>(m.subCommands()));
@@ -136,6 +165,15 @@ public class CommandBuilderTest {
         System.out.println("g BONEMERANG: " + coreCommand.tabComplete(player, "", new String[]{"g", "BONEMERANG", ""}));
         System.out.println("showStats: " + coreCommand.tabComplete(player, "", new String[]{"showStats", ""}));
         System.out.println("selectActive: " + coreCommand.tabComplete(player, "", new String[]{"selectActive", ""}));
+
+        System.out.println("entity: " + coreCommand.tabComplete(player, "", new String[]{"entity", ""}));
+        System.out.println("entity spawn: " + coreCommand.tabComplete(player, "", new String[]{"entity", "spawn", ""}));
+        System.out.println("entity spawn ZOMBIE: " + coreCommand.tabComplete(player, "", new String[]{"entity", "spawn", "ZOMBIE", ""}));
+        System.out.println("entity spawn ZOMBIE 10: " + coreCommand.tabComplete(player, "", new String[]{"entity", "spawn", "ZOMBIE", "10", ""}));
+        System.out.println("entity spawn ZOMBIE 10 false: " + coreCommand.tabComplete(player, "", new String[]{"entity", "spawn", "ZOMBIE", "10", "false", ""}));
+        System.out.println("entity spawn ZOMBIE 10 false 0: " + coreCommand.tabComplete(player, "", new String[]{"entity", "spawn", "ZOMBIE", "10", "false", "0", ""}));
+        System.out.println("entity spawn ZOMBIE 10 false 0 0: " + coreCommand.tabComplete(player, "", new String[]{"entity", "spawn", "ZOMBIE", "10", "false", "0", "0", ""}));
+        System.out.println("entity spawn ZOMBIE 10 false 0 0 0: " + coreCommand.tabComplete(player, "", new String[]{"entity", "spawn", "ZOMBIE", "10", "false", "0", "0", "0", ""}));
 
         System.out.println();
 

@@ -12,6 +12,7 @@ import org.bukkit.ChatColor;
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
+import org.bukkit.util.StringUtil;
 import org.jetbrains.annotations.NotNull;
 
 public class CoreCommand extends Command {
@@ -60,7 +61,9 @@ public class CoreCommand extends Command {
             for(int i = 0; i < this.getSubCommands().size(); ++i) {
                 subcommandsArguments.add(((SubCommand)this.getSubCommands().get(i)).getName());
             }
-            return subcommandsArguments;
+            List<String> completions = new ArrayList<>();
+            StringUtil.copyPartialMatches(args[args.length - 1], subcommandsArguments, completions);
+            return completions;
         } else {
             if (args.length >= 2) {
                 for(int i = 0; i < this.getSubCommands().size(); ++i) {
@@ -69,7 +72,9 @@ public class CoreCommand extends Command {
                     if (names.stream().anyMatch(s -> s.equalsIgnoreCase(args[0]))) {
                         List<String> subCommandArgs = ((SubCommand)this.getSubCommands().get(i)).getSubcommandArguments((Player)sender, args);
                         if (subCommandArgs != null) {
-                            return subCommandArgs;
+                            List<String> completions = new ArrayList<>();
+                            StringUtil.copyPartialMatches(args[args.length - 1], subCommandArgs, completions);
+                            return completions;
                         }
                         return Collections.emptyList();
                     }

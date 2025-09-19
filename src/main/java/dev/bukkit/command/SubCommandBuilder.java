@@ -7,6 +7,7 @@ import me.kodysimpson.simpapi.command.SubCommand;
 import org.bukkit.ChatColor;
 import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
+import org.bukkit.util.StringUtil;
 
 import java.util.*;
 
@@ -69,7 +70,7 @@ public class SubCommandBuilder {
     }
 
     public SubCommandBuilder setCommandArgumentsList(int argsNumber, List<String> tabSuggestions) {
-        return setCommandArgumentsList(argsNumber, name, tabSuggestions, null);
+        return setCommandArgumentsList(argsNumber, name, tabSuggestions, String.join(" | ", tabSuggestions));
     }
 
     public SubCommandBuilder setCommandArgumentsList(int argsNumber, String necessaryArg, List<String> tabSuggestions) {
@@ -82,6 +83,10 @@ public class SubCommandBuilder {
 
     public SubCommandBuilder setCommandArgumentsList(int argsNumber, String argType) {
         return setCommandArgumentsList(argsNumber, name, List.of(), argType);
+    }
+
+    public SubCommandBuilder setCommandArgumentsList(int argsNumber, String necessaryArg, String argType) {
+        return setCommandArgumentsList(argsNumber, necessaryArg, List.of(), argType);
     }
 
     public SubCommandBuilder setCommandArgumentsList(int argsNumber, String necessaryArg, List<String> tabSuggestions, String argType) {
@@ -291,14 +296,14 @@ public class SubCommandBuilder {
 
                 List<String> list;
 
-                int index = args.length - 1;
+                int argsNum = args.length - 2;
 
-                if (index == 1) {
+                if (argsNum == 0) {
                     list = getCommandSuggestions(name, 0);
                 } else {
                     String mainArg = args[1];
 
-                    list = getCommandSuggestions(mainArg, index);
+                    list = getCommandSuggestions(mainArg, argsNum);
                 }
 
                 return list;
