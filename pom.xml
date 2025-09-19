@@ -77,16 +77,10 @@
         <id>jitpack.io</id>
         <url>https://jitpack.io</url>
 	    </repository>
-	    <repository>
-	        <id>papermc</id>
-	        <url>https://repo.papermc.io/repository/maven-public/</url>
-	    </repository>
-    
         <repository>
-            <id>spigotmc-repo</id>
+            <id>spigot-repo</id>
             <url>https://hub.spigotmc.org/nexus/content/repositories/snapshots/</url>
         </repository>
-        
         <repository>
             <id>enginehub</id>
             <url>https://maven.enginehub.org/repo/</url>
@@ -141,10 +135,10 @@
             <version>3.7.2</version> <!-- Replace this with the version from TaskChain -->
         </dependency>
         <dependency>
-            <groupId>org.spigotmc</groupId>
-            <artifactId>spigot-api</artifactId>
-            <version>1.21.8-R0.1-SNAPSHOT</version>
-            <scope>provided</scope>
+           <groupId>org.spigotmc</groupId>
+           <artifactId>spigot-api</artifactId>
+           <version>1.21.8-R0.1-SNAPSHOT</version>
+           <scope>provided</scope>
         </dependency>
         <!-- https://mvnrepository.com/artifact/org.junit.jupiter/junit-jupiter-api -->
         <dependency>

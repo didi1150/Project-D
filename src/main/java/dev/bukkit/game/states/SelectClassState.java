@@ -12,8 +12,11 @@ import java.util.concurrent.ConcurrentHashMap;
 
 import org.bukkit.Bukkit;
 import org.bukkit.ChatColor;
+import org.bukkit.Color;
 import org.bukkit.Location;
 import org.bukkit.Material;
+import org.bukkit.Particle;
+import org.bukkit.Particle.DustOptions;
 import org.bukkit.World;
 import org.bukkit.block.Block;
 import org.bukkit.entity.Player;
@@ -28,9 +31,9 @@ import org.bukkit.util.Vector;
 
 import dev.bukkit.entity.BukkitPlayerEntity;
 import dev.bukkit.game.coords.PointToLocation;
+import dev.bukkit.game.dungeon.DungeonVoting;
 import dev.bukkit.item.BukkitInventorySync;
 import dev.bukkit.item.display.BukkitTextColorAdapter;
-import dev.bukkit.storage.progression.ClassProgressionService;
 import dev.bukkit.utils.BukkitMessageSender;
 import dev.core.entity.EntityManager;
 import dev.core.entity.rpgclass.RPGClassType;
@@ -97,9 +100,9 @@ public class SelectClassState extends GameState {
     }
 
     private ScheduledTask updateTask;
+    private ScheduledTask particleTask;
     private final Map<String, RoleState> roleStates = new HashMap<>(); // role name -> state
     private final Map<UUID, String> playerSelections = new HashMap<>(); // player -> role name
-    private ClassProgressionService classProgressionService;
     private Location spawnLocation;
 
     private static final List<Point3D> CACHED_CRUMBLE_OFFSETS = new ArrayList<>();
@@ -117,8 +120,10 @@ public class SelectClassState extends GameState {
         }
     }
 
+    private DungeonVoting dungeonVoting;
+
     public SelectClassState(Point3D holeCenter, ViewPoint3D spawnLocation, Map<RPGClassType, Point3D> locations,
-            EventBusInterface eventBus, ClassProgressionService classProgressionService) {
+            EventBusInterface eventBus) {
         super(NAME, DURATION, eventBus);
         this.holeCenter = holeCenter;
         this.locations = new ConcurrentHashMap<>();
@@ -126,11 +131,11 @@ public class SelectClassState extends GameState {
         locations.entrySet().forEach(entry -> {
             this.locations.put(entry.getKey(), PointToLocation.blockToLoc(entry.getValue()));
         });
-        this.classProgressionService = classProgressionService;
         // Initialize role states
         for (RPGClassType classType : locations.keySet()) {
             roleStates.put(classType.toString(), new RoleState(classType));
         }
+        this.dungeonVoting = new DungeonVoting();
     }
 
     @Override
@@ -138,9 +143,41 @@ public class SelectClassState extends GameState {
         fillHole();
         placeLocationBlocks();
 
+        particleTask = scheduler.runTaskTimer(() -> {
+            double time = System.currentTimeMillis() / 1000.0; // seconds
+            double baseHeight = 2.5; // base height above the block
+            double bobHeight = 1.25; // bobbing amplitude
+            double bobSpeed = 2.0; // bobbing speed
+            double radius = 0.6; // radius of the ring
+            int particleCount = 16; // particles per ring
+
+            for (Map.Entry<RPGClassType, Location> entry : locations.entrySet()) {
+                if (roleStates.get(entry.getKey().toString()).isLocked()) {
+                    continue;
+                }
+                RPGClassType type = entry.getKey();
+                Location base = entry.getValue().clone().add(0.5, baseHeight, 0.5);
+                DustOptions dust = getDustOptionsForClass(type);
+
+                double yOffset = Math.sin(time * bobSpeed) * bobHeight;
+
+                for (int i = 0; i < particleCount; i++) {
+                    double angle = 2 * Math.PI * i / particleCount;
+                    double x = Math.cos(angle) * radius;
+                    double z = Math.sin(angle) * radius;
+                    Location particleLoc = base.clone().add(x, yOffset, z);
+
+                    particleLoc.getWorld().spawnParticle(Particle.DUST, particleLoc, 1, 0, 0, 0, dust);
+                }
+            }
+        }, 0L, 2L); // every 2 ticks (~0.1s)
+
+        dungeonVoting.startVoting(scheduler);
         Bukkit.getOnlinePlayers().forEach(player -> {
             player.teleport(spawnLocation);
             BukkitMessageSender.getInstance().sendLine(player, ChatColor.YELLOW.toString());
+            BukkitMessageSender.getInstance().sendCenteredMessage(player,
+                    MessageComponent.of("<yellow>=== CLASS & FLOOR SELECTION ===</yellow>"));
             BukkitMessageSender.getInstance().sendCenteredMessage(player,
                     MessageComponent.of("<gray>Stand on a colored block to select a classType!</gray>"));
             BukkitMessageSender.getInstance().sendCenteredMessage(player,
@@ -196,7 +233,14 @@ public class SelectClassState extends GameState {
 
     @Override
     protected void onStop() {
+        checkAssignments();
         displayFinalSelections();
+
+        if (particleTask != null) {
+            particleTask.cancel();
+            particleTask = null;
+        }
+
         for (Player player : Bukkit.getOnlinePlayers()) {
             BukkitPlayerEntity playerEntity = new BukkitPlayerEntity(player);
             EntityManager.getInstance().registerEntity(playerEntity);
@@ -222,9 +266,58 @@ public class SelectClassState extends GameState {
         cancelUpdateTask();
     }
 
+    private void checkAssignments() {
+        Set<UUID> assigned = new HashSet<>();
+        // Mark already locked players as assigned
+        for (RoleState roleState : roleStates.values()) {
+            if (roleState.isLocked() && roleState.getOwner() != null) {
+                assigned.add(roleState.getOwner().getUniqueId());
+            }
+        }
+
+        for (Player player : Bukkit.getOnlinePlayers()) {
+            if (assigned.contains(player.getUniqueId())) {
+                continue; // already locked
+            }
+
+            // Does this player have a selection?
+            String selectedRole = playerSelections.get(player.getUniqueId());
+            RoleState chosenRole = null;
+
+            if (selectedRole != null) {
+                RoleState state = roleStates.get(selectedRole);
+                if (state != null && !state.isLocked()) {
+                    chosenRole = state;
+                }
+            }
+
+            // If no valid role chosen, assign the first available
+            if (chosenRole == null) {
+                chosenRole = roleStates.values().stream().filter(role -> !role.isLocked()).findAny().orElse(null);
+            }
+
+            // If still null (all roles locked), just give them any role (random)
+            if (chosenRole == null) {
+                List<RoleState> allRoles = new ArrayList<>(roleStates.values());
+                chosenRole = allRoles.get((int) (Math.random() * allRoles.size()));
+            }
+
+            // Lock role for player
+            if (chosenRole != null) {
+                lockRole(player, chosenRole);
+                player.sendMessage(ChatColor.YELLOW + "You did not pick a class in time. "
+                        + "You have been assigned to: " + BukkitTextColorAdapter
+                                .colored(chosenRole.getClassType().getColor(), chosenRole.getClassType().toString()));
+            }
+        }
+    }
+
     @Override
     protected void onTickSecond(long secondsRemaining) {
         updateCountdownXP(secondsRemaining, DURATION / 20);
+        if (secondsRemaining < 10) {
+            dungeonVoting.stopVoting();
+        }
     }
 
     @Override
@@ -472,11 +565,16 @@ public class SelectClassState extends GameState {
         roleState.setLocked(true);
         roleState.setOwner(player);
 
+        playerSelections.put(player.getUniqueId(), roleState.getClassType().toString());
+
+        Location location = locations.get(roleState.getClassType());
+        player.teleport(location.add(0.5, 1, 0.5));
+
         // First: Knock off all other players from this block
         Set<Player> playersToRemove = new HashSet<>();
         for (Player otherPlayer : roleState.getPlayersOnBlock()) {
             if (otherPlayer != player) {
-                kickOffPlayer(otherPlayer, locations.get(roleState.getClassType()));
+                kickOffPlayer(otherPlayer, location);
                 otherPlayer.sendMessage("§c"
                         + player.getName() + " locked " + BukkitTextColorAdapter
                                 .colored(roleState.getClassType().getColor(), roleState.getClassType().toString())
@@ -566,6 +664,23 @@ public class SelectClassState extends GameState {
         if (updateTask != null) {
             updateTask.cancel();
             updateTask = null;
+        }
+    }
+
+    private DustOptions getDustOptionsForClass(RPGClassType type) {
+        switch (type) {
+        case TANK:
+            return new DustOptions(Color.fromRGB(128, 128, 128), 1f); // gray
+        case ASSASSIN:
+            return new DustOptions(Color.fromRGB(64, 64, 64), 1f); // dark gray
+        case ARCHER:
+            return new DustOptions(Color.fromRGB(255, 0, 0), 1f); // red
+        case MAGE:
+            return new DustOptions(Color.fromRGB(0, 0, 255), 1f); // blue
+        case SUPPORT:
+            return new DustOptions(Color.fromRGB(0, 255, 0), 1f); // green
+        default:
+            return new DustOptions(Color.WHITE, 1f); // fallback
         }
     }
 

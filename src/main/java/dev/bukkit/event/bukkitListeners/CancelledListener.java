@@ -18,10 +18,14 @@ import org.bukkit.event.entity.EntityDamageByEntityEvent;
 import org.bukkit.event.entity.EntityDamageEvent;
 import org.bukkit.event.entity.EntityDeathEvent;
 import org.bukkit.event.entity.EntityExplodeEvent;
+import org.bukkit.event.entity.EntityPortalEvent;
 import org.bukkit.event.entity.EntityRegainHealthEvent;
 import org.bukkit.event.entity.EntityTargetLivingEntityEvent;
 import org.bukkit.event.entity.FoodLevelChangeEvent;
+import org.bukkit.event.world.PortalCreateEvent;
+import org.bukkit.event.world.PortalCreateEvent.CreateReason;
 import org.bukkit.event.entity.CreatureSpawnEvent.SpawnReason;
+import org.bukkit.event.player.PlayerPortalEvent;
 import org.bukkit.plugin.Plugin;
 
 import com.comphenix.protocol.PacketType;
@@ -169,5 +173,22 @@ public class CancelledListener implements Listener {
 //
 //        // Set initial custom name
 //        DamageUtils.updateName(entity);
+    }
+
+    @EventHandler
+    public void onPortalCreate(PortalCreateEvent event) {
+        if (event.getReason() == CreateReason.NETHER_PAIR) {
+            event.setCancelled(true);
+        }
+    }
+
+    @EventHandler
+    public void onEnterPortal(EntityPortalEvent event) {
+        event.setCancelled(true);
+    }
+
+    @EventHandler
+    public void onEnterPortalPlayer(PlayerPortalEvent event) {
+        event.setCancelled(true);
     }
 }

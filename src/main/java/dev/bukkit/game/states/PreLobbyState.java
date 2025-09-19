@@ -2,6 +2,7 @@ package dev.bukkit.game.states;
 
 import org.bukkit.Bukkit;
 import org.bukkit.GameMode;
+import org.bukkit.GameRule;
 import org.bukkit.Location;
 import org.bukkit.attribute.Attribute;
 import org.bukkit.entity.Player;
@@ -107,7 +108,14 @@ public class PreLobbyState extends GameState {
         scheduler.runTaskLater(() -> {
             event.getPlayer().teleport(spawnLocation);
             event.getPlayer().setGameMode(GameMode.ADVENTURE);
+            event.getPlayer().getAttribute(Attribute.MAX_HEALTH).setBaseValue(20);
             event.getPlayer().setHealth(event.getPlayer().getAttribute(Attribute.MAX_HEALTH).getValue());
+            event.getPlayer().getActivePotionEffects()
+                    .forEach(potionEffect -> event.getPlayer().removePotionEffect(potionEffect.getType()));
+            event.getPlayer().getInventory().clear();
+            spawnLocation.getWorld().setTime(1000);
+            spawnLocation.getWorld().setGameRule(GameRule.DO_DAYLIGHT_CYCLE, false);
+            spawnLocation.getWorld().setStorm(false);
         }, 1);
         switch (currentMode) {
         case WAITING:
@@ -172,7 +180,7 @@ public class PreLobbyState extends GameState {
                 // Update XP for all players
                 updateCountdownModeXP();
 
-                Bukkit.broadcastMessage("§e" + countdown + "...");
+                Bukkit.broadcastMessage("§eStarting in: " + countdown + (countdown == 1 ? " second" : " seconds") + "...");
                 countdown--;
             } else {
                 complete(GameStateResult.COMPLETE);

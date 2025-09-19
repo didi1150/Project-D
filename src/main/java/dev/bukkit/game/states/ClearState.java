@@ -15,8 +15,8 @@ import org.bukkit.attribute.Attribute;
 import org.bukkit.block.Block;
 import org.bukkit.entity.FallingBlock;
 import org.bukkit.entity.Player;
-import org.bukkit.event.entity.EntityDamageEvent;
 import org.bukkit.event.player.PlayerJoinEvent;
+import org.bukkit.event.player.PlayerMoveEvent;
 import org.bukkit.event.player.PlayerQuitEvent;
 import org.bukkit.plugin.Plugin;
 import org.bukkit.potion.PotionEffect;
@@ -24,7 +24,9 @@ import org.bukkit.potion.PotionEffectType;
 import org.bukkit.util.Vector;
 
 import dev.bukkit.DMain;
+import dev.bukkit.entity.BukkitEntityFactory;
 import dev.bukkit.entity.BukkitPlayerEntity;
+import dev.bukkit.game.coords.LocToPoint;
 import dev.bukkit.game.coords.PointToLocation;
 import dev.bukkit.game.dungeon.DungeonBuilderBukkit;
 import dev.bukkit.item.BukkitInventorySync;
@@ -41,6 +43,7 @@ import dev.core.game.ScheduledTask;
 import dev.core.game.coords.Point3D;
 import dev.core.game.dungeon.Dungeon;
 import dev.core.game.dungeon.DungeonGenerator;
+import dev.core.game.dungeon.SpawnLocation;
 import dev.core.game.settings.GameSettings;
 import dev.core.progression.PlayerClassProgression;
 import dev.core.utils.MessageSenderInterface;
@@ -60,6 +63,11 @@ public class ClearState extends GameState {
     private EntityManager entityManager;
 
     private ClassProgressionService classProgressionService;
+
+    private Dungeon dungeon;
+
+    private static final int SPAWN_RADIUS_SQRD = 225;
+    private List<Point3D> usedLocations;
 
     private static final List<Point3D> CACHED_CRUMBLE_OFFSETS = new ArrayList<>();
     private static final int CRUMBLE_RADIUS = 9;
@@ -84,6 +92,8 @@ public class ClearState extends GameState {
 
     private Plugin plugin;
 
+    private World world;
+
     public ClearState(Point3D holeCenter, EventBusInterface eventBus, EffectManagerInterface effectManager,
             EntityManager entityManager, ClassProgressionService classProgressionService,
             MessageSenderInterface messageSender, Plugin plugin) {
@@ -96,15 +106,16 @@ public class ClearState extends GameState {
         this.entityManager = entityManager;
         this.classProgressionService = classProgressionService;
         lastMillis = System.currentTimeMillis();
+        this.usedLocations = new ArrayList<Point3D>();
     }
 
     @Override
     protected void onStart() {
         // Handle ground opening
         scheduler.runTaskLaterAsync(() -> {
-            Dungeon dungeon = new DungeonGenerator(0, messageSender)
+            dungeon = new DungeonGenerator(0, messageSender)
                     .generateDungeon(roomCount(GameSettings.getCurrentSettings().getFloor()), new Point3D(0, 0, 0));
-            World world = Bukkit.getWorld(GameSettings.getCurrentSettings().getDungeonWorld());
+            world = Bukkit.getWorld(GameSettings.getCurrentSettings().getDungeonWorld());
             GameSettings.getCurrentSettings().setDungeon(dungeon);
             scheduler.runTaskLater(() -> {
                 buildDungeon(dungeon, world);
@@ -152,10 +163,12 @@ public class ClearState extends GameState {
                 PlayerQuitEvent.class);
         EventAction<PlayerJoinEvent> joinAction = new EventAction<PlayerJoinEvent>(this::handleJoin,
                 PlayerJoinEvent.class);
-//        EventAction<EntityDamageByEntityEvent> damageAction = new EventAction<EntityDamageByEntityEvent>(this::handleFall, EntityDamageEvent.class);
-//        addSubscriber(damageAction);
+
+        EventAction<PlayerMoveEvent> moveAction = new EventAction<PlayerMoveEvent>(this::handleMovement,
+                PlayerMoveEvent.class);
         addSubscriber(quitAction);
         addSubscriber(joinAction);
+        addSubscriber(moveAction);
     }
 
     private void cancelTask() {
@@ -165,8 +178,15 @@ public class ClearState extends GameState {
         }
     }
 
-    private void handleFall(EntityDamageEvent event) {
+    private void handleMovement(PlayerMoveEvent event) {
+        dungeon.getAllSpawnLocations().forEach(location -> {
+            if (!usedLocations.contains(location.getPosition())
+                    && location.getPosition().distanceSqrd(LocToPoint.locToBlock(event.getTo())) <= SPAWN_RADIUS_SQRD) {
+                usedLocations.add(location.getPosition());
 
+                spawnMob(location);
+            }
+        });
     }
 
     private void handleQuit(PlayerQuitEvent event) {
@@ -254,6 +274,9 @@ public class ClearState extends GameState {
 
             // Announce the ground collapse
             Bukkit.broadcastMessage("§c§lThe ground crumbles beneath your feet!");
+            Bukkit.getOnlinePlayers().forEach(player -> {
+                player.addPotionEffect(new PotionEffect(PotionEffectType.BLINDNESS, 20 * 2, 2, false, false));
+            });
             if (onComplete != null) {
                 onComplete.run();
             }
@@ -314,6 +337,10 @@ public class ClearState extends GameState {
         default:
             yield 5;
         };
+    }
+
+    private void spawnMob(SpawnLocation spawnLocation) {
+        BukkitEntityFactory.spawnHostileVanillaDungeonMob(spawnLocation.getMaxEnemyLevel(), spawnLocation, world);
     }
 
 }

@@ -51,6 +51,12 @@ public class PostGameState extends GameState {
 
         Bukkit.getOnlinePlayers().forEach(player -> {
             player.teleport(PointToLocation.viewToLoc(GameSettings.getCurrentSettings().getPreLobbySpawn()));
+            EntityManager.getInstance().getDeadEntities().forEach(entity -> {
+                if (entity instanceof BukkitPlayerEntity bukkitPlayerEntity) {
+                    EntityManager.getInstance().revive(entity.getUuid());
+                    bukkitPlayerEntity.syncState();
+                }
+            });
         });
     }
 

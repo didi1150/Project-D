@@ -73,8 +73,8 @@ public abstract class RPGEntity {
     }
 
     public void onDeath() {
-        setHealth(getMaxHealth());
         alive = false;
+        setHealth(getMaxHealth());
         RPGEntityDeathEvent event = new RPGEntityDeathEvent(this);
         eventBusInterface.sendEvent(event);
 

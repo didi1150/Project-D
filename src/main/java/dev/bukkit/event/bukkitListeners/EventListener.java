@@ -14,12 +14,14 @@ import org.bukkit.event.inventory.InventoryClickEvent;
 import org.bukkit.event.inventory.InventoryCloseEvent;
 import org.bukkit.event.inventory.InventoryDragEvent;
 import org.bukkit.event.player.PlayerChangedWorldEvent;
+import org.bukkit.event.player.PlayerCommandPreprocessEvent;
 import org.bukkit.event.player.PlayerDropItemEvent;
 import org.bukkit.event.player.PlayerInteractEntityEvent;
 import org.bukkit.event.player.PlayerInteractEvent;
 import org.bukkit.event.player.PlayerItemHeldEvent;
 import org.bukkit.event.player.PlayerJoinEvent;
 import org.bukkit.event.player.PlayerMoveEvent;
+import org.bukkit.event.player.PlayerPortalEvent;
 import org.bukkit.event.player.PlayerQuitEvent;
 import org.bukkit.event.player.PlayerSwapHandItemsEvent;
 import org.bukkit.event.player.PlayerToggleSneakEvent;
@@ -29,8 +31,6 @@ import org.spigotmc.event.player.PlayerSpawnLocationEvent;
 import dev.bukkit.event.BukkitEventBus;
 
 public class EventListener implements Listener {
-
-    // TODO add all the necessary events here
 
     private Plugin plugin;
 
@@ -135,6 +135,11 @@ public class EventListener implements Listener {
     }
 
     @EventHandler
+    public void onCommand(PlayerCommandPreprocessEvent event) {
+        BukkitEventBus.getInstance().sendEvent(event);
+    }
+
+    @EventHandler
     public void onDeath(EntityDeathEvent event) {
         event.getEntity().setCustomName(null);
         event.getEntity().setCustomNameVisible(false);
@@ -144,6 +149,11 @@ public class EventListener implements Listener {
 
     @EventHandler
     public void onInteractEntity(PlayerInteractEntityEvent event) {
+        BukkitEventBus.getInstance().sendEvent(event);
+    }
+
+    @EventHandler
+    public void onEnterPortalPlayer(PlayerPortalEvent event) {
         BukkitEventBus.getInstance().sendEvent(event);
     }
 }

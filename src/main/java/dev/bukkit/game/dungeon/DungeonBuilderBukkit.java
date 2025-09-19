@@ -19,7 +19,6 @@ import org.bukkit.block.data.type.RedstoneWallTorch;
 import org.bukkit.plugin.Plugin;
 import org.bukkit.scheduler.BukkitRunnable;
 
-import dev.bukkit.entity.BukkitEntityFactory;
 import dev.core.game.coords.Point3D;
 import dev.core.game.dungeon.DecorationElement;
 import dev.core.game.dungeon.DecorationType;
@@ -28,7 +27,6 @@ import dev.core.game.dungeon.Dungeon;
 import dev.core.game.dungeon.DungeonRoom;
 import dev.core.game.dungeon.DungeonTunnel;
 import dev.core.game.dungeon.EndPortalRoom;
-import dev.core.game.dungeon.SpawnLocation;
 
 public class DungeonBuilderBukkit {
 
@@ -220,8 +218,6 @@ public class DungeonBuilderBukkit {
             private final java.util.List<Point3D> airBlocks = new java.util.ArrayList<>(dungeon.getAllAirBlocks());
             private final java.util.List<DecorationElement> decorations = new java.util.ArrayList<>(
                     dungeon.getAllDecorations());
-            private final List<SpawnLocation> spawnLocations = new ArrayList<SpawnLocation>(
-                    dungeon.getAllSpawnLocations());
             private int decorationIndex = 0;
             private int stage = 0; // 0 = floor, 1 = walls, 2 = roof, 3 = air, 4 = decorations, 5 = lighting, 6 =
                                    // complete
@@ -289,13 +285,9 @@ public class DungeonBuilderBukkit {
                     } else if (stage == 5) { // Lighting stage
                         addLighting(dungeon);
                         stage = 6;
-                    } else if (stage == 6) { // Placing Mobs
-                        spawnMobs(spawnLocations);
-                        stage = 7;
-                        Bukkit.broadcastMessage("§a95% done - Spawning Mobs...");
                     }
 
-                    if (stage == 7) {
+                    if (stage == 6) {
                         cancel();
                         if (onComplete != null) {
                             onComplete.run();
@@ -311,12 +303,6 @@ public class DungeonBuilderBukkit {
                 block.setType(material);
             }
         }.runTaskTimer(plugin, 0L, 1L);
-    }
-
-    private void spawnMobs(List<SpawnLocation> spawnLocations) {
-        for (SpawnLocation spawnLocation : spawnLocations) {
-            BukkitEntityFactory.spawnHostileVanillaDungeonMob(spawnLocation.getMaxEnemyLevel(), spawnLocation, world);
-        }
     }
 
     private void placeDecoration(DecorationElement decoration) {

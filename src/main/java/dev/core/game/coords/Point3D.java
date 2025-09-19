@@ -28,6 +28,10 @@ public class Point3D {
                 (Math.pow((other.x - this.x), 2)) + Math.pow(other.y - this.y, 2) + Math.pow(other.z - this.z, 2));
     }
 
+    public double distanceSqrd(Point3D other) {
+        return (Math.pow((other.x - this.x), 2)) + Math.pow(other.y - this.y, 2) + Math.pow(other.z - this.z, 2);
+    }
+
     @Override
     public boolean equals(Object obj) {
         if (this == obj) {
