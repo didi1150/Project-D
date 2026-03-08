@@ -5,6 +5,8 @@ import java.util.Optional;
 import org.bukkit.Bukkit;
 import org.bukkit.GameMode;
 import org.bukkit.attribute.Attribute;
+import org.bukkit.entity.Entity;
+import org.bukkit.entity.Mob;
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.potion.PotionEffect;
@@ -14,10 +16,13 @@ import dev.bukkit.DMain;
 import dev.bukkit.ability.BukkitEffectManager;
 import dev.bukkit.event.BukkitEventBus;
 import dev.bukkit.stat.BukkitStatManager;
+import dev.bukkit.utils.BukkitMessageSender;
 import dev.core.entity.EntityManager;
 import dev.core.entity.EntityType;
 import dev.core.entity.RPGEntity;
 import dev.core.progression.PlayerProgression;
+import dev.core.utils.MessageComponent;
+import dev.core.utils.MessageSenderInterface;
 import net.md_5.bungee.api.ChatMessageType;
 import net.md_5.bungee.api.chat.TextComponent;
 
@@ -26,12 +31,14 @@ public class BukkitPlayerEntity extends RPGEntity {
     private PlayerProgression playerProgression;
     private BukkitStatManager bukkitStatManager;
     private ItemStack[] inventoryContents;
+    private MessageSenderInterface messageSenderInterface;
 
     public BukkitPlayerEntity(Player player) {
         super(player.getUniqueId(), player.getName(), EntityType.PLAYER, BukkitEffectManager.getInstance(),
                 BukkitEventBus.getInstance());
         this.playerProgression = new PlayerProgression(player.getUniqueId());
-        this.bukkitStatManager = new BukkitStatManager(player,  getStatManager());
+        this.bukkitStatManager = new BukkitStatManager(player, getStatManager());
+        this.messageSenderInterface = BukkitMessageSender.getInstance();
     }
 
     public Optional<Player> getPlayer() {
@@ -54,6 +61,24 @@ public class BukkitPlayerEntity extends RPGEntity {
         super.onDeath();
 
         toGhostState();
+        clearMobTargets();
+    }
+
+    public void clearMobTargets() {
+        Optional<Player> optional = getPlayer();
+        if (optional.isEmpty()) {
+            messageSenderInterface
+                    .sendDebugMessage(MessageComponent.of("Could not find player %s, no mob clearing", getUuid()));
+            return;
+        }
+        Player player = optional.get();
+        for (Entity entity : player.getWorld().getEntities()) {
+            if (entity instanceof Mob mob) {
+                if (player.equals(mob.getTarget())) {
+                    mob.setTarget(null);
+                }
+            }
+        }
     }
 
     public void syncState() {
@@ -67,13 +92,15 @@ public class BukkitPlayerEntity extends RPGEntity {
     public void toGhostState() {
         Optional<Player> optional = getPlayer();
         if (optional.isEmpty()) {
-            System.out.println("Could not find player " + getUuid() + ", no ghost state.");
+            messageSenderInterface
+                    .sendDebugMessage(MessageComponent.of("Could not find player %s, no ghost state.", getUuid()));
             return;
         }
 
         Player player = optional.get();
         player.setGameMode(GameMode.ADVENTURE);
         player.setHealth(player.getAttribute(Attribute.MAX_HEALTH).getValue());
+        player.getActivePotionEffects().clear();
         player.setAllowFlight(true);
         player.setFlying(true);
         player.getInventory().clear();
