@@ -18,11 +18,15 @@
 
     <build>
         <defaultGoal>clean package</defaultGoal>
-        <plugins>
-            <plugin>
+                    <plugins>
+                        <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-compiler-plugin</artifactId>
+                <version>3.13.0</version>
                 <configuration>
+                    <source>${java.version}</source>
+                    <target>${java.version}</target>
+            
                     <annotationProcessorPaths>
                         <path>
                             <groupId>org.projectlombok</groupId>
@@ -30,15 +34,6 @@
                             <version>1.18.42</version>
                         </path>
                     </annotationProcessorPaths>
-                </configuration>
-            </plugin>
-            <plugin>
-            <groupId>org.apache.maven.plugins</groupId>
-                <artifactId>maven-compiler-plugin</artifactId>
-                <version>3.13.0</version>
-                <configuration>
-                    <source>${java.version}</source>
-                    <target>${java.version}</target>
                 </configuration>
             </plugin>
             <plugin>
@@ -85,24 +80,11 @@
             <id>enginehub</id>
             <url>https://maven.enginehub.org/repo/</url>
         </repository>
-    
         <repository>
             <id>aikar</id>
             <url>https://repo.aikar.co/content/groups/aikar/</url>
         </repository>
     </repositories>
-
-    <dependencyManagement>
-        <dependencies>
-            <dependency>
-                <groupId>com.intellectualsites.bom</groupId>
-                <artifactId>bom-newest</artifactId> <!--  Ref: https://github.com/IntellectualSites/bom -->
-                <version>1.55</version>
-                <scope>import</scope>
-                <type>pom</type>
-            </dependency>
-        </dependencies>
-    </dependencyManagement>
 
     <dependencies>
         <dependency>
@@ -116,10 +98,9 @@
             <artifactId>SimpAPI</artifactId>
             <version>4.6.1</version>
         </dependency>
-     <!-- https://mvnrepository.com/artifact/com.github.dmulloy2/protocollib -->
         <dependency>
-            <groupId>com.github.dmulloy2</groupId>
-            <artifactId>protocollib</artifactId>
+            <groupId>com.comphenix.protocol</groupId>
+            <artifactId>ProtocolLib</artifactId>
             <version>5.3.0</version>
             <scope>provided</scope>
         </dependency>
@@ -129,11 +110,6 @@
 		    <version>4.72.8</version>
 		    <scope>test</scope>
 		  </dependency>
-    	<dependency>
-            <groupId>co.aikar</groupId>
-            <artifactId>taskchain-bukkit</artifactId>
-            <version>3.7.2</version> <!-- Replace this with the version from TaskChain -->
-        </dependency>
         <dependency>
            <groupId>org.spigotmc</groupId>
            <artifactId>spigot-api</artifactId>
@@ -193,22 +169,15 @@
         </dependency>
 
         <dependency>
-            <groupId>com.fastasyncworldedit</groupId>
-            <artifactId>FastAsyncWorldEdit-Core</artifactId>
-            <scope>provided</scope>
-        </dependency>
-
-        <dependency>
-            <groupId>com.fastasyncworldedit</groupId>
-            <artifactId>FastAsyncWorldEdit-Bukkit</artifactId>
-            <scope>provided</scope>
-            <exclusions>
-                <exclusion>
-                    <artifactId>FastAsyncWorldEdit-Core</artifactId>
-                    <groupId>*</groupId>
-                </exclusion>
-            </exclusions>
-        </dependency>
+            <groupId>net.megavex</groupId>
+            <artifactId>scoreboard-library-api</artifactId>
+            <version>2.7.0</version>
+          </dependency>
+          <dependency>
+            <groupId>net.megavex</groupId>
+            <artifactId>scoreboard-library-implementation</artifactId>
+            <version>2.7.0</version>
+          </dependency>
 
     </dependencies>
 </project>

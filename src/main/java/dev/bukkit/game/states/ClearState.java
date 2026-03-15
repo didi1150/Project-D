@@ -149,7 +149,7 @@ public class ClearState extends GameState {
                     entityManager.tick(System.currentTimeMillis());
                 }, 0, 1);
             });
-        }, 20L);
+        }, 20L * 2);
     }
 
     @Override
@@ -298,7 +298,7 @@ public class ClearState extends GameState {
 
         // Add random velocity for realistic crumbling effect
         Vector velocity = new Vector((RANDOM.nextDouble() - 0.5) * 0.4, // Random X velocity
-                RANDOM.nextDouble() * 0.15, // Small upward velocity
+                0, // Small upward velocity
                 (RANDOM.nextDouble() - 0.5) * 0.4 // Random Z velocity
         );
 
@@ -313,7 +313,7 @@ public class ClearState extends GameState {
             if (fallingBlock.isValid() && !fallingBlock.isDead()) {
                 fallingBlock.remove();
             }
-        }, 200L); // 10 seconds cleanup
+        }, 20L); // 1 second cleanup
     }
 
     private int roomCount(int floor) {

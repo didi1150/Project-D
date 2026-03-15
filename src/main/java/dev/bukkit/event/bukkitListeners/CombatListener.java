@@ -10,11 +10,6 @@ import org.bukkit.World;
 import org.bukkit.entity.Display;
 import org.bukkit.entity.Entity;
 import org.bukkit.entity.TextDisplay;
-import org.bukkit.event.EventHandler;
-import org.bukkit.event.EventPriority;
-import org.bukkit.event.Listener;
-import org.bukkit.event.entity.CreatureSpawnEvent;
-import org.bukkit.event.entity.CreatureSpawnEvent.SpawnReason;
 import org.bukkit.event.entity.EntityDamageByEntityEvent;
 import org.bukkit.event.entity.EntityDamageEvent;
 import org.bukkit.event.entity.EntityDamageEvent.DamageCause;
@@ -27,24 +22,35 @@ import dev.core.entity.EntityManager;
 import dev.core.entity.RPGDamageResult;
 import dev.core.event.EventAction;
 import dev.core.event.EventActionAbstract;
+import dev.core.event.EventBusInterface;
 import dev.core.event.impl.RPGEntityDamageEvent.DamageResult;
 import dev.core.event.impl.RPGEntityDamageEvent.DamageType;
 import dev.core.event.impl.TickEvent;
+import dev.core.event.impl.ToggleCombatEvent;
 import dev.core.stat.StatType;
 
-public class CombatListener implements Listener {
+public class CombatListener {
 
     private Plugin plugin;
+    private boolean allowCombat = true;
 
-    public CombatListener(Plugin plugin) {
+    public CombatListener(Plugin plugin, EventBusInterface eventBusInterface) {
         this.plugin = plugin;
+        damageSub = new EventAction<EntityDamageEvent>(this::onDamage, EntityDamageEvent.class,
+                EventAction.LOW_PRIORITY);
+        eventBusInterface.subscribe(damageSub);
+        entityDamageSub = new EventAction<EntityDamageByEntityEvent>(this::onDamagedByEntity,
+                EntityDamageByEntityEvent.class, EventAction.LOW_PRIORITY);
+        eventBusInterface.subscribe(entityDamageSub);
+        eventBusInterface.subscribe(
+                new EventAction<ToggleCombatEvent>(e -> allowCombat = e.isToggled(), ToggleCombatEvent.class));
     }
 
     private final Random random = new Random();
     private final Map<UUID, Long> lastDamageTime = new HashMap<>();
     private static final long DAMAGE_COOLDOWN = 100; // Prevent spam
-
-    // Damage Indicator - Credit to Claude
+    private EventAction<EntityDamageEvent> damageSub;
+    private EventAction<EntityDamageByEntityEvent> entityDamageSub;
 
     // Main method to show damage indicators
     public void showDamageIndicator(Location location, double damage, DamageType type, DamageResult result) {
@@ -288,8 +294,11 @@ public class CombatListener implements Listener {
         showDamageIndicator(location, damage, DamageType.TRUE, DamageResult.NORMAL);
     }
 
-    @EventHandler(priority = EventPriority.LOWEST)
     public void onDamage(EntityDamageEvent event) {
+        if (!allowCombat) {
+            event.setCancelled(true);
+            return;
+        }
         if (event instanceof EntityDamageByEntityEvent) {
             return;
         }
@@ -306,8 +315,11 @@ public class CombatListener implements Listener {
         });
     }
 
-    @EventHandler(priority = EventPriority.LOWEST)
     public void onDamagedByEntity(EntityDamageByEntityEvent event) {
+        if (!allowCombat) {
+            event.setCancelled(true);
+            return;
+        }
         if (event.getDamage() <= 0.002) {
             return;
         }

@@ -16,7 +16,7 @@ import dev.bukkit.command.CommandManager;
 import dev.bukkit.event.BukkitEventBus;
 import dev.bukkit.event.bukkitListeners.CancelledListener;
 import dev.bukkit.event.bukkitListeners.CombatListener;
-import dev.bukkit.event.bukkitListeners.EventListener;
+import dev.bukkit.event.bukkitListeners.EventHook;
 import dev.bukkit.event.subscribers.PlayerSubscriber;
 import dev.bukkit.game.dungeon.BukkitStoneWorldGenerator;
 import dev.bukkit.game.scheduler.BukkitTaskScheduler;
@@ -27,6 +27,7 @@ import dev.bukkit.game.states.PreLobbyState;
 import dev.bukkit.game.states.SelectClassState;
 import dev.bukkit.game.states.SelectItemState;
 import dev.bukkit.game.states.SetupState;
+import dev.bukkit.scoreboard.BukkitScoreboardService;
 import dev.bukkit.storage.BukkitConfigManager;
 import dev.bukkit.storage.progression.BukkitConfigProgressionDatabase;
 import dev.bukkit.storage.progression.ClassProgressionService;
@@ -67,86 +68,103 @@ public final class DMain extends JavaPlugin {
     private ProtocolManager protocolManager;
     private MessageSenderInterface messageSenderInterface;
     private GameStateController gameStateController;
+    private BukkitScoreboardService scoreboardService;
 
     @Override
     public void onEnable() {
-        instance = this;
-        // Plugin startup logic
-        Bukkit.getConsoleSender().sendMessage("Dmain started.");
+        try {
+            instance = this;
+            // Plugin startup logic
+            getLogger().info("Dmain started.");
 
-        entityManager = EntityManager.getInstance();
-        effectManagerInterface = BukkitEffectManager.getInstance();
-        itemRegistry = RPGItemRegistry.getInstance();
-        protocolManager = ProtocolLibrary.getProtocolManager();
-        messageSenderInterface = BukkitMessageSender.getInstance();
-        AbilityRegistry.preregister();
+            entityManager = EntityManager.getInstance();
+            effectManagerInterface = BukkitEffectManager.getInstance();
+            itemRegistry = RPGItemRegistry.getInstance();
+            protocolManager = ProtocolLibrary.getProtocolManager();
+            messageSenderInterface = BukkitMessageSender.getInstance();
+            AbilityRegistry.preregister();
 
-        configManager = new BukkitConfigManager(this);
-        // ==============================================[ Load Default Stats
-        // ]===============================================
-        ConfigProvider statsConfig = configManager.getProvider("stats.yml");
-        Map<RPGClassType, Map<StatType, Stat>> defaultStats = StatLoader.loadDefaultStats(statsConfig);
-        DefaultStats.loadAll(defaultStats);
+            configManager = new BukkitConfigManager(this);
+            // ==============================================[ Load Default Stats
+            // ]===============================================
+            ConfigProvider statsConfig = configManager.getProvider("stats.yml");
+            Map<RPGClassType, Map<StatType, Stat>> defaultStats = StatLoader.loadDefaultStats(statsConfig);
+            DefaultStats.loadAll(defaultStats);
 
-        // ==============================================[ Load abilities.yml
-        // ]================================================
-        ConfigProvider abilitiesConfig = configManager.getProvider("abilities.yml");
-        Map<String, Ability> abilities = AbilityLoader.loadAll(abilitiesConfig);
-        Bukkit.getConsoleSender().sendMessage("Loaded " + abilities.size() + " abilities(s).");
-        AbilityRegistry.updateAll(abilities);
+            // ==============================================[ Load abilities.yml
+            // ]================================================
+            ConfigProvider abilitiesConfig = configManager.getProvider("abilities.yml");
+            Map<String, Ability> abilities = AbilityLoader.loadAll(abilitiesConfig);
+            getLogger().info("Loaded " + abilities.size() + " abilities(s).");
+            AbilityRegistry.updateAll(abilities);
 
-        // ==============================================[ Load items.yml
-        // ]=====================================================
-        ConfigProvider itemsConfig = configManager.getProvider("items.yml");
-        Map<String, RPGItem> items = RPGItemLoader.loadAll(itemsConfig);
-        Bukkit.getConsoleSender().sendMessage("Loaded " + items.size() + " item(s).");
-        itemRegistry.addAll(items);
+            // ==============================================[ Load items.yml
+            // ]=====================================================
+            ConfigProvider itemsConfig = configManager.getProvider("items.yml");
+            Map<String, RPGItem> items = RPGItemLoader.loadAll(itemsConfig);
+            getLogger().info("Loaded " + items.size() + " item(s).");
+            itemRegistry.addAll(items);
 
-        // ==============================================[ Setup Settings
-        // ]=====================================================
-        ConfigProvider setupConfig = configManager.getProvider("setup.yml");
-        GameSettings gameSettings = GameSettings.getCurrentSettings();
-        GameSettingsLoader gameSettingsLoader = new GameSettingsLoader(gameSettings, setupConfig);
-        gameSettingsLoader.load();
-        if (gameSettings.getDungeonWorld() != null && Bukkit.getWorld(gameSettings.getDungeonWorld()) == null) {
-            Bukkit.createWorld(
-                    new WorldCreator(gameSettings.getDungeonWorld()).generator(new BukkitStoneWorldGenerator()));
-            System.out.println("Could not find world " + gameSettings.getDungeonWorld() + ", generating new one.");
+            // ==============================================[ Setup Settings
+            // ]=====================================================
+            getLogger().info("Loading config...");
+            ConfigProvider setupConfig = configManager.getProvider("setup.yml");
+            GameSettings gameSettings = GameSettings.getCurrentSettings();
+            GameSettingsLoader gameSettingsLoader = new GameSettingsLoader(gameSettings, setupConfig);
+            gameSettingsLoader.load();
+            getLogger().info("Loaded config");
+            if (gameSettings.getDungeonWorld() != null && Bukkit.getWorld(gameSettings.getDungeonWorld()) == null) {
+                Bukkit.createWorld(
+                        new WorldCreator(gameSettings.getDungeonWorld()).generator(new BukkitStoneWorldGenerator()));
+                getLogger().info("Could not find world " + gameSettings.getDungeonWorld() + ", generating new one.");
+            }
+
+            // ==============================================[ Player Progression
+            // ]=================================================
+            getLogger().info("Loading Class Progression...");
+            ConfigProvider provider = configManager.getProvider("progression.yml");
+            ProgressionCacheStrategy cache = new HashMapProgressionCache();
+            ProgressionDatabaseStrategy database = new BukkitConfigProgressionDatabase(provider);
+            progressionService = new ClassProgressionService(cache, database);
+
+            // ==============================================[ Events
+            // ]=============================================================
+            getLogger().info("Loading Event Bus...");
+            eventBusInterface = BukkitEventBus.getInstance();
+
+            combatListener = new CombatListener(this, eventBusInterface);
+            new PlayerSubscriber(eventBusInterface, this).subscribe();
+
+            getLogger().info("Loading Scoreboard Service...");
+            scoreboardService = BukkitScoreboardService.getInstance(instance, eventBusInterface);
+            scoreboardService.init();
+            getLogger().info("Scoreboard service initiated...");
+
+            getLogger().info("Loading Game State Controller...");
+            gameStateController = new GameStateController(new BukkitTaskScheduler(this));
+            if (gameSettings.isSetupMode()) {
+                gameStateController.addState(new SetupState(eventBusInterface));
+            }
+            gameStateController.addState(new PreLobbyState(gameSettings.getPreLobbySpawn(),
+                    gameSettings.getMinPlayers(), 15, eventBusInterface));
+            gameStateController
+                    .addState(new SelectClassState(gameSettings.getHoleCenter(), gameSettings.getSelectionSpawn(),
+                            gameSettings.getSelectionLocations(), eventBusInterface, scoreboardService));
+            gameStateController.addState(new SelectItemState(eventBusInterface, scoreboardService));
+            gameStateController.addState(new ClearState(gameSettings.getHoleCenter(), eventBusInterface,
+                    effectManagerInterface, entityManager, progressionService, messageSenderInterface, this));
+            gameStateController.addState(new BossState(eventBusInterface, progressionService));
+            gameStateController.addState(new PostGameState(eventBusInterface, progressionService, this));
+            gameStateController.start();
+
+            getLogger().info("Loading Command Manager...");
+            CommandManager.getInstance(itemsConfig, progressionService, gameStateController, gameSettingsLoader,
+                    eventBusInterface).registerCommands(this);
+            Bukkit.getPluginManager().registerEvents(new EventHook(this), this);
+            Bukkit.getPluginManager().registerEvents(new CancelledListener(this, protocolManager), this);
+        } catch (Throwable e) {
+            e.printStackTrace();
         }
-
-        // ==============================================[ Player Progression
-        // ]=================================================
-        ConfigProvider provider = configManager.getProvider("progression.yml");
-        ProgressionCacheStrategy cache = new HashMapProgressionCache();
-        ProgressionDatabaseStrategy database = new BukkitConfigProgressionDatabase(provider);
-        progressionService = new ClassProgressionService(cache, database);
-
-        // ==============================================[ Events
-        // ]=============================================================
-        eventBusInterface = BukkitEventBus.getInstance();
-
-        gameStateController = new GameStateController(new BukkitTaskScheduler(this));
-        if (gameSettings.isSetupMode()) {
-            gameStateController.addState(new SetupState(eventBusInterface));
-        }
-        gameStateController.addState(new PreLobbyState(gameSettings.getPreLobbySpawn(), gameSettings.getMinPlayers(),
-                15, eventBusInterface));
-        gameStateController.addState(new SelectClassState(gameSettings.getHoleCenter(),
-                gameSettings.getSelectionSpawn(), gameSettings.getSelectionLocations(), eventBusInterface));
-        gameStateController.addState(new SelectItemState(eventBusInterface));
-        gameStateController.addState(new ClearState(gameSettings.getHoleCenter(), eventBusInterface,
-                effectManagerInterface, entityManager, progressionService, messageSenderInterface, this));
-        gameStateController.addState(new BossState(eventBusInterface, progressionService));
-        gameStateController.addState(new PostGameState(eventBusInterface, progressionService, this));
-        gameStateController.start();
-
-        CommandManager.getInstance(itemsConfig, progressionService, gameStateController, gameSettingsLoader,
-                eventBusInterface).registerCommands(this);
-        Bukkit.getPluginManager().registerEvents(new EventListener(this), this);
-        Bukkit.getPluginManager().registerEvents(new CancelledListener(this, protocolManager), this);
-        combatListener = new CombatListener(this);
-        Bukkit.getPluginManager().registerEvents(combatListener, this);
-        new PlayerSubscriber(eventBusInterface, this).subscribe();
     }
 
     @Override
@@ -166,7 +184,7 @@ public final class DMain extends JavaPlugin {
     }
 
     public void unloadWorld(World world) {
-        if (!world.equals(null)) {
+        if (world != null) {
             Bukkit.getServer().unloadWorld(world, true);
         }
     }

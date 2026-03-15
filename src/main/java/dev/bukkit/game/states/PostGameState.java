@@ -8,7 +8,6 @@ import org.bukkit.attribute.Attribute;
 import org.bukkit.entity.Player;
 import org.bukkit.event.block.BlockBreakEvent;
 import org.bukkit.event.block.BlockPlaceEvent;
-import org.bukkit.event.entity.EntityDamageEvent;
 import org.bukkit.event.player.PlayerJoinEvent;
 import org.bukkit.event.player.PlayerQuitEvent;
 import org.bukkit.plugin.Plugin;
@@ -38,7 +37,7 @@ public class PostGameState extends GameState {
     private Plugin plugin;
 
     public PostGameState(EventBusInterface eventBus, ClassProgressionService classProgressionService, Plugin plugin) {
-        super(NAME, DURATION, eventBus);
+        super(NAME, DURATION, eventBus, false);
         this.classProgressionService = classProgressionService;
         this.plugin = plugin;
     }
@@ -72,8 +71,6 @@ public class PostGameState extends GameState {
         EventAction<PlayerJoinEvent> joinAction = new EventAction<PlayerJoinEvent>(this::handleJoin,
                 PlayerJoinEvent.class);
 
-        EventAction<EntityDamageEvent> damageAction = new EventAction<EntityDamageEvent>(this::handleDamage,
-                EntityDamageEvent.class);
         EventAction<BlockBreakEvent> blockBreakAction = new EventAction<BlockBreakEvent>(this::handleBlockBreak,
                 BlockBreakEvent.class);
         EventAction<BlockPlaceEvent> blockPlaceAction = new EventAction<BlockPlaceEvent>(this::handleBlockPlace,
@@ -83,11 +80,6 @@ public class PostGameState extends GameState {
         addSubscriber(joinAction);
         addSubscriber(blockPlaceAction);
         addSubscriber(blockBreakAction);
-        addSubscriber(damageAction);
-    }
-
-    private void handleDamage(EntityDamageEvent event) {
-        event.setCancelled(true);
     }
 
     private void handleBlockBreak(BlockBreakEvent event) {

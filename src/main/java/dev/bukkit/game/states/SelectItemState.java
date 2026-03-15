@@ -4,13 +4,13 @@ import org.bukkit.Bukkit;
 import org.bukkit.Location;
 import org.bukkit.event.block.BlockBreakEvent;
 import org.bukkit.event.block.BlockPlaceEvent;
-import org.bukkit.event.entity.EntityDamageEvent;
 import org.bukkit.event.inventory.InventoryClickEvent;
 import org.bukkit.event.inventory.InventoryCloseEvent;
 import org.bukkit.event.player.PlayerDropItemEvent;
 import org.bukkit.event.player.PlayerMoveEvent;
 import org.bukkit.event.player.PlayerQuitEvent;
 
+import dev.bukkit.scoreboard.BukkitScoreboardService;
 import dev.core.event.EventAction;
 import dev.core.event.EventBusInterface;
 import dev.core.game.GameState;
@@ -22,18 +22,21 @@ public class SelectItemState extends GameState {
     private static long lockThreshold = 10;
     private final static int minPlayers = 5;
 
-    public SelectItemState(EventBusInterface eventBus) {
-        super(NAME, DURATION, eventBus);
+    private BukkitScoreboardService scoreboardService;
+
+    public SelectItemState(EventBusInterface eventBus, BukkitScoreboardService scoreboardService) {
+        super(NAME, DURATION, eventBus, false);
+        this.scoreboardService = scoreboardService;
     }
 
     @Override
     protected void onStart() {
-
+        scoreboardService.initScoreboard();
     }
 
     @Override
     protected void onStop() {
-        updateCountdownXP(remainingTicks / 20, DURATION / 20);
+        updateCountdownXP(0, DURATION / 20);
     }
 
     @Override
@@ -53,8 +56,6 @@ public class SelectItemState extends GameState {
                 PlayerDropItemEvent.class);
         EventAction<InventoryCloseEvent> closeAction = new EventAction<InventoryCloseEvent>(this::handleClose,
                 InventoryCloseEvent.class);
-        EventAction<EntityDamageEvent> damageAction = new EventAction<EntityDamageEvent>(this::handleDamage,
-                EntityDamageEvent.class);
         EventAction<BlockBreakEvent> blockBreakAction = new EventAction<BlockBreakEvent>(this::handleBlockBreak,
                 BlockBreakEvent.class);
         EventAction<BlockPlaceEvent> blockPlaceAction = new EventAction<BlockPlaceEvent>(this::handleBlockPlace,
@@ -63,7 +64,6 @@ public class SelectItemState extends GameState {
         addSubscriber(closeAction);
         addSubscriber(quitAction);
         addSubscriber(moveAction);
-        addSubscriber(damageAction);
         addSubscriber(blockPlaceAction);
         addSubscriber(blockBreakAction);
         addSubscriber(dropAction);
@@ -95,10 +95,6 @@ public class SelectItemState extends GameState {
         if (remainingTicks / 20 <= lockThreshold) {
             return;
         }
-    }
-
-    private void handleDamage(EntityDamageEvent event) {
-        event.setCancelled(true);
     }
 
     private void handleBlockBreak(BlockBreakEvent event) {

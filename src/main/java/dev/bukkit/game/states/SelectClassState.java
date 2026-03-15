@@ -22,7 +22,6 @@ import org.bukkit.block.Block;
 import org.bukkit.entity.Player;
 import org.bukkit.event.block.BlockBreakEvent;
 import org.bukkit.event.block.BlockPlaceEvent;
-import org.bukkit.event.entity.EntityDamageEvent;
 import org.bukkit.event.player.PlayerJoinEvent;
 import org.bukkit.event.player.PlayerMoveEvent;
 import org.bukkit.event.player.PlayerQuitEvent;
@@ -34,6 +33,7 @@ import dev.bukkit.game.coords.PointToLocation;
 import dev.bukkit.game.dungeon.DungeonVoting;
 import dev.bukkit.item.BukkitInventorySync;
 import dev.bukkit.item.display.BukkitTextColorAdapter;
+import dev.bukkit.scoreboard.BukkitScoreboardService;
 import dev.bukkit.utils.BukkitMessageSender;
 import dev.core.entity.EntityManager;
 import dev.core.entity.rpgclass.RPGClassType;
@@ -121,11 +121,13 @@ public class SelectClassState extends GameState {
     }
 
     private DungeonVoting dungeonVoting;
+    private BukkitScoreboardService scoreboardService;
 
     public SelectClassState(Point3D holeCenter, ViewPoint3D spawnLocation, Map<RPGClassType, Point3D> locations,
-            EventBusInterface eventBus) {
-        super(NAME, DURATION, eventBus);
+            EventBusInterface eventBus, BukkitScoreboardService scoreboardService) {
+        super(NAME, DURATION, eventBus, false);
         this.holeCenter = holeCenter;
+        this.scoreboardService = scoreboardService;
         this.locations = new ConcurrentHashMap<>();
         this.spawnLocation = PointToLocation.viewToLoc(spawnLocation);
         locations.entrySet().forEach(entry -> {
@@ -328,8 +330,6 @@ public class SelectClassState extends GameState {
                 PlayerToggleSneakEvent.class);
         EventAction<PlayerJoinEvent> joinAction = new EventAction<>(this::handleJoin, PlayerJoinEvent.class);
 
-        EventAction<EntityDamageEvent> damageAction = new EventAction<EntityDamageEvent>(this::handleDamage,
-                EntityDamageEvent.class);
         EventAction<BlockBreakEvent> blockBreakAction = new EventAction<BlockBreakEvent>(this::handleBlockBreak,
                 BlockBreakEvent.class);
         EventAction<BlockPlaceEvent> blockPlaceAction = new EventAction<BlockPlaceEvent>(this::handleBlockPlace,
@@ -337,16 +337,11 @@ public class SelectClassState extends GameState {
 
         addSubscriber(blockPlaceAction);
         addSubscriber(blockBreakAction);
-        addSubscriber(damageAction);
 
         addSubscriber(quitAction);
         addSubscriber(lockAction);
         addSubscriber(moveAction);
         addSubscriber(joinAction);
-    }
-
-    private void handleDamage(EntityDamageEvent event) {
-        event.setCancelled(true);
     }
 
     private void handleBlockBreak(BlockBreakEvent event) {
@@ -500,6 +495,8 @@ public class SelectClassState extends GameState {
                 player.sendMessage("§a» Selected: " + BukkitTextColorAdapter
                         .colored(newRoleState.getClassType().getColor(), newRoleState.getClassType().toString()));
                 player.sendMessage("§eSneak to lock this role!");
+
+                scoreboardService.assignTeam(player, newRoleState.getClassType());
             } else {
                 playerSelections.remove(player.getUniqueId());
             }

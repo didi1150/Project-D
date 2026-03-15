@@ -8,7 +8,6 @@ import org.bukkit.attribute.Attribute;
 import org.bukkit.entity.Player;
 import org.bukkit.event.block.BlockBreakEvent;
 import org.bukkit.event.block.BlockPlaceEvent;
-import org.bukkit.event.entity.EntityDamageEvent;
 import org.bukkit.event.player.PlayerJoinEvent;
 import org.bukkit.event.player.PlayerQuitEvent;
 
@@ -37,7 +36,7 @@ public class PreLobbyState extends GameState {
     private Location spawnLocation;
 
     public PreLobbyState(ViewPoint3D spawnLocation, int minPlayers, int countDownSeconds, EventBusInterface eventBus) {
-        super(NAME, -1, eventBus);
+        super(NAME, -1, eventBus, false);
         this.spawnLocation = PointToLocation.viewToLoc(spawnLocation);
         this.minPlayers = minPlayers;
         this.maxCountdown = countDownSeconds;
@@ -68,8 +67,6 @@ public class PreLobbyState extends GameState {
 
         EventAction<PlayerQuitEvent> quitAction = new EventAction<>(this::handleQuit, PlayerQuitEvent.class);
 
-        EventAction<EntityDamageEvent> damageAction = new EventAction<EntityDamageEvent>(this::handleDamage,
-                EntityDamageEvent.class);
         EventAction<BlockBreakEvent> blockBreakAction = new EventAction<BlockBreakEvent>(this::handleBlockBreak,
                 BlockBreakEvent.class);
         EventAction<BlockPlaceEvent> blockPlaceAction = new EventAction<BlockPlaceEvent>(this::handleBlockPlace,
@@ -79,7 +76,6 @@ public class PreLobbyState extends GameState {
         addSubscriber(joinAction);
         addSubscriber(blockPlaceAction);
         addSubscriber(blockBreakAction);
-        addSubscriber(damageAction);
     }
 
     private void handleQuit(PlayerQuitEvent event) {
@@ -180,7 +176,8 @@ public class PreLobbyState extends GameState {
                 // Update XP for all players
                 updateCountdownModeXP();
 
-                Bukkit.broadcastMessage("§eStarting in: " + countdown + (countdown == 1 ? " second" : " seconds") + "...");
+                Bukkit.broadcastMessage(
+                        "§eStarting in: " + countdown + (countdown == 1 ? " second" : " seconds") + "...");
                 countdown--;
             } else {
                 complete(GameStateResult.COMPLETE);
@@ -237,10 +234,6 @@ public class PreLobbyState extends GameState {
 
     public int getCountdown() {
         return countdown;
-    }
-
-    private void handleDamage(EntityDamageEvent event) {
-        event.setCancelled(true);
     }
 
     private void handleBlockBreak(BlockBreakEvent event) {

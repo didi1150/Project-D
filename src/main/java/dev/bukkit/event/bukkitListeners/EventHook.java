@@ -30,11 +30,11 @@ import org.spigotmc.event.player.PlayerSpawnLocationEvent;
 
 import dev.bukkit.event.BukkitEventBus;
 
-public class EventListener implements Listener {
+public class EventHook implements Listener {
 
     private Plugin plugin;
 
-    public EventListener(Plugin plugin) {
+    public EventHook(Plugin plugin) {
         this.plugin = plugin;
     }
 
@@ -84,12 +84,12 @@ public class EventListener implements Listener {
         BukkitEventBus.getInstance().sendEvent(event);
     }
 
-    @EventHandler(priority = EventPriority.LOW)
+    @EventHandler(priority = EventPriority.LOWEST)
     public void onDamaged(EntityDamageEvent event) {
         BukkitEventBus.getInstance().sendEvent(event);
     }
 
-    @EventHandler(priority = EventPriority.LOW)
+    @EventHandler(priority = EventPriority.LOWEST)
     public void onDamagedByEntity(EntityDamageByEntityEvent event) {
         BukkitEventBus.getInstance().sendEvent(event);
     }
