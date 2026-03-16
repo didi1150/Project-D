@@ -32,6 +32,7 @@ public class SelectItemState extends GameState {
     @Override
     protected void onStart() {
         scoreboardService.initScoreboard();
+        scoreboardService.initSidebars();
     }
 
     @Override

@@ -7,8 +7,10 @@ import java.util.UUID;
 
 import org.bukkit.Location;
 import org.bukkit.World;
+import org.bukkit.entity.Arrow;
 import org.bukkit.entity.Display;
 import org.bukkit.entity.Entity;
+import org.bukkit.entity.Player;
 import org.bukkit.entity.TextDisplay;
 import org.bukkit.event.entity.EntityDamageByEntityEvent;
 import org.bukkit.event.entity.EntityDamageEvent;
@@ -16,6 +18,7 @@ import org.bukkit.event.entity.EntityDamageEvent.DamageCause;
 import org.bukkit.plugin.Plugin;
 import org.bukkit.scheduler.BukkitRunnable;
 import org.bukkit.util.Transformation;
+import org.bukkit.util.Vector;
 
 import dev.bukkit.event.BukkitEventBus;
 import dev.core.entity.EntityManager;
@@ -37,10 +40,10 @@ public class CombatListener {
     public CombatListener(Plugin plugin, EventBusInterface eventBusInterface) {
         this.plugin = plugin;
         damageSub = new EventAction<EntityDamageEvent>(this::onDamage, EntityDamageEvent.class,
-                EventAction.LOW_PRIORITY);
+                EventAction.LOWEST_PRIORITY);
         eventBusInterface.subscribe(damageSub);
         entityDamageSub = new EventAction<EntityDamageByEntityEvent>(this::onDamagedByEntity,
-                EntityDamageByEntityEvent.class, EventAction.LOW_PRIORITY);
+                EntityDamageByEntityEvent.class, EventAction.LOWEST_PRIORITY);
         eventBusInterface.subscribe(entityDamageSub);
         eventBusInterface.subscribe(
                 new EventAction<ToggleCombatEvent>(e -> allowCombat = e.isToggled(), ToggleCombatEvent.class));
@@ -297,6 +300,7 @@ public class CombatListener {
     public void onDamage(EntityDamageEvent event) {
         if (!allowCombat) {
             event.setCancelled(true);
+            plugin.getLogger().info("Blocked combat");
             return;
         }
         if (event instanceof EntityDamageByEntityEvent) {
@@ -316,8 +320,10 @@ public class CombatListener {
     }
 
     public void onDamagedByEntity(EntityDamageByEntityEvent event) {
+        checkArrowOnGhost(event);
         if (!allowCombat) {
             event.setCancelled(true);
+            plugin.getLogger().info("Blocked combat");
             return;
         }
         if (event.getDamage() <= 0.002) {
@@ -411,5 +417,34 @@ public class CombatListener {
             });
 
         });
+    }
+
+    private void checkArrowOnGhost(EntityDamageByEntityEvent event) {
+
+        Entity entityDamager = event.getDamager();
+        Entity entityDamaged = event.getEntity();
+
+        if (entityDamager instanceof Arrow) {
+            if (entityDamaged instanceof Player && ((Arrow) entityDamager).getShooter() instanceof Player) {
+                Arrow arrow = (Arrow) entityDamager;
+
+                Vector velocity = arrow.getVelocity();
+
+                Player shooter = (Player) arrow.getShooter();
+                Player damaged = (Player) entityDamaged;
+
+                if (EntityManager.getInstance().isDead(damaged.getUniqueId())) {
+                    damaged.teleport(entityDamaged.getLocation().add(0, 5, 0));
+                    damaged.setFlying(true);
+
+                    Arrow newArrow = shooter.launchProjectile(Arrow.class);
+                    newArrow.setShooter(shooter);
+                    newArrow.setVelocity(velocity);
+                    event.setCancelled(true);
+                    arrow.remove();
+                }
+            }
+        }
+
     }
 }

@@ -311,6 +311,7 @@ public class SelectClassState extends GameState {
                         + "You have been assigned to: " + BukkitTextColorAdapter
                                 .colored(chosenRole.getClassType().getColor(), chosenRole.getClassType().toString()));
             }
+            scoreboardService.assignTeam(player, chosenRole.getClassType());
         }
     }
 

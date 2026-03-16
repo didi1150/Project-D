@@ -9,7 +9,7 @@ public enum StatType {
     ARMOR("Armor", "🛡", TextColor.GRAY), MAGIC_RESIST("Magic Resist", "◈", TextColor.DARK_PURPLE),
 
     // Speed and Combat Mechanics
-    ATTACK_SPEED("Attack Speed", "⚡", TextColor.YELLOW), MOVE_SPEED("Movement Speed", "➤", TextColor.GREEN),
+    ATTACK_SPEED("Attack Speed", "⚡", TextColor.YELLOW), MOVE_SPEED("Movement Speed", "➤", TextColor.DARK_AQUA),
     ABILITY_HASTE("Ability Haste", "⟡", TextColor.LIGHT_PURPLE),
 
     // Penetration Stats
@@ -20,7 +20,7 @@ public enum StatType {
     HEAL_AND_SHIELD_POWER("Heal & Shield Power", "♥", TextColor.GREEN),
 
     // Health Stats
-    HEALTH_MAX("Max Health", "❤", TextColor.GOLD), HEALTH_RESOURCE("Health", "❤", TextColor.GOLD),
+    HEALTH_MAX("Max Health", "❤", TextColor.RED), HEALTH_RESOURCE("Health", "❤", TextColor.RED),
     HEALTH_REGEN("Health Regeneration", "♡", TextColor.GREEN),
 
     // Mana Stats

@@ -1,8 +1,10 @@
 package dev.bukkit.scoreboard;
 
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Map.Entry;
 import java.util.UUID;
 
 import org.bukkit.Bukkit;
@@ -11,15 +13,20 @@ import org.bukkit.event.player.PlayerJoinEvent;
 import org.bukkit.event.player.PlayerQuitEvent;
 import org.bukkit.plugin.Plugin;
 import org.bukkit.scheduler.BukkitTask;
+import org.jetbrains.annotations.NotNull;
 
 import dev.bukkit.utils.AdventureColorConverter;
 import dev.core.entity.EntityManager;
 import dev.core.entity.rpgclass.RPGClassType;
 import dev.core.event.EventAction;
 import dev.core.event.EventBusInterface;
+import dev.core.stat.Stat;
+import dev.core.stat.StatType;
 import net.kyori.adventure.text.Component;
+import net.kyori.adventure.text.ComponentLike;
 import net.kyori.adventure.text.format.NamedTextColor;
 import net.kyori.adventure.text.format.Style;
+import net.kyori.adventure.text.format.TextDecoration;
 import net.megavex.scoreboardlibrary.api.ScoreboardLibrary;
 import net.megavex.scoreboardlibrary.api.exception.NoPacketAdapterAvailableException;
 import net.megavex.scoreboardlibrary.api.noop.NoopScoreboardLibrary;
@@ -28,6 +35,9 @@ import net.megavex.scoreboardlibrary.api.objective.ObjectiveManager;
 import net.megavex.scoreboardlibrary.api.objective.ScoreFormat;
 import net.megavex.scoreboardlibrary.api.objective.ScoreboardObjective;
 import net.megavex.scoreboardlibrary.api.sidebar.Sidebar;
+import net.megavex.scoreboardlibrary.api.sidebar.component.ComponentSidebarLayout;
+import net.megavex.scoreboardlibrary.api.sidebar.component.SidebarComponent;
+import net.megavex.scoreboardlibrary.api.sidebar.component.SidebarComponent.Builder;
 import net.megavex.scoreboardlibrary.api.team.ScoreboardTeam;
 import net.megavex.scoreboardlibrary.api.team.TeamManager;
 import net.megavex.scoreboardlibrary.api.team.enums.CollisionRule;
@@ -40,8 +50,8 @@ public class BukkitScoreboardService {
     private TeamManager teamManager;
     private ObjectiveManager objectiveManager;
 
-    private Sidebar sidebar;
-    private ScoreboardObjective healthObjective;
+    private Map<UUID, Sidebar> sidebars;
+//    private ScoreboardObjective healthObjective;
 
     private Map<UUID, ScoreboardTeam> currentTeam;
 
@@ -71,18 +81,22 @@ public class BukkitScoreboardService {
         }
         teamManager = scoreboardLibrary.createTeamManager();
         objectiveManager = scoreboardLibrary.createObjectiveManager();
-        sidebar = scoreboardLibrary.createSidebar();
+
+        sidebars = new HashMap<UUID, Sidebar>();
 
         currentTeam = new HashMap<>();
 
         EventAction<PlayerJoinEvent> joinSub = new EventAction<>(e -> {
-            teamManager.addPlayer(e.getPlayer());
-            objectiveManager.addPlayer(e.getPlayer());
+            if (!teamManager.players().contains(e.getPlayer()))
+                teamManager.addPlayer(e.getPlayer());
+            if (!objectiveManager.players().contains(e.getPlayer()))
+                objectiveManager.addPlayer(e.getPlayer());
+            UUID id = e.getPlayer().getUniqueId();
+            sidebars.putIfAbsent(id, scoreboardLibrary.createSidebar());
         }, PlayerJoinEvent.class);
 
         EventAction<PlayerQuitEvent> quitSub = new EventAction<>(e -> {
-            teamManager.removePlayer(e.getPlayer());
-            objectiveManager.removePlayer(e.getPlayer());
+            sidebars.remove(e.getPlayer().getUniqueId()).close();
         }, PlayerQuitEvent.class);
 
         eventBusInterface.subscribe(quitSub);
@@ -93,48 +107,87 @@ public class BukkitScoreboardService {
     public void close() {
         teamManager.close();
         objectiveManager.close();
-        sidebar.close();
-
         scoreboardLibrary.close();
+
+        sidebars.forEach((id, bar) -> {
+            bar.close();
+        });
+        sidebars.clear();
+
         if (updateTimer != null) {
             updateTimer.cancel();
         }
     }
 
-    public ScoreboardObjective createHealthObjective() {
+    public void initSidebars() {
+        sidebars.keySet().forEach(id -> {
+            sidebars.put(id, scoreboardLibrary.createSidebar());
+        });
+
+    }
+
+    private void updateSidebar(UUID id) {
+        Sidebar sidebar = sidebars.get(id);
+        Builder builder = SidebarComponent.builder();
+        for (Entry<StatType, Stat> entry : EntityManager.getInstance().getEntity(id).get().getStatManager().getStats()
+                .entrySet()) {
+            builder.addDynamicLine(() -> {
+                return Component
+                        .text(entry.getKey().getFormattedName() + " "
+                                + (int) entry.getValue().getCurrent(System.currentTimeMillis()))
+                        .style(Style.style(AdventureColorConverter.toAdventure(entry.getKey().getColor())));
+            });
+        }
+        SidebarComponent comp = builder.build();
+        sidebar.addPlayer(Bukkit.getPlayer(id));
+        ComponentSidebarLayout layout = new ComponentSidebarLayout(
+                SidebarComponent.staticLine(Component.text("Stats").style(Style.style(NamedTextColor.GOLD))), comp);
+        layout.apply(sidebar);
+    }
+
+    public ScoreboardObjective createHealthObjective(ObjectiveDisplaySlot slot) {
         ScoreboardObjective scoreboardObjective = objectiveManager.create("health");
         scoreboardObjective.value(Component.text("❤").style(Style.style(NamedTextColor.RED)));
         scoreboardObjective.defaultScoreFormat(ScoreFormat.styled(NamedTextColor.RED));
-        objectiveManager.display(ObjectiveDisplaySlot.belowName(), scoreboardObjective);
+        objectiveManager.display(slot, scoreboardObjective);
         return scoreboardObjective;
     }
 
     public void tick() {
-        updateHealthObjectives();
+//        updateHealthObjectives();
+        updateSidebars();
+        updateTeams();
+    }
+
+    private void updateSidebars() {
+        sidebars.keySet().forEach(id -> {
+            updateSidebar(id);
+        });
     }
 
     public void initScoreboard() {
-        healthObjective = createHealthObjective();
+//        healthObjective = createHealthObjective(ObjectiveDisplaySlot.belowName());
         objectiveManager.addPlayers(new ArrayList<>(Bukkit.getOnlinePlayers()));
         createTeams();
 
         updateTimer = Bukkit.getScheduler().runTaskTimer(plugin, this::tick, 1, 1);
     }
 
-    private void updateHealthObjectives() {
-        Bukkit.getOnlinePlayers().forEach(player -> {
-            UUID id = player.getUniqueId();
-            if (EntityManager.getInstance().isAlive(id)) {
-                healthObjective.score(player.getName(),
-                        (int) EntityManager.getInstance().getEntity(id).get().getHealth());
-            }
-        });
-    }
+//    private void updateHealthObjectives() {
+//        Bukkit.getOnlinePlayers().forEach(player -> {
+//            UUID id = player.getUniqueId();
+//            if (EntityManager.getInstance().isAlive(id)) {
+//                healthObjective.score(player.getName(),
+//                        (int) EntityManager.getInstance().getEntity(id).get().getHealth());
+//            }
+//        });
+//    }
 
     public void createTeams() {
         for (RPGClassType rpgClassType : RPGClassType.values()) {
             createTeam(rpgClassType);
         }
+        assignTeamViewers();
     }
 
     public void assignTeamViewers() {
@@ -144,7 +197,7 @@ public class BukkitScoreboardService {
     private void createTeam(RPGClassType rpgClassType) {
         ScoreboardTeam team = teamManager.createIfAbsent(rpgClassType.name());
         team.defaultDisplay().canSeeFriendlyInvisibles(true);
-        team.defaultDisplay().collisionRule(CollisionRule.PUSH_OTHER_TEAMS);
+        team.defaultDisplay().collisionRule(CollisionRule.NEVER);
         team.defaultDisplay().prefix(Component.text("[" + rpgClassType.name().substring(0, 1) + "] ")
                 .style(Style.style(AdventureColorConverter.toAdventure(rpgClassType.getColor()))));
         team.defaultDisplay().playerColor(AdventureColorConverter.toAdventure(rpgClassType.getColor()));
@@ -158,5 +211,26 @@ public class BukkitScoreboardService {
         ScoreboardTeam team = teamManager.createIfAbsent(rpgClassType.name());
         team.defaultDisplay().addEntry(player.getName());
         currentTeam.put(player.getUniqueId(), team);
+    }
+
+    public void updateTeams() {
+        teamManager.teams().forEach(this::updateTeam);
+    }
+
+    private void updateTeam(ScoreboardTeam team) {
+        @NotNull
+        Collection<String> entries = team.defaultDisplay().entries();
+        if (entries.isEmpty()) {
+            return;
+        }
+        String playerName = entries.stream().findFirst().get();
+        UUID id = Bukkit.getPlayer(playerName).getUniqueId();
+        ComponentLike suffixComp = Component.text(" [Dead]").style(Style.style(NamedTextColor.RED, TextDecoration.BOLD));
+        if (EntityManager.getInstance().isAlive(id)) {
+            int hp = (int) EntityManager.getInstance().getEntity(id).get().getStatManager()
+                    .getCurrentValue(StatType.HEALTH_RESOURCE, System.currentTimeMillis());
+            suffixComp = Component.text(" " + hp + StatType.HEALTH_RESOURCE.getSymbol()).style(Style.style(NamedTextColor.RED));
+        }
+        team.defaultDisplay().suffix(suffixComp);
     }
 }

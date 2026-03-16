@@ -108,6 +108,10 @@ public class PreLobbyState extends GameState {
             event.getPlayer().setHealth(event.getPlayer().getAttribute(Attribute.MAX_HEALTH).getValue());
             event.getPlayer().getActivePotionEffects()
                     .forEach(potionEffect -> event.getPlayer().removePotionEffect(potionEffect.getType()));
+            event.getPlayer().setInvisible(false);
+            event.getPlayer().setInvulnerable(false);
+            event.getPlayer().setAllowFlight(false);
+            event.getPlayer().setCollidable(true);
             event.getPlayer().getInventory().clear();
             spawnLocation.getWorld().setTime(1000);
             spawnLocation.getWorld().setGameRule(GameRule.DO_DAYLIGHT_CYCLE, false);

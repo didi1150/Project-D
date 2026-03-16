@@ -1,5 +1,6 @@
 package dev.bukkit.entity;
 
+import java.util.List;
 import java.util.Optional;
 
 import org.bukkit.Bukkit;
@@ -9,8 +10,11 @@ import org.bukkit.entity.Entity;
 import org.bukkit.entity.Mob;
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.ItemStack;
-import org.bukkit.potion.PotionEffect;
 import org.bukkit.potion.PotionEffectType;
+
+import com.comphenix.protocol.PacketType;
+import com.comphenix.protocol.ProtocolLibrary;
+import com.comphenix.protocol.events.PacketContainer;
 
 import dev.bukkit.DMain;
 import dev.bukkit.ability.BukkitEffectManager;
@@ -100,21 +104,28 @@ public class BukkitPlayerEntity extends RPGEntity {
         Player player = optional.get();
         player.setGameMode(GameMode.ADVENTURE);
         player.setHealth(player.getAttribute(Attribute.MAX_HEALTH).getValue());
-        player.getActivePotionEffects().clear();
+        player.getActivePotionEffects().forEach(effect -> player.removePotionEffect(effect.getType()));
         player.setAllowFlight(true);
         player.setFlying(true);
         player.getInventory().clear();
-        player.addPotionEffect(new PotionEffect(PotionEffectType.INVISIBILITY, -1, 1, false, false));
-
+        player.setCollidable(false);
+        player.setInvulnerable(true);
+        player.setInvisible(true);
+        
         EntityManager.getInstance().getAliveEntities().forEach(entity -> {
             if (entity instanceof BukkitPlayerEntity playerEntity) {
                 playerEntity.getPlayer().ifPresent(other -> {
-                    if (other.canSee(player) && !EntityManager.getInstance().isSpectator(other.getUniqueId())) {
-                        other.hidePlayer(DMain.getInstance(), player);
-                    }
+                    hideGhostEntity(other, player);
                 });
             }
         });
+    }
+    
+    public void hideGhostEntity(Player viewer, Player ghost) {
+        PacketContainer destroy = new PacketContainer(PacketType.Play.Server.ENTITY_DESTROY);
+        destroy.getIntLists().write(0, List.of(ghost.getEntityId()));
+
+        ProtocolLibrary.getProtocolManager().sendServerPacket(viewer, destroy);
     }
 
     public void toPlayingState() {
