@@ -1,6 +1,10 @@
 package dev.core.game.dungeon;
 
 import dev.core.game.coords.Point3D;
+import dev.core.game.dungeon.proceduralDungeon.Vector3Int;
+
+import java.util.LinkedList;
+import java.util.List;
 
 public class BoundingBox {
 
@@ -14,6 +18,24 @@ public class BoundingBox {
         this.maxY = Math.max(p1.getY(), p2.getY());
         this.minZ = Math.min(p1.getZ(), p2.getZ());
         this.maxZ = Math.max(p1.getZ(), p2.getZ());
+    }
+
+    public BoundingBox(Vector3Int v1, Vector3Int v2) {
+        this.minX = Math.min(v1.getX(), v2.getX());
+        this.maxX = Math.max(v1.getX(), v2.getX());
+        this.minY = Math.min(v1.getY(), v2.getY());
+        this.maxY = Math.max(v1.getY(), v2.getY());
+        this.minZ = Math.min(v1.getZ(), v2.getZ());
+        this.maxZ = Math.max(v1.getZ(), v2.getZ());
+    }
+
+    public BoundingBox(int minX, int minY, int minZ, int maxX, int maxY, int maxZ) {
+        this.minX = Math.min(minX, maxX);
+        this.maxX = Math.max(minX, maxX);
+        this.minY = Math.min(minY, maxY);
+        this.maxY = Math.max(minY, maxY);
+        this.minZ = Math.min(minZ, maxZ);
+        this.maxZ = Math.max(minZ, maxZ);
     }
 
     /**
@@ -47,6 +69,74 @@ public class BoundingBox {
         this.maxY = maxY;
         this.minZ = minZ;
         this.maxZ = maxZ;
+    }
+
+    public static BoundingBox merge(BoundingBox ... boundingBoxes) {
+        if (boundingBoxes == null) return new BoundingBox(0,0,0,0,0,0);
+        BoundingBox mergedBoundingBox = boundingBoxes[0];
+        for (int i = 1; i < boundingBoxes.length; i++) {
+            BoundingBox boundingBox = boundingBoxes[i];
+            mergedBoundingBox = BoundingBox.merge(mergedBoundingBox, boundingBox);
+        }
+        return mergedBoundingBox;
+    }
+
+    private static BoundingBox merge(BoundingBox boundingBox1, BoundingBox boundingBox2) {
+        return new BoundingBox(Math.min(boundingBox1.minX, boundingBox2.minX), Math.min(boundingBox1.minY, boundingBox2.minY), Math.min(boundingBox1.minZ, boundingBox2.minZ),
+                Math.max(boundingBox1.maxX, boundingBox2.maxX), Math.max(boundingBox1.maxY, boundingBox2.maxY), Math.max(boundingBox1.maxZ, boundingBox2.maxZ));
+    }
+
+    public Vector3Int getMinPoint() {
+        return new Vector3Int(minX, minY, minZ);
+    }
+
+    public Vector3Int getMaxPoint() {
+        return new Vector3Int(maxX, maxY, maxZ);
+    }
+
+    public Vector3Int getDimensions() {
+        return new Vector3Int(maxX - minX, maxY - minY, maxZ - minZ);
+    }
+
+    public List<Vector3Int> getFilledBoxPositions() {
+        List<Vector3Int> positions = new LinkedList<>();
+        for (int x = getMinPoint().getX(); x <= getMaxPoint().getX(); x++) {
+            for (int y = getMinPoint().getY(); y <= getMaxPoint().getY(); y++) {
+                for (int z = getMinPoint().getZ(); z <= getMaxPoint().getZ(); z++) {
+                    positions.add(new Vector3Int(x, y, z));
+                }
+            }
+        }
+        return positions;
+    }
+
+    public List<Vector3Int> getHollowBoxPositions() {
+        List<Vector3Int> filledBox = getFilledBoxPositions();
+        List<Vector3Int> smallerFilledBox = this.expand(-1).getFilledBoxPositions();
+        filledBox.removeAll(smallerFilledBox);
+        return filledBox;
+    }
+
+    public List<Vector3Int> get2DFilledBoxPositions() {
+        List<Vector3Int> positions = new LinkedList<>();
+        for (int x = getMinPoint().getX(); x <= getMaxPoint().getX(); x++) {
+            for (int z = getMinPoint().getZ(); z <= getMaxPoint().getZ(); z++) {
+                positions.add(new Vector3Int(x, minY, z));
+            }
+        }
+        return positions;
+    }
+
+    public Vector3Int get2DCenter() {
+        return new Vector3Int((minX + maxX) / 2, minY, (minZ + maxZ) / 2);
+    }
+
+    public boolean contains(Vector3Int vec) {
+        return vec.getX() >= minX && vec.getX() <= maxX && vec.getY() >= minY && vec.getY() <= maxY && vec.getZ() >= minZ && vec.getZ() <= maxZ;
+    }
+
+    public boolean contains2D(Vector3Int vec) {
+        return vec.getX() >= minX && vec.getX() <= maxX && vec.getZ() >= minZ && vec.getZ() <= maxZ;
     }
 
     /**
