@@ -1,6 +1,10 @@
 package dev.core.game.dungeon.proceduralDungeon;
 
 import dev.core.game.dungeon.BoundingBox;
+import dev.core.game.dungeon.proceduralDungeon.util.Direction3D;
+import dev.core.game.dungeon.proceduralDungeon.util.Vector3Int;
+import dev.core.game.dungeon.proceduralDungeon.util.dungeonBlocks.DungeonBlock;
+import dev.core.game.dungeon.proceduralDungeon.util.dungeonBlocks.DungeonWallBlock;
 
 import java.util.*;
 
@@ -18,6 +22,33 @@ public class ProceduralGenerationAlgorithms {
         for (int i = 0; i < walkLength; i++)
         {
             var newPosition = Direction3D.getRandom2DCardinalDirection(random).apply(previousPosition);
+            path.add(newPosition);
+            previousPosition = newPosition;
+        }
+        return path;
+    }
+
+    public static Set<Vector3Int> simpleRandomWalkWithValidBlocks(Vector3Int startPosition, int walkLength, List<DungeonWallBlock> validBlocks, List<Direction3D> directions, Random random)
+    {
+        Set<Vector3Int> path = new LinkedHashSet<>();
+
+        List<Vector3Int> validPositions = validBlocks.stream().map(DungeonBlock::getPos).toList();
+
+        path.add(startPosition);
+        var previousPosition = startPosition;
+
+        for (int i = 0; i < walkLength; i++)
+        {
+            int index = random.nextInt(0, directions.size());
+            Direction3D dir = directions.get(index);
+            var newPosition = dir.apply(previousPosition);
+
+            while (!validPositions.contains(newPosition)) {
+                index = (index+1) % directions.size();
+                dir = directions.get(index);
+                newPosition = dir.apply(previousPosition);
+            }
+
             path.add(newPosition);
             previousPosition = newPosition;
         }

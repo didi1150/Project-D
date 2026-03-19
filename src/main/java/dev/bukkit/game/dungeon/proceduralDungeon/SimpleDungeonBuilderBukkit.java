@@ -6,6 +6,8 @@ import dev.bukkit.command.SubCommandBuilder;
 import dev.core.game.dungeon.BoundingBox;
 import dev.core.game.dungeon.proceduralDungeon.*;
 import dev.core.game.dungeon.proceduralDungeon.SimpleRandomWalkDungeonGenerator.*;
+import dev.core.game.dungeon.proceduralDungeon.util.Vector3Int;
+import dev.core.game.dungeon.proceduralDungeon.util.dungeonBlocks.*;
 import org.bukkit.*;
 import org.bukkit.block.Block;
 import org.bukkit.plugin.Plugin;
@@ -138,12 +140,22 @@ public class SimpleDungeonBuilderBukkit {
     }
 
     public void buildDungeon(RoomFirstDungeonGenerator3D dungeonGenerator, Runnable onComplete) {
-        Queue<Vector3Int> floorPositions = new LinkedList<>(dungeonGenerator.getFloorPositions());
-        Queue<Vector3Int> wallPositions = new LinkedList<>(dungeonGenerator.getWallPositions());
+//        Queue<Vector3Int> floorPositions = new LinkedList<>(dungeonGenerator.getFloorPositions());
+        Queue<DungeonFloorBlock> floorBlocks = new LinkedList<>(dungeonGenerator.getFloorBlocks());
+//        Queue<Vector3Int> wallPositions = new LinkedList<>(dungeonGenerator.getWallPositions());
         Queue<Vector3Int> corridorFloors = new LinkedList<>(dungeonGenerator.getCorridorFloor());
         Queue<BoundingBox> rooms = new LinkedList<>(dungeonGenerator.getRooms());
         Queue<BoundingBox> notConnectedRooms = new LinkedList<>(dungeonGenerator.getNotConnectedRooms());
-        int blocksToPlace = floorPositions.size() + wallPositions.size() + corridorFloors.size();
+
+        DungeonMaterialsManagerBukkit matManager = new DungeonMaterialsManagerBukkit(dungeonGenerator.getLastUsedSeed(), world);
+
+        Queue<DungeonStairBlock> stairBlocks = new LinkedList<>(dungeonGenerator.getStairBlocks());
+        Queue<DungeonFloorBlock> corridorBlocks = new LinkedList<>(dungeonGenerator.getCorridorBlocks());
+        Queue<DungeonWallBlock> wallBlocks = new LinkedList<>(dungeonGenerator.getWallBlocks());
+        Queue<DungeonCeilingBlock> ceilingBlocks = new LinkedList<>(dungeonGenerator.getCeilingBlocks());
+        Queue<Set<DungeonDecorationBlock>> decorationBlocks = new LinkedList<>(dungeonGenerator.getDecorationBlocks());
+
+        int blocksToPlace = floorBlocks.size() + corridorBlocks.size() + stairBlocks.size() + wallBlocks.size() + ceilingBlocks.size() + decorationBlocks.size();
         Bukkit.broadcastMessage("§a" + blocksToPlace + " Blocks (" + rooms.size() + " Rooms) to place ...");
         long time = System.currentTimeMillis();
         new BukkitRunnable() {
@@ -153,14 +165,14 @@ public class SimpleDungeonBuilderBukkit {
                 if (rooms.isEmpty() && blocksPerTick == 1) {
                     blocksPerTick = 100;
                 }
-                if (floorPositions.isEmpty() && blocksPerTick == 100) {
+                if (floorBlocks.isEmpty() && blocksPerTick == 100) {
                     blocksPerTick = 20;
                 }
-                if (corridorFloors.isEmpty() && blocksPerTick == 20) {
+                if (corridorBlocks.isEmpty() && blocksPerTick == 20) {
                     blocksPerTick = 500;
                 }
                 for (int i = 0; i < blocksPerTick; i++) {
-                    Vector3Int nextPos;
+                    DungeonBlock block = null;
                     if (!rooms.isEmpty()) {
                         BoundingBox box = rooms.poll();
 //                        System.out.println("Room with " + box.getFilledBoxPositions().size() + " blocks");
@@ -177,27 +189,31 @@ public class SimpleDungeonBuilderBukkit {
                         setBlock(box.getMinPoint().add(0,-1,box.getDimensions().getZ()), Material.YELLOW_WOOL);
                         setBlock(box.getMaxPoint().add(0,0,0), Material.RED_WOOL);
                         setBlock(box.get2DCenter().add(0,-1,0), Material.BLUE_WOOL);
-//                        try {
-//                            synchronized (this) {
-//                                this.wait(100);
-//                            }
-//                        } catch (InterruptedException e) {
-//                            throw new RuntimeException(e);
-//                        }
-                    } else if (!floorPositions.isEmpty()) {
-                        nextPos = floorPositions.poll();
-                        Material floorMat = Material.STONE;
-                        setBlock(nextPos, floorMat);
-                        if (world.getBlockAt(nextPos.x, nextPos.y - 1, nextPos.z).getType() != Material.BLUE_WOOL) setBlock(nextPos.add(0,-1,0), floorMat); // testing
-                    } else if (!corridorFloors.isEmpty()) {
-                        nextPos = corridorFloors.poll();
-                        Material floorMat = Material.SMOOTH_STONE;
-                        setBlock(nextPos, floorMat);
-                    } else if (!wallPositions.isEmpty()) {
-                        nextPos = wallPositions.poll();
-                        Material wallMat = Material.STONE_BRICKS;
-//                        wallPositions.clear(); // for testing
-                        setBlock(nextPos, wallMat);
+                        continue;
+                    } else if (!floorBlocks.isEmpty()) {
+                        block = floorBlocks.poll();
+                        if (world.getBlockAt(block.getPos().x, block.getPos().y - 1, block.getPos().z).getType() != Material.BLUE_WOOL) setBlock(block.getPos().add(0,-1,0), Material.STONE); // testing
+                    }
+//                    else if (!corridorFloors.isEmpty()) {
+//                        Vector3Int nextPos = corridorFloors.poll();
+//                        Material floorMat = Material.SMOOTH_STONE;
+//                        setBlock(nextPos, floorMat);
+//                    }
+                    else if (!corridorBlocks.isEmpty()) {
+                        block = corridorBlocks.poll();
+                    } else if (!stairBlocks.isEmpty()) {
+                        block = stairBlocks.poll();
+                    }
+                    else if (!wallBlocks.isEmpty()) {
+                        block = wallBlocks.poll();
+//                        wallBlocks.clear(); // for testing
+                    }
+                    else if (!ceilingBlocks.isEmpty()) {
+                        block = ceilingBlocks.poll();
+//                        ceilingBlocks.clear(); // for testing
+                    } else if (!decorationBlocks.isEmpty()) {
+                        LinkedHashSet<DungeonDecorationBlock> dungeonBlocks = new LinkedHashSet<>(decorationBlocks.poll());
+                        matManager.placeBlocksWithSameMaterial(dungeonBlocks);
                     } else {
                         cancel();
                         if (onComplete != null) {
@@ -206,8 +222,10 @@ public class SimpleDungeonBuilderBukkit {
                         long timePassed = System.currentTimeMillis() - time;
                         double sec = timePassed / 1000d;
                         Bukkit.broadcastMessage("§aDungeon construction completed! (in " + sec + " secs)");
+                        matManager.printStatistic();
                         return;
                     }
+                    if (block != null) matManager.placeBlock(block);
                 }
             }
         }.runTaskTimer(plugin, 0L, 1L);
@@ -542,6 +560,7 @@ public class SimpleDungeonBuilderBukkit {
                             SimpleDungeonBuilderBukkit dungeonBuilder = new SimpleDungeonBuilderBukkit(plugin, player.getWorld());
                             Set<Vector3Int> extraBlocks = new LinkedHashSet<>(last3DDungeonGenerator.getCorridorFloor());
                             extraBlocks.addAll(last3DDungeonGenerator.getWallPositions());
+                            extraBlocks.addAll(last3DDungeonGenerator.getDecorationBlocks().stream().flatMap(Collection::stream).map(DungeonBlock::getPos).toList());
                             dungeonBuilder.resetSpace(lastGeneratedSpace, extraBlocks, buildSpace);
                             lastGeneratedSpace = null;
                             last3DDungeonGenerator = null;
@@ -577,6 +596,7 @@ public class SimpleDungeonBuilderBukkit {
                         SimpleDungeonBuilderBukkit dungeonBuilder = new SimpleDungeonBuilderBukkit(plugin, player.getWorld());
                         Set<Vector3Int> extraBlocks = new LinkedHashSet<>(last3DDungeonGenerator.getCorridorFloor());
                         extraBlocks.addAll(last3DDungeonGenerator.getWallPositions());
+                        extraBlocks.addAll(last3DDungeonGenerator.getDecorationBlocks().stream().flatMap(Collection::stream).map(DungeonBlock::getPos).toList());
                         dungeonBuilder.resetSpace(lastGeneratedSpace, extraBlocks, () -> {});
                         lastGeneratedSpace = null;
                         last3DDungeonGenerator = null;

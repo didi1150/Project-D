@@ -1,7 +1,7 @@
 package dev.core.game.dungeon;
 
 import dev.core.game.coords.Point3D;
-import dev.core.game.dungeon.proceduralDungeon.Vector3Int;
+import dev.core.game.dungeon.proceduralDungeon.util.Vector3Int;
 
 import java.util.LinkedList;
 import java.util.List;
@@ -71,6 +71,35 @@ public class BoundingBox {
         this.maxZ = maxZ;
     }
 
+    public BoundingBox(Vector3Int ... vecs) {
+        if (vecs.length == 0) {
+            throw new IllegalArgumentException("At least one vec required");
+        }
+
+        int minX = vecs[0].getX();
+        int maxX = vecs[0].getX();
+        int minY = vecs[0].getY();
+        int maxY = vecs[0].getY();
+        int minZ = vecs[0].getZ();
+        int maxZ = vecs[0].getZ();
+
+        for (Vector3Int vec : vecs) {
+            minX = Math.min(minX, vec.getX());
+            maxX = Math.max(maxX, vec.getX());
+            minY = Math.min(minY, vec.getY());
+            maxY = Math.max(maxY, vec.getY());
+            minZ = Math.min(minZ, vec.getZ());
+            maxZ = Math.max(maxZ, vec.getZ());
+        }
+
+        this.minX = minX;
+        this.maxX = maxX;
+        this.minY = minY;
+        this.maxY = maxY;
+        this.minZ = minZ;
+        this.maxZ = maxZ;
+    }
+
     public static BoundingBox merge(BoundingBox ... boundingBoxes) {
         if (boundingBoxes == null) return new BoundingBox(0,0,0,0,0,0);
         BoundingBox mergedBoundingBox = boundingBoxes[0];
@@ -125,6 +154,10 @@ public class BoundingBox {
             }
         }
         return positions;
+    }
+
+    public Vector3Int get3DCenter() {
+        return new Vector3Int((minX + maxX) / 2, (minY + maxY) / 2, (minZ + maxZ) / 2);
     }
 
     public Vector3Int get2DCenter() {

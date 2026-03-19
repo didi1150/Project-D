@@ -1,6 +1,8 @@
 package dev.core.game.dungeon.proceduralDungeon;
 
 import dev.core.game.dungeon.BoundingBox;
+import dev.core.game.dungeon.proceduralDungeon.util.Direction3D;
+import dev.core.game.dungeon.proceduralDungeon.util.Vector3Int;
 
 import java.util.*;
 

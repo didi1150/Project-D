@@ -1,6 +1,7 @@
 package dev.core.game.dungeon.proceduralDungeon;
 
 import dev.core.game.dungeon.BoundingBox;
+import dev.core.game.dungeon.proceduralDungeon.util.Vector3Int;
 
 import java.util.LinkedHashSet;
 import java.util.Random;

@@ -1,4 +1,4 @@
-package dev.core.game.dungeon.proceduralDungeon;
+package dev.core.game.dungeon.proceduralDungeon.util;
 
 import dev.core.game.coords.Point3D;
 import lombok.Getter;

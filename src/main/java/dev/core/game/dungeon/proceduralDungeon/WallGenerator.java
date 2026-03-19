@@ -1,6 +1,10 @@
 package dev.core.game.dungeon.proceduralDungeon;
 
 import dev.core.game.dungeon.BoundingBox;
+import dev.core.game.dungeon.proceduralDungeon.util.Direction3D;
+import dev.core.game.dungeon.proceduralDungeon.util.Vector3Int;
+import dev.core.game.dungeon.proceduralDungeon.util.dungeonBlocks.DungeonCeilingBlock;
+import dev.core.game.dungeon.proceduralDungeon.util.dungeonBlocks.DungeonWallBlock;
 
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -32,16 +36,9 @@ public class WallGenerator {
         return wallPositions;
     }
 
-    public static Set<Vector3Int> createWalls(Set<Vector3Int> roomFloor, Set<Vector3Int> corridorFloor, Set<Vector3Int> stairFloor, Set<Vector3Int> corridorPositions, List<BoundingBox> rooms, int roomOffset, int corridorWidth) {
-        Set<Vector3Int> combinedSet = new LinkedHashSet<>(roomFloor);
-        combinedSet.addAll(corridorFloor);
-        combinedSet.addAll(stairFloor);
-
+    private static Set<Vector3Int> getExtendedRoomFloor(Set<Vector3Int> roomFloor, Set<Vector3Int> corridorFloor, List<BoundingBox> rooms) {
         Set<Vector3Int> extendedRoomFloor = new LinkedHashSet<>(roomFloor);
-
         for (var room : rooms) {
-//            Set<Vector3Int> floor = corridorFloor.stream().filter(room::contains).filter(vec -> vec.y == room.get2DCenter().y).collect(Collectors.toSet());
-//            Set<Vector3Int> floor = corridorFloor.stream().filter(roomFloor::contains).collect(Collectors.toSet());
             Set<Vector3Int> floor = corridorFloor.stream()
                     .filter(room::contains)
                     .filter(vec -> vec.y == room.get2DCenter().y)
@@ -68,16 +65,55 @@ public class WallGenerator {
                     .collect(Collectors.toSet());
             extendedRoomFloor.addAll(floor);
         }
+        return extendedRoomFloor;
+    }
 
-        Set<Vector3Int> roomWalls = findRoomWalls(extendedRoomFloor, combinedSet, corridorPositions, Direction3D.get2DCardinalDirections(), rooms, roomOffset, corridorWidth);
-        Set<Vector3Int> corridorWalls = findCorridorWalls(corridorFloor, extendedRoomFloor, combinedSet, Direction3D.get2DCardinalDirections(), corridorWidth);
-        corridorWalls.addAll(findCorridorWalls(stairFloor, extendedRoomFloor, combinedSet, Direction3D.get2DCardinalDirections(), corridorWidth + 1));
+    public static Set<DungeonCeilingBlock> createCeiling(Set<Vector3Int> roomFloor, Set<Vector3Int> corridorFloor, Set<Vector3Int> stairFloor, List<BoundingBox> rooms, int roomOffset, int corridorWidth) {
+        var extendedRoomFloor = getExtendedRoomFloor(roomFloor, corridorFloor, rooms);
+
+        Set<DungeonCeilingBlock> roomCeiling = findRoomCeiling(extendedRoomFloor, rooms, roomOffset);
+        Set<DungeonCeilingBlock> corridorCeiling = findCorridorCeiling(corridorFloor, extendedRoomFloor, corridorWidth);
+        corridorCeiling.addAll(findCorridorCeiling(stairFloor, extendedRoomFloor, corridorWidth + 1));
+        roomCeiling.addAll(corridorCeiling);
+        return roomCeiling;
+    }
+
+    private static Set<DungeonCeilingBlock> findRoomCeiling(Set<Vector3Int> roomFloor, List<BoundingBox> rooms, int roomOffset) {
+        Set<DungeonCeilingBlock> wallPositions = new LinkedHashSet<>();
+        for (var position : roomFloor) {
+            int wallHeight = rooms.stream().filter(r -> r.contains(position)).map(r -> r.getDimensions().getY() - roomOffset - 1).findFirst().orElse(0);
+            wallPositions.add(new DungeonCeilingBlock(position.add(0, wallHeight + 1,0)));
+        }
+        return wallPositions;
+    }
+
+    private static Set<DungeonCeilingBlock> findCorridorCeiling(Set<Vector3Int> corridorFloor, Set<Vector3Int> roomFloor, int corridorWidth) {
+        Set<DungeonCeilingBlock> wallPositions = new LinkedHashSet<>();
+        int height = Math.max(2, corridorWidth);
+        for (var position : corridorFloor) {
+            if (!roomFloor.contains(position)) {
+                wallPositions.add(new DungeonCeilingBlock(position.add(0, height + 1,0)));
+            }
+        }
+        return wallPositions;
+    }
+
+    public static Set<DungeonWallBlock> createWalls(Set<Vector3Int> roomFloor, Set<Vector3Int> corridorFloor, Set<Vector3Int> stairFloor, Set<Vector3Int> corridorPositions, List<BoundingBox> rooms, int roomOffset, int corridorWidth) {
+        Set<Vector3Int> combinedSet = new LinkedHashSet<>(roomFloor);
+        combinedSet.addAll(corridorFloor);
+        combinedSet.addAll(stairFloor);
+
+        var extendedRoomFloor = getExtendedRoomFloor(roomFloor, corridorFloor, rooms);
+
+        Set<DungeonWallBlock> roomWalls = findRoomWalls(extendedRoomFloor, combinedSet, corridorPositions, Direction3D.get2DCardinalDirections(), rooms, roomOffset, corridorWidth);
+        Set<DungeonWallBlock> corridorWalls = findCorridorWalls(corridorFloor, extendedRoomFloor, combinedSet, Direction3D.get2DCardinalDirections(), corridorWidth, false);
+        corridorWalls.addAll(findCorridorWalls(stairFloor, extendedRoomFloor, combinedSet, Direction3D.get2DCardinalDirections(), corridorWidth, true));
         roomWalls.addAll(corridorWalls);
         return roomWalls;
     }
 
-    private static Set<Vector3Int> findRoomWalls(Set<Vector3Int> roomFloor, Set<Vector3Int> allPositions, Set<Vector3Int> corridorPositions, List<Direction3D> directionList, List<BoundingBox> rooms, int roomOffset, int corridorWidth) {
-        Set<Vector3Int> wallPositions = new LinkedHashSet<>();
+    private static Set<DungeonWallBlock> findRoomWalls(Set<Vector3Int> roomFloor, Set<Vector3Int> allPositions, Set<Vector3Int> corridorPositions, List<Direction3D> directionList, List<BoundingBox> rooms, int roomOffset, int corridorWidth) {
+        Set<DungeonWallBlock> wallPositions = new LinkedHashSet<>();
         for (var position : roomFloor) {
             int wallHeight = rooms.stream().filter(r -> r.contains(position)).map(r -> r.getDimensions().getY() - roomOffset - 1).findFirst().orElse(0);
             for (var direction : directionList) {
@@ -102,35 +138,34 @@ public class WallGenerator {
 //                    }
 //                }
                 if (!roomFloor.contains(neighbourPosition)) {
+                    if (!corridorPositions.contains(neighbourPosition)) wallPositions.add(new DungeonWallBlock(neighbourPosition, direction.opposite()));
                     for (var i = 0; i < wallHeight; i++) {
                         neighbourPosition = Direction3D.UP.apply(neighbourPosition);
-                        if (!corridorPositions.contains(neighbourPosition)) wallPositions.add(neighbourPosition);
+                        if (!corridorPositions.contains(neighbourPosition)) wallPositions.add(new DungeonWallBlock(neighbourPosition, direction.opposite()));
                     }
                 }
             }
-            wallPositions.add(position.add(0, wallHeight + 1,0)); // ceiling
         }
         return wallPositions;
     }
 
-    private static Set<Vector3Int> findCorridorWalls(Set<Vector3Int> corridorFloor, Set<Vector3Int> roomFloor, Set<Vector3Int> allPositions, List<Direction3D> directionList, int corridorWidth) {
-        Set<Vector3Int> wallPositions = new LinkedHashSet<>();
-        int height = Math.max(2, corridorWidth); // add 1 for stair floor
+    private static Set<DungeonWallBlock> findCorridorWalls(Set<Vector3Int> corridorFloor, Set<Vector3Int> roomFloor, Set<Vector3Int> allPositions, List<Direction3D> directionList, int corridorWidth, boolean isStair) {
+        Set<DungeonWallBlock> wallPositions = new LinkedHashSet<>();
+        corridorWidth = isStair ? corridorWidth + 1 : corridorWidth;
+        int height = Math.max(2, corridorWidth);
         for (var position : corridorFloor) {
+            if (isStair) wallPositions.add(new DungeonWallBlock(Direction3D.DOWN.apply(position), null));
             for (var direction : directionList) {
                 var neighbourPosition = direction.apply(position);
                 var neighbourPositionDown = Direction3D.DOWN.apply(neighbourPosition);
                 var neighbourPositionUP = Direction3D.UP.apply(neighbourPosition);
                 if (!allPositions.contains(neighbourPosition) && !allPositions.contains(neighbourPositionDown)&& !allPositions.contains(neighbourPositionUP)) {
-                    wallPositions.add(neighbourPosition);
+                    wallPositions.add(new DungeonWallBlock(neighbourPosition, direction.opposite()));
                     for (var i = 0; i < height; i++) {
                         neighbourPosition = Direction3D.UP.apply(neighbourPosition);
-                        wallPositions.add(neighbourPosition);
+                        wallPositions.add(new DungeonWallBlock(neighbourPosition, direction.opposite()));
                     }
                 }
-            }
-            if (!roomFloor.contains(position)) {
-                wallPositions.add(position.add(0, height + 1,0)); // ceiling
             }
         }
         return wallPositions;

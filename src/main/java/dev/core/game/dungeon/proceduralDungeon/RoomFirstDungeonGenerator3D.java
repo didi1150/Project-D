@@ -1,7 +1,10 @@
 package dev.core.game.dungeon.proceduralDungeon;
 
 import dev.core.game.dungeon.BoundingBox;
-import lombok.Getter;
+import dev.core.game.dungeon.proceduralDungeon.util.Direction3D;
+import dev.core.game.dungeon.proceduralDungeon.util.DungeonRoom;
+import dev.core.game.dungeon.proceduralDungeon.util.Vector3Int;
+import dev.core.game.dungeon.proceduralDungeon.util.dungeonBlocks.*;
 
 import java.util.*;
 import java.util.List;
@@ -23,18 +26,22 @@ public class RoomFirstDungeonGenerator3D extends SimpleRandomWalkDungeonGenerato
 
     protected int corridorWidth = 2;
 
-    @Getter
     protected List<BoundingBox> rooms = new LinkedList<>();
-    @Getter
+    protected List<DungeonRoom> dungeonRooms = new LinkedList<>();
     protected List<BoundingBox> notConnectedRooms = new LinkedList<>();
-    @Getter
     protected BoundingBox startRoom;
-    @Getter
     protected BoundingBox bossRoom;
-    @Getter
+
     protected Set<Vector3Int> corridorFloor = new LinkedHashSet<>();
-    @Getter
     protected Set<Vector3Int> stairFloor = new LinkedHashSet<>();
+
+    protected Set<DungeonFloorBlock> floorBlocks = new LinkedHashSet<>();
+    protected Set<DungeonStairBlock> stairBlocks = new LinkedHashSet<>();
+    protected Set<DungeonFloorBlock> corridorBlocks = new LinkedHashSet<>();
+    protected Set<DungeonWallBlock> wallBlocks = new LinkedHashSet<>();
+    protected Set<DungeonCeilingBlock> ceilingBlocks = new LinkedHashSet<>();
+
+    protected List<Set<DungeonDecorationBlock>> decorationBlocks = new LinkedList<>();
 
     public RoomFirstDungeonGenerator3D(Vector3Int startPosition, SimpleRandomWalkParameters randomWalkParameters, int minRoomWidth, int minRoomHeight, int minRoomLength, int dungeonWidth, int dungeonHeight, int dungeonLength, int roomOffset, boolean randomWalkRooms, int corridorWidth) {
         super(startPosition, randomWalkParameters);
@@ -87,6 +94,58 @@ public class RoomFirstDungeonGenerator3D extends SimpleRandomWalkDungeonGenerato
     public RoomFirstDungeonGenerator3D() {
     }
 
+    public List<BoundingBox> getRooms() {
+        return new LinkedList<>(rooms);
+    }
+
+    public List<DungeonRoom> getDungeonRooms() {
+        return new LinkedList<>(dungeonRooms);
+    }
+
+    public List<BoundingBox> getNotConnectedRooms() {
+        return new LinkedList<>(notConnectedRooms);
+    }
+
+    public BoundingBox getStartRoom() {
+        return startRoom;
+    }
+
+    public BoundingBox getBossRoom() {
+        return bossRoom;
+    }
+
+    public Set<Vector3Int> getCorridorFloor() {
+        return new LinkedHashSet<>(corridorFloor);
+    }
+
+    public Set<Vector3Int> getStairFloor() {
+        return new LinkedHashSet<>(stairFloor);
+    }
+
+    public Set<DungeonFloorBlock> getFloorBlocks() {
+        return new LinkedHashSet<>(floorBlocks);
+    }
+
+    public Set<DungeonStairBlock> getStairBlocks() {
+        return new LinkedHashSet<>(stairBlocks);
+    }
+
+    public Set<DungeonFloorBlock> getCorridorBlocks() {
+        return new LinkedHashSet<>(corridorBlocks);
+    }
+
+    public Set<DungeonWallBlock> getWallBlocks() {
+        return new LinkedHashSet<>(wallBlocks);
+    }
+
+    public Set<DungeonCeilingBlock> getCeilingBlocks() {
+        return new LinkedHashSet<>(ceilingBlocks);
+    }
+
+    public List<Set<DungeonDecorationBlock>> getDecorationBlocks() {
+        return new LinkedList<>(decorationBlocks);
+    }
+
     @Override
     public BoundingBox getMaxBounds() {
         return new BoundingBox(startPosition, startPosition.add(dungeonWidth, dungeonHeight, dungeonLength));
@@ -98,75 +157,140 @@ public class RoomFirstDungeonGenerator3D extends SimpleRandomWalkDungeonGenerato
     }
 
     public void createRooms(Random random) {
+        int generationAttempts = 0;
+        while (generationAttempts < 10) {
+            generationAttempts++;
 
-        int roomCreatingAttempts = 0;
+            int roomCreatingAttempts = 0;
 
-        do {
-            rooms = ProceduralGenerationAlgorithms.binarySpacePartitioning3D(new BoundingBox(startPosition, startPosition.add(dungeonWidth, dungeonHeight, dungeonLength)), minRoomWidth, minRoomHeight, minRoomLength, random);
-            roomCreatingAttempts++;
-        } while (rooms.isEmpty() && roomCreatingAttempts < 10);
+            do {
+                rooms = ProceduralGenerationAlgorithms.binarySpacePartitioning3D(new BoundingBox(startPosition, startPosition.add(dungeonWidth, dungeonHeight, dungeonLength)), minRoomWidth, minRoomHeight, minRoomLength, random);
+                roomCreatingAttempts++;
+            } while (rooms.isEmpty() && roomCreatingAttempts < 10);
 
-        if (rooms.isEmpty()) {
-            System.err.println("Failed to generate valid rooms in " + roomCreatingAttempts + " attempts!");
-            return;
-        }
+            if (rooms.isEmpty()) {
+                System.err.println("Failed to generate valid rooms in " + roomCreatingAttempts + " attempts!");
+                continue;
+            }
 
-        System.out.println("Generated " + rooms.size() + " valid rooms (in " + roomCreatingAttempts + " attempt(s))");
+            System.out.println("Generated " + rooms.size() + " valid rooms (in " + roomCreatingAttempts + " attempt(s))");
 
-        Map<Vector3Int, BoundingBox> roomCenterToRoomMap = rooms.stream().collect(Collectors.toMap(BoundingBox::get2DCenter, b -> b));
+            Map<Vector3Int, BoundingBox> roomCenterToRoomMap = rooms.stream().collect(Collectors.toMap(BoundingBox::get2DCenter, b -> b));
 
-        Map<Vector3Int, Set<Vector3Int>> roomCenterToRoomFloorMap;
-        if (randomWalkRooms) {
-            roomCenterToRoomFloorMap = createRoomsRandomly(rooms, random);
-        } else {
-            roomCenterToRoomFloorMap = CreateSimpleRooms(rooms);
-        }
-        floorPositions.clear();
-        for (var room : rooms) {
-            floorPositions.addAll(roomCenterToRoomFloorMap.get(room.get2DCenter()));
-        }
+            Map<Vector3Int, Set<Vector3Int>> roomCenterToRoomFloorMap;
+            if (randomWalkRooms) {
+                roomCenterToRoomFloorMap = createRoomsRandomly(rooms, random);
+            } else {
+                roomCenterToRoomFloorMap = CreateSimpleRooms(rooms);
+            }
+            floorPositions.clear();
+            for (var room : rooms) {
+                floorPositions.addAll(roomCenterToRoomFloorMap.get(room.get2DCenter()));
+            }
 
-        List<Vector3Int> roomCenters = new LinkedList<>();
-        for (var room : rooms) {
-            roomCenters.add(room.get2DCenter());
-        }
-        roomCenters = roomCenters.stream().sorted(Comparator.comparing(center -> center.y)).collect(Collectors.toList());
+            floorBlocks = floorPositions.stream().map(DungeonFloorBlock::new).collect(Collectors.toCollection(LinkedHashSet::new));
 
-        corridorFloor = connectRooms(rooms, roomCenters, roomCenterToRoomMap, roomCenterToRoomFloorMap, random);
+            dungeonRooms = rooms.stream().map(room -> new DungeonRoom(room, roomCenterToRoomFloorMap.get(room.get2DCenter()))).collect(Collectors.toList());
+            Map<Vector3Int, DungeonRoom> roomCenterToDungeonRoomMap = dungeonRooms.stream().collect(Collectors.toMap(d -> d.getRoom().get2DCenter(), d -> d));
 
-        //TODO create extra paths between rooms on the same level
+            List<Vector3Int> roomCenters = new LinkedList<>();
+            for (var room : rooms) {
+                roomCenters.add(room.get2DCenter());
+            }
+            roomCenters = roomCenters.stream().sorted(Comparator.comparing(center -> center.y)).collect(Collectors.toList());
 
-        stairFloor = createStairs(rooms, corridorFloor, roomCenters, roomCenterToRoomMap, roomCenterToRoomFloorMap, random);
+            corridorFloor = connectRooms(rooms, roomCenterToDungeonRoomMap, roomCenters, roomCenterToRoomMap, roomCenterToRoomFloorMap, random);
+
+            //TODO create extra paths between rooms on the same level
+
+            stairBlocks = createStairs(rooms, roomCenterToDungeonRoomMap, corridorFloor, roomCenters, roomCenterToRoomMap, roomCenterToRoomFloorMap, random);
+            stairFloor = new LinkedHashSet<>();
+            for (var block : stairBlocks) {
+                stairFloor.add(block.getPos());
+            }
+
+            corridorBlocks = corridorFloor.stream().map(DungeonFloorBlock::new).collect(Collectors.toCollection(LinkedHashSet::new));
 
 //        floorPositions.addAll(corridorFloors);
 
-        Set<Vector3Int> corridorPositions = corridorFloor.stream().flatMap(vec -> getCorridorBox(vec, corridorWidth - 1)).collect(Collectors.toSet());
-        Set<Vector3Int> stairPositions = stairFloor.stream().flatMap(vec -> getStairBox(vec, corridorWidth - 1)).collect(Collectors.toSet());
-        corridorPositions.addAll(stairPositions);
+            Set<Vector3Int> corridorPositions = corridorFloor.stream().flatMap(vec -> getCorridorBox(vec, corridorWidth)).collect(Collectors.toCollection(LinkedHashSet::new));
+            Set<Vector3Int> stairPositions = stairFloor.stream().flatMap(vec -> getStairBox(vec, corridorWidth)).collect(Collectors.toCollection(LinkedHashSet::new));
+            corridorPositions.addAll(stairPositions);
 
-        wallPositions = WallGenerator.createWalls(floorPositions, corridorFloor, stairFloor, corridorPositions, rooms, roomOffset, corridorWidth);
+            wallBlocks = WallGenerator.createWalls(floorPositions, corridorFloor, stairFloor, corridorPositions, rooms, roomOffset, corridorWidth);
+            ceilingBlocks = WallGenerator.createCeiling(floorPositions, corridorFloor, stairFloor, rooms, roomOffset, corridorWidth);
 
-        corridorFloor.addAll(stairFloor);
+            wallPositions = wallBlocks.stream().map(DungeonBlock::getPos).collect(Collectors.toCollection(LinkedHashSet::new));
+            wallPositions.addAll(ceilingBlocks.stream().map(DungeonBlock::getPos).collect(Collectors.toCollection(LinkedHashSet::new)));
 
-        for (var room : rooms) {
-            if (room.get2DFilledBoxPositions().stream().noneMatch(corridorFloor::contains)) {
-                notConnectedRooms.add(room);
+            corridorFloor.addAll(stairFloor);
+
+//        for (var room : rooms) {
+//            if (room.get2DFilledBoxPositions().stream().noneMatch(corridorFloor::contains)) {
+//                notConnectedRooms.add(room);
+//            }
+//        }
+
+            List<DungeonRoom> connectedDungeonRooms = dungeonRooms.stream().filter(d -> d.getConnectedRoomsCount() > 0).toList();
+            List<DungeonRoom> notConnectedDungeonRooms = dungeonRooms.stream().filter(d -> d.getConnectedRoomsCount() == 0).toList();
+
+            notConnectedRooms = notConnectedDungeonRooms.stream().map(DungeonRoom::getRoom).collect(Collectors.toList());
+            System.out.println("Not connected Rooms: " + notConnectedRooms.size());
+
+            System.out.println("Most connections to one room: " + dungeonRooms.stream().max(Comparator.comparing(DungeonRoom::getConnectedRoomsCount)).get());
+            System.out.println("Least connections to one room: " + dungeonRooms.stream().min(Comparator.comparing(DungeonRoom::getConnectedRoomsCount)).get());
+
+            List<BoundingBox> connectedRooms = new LinkedList<>(rooms);
+            connectedRooms.removeAll(notConnectedRooms);
+
+            int minCenterHeight = connectedRooms.stream().mapToInt(room -> room.get2DCenter().y).min().orElse(0);
+            int maxCenterHeight = connectedRooms.stream().mapToInt(room -> room.get2DCenter().y).max().orElse(0);
+
+            startRoom = connectedRooms.stream().filter(room -> room.get2DCenter().y == maxCenterHeight).min(Comparator.comparing(BoundingBox::getVolume)).get();
+            int minConnectionCount = connectedDungeonRooms.stream().filter(d -> d.getRoomCenter2D().y == maxCenterHeight).mapToInt(DungeonRoom::getConnectedRoomsCount).min().getAsInt();
+            var startRoom2 = connectedDungeonRooms.stream().filter(d -> d.getRoomCenter2D().y == maxCenterHeight).filter(d -> d.getConnectedRoomsCount() == minConnectionCount).min(Comparator.comparing(DungeonRoom::getRealSize)).map(DungeonRoom::getRoom).get();
+            if (!startRoom.equals(startRoom2)) {
+                System.out.println("Replaced startRoom -> diff: " + roomCenterToDungeonRoomMap.get(startRoom.get2DCenter()) + " to " + roomCenterToDungeonRoomMap.get(startRoom2.get2DCenter()));
+                startRoom = startRoom2;
+            }
+
+            bossRoom = connectedRooms.stream().filter(room -> room.get2DCenter().y == minCenterHeight).max(Comparator.comparing(BoundingBox::getVolume)).get();
+            var bossRoom2 = connectedRooms.stream().filter(room -> room.get2DCenter().y == minCenterHeight).max(Comparator.comparing(room -> roomCenterToRoomFloorMap.get(room.get2DCenter()).size())).get();
+            if (!bossRoom.equals(bossRoom2)) {
+                System.out.println("Replaced bossRoom -> diff: " + roomCenterToRoomFloorMap.get(bossRoom.get2DCenter()).size() + " to " + roomCenterToRoomFloorMap.get(bossRoom2.get2DCenter()).size());
+                bossRoom = bossRoom2;
+            }
+
+            Set<DungeonRoom> reachableRoomsFromStart = roomCenterToDungeonRoomMap.get(startRoom.get2DCenter()).getReachableRooms();
+            if (!reachableRoomsFromStart.contains(roomCenterToDungeonRoomMap.get(bossRoom.get2DCenter()))) {
+                System.err.println("Dungeon Generation Failure: Bossroom isn't reachable from Start Room. -> retrying ...");
+                System.out.println(reachableRoomsFromStart.size() + " reachable rooms -> " + reachableRoomsFromStart);
+                continue;
+            } else {
+
+                createDecoration(dungeonRooms, random);
+
+                if (generationAttempts > 1) {
+                    System.out.println("Generated Dungeon (in " + generationAttempts + " attempt(s))");
+                }
+                break;
             }
         }
-
-        List<BoundingBox> connectedRooms = new LinkedList<>(rooms);
-        connectedRooms.removeAll(notConnectedRooms);
-
-        int minCenterHeight = connectedRooms.stream().mapToInt(room -> room.get2DCenter().y).min().orElse(0);
-        int maxCenterHeight = connectedRooms.stream().mapToInt(room -> room.get2DCenter().y).max().orElse(0);
-
-        startRoom = connectedRooms.stream().filter(room -> room.get2DCenter().y == maxCenterHeight).min(Comparator.comparing(BoundingBox::getVolume)).get();
-        bossRoom = connectedRooms.stream().filter(room -> room.get2DCenter().y == minCenterHeight).max(Comparator.comparing(BoundingBox::getVolume)).get();
-        var bossRoom2 = connectedRooms.stream().filter(room -> room.get2DCenter().y == minCenterHeight).max(Comparator.comparing(room -> roomCenterToRoomFloorMap.get(room.get2DCenter()).size())).get();
-        if (!bossRoom.equals(bossRoom2)) {
-            System.out.println("Replaced bossRoom -> diff: " + roomCenterToRoomFloorMap.get(bossRoom.get2DCenter()).size() + " to " + roomCenterToRoomFloorMap.get(bossRoom2.get2DCenter()).size());
-            bossRoom = bossRoom2;
+        if (generationAttempts == 10) {
+            System.err.println("Dungeon Generation Failure: Didn't manage to create a valid Dungeon in " + generationAttempts + " attempt(s)");
         }
+    }
+
+    private void createDecoration(List<DungeonRoom> dungeonRooms, Random random) {
+        decorationBlocks = new LinkedList<>();
+        int numberVines = dungeonRooms.size() * 3;
+        int vineLength = (minRoomLength + minRoomHeight + minRoomWidth) / 3;
+        Set<DungeonBlock> allBlocks = new LinkedHashSet<>(wallBlocks);
+        allBlocks.addAll(floorBlocks);
+        allBlocks.addAll(stairBlocks);
+        allBlocks.addAll(corridorBlocks);
+        allBlocks.addAll(ceilingBlocks);
+        decorationBlocks.addAll(DecorationGenerator.generateVines(wallBlocks, allBlocks, numberVines, vineLength, random));
     }
 
     private Map<Vector3Int, Set<Vector3Int>> createRoomsRandomly(List<BoundingBox> rooms, Random random) {
@@ -214,7 +338,7 @@ public class RoomFirstDungeonGenerator3D extends SimpleRandomWalkDungeonGenerato
         return floorPositions;
     }
 
-    private Set<Vector3Int> connectRooms(List<BoundingBox> rooms, List<Vector3Int> roomCenters, Map<Vector3Int, BoundingBox> roomCenterToRoomMap, Map<Vector3Int, Set<Vector3Int>> roomCenterToRoomFloorMap, Random random) {
+    private Set<Vector3Int> connectRooms(List<BoundingBox> rooms, Map<Vector3Int, DungeonRoom> roomCenterToDungeonRoomMap, List<Vector3Int> roomCenters, Map<Vector3Int, BoundingBox> roomCenterToRoomMap, Map<Vector3Int, Set<Vector3Int>> roomCenterToRoomFloorMap, Random random) {
         Set<Vector3Int> corridors = new LinkedHashSet<>();
         List<Vector3Int> connectedRoomCenters = new LinkedList<>();
 
@@ -293,6 +417,10 @@ public class RoomFirstDungeonGenerator3D extends SimpleRandomWalkDungeonGenerato
                     }
                 }
 
+                DungeonRoom dungeonRoomStart = roomCenterToDungeonRoomMap.get(currentRoomCenter);
+                DungeonRoom dungeonRoomEnd = roomCenterToDungeonRoomMap.get(closest);
+                DungeonRoom.addConnectionTo(dungeonRoomStart, dungeonRoomEnd);
+
                 connectedRoomCenters.add(currentRoomCenter);
                 roomCenters.remove(closest);
                 currentRoomCenter = closest;
@@ -362,8 +490,9 @@ public class RoomFirstDungeonGenerator3D extends SimpleRandomWalkDungeonGenerato
         return corridors;
     }
 
-    private Set<Vector3Int> createStairs(List<BoundingBox> rooms, Set<Vector3Int> corridorFloor, List<Vector3Int> roomCenters, Map<Vector3Int, BoundingBox> roomCenterToRoomMap, Map<Vector3Int, Set<Vector3Int>> roomCenterToRoomFloorMap, Random random) {
+    private Set<DungeonStairBlock> createStairs(List<BoundingBox> rooms, Map<Vector3Int, DungeonRoom> roomCenterToDungeonRoomMap, Set<Vector3Int> corridorFloor, List<Vector3Int> roomCenters, Map<Vector3Int, BoundingBox> roomCenterToRoomMap, Map<Vector3Int, Set<Vector3Int>> roomCenterToRoomFloorMap, Random random) {
         Set<Vector3Int> stairs = new LinkedHashSet<>();
+        Set<DungeonStairBlock> stairBlocks = new LinkedHashSet<>();
 
         Map<Integer, List<Vector3Int>> roomCenterGroups = roomCenters.stream().collect(Collectors.toMap(Vector3Int::getY, v -> new LinkedList<>(List.of(v)), (l1, l2) -> {
             l1.addAll(l2);
@@ -388,9 +517,9 @@ public class RoomFirstDungeonGenerator3D extends SimpleRandomWalkDungeonGenerato
                 Set<Vector3Int> allCorridorFloor = new LinkedHashSet<>(corridorFloor);
                 allCorridorFloor.addAll(stairs);
 
-                Pair<Set<Vector3Int>, Set<Vector3Int>> pair = create3DCorridor(currentCenter, roomCenterToRoomMap.get(currentCenter), roomCenterToRoomFloorMap.get(currentCenter), otherCenter, roomCenterToRoomMap.get(otherCenter), allCorridorFloor);
+                Triplet<Set<Vector3Int>, Set<Vector3Int>, Direction3D> triplet = create3DCorridor(currentCenter, roomCenterToRoomMap.get(currentCenter), roomCenterToRoomFloorMap.get(currentCenter), otherCenter, roomCenterToRoomMap.get(otherCenter), allCorridorFloor);
 
-                if (pair == null || doesCorridorOverlapWithRooms(rooms, roomCenterToRoomMap.get(currentCenter), roomCenterToRoomMap.get(otherCenter), pair.first())) {
+                if (triplet == null || doesCorridorOverlapWithRooms(rooms, roomCenterToRoomMap.get(currentCenter), roomCenterToRoomMap.get(otherCenter), triplet.first())) {
                     System.out.println("    Changed stair-room for overlap");
                     Vector3Int newCenter = findClosestAndOptimalPointTo(currentCenter, roomCenterToRoomMap.get(currentCenter), otherCenters);
                     if (newCenter.equals(otherCenter)) {
@@ -398,8 +527,8 @@ public class RoomFirstDungeonGenerator3D extends SimpleRandomWalkDungeonGenerato
                     } else {
                         otherCenter = newCenter;
                     }
-                    pair = create3DCorridor(currentCenter, roomCenterToRoomMap.get(currentCenter), roomCenterToRoomFloorMap.get(currentCenter), otherCenter, roomCenterToRoomMap.get(otherCenter), allCorridorFloor);
-                    if (pair == null) {
+                    triplet = create3DCorridor(currentCenter, roomCenterToRoomMap.get(currentCenter), roomCenterToRoomFloorMap.get(currentCenter), otherCenter, roomCenterToRoomMap.get(otherCenter), allCorridorFloor);
+                    if (triplet == null) {
                         System.out.println("                    Failed to create Stairs for room -> Staircase can't be placed from this room!");
                         if (otherCentersList.isEmpty()) {
                             stairsFailed++;
@@ -408,8 +537,31 @@ public class RoomFirstDungeonGenerator3D extends SimpleRandomWalkDungeonGenerato
                     }
                 }
 
-                Set<Vector3Int> newStair = pair.first();
-                Set<Vector3Int> newCorridor = pair.second();
+
+                DungeonRoom dungeonRoomStart = roomCenterToDungeonRoomMap.get(currentCenter);
+                DungeonRoom dungeonRoomEnd = roomCenterToDungeonRoomMap.get(otherCenter);
+                DungeonRoom.addConnectionTo(dungeonRoomStart, dungeonRoomEnd);
+
+
+                LinkedHashSet<Vector3Int> newStair = new LinkedHashSet<>(triplet.first());
+                LinkedHashSet<Vector3Int> newCorridor = new LinkedHashSet<>(triplet.second());
+
+                Direction3D stairDirection = triplet.third();
+
+                // first few positions of the corridor are part of the stair
+                for (int i = 0; i < corridorWidth; i++) {
+                    stairBlocks.add(new DungeonStairBlock(newCorridor.removeFirst(), stairDirection));
+                }
+                newCorridor = new LinkedHashSet<>(triplet.second());
+
+                // first few positions of the stair are still at the floor level -> not actual stairs
+                for (int i = 0; i < corridorWidth; i++) {
+                    newCorridor.addFirst(newStair.removeFirst());
+                }
+
+                for (var pos : newStair) {
+                    stairBlocks.add(new DungeonStairBlock(pos, stairDirection));
+                }
 
                 stairs.addAll(newStair);
                 corridorFloor.addAll(newCorridor);
@@ -447,7 +599,7 @@ public class RoomFirstDungeonGenerator3D extends SimpleRandomWalkDungeonGenerato
 //            stairsAdded++;
         }
         System.out.println("        Added " + stairsAdded + " stairs (failed " + stairsFailed + ")");
-        return stairs;
+        return stairBlocks;
     }
 
     private Set<Vector3Int> createComplex2DCorridor(Vector3Int currentCenter, Vector3Int targetCenter, Set<Vector3Int> failedCorridor, Set<Vector3Int> corridors, List<BoundingBox> rooms, Map<Vector3Int, Set<Vector3Int>> roomCenterToRoomFloorMap, Map<Vector3Int, BoundingBox> roomCenterToRoomMap) {
@@ -455,6 +607,11 @@ public class RoomFirstDungeonGenerator3D extends SimpleRandomWalkDungeonGenerato
         BoundingBox targetRoom = roomCenterToRoomMap.get(targetCenter);
 
         List<BoundingBox> overlappingRooms = getOverlappingRoomsWithCorridor(rooms, failedCorridor, currentRoom, targetRoom);
+
+        if (overlappingRooms.isEmpty()) {
+            System.err.println("    Path only overlaps with other corridors -> failed to compute complex path");
+            return new LinkedHashSet<>();
+        }
 
         Vector3Int offset = getOverlappingRoomsOffsetVec(currentCenter, currentRoom, overlappingRooms);
 
@@ -739,7 +896,7 @@ public class RoomFirstDungeonGenerator3D extends SimpleRandomWalkDungeonGenerato
         return updatedRooms.stream().filter(b -> finalCorridor.stream().anyMatch(b::contains)).collect(Collectors.toList());
     }
 
-    private Pair<Set<Vector3Int>, Set<Vector3Int>> create3DCorridor(Vector3Int currentCenter, BoundingBox currentRoom, Set<Vector3Int> currentRoomFloor, Vector3Int targetCenter, BoundingBox targetRoom, Set<Vector3Int> corridors) {
+    private Triplet<Set<Vector3Int>, Set<Vector3Int>, Direction3D> create3DCorridor(Vector3Int currentCenter, BoundingBox currentRoom, Set<Vector3Int> currentRoomFloor, Vector3Int targetCenter, BoundingBox targetRoom, Set<Vector3Int> corridors) {
         Set<Vector3Int> stairs = new LinkedHashSet<>();
         Set<Vector3Int> corridor = new LinkedHashSet<>();
         Vector3Int distanceVec = targetCenter.sub(currentCenter);
@@ -785,7 +942,7 @@ public class RoomFirstDungeonGenerator3D extends SimpleRandomWalkDungeonGenerato
         }
         if (optimalStartDirection == null) return null;
 
-        return new Pair<>(stairs, corridor);
+        return new Triplet<>(stairs, corridor, optimalStartDirection);
     }
 
     private Set<Vector3Int> createCorridorFromStair(Vector3Int currentPos, Vector3Int targetCenter, Direction3D direction) {
@@ -1196,13 +1353,13 @@ public class RoomFirstDungeonGenerator3D extends SimpleRandomWalkDungeonGenerato
         minRoomWidth = 10;
         minRoomHeight = 10;
         minRoomLength = 10;
-        dungeonWidth = 200;
-        dungeonHeight = 10;
-        dungeonLength = 200;
+        dungeonWidth = 50;
+        dungeonHeight = 30;
+        dungeonLength = 50;
 
-        roomOffset = 2;
+        roomOffset = 1;
         randomWalkRooms = true;
-        corridorWidth = 2;
+        corridorWidth = 3;
 
         iterations = 1;
         walkLength = 15;
@@ -1224,7 +1381,7 @@ public class RoomFirstDungeonGenerator3D extends SimpleRandomWalkDungeonGenerato
 
         // dungeonTest create 20 10 20 200 10 200 2 true 4 10 50 true 1773592002905 -> TODO problem with complex path -> goes too far, through target room
 
-        seed = 1773592002905L;
+        seed = 1773855437886L;
 
 
         Vector3Int startPoint = new Vector3Int(0, 64, 0);
@@ -1232,11 +1389,7 @@ public class RoomFirstDungeonGenerator3D extends SimpleRandomWalkDungeonGenerato
 
         RoomFirstDungeonGenerator3D dungeonGenerator = new RoomFirstDungeonGenerator3D(startPoint, parameters, minRoomWidth, minRoomHeight, minRoomLength, dungeonWidth, dungeonHeight, dungeonLength, roomOffset, randomWalkRooms, corridorWidth);
 
-        long time = System.currentTimeMillis();
-
         dungeonGenerator.generateDungeon(seed);
-
-        System.out.println("Dungeon Generation took " + ((System.currentTimeMillis() - time) / 1000d) + " secs");
 
 //        BoundingBox startRoom = new BoundingBox(-5, 79, -24, -3, 82, -22);
 //        BoundingBox targetRoom = new BoundingBox(10, 79, -18, 12, 82, -16);

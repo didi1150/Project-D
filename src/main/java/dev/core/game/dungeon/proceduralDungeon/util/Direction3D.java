@@ -1,6 +1,4 @@
-package dev.core.game.dungeon.proceduralDungeon;
-
-import org.checkerframework.checker.units.qual.N;
+package dev.core.game.dungeon.proceduralDungeon.util;
 
 import java.util.ArrayList;
 import java.util.Arrays;

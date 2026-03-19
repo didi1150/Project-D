@@ -1,4 +1,4 @@
-package dev.core.game.dungeon.proceduralDungeon;
+package dev.core.game.dungeon.proceduralDungeon.util;
 
 import java.util.ArrayList;
 import java.util.List;
