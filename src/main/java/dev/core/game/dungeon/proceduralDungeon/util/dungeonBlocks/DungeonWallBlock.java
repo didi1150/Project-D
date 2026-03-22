@@ -26,6 +26,7 @@ public class DungeonWallBlock extends DungeonBlock {
         return facingDirection;
     }
 
+    @Override
     public boolean canAttachDecorationOnSide(Set<Vector3Int> allPositions) {
         return canAttachDecorationOnSide(this.facingDirection, allPositions);
     }

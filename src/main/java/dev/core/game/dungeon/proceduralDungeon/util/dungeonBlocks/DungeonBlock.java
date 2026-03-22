@@ -2,6 +2,8 @@ package dev.core.game.dungeon.proceduralDungeon.util.dungeonBlocks;
 
 import dev.core.game.dungeon.proceduralDungeon.util.Vector3Int;
 
+import java.util.Set;
+
 public abstract class DungeonBlock {
 
     protected Vector3Int pos;
@@ -18,4 +20,6 @@ public abstract class DungeonBlock {
     public String toString() {
         return "DungeonBlock{pos=" + pos + "}";
     }
+
+    public abstract boolean canAttachDecorationOnSide(Set<Vector3Int> allPositions);
 }

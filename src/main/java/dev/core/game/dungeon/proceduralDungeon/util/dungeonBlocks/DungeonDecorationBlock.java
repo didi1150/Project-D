@@ -3,6 +3,8 @@ package dev.core.game.dungeon.proceduralDungeon.util.dungeonBlocks;
 import dev.core.game.dungeon.proceduralDungeon.util.Direction3D;
 import dev.core.game.dungeon.proceduralDungeon.util.Vector3Int;
 
+import java.util.Set;
+
 public class DungeonDecorationBlock extends DungeonBlock {
 
     private final DungeonDecorationType decorationType;
@@ -29,6 +31,11 @@ public class DungeonDecorationBlock extends DungeonBlock {
         this.decorationType = DungeonDecorationType.INDIVIDUAL;
         this.placementType = DungeonDecorationPlacementType.FLOOR;
         this.facingDirection = null;
+    }
+
+    @Override
+    public boolean canAttachDecorationOnSide(Set<Vector3Int> allPositions) {
+        return false;
     }
 
     public DungeonDecorationType getDecorationType() {

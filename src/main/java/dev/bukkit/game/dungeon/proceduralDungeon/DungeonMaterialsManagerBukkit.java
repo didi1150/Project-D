@@ -8,6 +8,7 @@ import org.bukkit.World;
 import org.bukkit.block.Block;
 import org.bukkit.block.BlockFace;
 import org.bukkit.block.data.MultipleFacing;
+import org.bukkit.block.data.Waterlogged;
 import org.bukkit.block.data.type.Slab;
 import org.bukkit.block.data.type.Stairs;
 
@@ -84,17 +85,19 @@ public class DungeonMaterialsManagerBukkit extends DungeonMaterialsManager<Mater
     @Override
     public List<DungeonMaterial<Material>> getDungeonFloorDecorationBlockMaterials() {
         return List.of(
-                DungeonDecorationMaterial.of(DungeonDecorationType.SPREADING, 0.4F, Material.MOSS_CARPET, Material.PALE_MOSS_CARPET, Material.LEAF_LITTER),
-                DungeonDecorationMaterial.of(0.4F, Material.DEAD_BUSH, Material.SHORT_DRY_GRASS, Material.SHORT_GRASS, Material.BUSH, Material.FIREFLY_BUSH, Material.DEAD_BUBBLE_CORAL, Material.DEAD_BRAIN_CORAL),
-                DungeonDecorationMaterial.of(0.2F, Material.COBWEB)
+                DungeonDecorationMaterial.of(DungeonDecorationType.SPREADING, 1F, Material.MOSS_CARPET, Material.PALE_MOSS_CARPET, Material.LEAF_LITTER),
+                DungeonDecorationMaterial.of(0.75F, Material.DEAD_BUSH, Material.SHORT_DRY_GRASS, Material.SHORT_GRASS, Material.BUSH, Material.FIREFLY_BUSH, Material.DEAD_BUBBLE_CORAL, Material.DEAD_BRAIN_CORAL),
+                DungeonDecorationMaterial.of(0.25F, Material.COBWEB)
         );
     }
+
+    // the placeProbability between different DungeonDecorationTypes is ignored when choosing a DungeonDecorationMaterial, therefore when there aren't multiple DungeonDecorationMaterials of the same type it can be choosen arbitrarily
 
     @Override
     public List<DungeonMaterial<Material>> getDungeonWallDecorationBlockMaterials() {
         return List.of(
-                DungeonDecorationMaterial.of(0.3F, Material.TORCH, Material.REDSTONE_TORCH),
-                DungeonDecorationMaterial.of(DungeonDecorationType.SPREADING, 0.7F, DungeonMaterial.of(0.4F, Material.VINE), DungeonMaterial.of(0.3F, Material.GLOW_LICHEN), DungeonMaterial.of(0.3F, Material.IRON_BARS))
+                DungeonDecorationMaterial.of(1F, Material.TORCH, Material.REDSTONE_TORCH),
+                DungeonDecorationMaterial.of(DungeonDecorationType.SPREADING, 1F, DungeonMaterial.of(0.4F, Material.VINE), DungeonMaterial.of(0.3F, Material.GLOW_LICHEN), DungeonMaterial.of(0.3F, Material.IRON_BARS))
 //                DungeonDecorationMaterial.of(DungeonDecorationType.SPREADING, 0.2F, Material.IRON_BARS) // not sure
         );
     }
@@ -102,9 +105,10 @@ public class DungeonMaterialsManagerBukkit extends DungeonMaterialsManager<Mater
     @Override
     public List<DungeonMaterial<Material>> getDungeonCeilingDecorationBlockMaterials() {
         return List.of(
-                DungeonDecorationMaterial.of(DungeonDecorationType.HANGING, 0.6F, Material.PALE_HANGING_MOSS),
-                DungeonDecorationMaterial.of(DungeonDecorationType.HANGING,0.3F, Material.COBWEB),
-                DungeonDecorationMaterial.of(DungeonDecorationType.HANGING,0.1F, Material.CHAIN) // + lantern
+                DungeonDecorationMaterial.of(DungeonDecorationType.HANGING, 0.3F, Material.PALE_HANGING_MOSS),
+                DungeonDecorationMaterial.of(DungeonDecorationType.HANGING, 0.3F, Material.CAVE_VINES),
+                DungeonDecorationMaterial.of(DungeonDecorationType.HANGING,0.15F, Material.COBWEB),
+                DungeonDecorationMaterial.of(DungeonDecorationType.HANGING,0.25F, Material.CHAIN) // + lantern
                 // maybe also Material.HANGING_ROOTS
         );
     }
@@ -155,13 +159,21 @@ public class DungeonMaterialsManagerBukkit extends DungeonMaterialsManager<Mater
                 stair.setFacing(BlockFace.valueOf(stairBlock.getFacingDirectionAsString()));
             } else if (dungeonBlock instanceof DungeonFloorBlock) {
                 stair.setFacing(BlockFace.valueOf(Direction3D.getRandom2DCardinalDirection(random).name()));
-                stair.setWaterlogged(random.nextFloat() < waterLoggedSlabsStairsProbability);
+                boolean waterlogged = random.nextFloat() < waterLoggedSlabsStairsProbability;
+                stair.setWaterlogged(waterlogged);
+                if (waterlogged) {
+                    placeBlocksAroundBlock(block);
+                }
             }
             block.setBlockData(stair);
         }
         if (block.getBlockData() instanceof Slab slab) {
             if (dungeonBlock instanceof DungeonFloorBlock) {
-                slab.setWaterlogged(random.nextFloat() < waterLoggedSlabsStairsProbability);
+                boolean waterlogged = random.nextFloat() < waterLoggedSlabsStairsProbability;
+                slab.setWaterlogged(waterlogged);
+                if (waterlogged) {
+                    placeBlocksAroundBlock(block);
+                }
             }
             block.setBlockData(slab);
         }
@@ -170,6 +182,10 @@ public class DungeonMaterialsManagerBukkit extends DungeonMaterialsManager<Mater
             switch (decorationBlock.getPlacementType()) {
                 case FLOOR -> {
                     floorDecorationMaterialUsedMap.compute(material, (mat, used) -> used == null ? 1 : used + 1);
+                    if (block.getBlockData() instanceof Waterlogged waterlogged) {
+                        waterlogged.setWaterlogged(false);
+                        block.setBlockData(waterlogged);
+                    }
                 }
                 case WALL -> {
                     wallDecorationMaterialUsedMap.compute(material, (mat, used) -> used == null ? 1 : used + 1);
@@ -184,6 +200,18 @@ public class DungeonMaterialsManagerBukkit extends DungeonMaterialsManager<Mater
                 case CORNER -> {
                     cornerDecorationMaterialUsedMap.compute(material, (mat, used) -> used == null ? 1 : used + 1);
                 }
+            }
+        }
+    }
+
+    private void placeBlocksAroundBlock(Block block) {
+//        if (block.getBlockData() instanceof Waterlogged waterlogged && !waterlogged.isWaterlogged()) return;
+//        System.out.println("placeBlocksAroundBlock: " + block + " -> " + ((Waterlogged) block.getBlockData()).isWaterlogged());
+        List<BlockFace> faces = List.of(BlockFace.NORTH, BlockFace.EAST, BlockFace.SOUTH, BlockFace.WEST);
+        for (var face : faces) {
+            Block b = block.getRelative(face);
+            if (b.getType() == Material.AIR) {
+                b.setType(Material.TARGET);
             }
         }
     }

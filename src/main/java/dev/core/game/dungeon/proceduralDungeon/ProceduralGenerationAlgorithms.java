@@ -43,10 +43,18 @@ public class ProceduralGenerationAlgorithms {
             Direction3D dir = directions.get(index);
             var newPosition = dir.apply(previousPosition);
 
+            // 26 93 30
+
+            int tries = 0;
             while (!validPositions.contains(newPosition)) {
                 index = (index+1) % directions.size();
                 dir = directions.get(index);
                 newPosition = dir.apply(previousPosition);
+                if (tries == 3) {
+                    newPosition = previousPosition;
+                    break;
+                }
+                tries++;
             }
 
             path.add(newPosition);

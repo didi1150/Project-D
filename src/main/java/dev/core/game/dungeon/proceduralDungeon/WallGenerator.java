@@ -81,7 +81,7 @@ public class WallGenerator {
     private static Set<DungeonCeilingBlock> findRoomCeiling(Set<Vector3Int> roomFloor, List<BoundingBox> rooms, int roomOffset) {
         Set<DungeonCeilingBlock> wallPositions = new LinkedHashSet<>();
         for (var position : roomFloor) {
-            int wallHeight = rooms.stream().filter(r -> r.contains(position)).map(r -> r.getDimensions().getY() - roomOffset - 1).findFirst().orElse(0);
+            int wallHeight = rooms.stream().filter(r -> r.contains(position)).map(r -> r.getDimensions().getY() - roomOffset).findFirst().orElse(0);
             wallPositions.add(new DungeonCeilingBlock(position.add(0, wallHeight + 1,0)));
         }
         return wallPositions;
@@ -115,7 +115,7 @@ public class WallGenerator {
     private static Set<DungeonWallBlock> findRoomWalls(Set<Vector3Int> roomFloor, Set<Vector3Int> allPositions, Set<Vector3Int> corridorPositions, List<Direction3D> directionList, List<BoundingBox> rooms, int roomOffset, int corridorWidth) {
         Set<DungeonWallBlock> wallPositions = new LinkedHashSet<>();
         for (var position : roomFloor) {
-            int wallHeight = rooms.stream().filter(r -> r.contains(position)).map(r -> r.getDimensions().getY() - roomOffset - 1).findFirst().orElse(0);
+            int wallHeight = rooms.stream().filter(r -> r.contains(position)).map(r -> r.getDimensions().getY() - roomOffset).findFirst().orElse(0);
             for (var direction : directionList) {
                 var neighbourPosition = direction.apply(position);
 //                var neighbourPositionDown = Direction3D.DOWN.apply(neighbourPosition);

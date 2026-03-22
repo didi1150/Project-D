@@ -204,12 +204,11 @@ public class RoomFirstDungeonGenerator3D extends SimpleRandomWalkDungeonGenerato
             //TODO create extra paths between rooms on the same level
 
             stairBlocks = createStairs(rooms, roomCenterToDungeonRoomMap, corridorFloor, roomCenters, roomCenterToRoomMap, roomCenterToRoomFloorMap, random);
-            stairFloor = new LinkedHashSet<>();
-            for (var block : stairBlocks) {
-                stairFloor.add(block.getPos());
-            }
+            stairFloor = stairBlocks.stream().map(DungeonBlock::getPos).collect(Collectors.toCollection(LinkedHashSet::new));
 
-            corridorBlocks = corridorFloor.stream().map(DungeonFloorBlock::new).collect(Collectors.toCollection(LinkedHashSet::new));
+            Set<Vector3Int> correctCorridorFloor = new LinkedHashSet<>(corridorFloor);
+            correctCorridorFloor.removeAll(stairFloor);
+            corridorBlocks = correctCorridorFloor.stream().map(DungeonFloorBlock::new).collect(Collectors.toCollection(LinkedHashSet::new));
 
 //        floorPositions.addAll(corridorFloors);
 
@@ -283,14 +282,26 @@ public class RoomFirstDungeonGenerator3D extends SimpleRandomWalkDungeonGenerato
 
     private void createDecoration(List<DungeonRoom> dungeonRooms, Random random) {
         decorationBlocks = new LinkedList<>();
-        int numberVines = dungeonRooms.size() * 3;
-        int vineLength = (minRoomLength + minRoomHeight + minRoomWidth) / 3;
+
         Set<DungeonBlock> allBlocks = new LinkedHashSet<>(wallBlocks);
         allBlocks.addAll(floorBlocks);
         allBlocks.addAll(stairBlocks);
         allBlocks.addAll(corridorBlocks);
         allBlocks.addAll(ceilingBlocks);
-        decorationBlocks.addAll(DecorationGenerator.generateVines(wallBlocks, allBlocks, numberVines, vineLength, random));
+        Set<Vector3Int> allPositions = allBlocks.stream().map(DungeonBlock::getPos).collect(Collectors.toSet());
+
+        int numberVines = dungeonRooms.size() * 3;
+        int vineLength = (minRoomLength + minRoomHeight + minRoomWidth) / 3 - roomOffset;
+        decorationBlocks.addAll(DecorationGenerator.generateVines(wallBlocks, allPositions, numberVines, vineLength, random));
+
+        float individualFloorVegetationChance = 0.05F;
+        Set<DungeonFloorBlock> floor = new LinkedHashSet<>(floorBlocks);
+        floor.addAll(corridorBlocks);
+        decorationBlocks.addAll(DecorationGenerator.generateIndividualFloorVegetation(floor, allPositions, individualFloorVegetationChance, random));
+
+        float hangingCeilingVegetationChance = 0.05F;
+//        int hangingVegetationMaxLength = ((minRoomHeight - roomOffset)*2)/3;
+        decorationBlocks.addAll(DecorationGenerator.generateHangingCeilingVegetation(ceilingBlocks, allPositions, hangingCeilingVegetationChance, dungeonHeight, random));
     }
 
     private Map<Vector3Int, Set<Vector3Int>> createRoomsRandomly(List<BoundingBox> rooms, Random random) {
