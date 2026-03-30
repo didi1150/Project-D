@@ -38,7 +38,7 @@ public class DecorationGenerator {
             directions.removeAll(List.of(dir, dir.opposite()));
             directions.addAll(List.of(Direction3D.UP, Direction3D.DOWN));
 
-            List<DungeonWallBlock> validWallBlocksForDir = validWallBlocks.stream().filter(wall -> wall.canAttachDecorationOnSide(dir, allPositions)).toList();
+            List<Vector3Int> validWallBlocksForDir = validWallBlocks.stream().filter(wall -> wall.canAttachDecorationOnSide(dir, allPositions)).map(DungeonBlock::getPos).toList();
 
             var path = ProceduralGenerationAlgorithms.simpleRandomWalkWithValidBlocks(startPos, vineLength, validWallBlocksForDir, directions, random);
             vines.add(path.stream().map(pos -> new DungeonDecorationBlock(dir.apply(pos), dir, DungeonDecorationType.SPREADING, DungeonDecorationPlacementType.WALL)).collect(Collectors.toSet()));
@@ -121,6 +121,49 @@ public class DecorationGenerator {
         }
 
         System.out.println("Generated " + vegetation.size() + " hanging ceiling vegetation");
+
+        return vegetation;
+    }
+
+    public static List<Set<DungeonDecorationBlock>> generateCornerVegetation(Set<DungeonFloorBlock> floorBlocks, Set<DungeonWallBlock> wallBlocks, Set<Vector3Int> allPositions, float spawnChance, Random random) {
+        List<Set<DungeonDecorationBlock>> vegetation = new LinkedList<>();
+
+        List<DungeonFloorBlock> validBlocks = floorBlocks.stream().filter(block -> block.canAttachDecorationOnSide(allPositions)).collect(Collectors.toList());
+
+        Set<Vector3Int> floorPositions = floorBlocks.stream().map(DungeonBlock::getPos).collect(Collectors.toSet());
+
+        Set<Vector3Int> wallPositions = wallBlocks.stream().map(DungeonBlock::getPos).collect(Collectors.toSet());
+
+        validBlocks = validBlocks.stream().filter(block -> block.isValidCorner(floorPositions)).toList();
+
+        List<BoundingBox> boxes = new LinkedList<>();
+        double minDistanceApart = 5;
+
+        for (var floorBlock : validBlocks) {
+            if (boxes.stream().anyMatch(box -> box.get3DCenter().distance(floorBlock.getPos()) < (minDistanceApart + box.getDimensions().mul(0.5).getLength()))) {
+                continue;
+            }
+            if (random.nextFloat() < spawnChance) {
+                Direction3D[] cornerDirs = floorBlock.getCornerDirections(floorPositions);
+                List<Direction3D> directions = Arrays.stream(cornerDirs).filter(Objects::nonNull).collect(Collectors.toList());
+                int maxLength = floorBlock.getAverageCornerLength(floorPositions, wallPositions);
+                int length = Math.max(maxLength / 2, 1);
+                int randomLength = random.nextInt(1, length + 1);
+                randomLength = length;
+                int iterations = Math.max(length * 3, 3);
+                Vector3Int startPos = Direction3D.UP.apply(floorBlock.getPos());
+                Set<Vector3Int> path = new LinkedHashSet<>();
+                for (int i = 0; i < iterations; i++) {
+                    if (i == iterations / 5) directions.add(Direction3D.UP);
+                    path.addAll(ProceduralGenerationAlgorithms.simpleRandomWalkWithInValidBlocks(startPos, randomLength, allPositions, directions, random));
+                }
+                vegetation.add(path.stream().map(pos -> new DungeonDecorationBlock(pos, DungeonDecorationType.BULK, DungeonDecorationPlacementType.CORNER)).collect(Collectors.toCollection(LinkedHashSet::new)));
+                boxes.add(new BoundingBox(path.toArray(Vector3Int[]::new)));
+//                System.out.println("Generated corner vegetation at " + startPos + " with length = " + randomLength + " and iterations = " + iterations);
+            }
+        }
+
+        System.out.println("Generated " + vegetation.size() + " corner vegetation");
 
         return vegetation;
     }

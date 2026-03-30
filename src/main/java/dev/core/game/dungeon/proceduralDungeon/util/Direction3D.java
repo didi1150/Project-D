@@ -82,6 +82,15 @@ public enum Direction3D {
         };
     }
 
+    public Direction3D rotateToLeft() {
+        return switch (this) {
+            case NORTH -> WEST;
+            case EAST -> NORTH;
+            case SOUTH -> EAST;
+            case WEST -> SOUTH;
+            default -> this;
+        };
+    }
 
     @Override
     public String toString() {

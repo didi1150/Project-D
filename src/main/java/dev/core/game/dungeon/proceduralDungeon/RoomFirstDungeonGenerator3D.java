@@ -302,6 +302,12 @@ public class RoomFirstDungeonGenerator3D extends SimpleRandomWalkDungeonGenerato
         float hangingCeilingVegetationChance = 0.05F;
 //        int hangingVegetationMaxLength = ((minRoomHeight - roomOffset)*2)/3;
         decorationBlocks.addAll(DecorationGenerator.generateHangingCeilingVegetation(ceilingBlocks, allPositions, hangingCeilingVegetationChance, dungeonHeight, random));
+
+
+        float cornerVegetationChance = 0.2F;
+        decorationBlocks.addAll(DecorationGenerator.generateCornerVegetation(floorBlocks, wallBlocks, allPositions, cornerVegetationChance, random));
+
+
     }
 
     private Map<Vector3Int, Set<Vector3Int>> createRoomsRandomly(List<BoundingBox> rooms, Random random) {
@@ -1392,7 +1398,7 @@ public class RoomFirstDungeonGenerator3D extends SimpleRandomWalkDungeonGenerato
 
         // dungeonTest create 20 10 20 200 10 200 2 true 4 10 50 true 1773592002905 -> TODO problem with complex path -> goes too far, through target room
 
-        seed = 1773855437886L;
+        seed = 1774023553026L;
 
 
         Vector3Int startPoint = new Vector3Int(0, 64, 0);

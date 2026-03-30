@@ -28,11 +28,8 @@ public class ProceduralGenerationAlgorithms {
         return path;
     }
 
-    public static Set<Vector3Int> simpleRandomWalkWithValidBlocks(Vector3Int startPosition, int walkLength, List<DungeonWallBlock> validBlocks, List<Direction3D> directions, Random random)
-    {
+    public static Set<Vector3Int> simpleRandomWalkWithInValidBlocks(Vector3Int startPosition, int walkLength, Set<Vector3Int> inValidPositions, List<Direction3D> directions, Random random) {
         Set<Vector3Int> path = new LinkedHashSet<>();
-
-        List<Vector3Int> validPositions = validBlocks.stream().map(DungeonBlock::getPos).toList();
 
         path.add(startPosition);
         var previousPosition = startPosition;
@@ -43,7 +40,37 @@ public class ProceduralGenerationAlgorithms {
             Direction3D dir = directions.get(index);
             var newPosition = dir.apply(previousPosition);
 
-            // 26 93 30
+            int tries = 0;
+            while (inValidPositions.contains(newPosition)) {
+                index = (index+1) % directions.size();
+                dir = directions.get(index);
+                newPosition = dir.apply(previousPosition);
+                if (tries == 3) {
+//                    newPosition = previousPosition;
+                    System.err.println("Can't walk further in any direction!");
+                    return path;
+                }
+                tries++;
+            }
+
+            path.add(newPosition);
+            previousPosition = newPosition;
+        }
+        return path;
+    }
+
+    public static Set<Vector3Int> simpleRandomWalkWithValidBlocks(Vector3Int startPosition, int walkLength, List<Vector3Int> validPositions, List<Direction3D> directions, Random random)
+    {
+        Set<Vector3Int> path = new LinkedHashSet<>();
+
+        path.add(startPosition);
+        var previousPosition = startPosition;
+
+        for (int i = 0; i < walkLength; i++)
+        {
+            int index = random.nextInt(0, directions.size());
+            Direction3D dir = directions.get(index);
+            var newPosition = dir.apply(previousPosition);
 
             int tries = 0;
             while (!validPositions.contains(newPosition)) {
