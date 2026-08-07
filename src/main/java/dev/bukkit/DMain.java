@@ -3,6 +3,8 @@ package dev.bukkit;
 import java.io.File;
 import java.util.Map;
 
+import dev.bukkit.game.dungeon.proceduralDungeon.SimpleDungeonBuilderBukkit;
+import lombok.Getter;
 import org.bukkit.Bukkit;
 import org.bukkit.World;
 import org.bukkit.WorldCreator;
@@ -140,8 +142,9 @@ public final class DMain extends JavaPlugin {
         gameStateController.addState(new PostGameState(eventBusInterface, progressionService, this));
         gameStateController.start();
 
-        CommandManager.getInstance(itemsConfig, progressionService, gameStateController, gameSettingsLoader,
-                eventBusInterface).registerCommands(this);
+        CommandManager commandManager = CommandManager.getInstance(itemsConfig, progressionService, gameStateController, gameSettingsLoader, eventBusInterface);
+        SimpleDungeonBuilderBukkit.initDungeonTestCommand(commandManager);
+        commandManager.registerCommands(this);
         Bukkit.getPluginManager().registerEvents(new EventListener(this), this);
         Bukkit.getPluginManager().registerEvents(new CancelledListener(this, protocolManager), this);
         combatListener = new CombatListener(this);
