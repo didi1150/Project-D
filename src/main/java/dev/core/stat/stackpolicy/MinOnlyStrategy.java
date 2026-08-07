@@ -12,7 +12,7 @@ public class MinOnlyStrategy implements StackingStrategy {
 		for (int i = bucket.size() - 1; i >= 0; --i) {
 			StatModifier mod = bucket.get(i);
 			if (mod.statType == modifier.statType && Math.abs(mod.amount) >= Math.abs(modifier.amount)
-					&& mod.modifierType == modifier.modifierType) {
+					&& mod.statModifierType == modifier.statModifierType) {
 				bucket.remove(i);
 			} else {
 				replace = false;

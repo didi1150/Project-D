@@ -43,4 +43,14 @@ public abstract class Stat {
 		modifierBucket.remove(statModifier);
 	}
 
+	/**
+	 * Return active (non-expired) modifiers for this stat at time 'now'.
+	 * Migration helper for the new StatEngine.
+	 */
+	public java.util.List<StatModifier> getActiveModifiers(long now) {
+		if (modifierBucket == null)
+			return java.util.List.of();
+		return modifierBucket.active(now);
+	}
+
 }

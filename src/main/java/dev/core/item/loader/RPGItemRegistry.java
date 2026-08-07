@@ -18,12 +18,13 @@ public class RPGItemRegistry {
         this.allItems = new HashMap<String, RPGItem>();
         this.allItemSets = new HashMap<String, RPGItemSet>();
 
-//		addItem(new RPGItem("test_particles", "Particle Test", EquipmentSlot.MAIN_HAND, Arrays.asList(),
-//				Arrays.asList(), Arrays.asList(new ParticleTestAbility())));
-//		addItem(RPGItem.builder("BONEMERANG", "Bonemerang", EquipmentSlot.MAIN_HAND)
-//				.withAbilities(Arrays.asList(new SwingBoneAbility())).withActiveStats(Arrays.asList(new StatModifier(20,
-//						ModifierType.FLAT, StatType.ATTACK_DAMAGE, "BONE_SWING", System.currentTimeMillis())))
-//				.withMaterial("BONE").build());
+        // Example usage of builder pattern:
+        // addItem(RPGItem.builder("bonemerang", "Bonemerang", "BONE", EquipmentSlot.MAIN_HAND)
+        //     .addAbility(new SwingBoneAbility())
+        //     .addActiveStat(StatModifier.builder(20, StatModifierType.FLAT, StatType.ATTACK_DAMAGE, "BONEMERANG")
+        //         .priority(10)
+        //         .build())
+        //     .build());
     }
 
     public static RPGItemRegistry getInstance() {

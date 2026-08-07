@@ -13,7 +13,7 @@ import dev.core.item.equipment.EquipmentSlot;
 import dev.core.stat.StatTarget;
 import dev.core.stat.StatType;
 import dev.core.stat.modifier.ModifierStackPolicy;
-import dev.core.stat.modifier.ModifierType;
+import dev.core.stat.modifier.StatModifierType;
 import dev.core.stat.modifier.StatModifier;
 import dev.core.storage.config.ConfigProvider;
 import dev.core.storage.config.ConfigSection;
@@ -41,24 +41,32 @@ public class RPGItemLoader {
         for (ConfigSection s : section.getSectionList("passive-stats")) {
             double amount = s.getDouble("amount", 0);
             ModifierStackPolicy policy = ModifierStackPolicy.valueOf(s.getString("policy", "STACK"));
-            ModifierType modifierType = ModifierType.valueOf(s.getString("modifierType", "FLAT"));
+            StatModifierType statModifierType = StatModifierType.valueOf(s.getString("statModifierType", "FLAT"));
             StatType statType = StatType.valueOf(s.getString("statType", StatType.ATTACK_DAMAGE.name()));
             StatTarget statTarget = StatTarget.valueOf(s.getString("statTarget", "BOTH"));
+            int priority = s.getInt("priority", 0);
 
-            passive.add(new StatModifier(amount, policy, modifierType, statType, id, -1, System.currentTimeMillis(),
-                    statTarget));
+            passive.add(StatModifier.builder(amount, statModifierType, statType, id)
+                .stackPolicy(policy)
+                .statTarget(statTarget)
+                .priority(priority)
+                .build());
         }
 
         List<StatModifier> active = new ArrayList<>();
         for (ConfigSection s : section.getSectionList("active-stats")) {
             double amount = s.getDouble("amount", 0);
             ModifierStackPolicy policy = ModifierStackPolicy.valueOf(s.getString("policy", "STACK"));
-            ModifierType modifierType = ModifierType.valueOf(s.getString("modifierType", "FLAT"));
+            StatModifierType statModifierType = StatModifierType.valueOf(s.getString("statModifierType", "FLAT"));
             StatType statType = StatType.valueOf(s.getString("statType", StatType.ATTACK_DAMAGE.name()));
             StatTarget statTarget = StatTarget.valueOf(s.getString("statTarget", "BOTH"));
+            int priority = s.getInt("priority", 0);
 
-            active.add(new StatModifier(amount, policy, modifierType, statType, id, -1, System.currentTimeMillis(),
-                    statTarget));
+            active.add(StatModifier.builder(amount, statModifierType, statType, id)
+                .stackPolicy(policy)
+                .statTarget(statTarget)
+                .priority(priority)
+                .build());
         }
 
         List<Ability> abilities = new ArrayList<>();
@@ -87,7 +95,7 @@ public class RPGItemLoader {
                 Map<String, Object> map = new HashMap<>();
                 map.put("amount", sm.amount);
                 map.put("policy", sm.stackPolicy.name());
-                map.put("modifierType", sm.modifierType.name());
+                map.put("statModifierType", sm.statModifierType.name());
                 map.put("statType", sm.statType.name());
                 map.put("statTarget", sm.statTarget.name());
                 passive.add(map);
@@ -99,7 +107,7 @@ public class RPGItemLoader {
                 Map<String, Object> map = new HashMap<>();
                 map.put("amount", sm.amount);
                 map.put("policy", sm.stackPolicy.name());
-                map.put("modifierType", sm.modifierType.name());
+                map.put("statModifierType", sm.statModifierType.name());
                 map.put("statType", sm.statType.name());
                 map.put("statTarget", sm.statTarget.name());
                 active.add(map);
@@ -129,7 +137,7 @@ public class RPGItemLoader {
             Map<String, Object> map = new HashMap<>();
             map.put("amount", sm.amount);
             map.put("policy", sm.stackPolicy.name());
-            map.put("modifierType", sm.statType.name());
+            map.put("statModifierType", sm.statType.name());
             map.put("statType", sm.statType.name());
             map.put("statTarget", sm.statTarget.name());
             passive.add(map);
@@ -141,7 +149,7 @@ public class RPGItemLoader {
             Map<String, Object> map = new HashMap<>();
             map.put("amount", sm.amount);
             map.put("policy", sm.stackPolicy.name());
-            map.put("modifierType", sm.statType.name());
+            map.put("statModifierType", sm.statType.name());
             map.put("statType", sm.statType.name());
             map.put("statTarget", sm.statTarget.name());
             active.add(map);

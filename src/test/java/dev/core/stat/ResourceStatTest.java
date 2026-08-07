@@ -11,7 +11,7 @@ import dev.core.MockClock;
 import dev.core.game.StopWatch;
 import dev.core.stat.impl.CombatStat;
 import dev.core.stat.impl.ResourceStat;
-import dev.core.stat.modifier.ModifierType;
+import dev.core.stat.modifier.StatModifierType;
 import dev.core.stat.modifier.StatModifier;
 
 public class ResourceStatTest {
@@ -87,7 +87,7 @@ public class ResourceStatTest {
         long midTime = startTime + 10000;
         assertEquals(10, healthStat.getCurrent(midTime), 1e-12);
 
-        healthMaxStat.addModifier(new StatModifier(100, ModifierType.FLAT, StatType.HEALTH_MAX, "test_buff", midTime));
+        healthMaxStat.addModifier(new StatModifier(100, StatModifierType.FLAT, StatType.HEALTH_MAX, "test_buff", midTime));
 
         assertEquals(10, healthStat.getCurrent(midTime), 1e-12);
         assertEquals(200, healthStat.getMax(midTime), 1e-12);
@@ -105,7 +105,7 @@ public class ResourceStatTest {
     void testHealAndShieldPower() {
         long startTime = stopWatch.getTimeMillis();
         healAndShieldPowerStat.addModifier(
-                new StatModifier(50, ModifierType.FLAT, StatType.HEAL_AND_SHIELD_POWER, "test_heal_power", startTime));
+                new StatModifier(50, StatModifierType.FLAT, StatType.HEAL_AND_SHIELD_POWER, "test_heal_power", startTime));
 
         healthStat.setCurrent(0);
 

@@ -8,7 +8,7 @@ import dev.core.MockClock;
 import dev.core.game.StopWatch;
 import dev.core.stat.modifier.ModifierBucket;
 import dev.core.stat.modifier.ModifierStackPolicy;
-import dev.core.stat.modifier.ModifierType;
+import dev.core.stat.modifier.StatModifierType;
 import dev.core.stat.modifier.StatModifier;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -34,7 +34,7 @@ public class ModifierBucketTest {
 
 	@Test
 	void testSimpleAdd() {
-		StatModifier increaseMaxHP = new StatModifier(10, ModifierStackPolicy.UNIQUE_BY_SOURCE, ModifierType.FLAT,
+		StatModifier increaseMaxHP = new StatModifier(10, ModifierStackPolicy.UNIQUE_BY_SOURCE, StatModifierType.FLAT,
 				StatType.HEALTH_MAX, "Test", -1, clock.getTimeMillis(), StatTarget.BOTH);
 		modifierBucket.addModifier(increaseMaxHP);
 
@@ -45,7 +45,7 @@ public class ModifierBucketTest {
 
 	@Test
 	void testSimpleRemoveByExpiry() {
-		StatModifier increaseMaxHP = new StatModifier(10, ModifierStackPolicy.UNIQUE_BY_SOURCE, ModifierType.FLAT,
+		StatModifier increaseMaxHP = new StatModifier(10, ModifierStackPolicy.UNIQUE_BY_SOURCE, StatModifierType.FLAT,
 				StatType.HEALTH_MAX, "Test", 2.5, clock.getTimeMillis(), StatTarget.BOTH);
 		modifierBucket.addModifier(increaseMaxHP);
 
@@ -61,9 +61,9 @@ public class ModifierBucketTest {
 
 	@Test
 	void testDuplicateUniqueAdd() {
-		StatModifier increaseMaxHP = new StatModifier(10, ModifierStackPolicy.UNIQUE_BY_SOURCE, ModifierType.FLAT,
+		StatModifier increaseMaxHP = new StatModifier(10, ModifierStackPolicy.UNIQUE_BY_SOURCE, StatModifierType.FLAT,
 				StatType.HEALTH_MAX, "Test", -1, clock.getTimeMillis(), StatTarget.BOTH);
-		StatModifier increaseMaxHP2 = new StatModifier(20, ModifierStackPolicy.UNIQUE_BY_SOURCE, ModifierType.FLAT,
+		StatModifier increaseMaxHP2 = new StatModifier(20, ModifierStackPolicy.UNIQUE_BY_SOURCE, StatModifierType.FLAT,
 				StatType.HEALTH_MAX, "Test", -1, clock.getTimeMillis(), StatTarget.BOTH);
 
 		modifierBucket.addModifier(increaseMaxHP);
@@ -75,9 +75,9 @@ public class ModifierBucketTest {
 
 	@Test
 	void testReplacePolicy() {
-		StatModifier increaseMaxHP = new StatModifier(10, ModifierStackPolicy.UNIQUE_BY_SOURCE, ModifierType.FLAT,
+		StatModifier increaseMaxHP = new StatModifier(10, ModifierStackPolicy.UNIQUE_BY_SOURCE, StatModifierType.FLAT,
 				StatType.HEALTH_MAX, "Test", -1, clock.getTimeMillis(), StatTarget.BOTH);
-		StatModifier increaseMaxHP2 = new StatModifier(20, ModifierStackPolicy.REPLACE, ModifierType.FLAT,
+		StatModifier increaseMaxHP2 = new StatModifier(20, ModifierStackPolicy.REPLACE, StatModifierType.FLAT,
 				StatType.HEALTH_MAX, "Test2", -1, clock.getTimeMillis(), StatTarget.BOTH);
 
 		modifierBucket.addModifier(increaseMaxHP);
@@ -89,9 +89,9 @@ public class ModifierBucketTest {
 
 	@Test
 	void testMaxPolicy() {
-		StatModifier increaseMaxHP = new StatModifier(20, ModifierStackPolicy.UNIQUE_BY_SOURCE, ModifierType.FLAT,
+		StatModifier increaseMaxHP = new StatModifier(20, ModifierStackPolicy.UNIQUE_BY_SOURCE, StatModifierType.FLAT,
 				StatType.HEALTH_MAX, "Test", -1, clock.getTimeMillis(), StatTarget.BOTH);
-		StatModifier increaseMaxHP2 = new StatModifier(10, ModifierStackPolicy.MAX_ONLY, ModifierType.FLAT,
+		StatModifier increaseMaxHP2 = new StatModifier(10, ModifierStackPolicy.MAX_ONLY, StatModifierType.FLAT,
 				StatType.HEALTH_MAX, "Test2", -1, clock.getTimeMillis(), StatTarget.BOTH);
 
 		modifierBucket.addModifier(increaseMaxHP);
@@ -103,9 +103,9 @@ public class ModifierBucketTest {
 
 	@Test
 	void testMinPolicy() {
-		StatModifier increaseMaxHP = new StatModifier(20, ModifierStackPolicy.UNIQUE_BY_SOURCE, ModifierType.FLAT,
+		StatModifier increaseMaxHP = new StatModifier(20, ModifierStackPolicy.UNIQUE_BY_SOURCE, StatModifierType.FLAT,
 				StatType.HEALTH_MAX, "Test", -1, clock.getTimeMillis(), StatTarget.BOTH);
-		StatModifier increaseMaxHP2 = new StatModifier(10, ModifierStackPolicy.MIN_ONLY, ModifierType.FLAT,
+		StatModifier increaseMaxHP2 = new StatModifier(10, ModifierStackPolicy.MIN_ONLY, StatModifierType.FLAT,
 				StatType.HEALTH_MAX, "Test2", -1, clock.getTimeMillis(), StatTarget.BOTH);
 
 		modifierBucket.addModifier(increaseMaxHP);
@@ -117,9 +117,9 @@ public class ModifierBucketTest {
 
 	@Test
 	void testStackPolicy() {
-		StatModifier increaseMaxHP = new StatModifier(20, ModifierStackPolicy.UNIQUE_BY_SOURCE, ModifierType.FLAT,
+		StatModifier increaseMaxHP = new StatModifier(20, ModifierStackPolicy.UNIQUE_BY_SOURCE, StatModifierType.FLAT,
 				StatType.HEALTH_MAX, "Test", -1, clock.getTimeMillis(), StatTarget.BOTH);
-		StatModifier increaseMaxHP2 = new StatModifier(10, ModifierStackPolicy.STACK, ModifierType.FLAT,
+		StatModifier increaseMaxHP2 = new StatModifier(10, ModifierStackPolicy.STACK, StatModifierType.FLAT,
 				StatType.HEALTH_MAX, "Test2", -1, clock.getTimeMillis(), StatTarget.BOTH);
 
 		modifierBucket.addModifier(increaseMaxHP);

@@ -31,13 +31,21 @@ public class CoreCommand extends Command {
 
     public boolean execute(@NotNull CommandSender sender, @NotNull String commandLabel, String[] args) {
         if (args.length > 0) {
-            for (int i = 0; i < this.getSubCommands().size(); ++i) {
-                if (args[0].equalsIgnoreCase(((SubCommand) this.getSubCommands().get(i)).getName()) || ((SubCommand) this.getSubCommands().get(i)).getAliases() != null && ((SubCommand) this.getSubCommands().get(i)).getAliases().contains(args[0])) {
-                    ((SubCommand) this.getSubCommands().get(i)).perform(sender, args);
+            boolean executed = this.getSubCommands().stream()
+                .filter(subcmd -> subcmd.getName().equalsIgnoreCase(args[0]) || 
+                        (subcmd.getAliases() != null && subcmd.getAliases().contains(args[0])))
+                .findFirst()
+                .map(subcmd -> {
+                    subcmd.perform(sender, args);
                     return true;
-                }
+                })
+                .orElse(false);
+            
+            if (executed) {
+                return true;
             }
         }
+        
         if (this.commandList == null) {
             displayUsage(sender);
         } else {
@@ -56,32 +64,37 @@ public class CoreCommand extends Command {
     }
 
     public @NotNull List<String> tabComplete(@NotNull CommandSender sender, @NotNull String alias, String[] args) throws IllegalArgumentException {
+        if (args.length == 0) {
+            return Collections.emptyList();
+        }
+
+        // Tab complete subcommand names at first argument
         if (args.length == 1) {
-            ArrayList<String> subcommandsArguments = new ArrayList();
-            for(int i = 0; i < this.getSubCommands().size(); ++i) {
-                subcommandsArguments.add(((SubCommand)this.getSubCommands().get(i)).getName());
+            List<String> subcommandsArguments = new ArrayList<>();
+            for (SubCommand subcmd : this.getSubCommands()) {
+                subcommandsArguments.add(subcmd.getName());
             }
             List<String> completions = new ArrayList<>();
             StringUtil.copyPartialMatches(args[args.length - 1], subcommandsArguments, completions);
             return completions;
-        } else {
-            if (args.length >= 2) {
-                for(int i = 0; i < this.getSubCommands().size(); ++i) {
-                    List<String> names = new ArrayList<>(List.of(this.getSubCommands().get(i).getName()));
-                    names.addAll(this.getSubCommands().get(i).getAliases());
-                    if (names.stream().anyMatch(s -> s.equalsIgnoreCase(args[0]))) {
-                        List<String> subCommandArgs = ((SubCommand)this.getSubCommands().get(i)).getSubcommandArguments((Player)sender, args);
-                        if (subCommandArgs != null) {
-                            List<String> completions = new ArrayList<>();
-                            StringUtil.copyPartialMatches(args[args.length - 1], subCommandArgs, completions);
-                            return completions;
-                        }
-                        return Collections.emptyList();
+        }
+
+        // Tab complete subcommand arguments
+        if (args.length >= 2) {
+            for (SubCommand subcmd : this.getSubCommands()) {
+                if (subcmd.getName().equalsIgnoreCase(args[0]) || 
+                    (subcmd.getAliases() != null && subcmd.getAliases().contains(args[0]))) {
+                    List<String> subCommandArgs = subcmd.getSubcommandArguments((Player) sender, args);
+                    if (subCommandArgs != null) {
+                        List<String> completions = new ArrayList<>();
+                        StringUtil.copyPartialMatches(args[args.length - 1], subCommandArgs, completions);
+                        return completions;
                     }
+                    return Collections.emptyList();
                 }
             }
-
-            return Collections.emptyList();
         }
+
+        return Collections.emptyList();
     }
 }

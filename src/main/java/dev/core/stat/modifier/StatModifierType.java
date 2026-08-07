@@ -1,6 +1,6 @@
 package dev.core.stat.modifier;
 
-public enum ModifierType {
+public enum StatModifierType {
 
 	FLAT,			// +40 Just add a flat amount
 	PERCENT_ADD,	// +10% Sums with other percentage add

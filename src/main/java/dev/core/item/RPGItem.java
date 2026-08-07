@@ -14,7 +14,7 @@ import dev.core.item.equipment.EquipmentSlot;
 import dev.core.stat.StatTarget;
 import dev.core.stat.StatType;
 import dev.core.stat.modifier.ModifierStackPolicy;
-import dev.core.stat.modifier.ModifierType;
+import dev.core.stat.modifier.StatModifierType;
 import dev.core.stat.modifier.StatModifier;
 
 public class RPGItem {
@@ -47,34 +47,37 @@ public class RPGItem {
 
     public RPGItem(String id, String name, String material, EquipmentSlot equipmentSlot,
             List<StatModifier> passiveStats, List<StatModifier> activeStats, List<Ability> abilities) {
-        this(id, name, material, equipmentSlot, null, passiveStats, activeStats, abilities, new ArrayList<>(),
-                RPGClassType.NONE, 0);
+        this(builder(id, name, material, equipmentSlot)
+            .withPassiveStats(passiveStats)
+            .withActiveStats(activeStats)
+            .withAbilities(abilities));
     }
 
     public RPGItem(String id, String name, String material, EquipmentSlot equipmentSlot, RPGItemSet itemSet,
             List<StatModifier> passiveStats, List<StatModifier> activeStats, List<Ability> abilities,
             List<String> description) {
-        this(id, name, material, equipmentSlot, itemSet, passiveStats, activeStats, abilities, description,
-                RPGClassType.NONE, 0);
+        this(builder(id, name, material, equipmentSlot)
+            .withItemSet(itemSet)
+            .withPassiveStats(passiveStats)
+            .withActiveStats(activeStats)
+            .withAbilities(abilities)
+            .withDescription(description));
     }
 
     public RPGItem(String id, String name, String material, EquipmentSlot equipmentSlot, RPGItemSet itemSet,
             List<StatModifier> passiveStats, List<StatModifier> activeStats, List<Ability> abilities,
             List<String> description, RPGClassType rpgClassType, int unlockLevel) {
-        this.id = id;
-        this.name = name;
-        this.description = description;
-        this.material = material != null ? material : "STONE";
-        this.passiveStats = passiveStats != null ? new ArrayList<>(passiveStats) : new ArrayList<>();
-        this.activeStats = activeStats != null ? new ArrayList<>(activeStats) : new ArrayList<>();
-        this.abilities = abilities != null ? new ArrayList<>(abilities) : new ArrayList<>();
-        this.equipmentSlot = equipmentSlot;
-        this.itemSet = Optional.ofNullable(itemSet);
-        this.rpgClassType = rpgClassType != null ? rpgClassType : RPGClassType.NONE;
-        this.unlockLevel = unlockLevel;
+        this(builder(id, name, material, equipmentSlot)
+            .withItemSet(itemSet)
+            .withPassiveStats(passiveStats)
+            .withActiveStats(activeStats)
+            .withAbilities(abilities)
+            .withDescription(description)
+            .withRpgClassType(rpgClassType)
+            .withUnlockLevel(unlockLevel));
     }
 
-    // Legacy constructors for backward compatibility
+    // Legacy constructors for backward compatibility - delegate to builder
     public RPGItem(String id, String name, EquipmentSlot equipmentSlot, List<StatModifier> passiveStats,
             List<StatModifier> activeStats, List<Ability> abilities) {
         this(id, name, "STONE", equipmentSlot, null, passiveStats, activeStats, abilities, new ArrayList<>(),
@@ -119,9 +122,10 @@ public class RPGItem {
             Map<String, Object> modMap = new HashMap<>();
             modMap.put("amount", sm.amount);
             modMap.put("policy", sm.stackPolicy.name());
-            modMap.put("modifierType", sm.modifierType.name());
+            modMap.put("statModifierType", sm.statModifierType.name());
             modMap.put("statType", sm.statType.name());
             modMap.put("statTarget", sm.statTarget.name());
+            modMap.put("priority", sm.priority);
             passiveData.add(modMap);
         }
         if (!passiveData.isEmpty()) {
@@ -134,9 +138,10 @@ public class RPGItem {
             Map<String, Object> modMap = new HashMap<>();
             modMap.put("amount", sm.amount);
             modMap.put("policy", sm.stackPolicy.name());
-            modMap.put("modifierType", sm.modifierType.name());
+            modMap.put("statModifierType", sm.statModifierType.name());
             modMap.put("statType", sm.statType.name());
             modMap.put("statTarget", sm.statTarget.name());
+            modMap.put("priority", sm.priority);
             activeData.add(modMap);
         }
         if (!activeData.isEmpty()) {
@@ -235,12 +240,16 @@ public class RPGItem {
     private static StatModifier deserializeStatModifier(String sourceId, Map<String, Object> data) {
         double amount = ((Number) data.getOrDefault("amount", 0)).doubleValue();
         ModifierStackPolicy policy = ModifierStackPolicy.valueOf((String) data.getOrDefault("policy", "STACK"));
-        ModifierType modifierType = ModifierType.valueOf((String) data.getOrDefault("modifierType", "FLAT"));
+        StatModifierType statModifierType = StatModifierType.valueOf((String) data.getOrDefault("statModifierType", "FLAT"));
         StatType statType = StatType.valueOf((String) data.getOrDefault("statType", StatType.ATTACK_DAMAGE.name()));
         StatTarget statTarget = StatTarget.valueOf((String) data.getOrDefault("statTarget", "BOTH"));
+        int priority = ((Number) data.getOrDefault("priority", 0)).intValue();
 
-        return new StatModifier(amount, policy, modifierType, statType, sourceId, -1, System.currentTimeMillis(),
-                statTarget);
+        return StatModifier.builder(amount, statModifierType, statType, sourceId)
+            .stackPolicy(policy)
+            .statTarget(statTarget)
+            .priority(priority)
+            .build();
     }
 
     // Getters

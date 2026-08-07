@@ -15,6 +15,7 @@ import dev.bukkit.item.BukkitInventorySync;
 import dev.bukkit.item.BukkitItemStackAdapter;
 import dev.core.entity.EntityManager;
 import dev.core.item.loader.RPGItemRegistry;
+import dev.core.item.RPGItem;
 
 public class GiveItemCommand implements TabExecutor {
 
@@ -25,94 +26,79 @@ public class GiveItemCommand implements TabExecutor {
     public boolean onCommand(CommandSender sender, Command command, String label, String[] args) {
         if (sender instanceof Player player) {
             if (args.length == 1) {
-                EntityManager.getInstance().getEntity(player.getUniqueId()).ifPresent(p -> {
-                    String id = args[0];
-                    RPGItemRegistry.getInstance().getItem(id).ifPresentOrElse(item -> {
-                        player.getInventory().addItem(BukkitItemStackAdapter.toItemStack(item));
-                        sender.sendMessage("Success! You received " + item.getName());
-                    }, () -> {
-                        player.sendMessage("This item does not exist");
-                    });
-                    BukkitInventorySync.syncInventory(p, player);
-                });
+                giveItemToPlayer(player, player, args[0], sender);
             } else if (args.length == 2) {
-                String playerName = args[0];
-                String itemId = args[1];
-
-                Player target = Bukkit.getPlayer(playerName);
+                Player target = Bukkit.getPlayer(args[0]);
                 if (target == null) {
                     sender.sendMessage("Player not found");
                 } else {
-                    EntityManager.getInstance().getEntity(target.getUniqueId()).ifPresent(p -> {
-                        if (args.length == 1) {
-                            RPGItemRegistry.getInstance().getItem(itemId).ifPresentOrElse(item -> {
-                                target.getInventory().addItem(BukkitItemStackAdapter.toItemStack(item));
-                                sender.sendMessage(
-                                        "Success! Player " + target.getName() + " received " + item.getName());
-                            }, () -> {
-                                sender.sendMessage("This item does not exist");
-                            });
-                            BukkitInventorySync.syncInventory(p, target);
-                        }
-                    });
+                    giveItemToPlayer(target, player, args[1], sender);
                 }
             }
-
         } else if (sender instanceof ConsoleCommandSender) {
             if (args.length != 2) {
                 sender.sendMessage("Incorrect Syntax! /giveItem <player> <item>");
             } else {
-                String playerName = args[0];
-                String itemId = args[1];
-
-                Player player = Bukkit.getPlayer(playerName);
+                Player player = Bukkit.getPlayer(args[0]);
                 if (player == null) {
                     sender.sendMessage("Player not found");
                 } else {
-                    EntityManager.getInstance().getEntity(player.getUniqueId()).ifPresent(p -> {
-                        if (args.length == 1) {
-                            RPGItemRegistry.getInstance().getItem(itemId).ifPresentOrElse(item -> {
-                                player.getInventory().addItem(BukkitItemStackAdapter.toItemStack(item));
-                                sender.sendMessage(
-                                        "Success! Player " + player.getName() + " received " + item.getName());
-                            }, () -> {
-                                sender.sendMessage("This item does not exist");
-                            });
-                            BukkitInventorySync.syncInventory(p, player);
-                        }
-                    });
+                    giveItemToPlayer(player, null, args[1], sender);
                 }
             }
         }
         return false;
     }
 
-    @Override
-    public List<String> onTabComplete(CommandSender sender, Command command, String label, String[] args) {
-        if (sender instanceof Player) {
-            if (args.length >= 1) {
-                List<String> completions = new ArrayList<>();
-
-                List<String> subCommandNames = RPGItemRegistry.getInstance().allItems().entrySet().stream()
-                        .map(entry -> entry.getValue().getId()).toList();
-
-                StringUtil.copyPartialMatches(args[0], subCommandNames, completions);
-                return completions;
-            }
-        }
-
-        else if (sender instanceof ConsoleCommandSender) {
-            if (args.length == 2) {
-                List<String> completions = new ArrayList<>();
-
-                List<String> subCommandNames = RPGItemRegistry.getInstance().allItems().entrySet().stream()
-                        .map(entry -> entry.getValue().getId()).toList();
-
-                StringUtil.copyPartialMatches(args[1], subCommandNames, completions);
-                return completions;
-            }
-        }
-        return null;
+    /**
+     * Helper method to give an item to a player and sync inventory.
+     *
+     * @param recipient The player receiving the item
+     * @param executor The player executing the command (null if console)
+     * @param itemId The ID of the item to give
+     * @param sender The command sender for feedback
+     */
+    private void giveItemToPlayer(Player recipient, Player executor, String itemId, CommandSender sender) {
+        EntityManager.getInstance().getEntity(recipient.getUniqueId()).ifPresent(entity -> {
+            RPGItemRegistry.getInstance().getItem(itemId).ifPresentOrElse(
+                item -> {
+                    recipient.getInventory().addItem(BukkitItemStackAdapter.toItemStack(item));
+                    sender.sendMessage("Success! Player " + recipient.getName() + " received " + item.getName());
+                    BukkitInventorySync.syncInventory(entity, recipient);
+                },
+                () -> sender.sendMessage("This item does not exist")
+            );
+        });
     }
 
+    @Override
+    public List<String> onTabComplete(CommandSender sender, Command command, String label, String[] args) {
+        if (args.length == 0) {
+            return new ArrayList<>();
+        }
+
+        List<String> completions = new ArrayList<>();
+        List<String> itemIds = RPGItemRegistry.getInstance().allItems().values().stream()
+            .map(RPGItem::getId)
+            .toList();
+
+        if (sender instanceof Player) {
+            if (args.length >= 1) {
+                StringUtil.copyPartialMatches(args[args.length - 1], itemIds, completions);
+            }
+        } else if (sender instanceof ConsoleCommandSender) {
+            if (args.length == 1) {
+                // Complete player names
+                List<String> playerNames = Bukkit.getOnlinePlayers().stream()
+                    .map(Player::getName)
+                    .toList();
+                StringUtil.copyPartialMatches(args[0], playerNames, completions);
+            } else if (args.length == 2) {
+                // Complete item IDs
+                StringUtil.copyPartialMatches(args[1], itemIds, completions);
+            }
+        }
+
+        return completions;
+    }
 }

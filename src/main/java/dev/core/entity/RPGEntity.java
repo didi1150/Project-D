@@ -18,6 +18,9 @@ import dev.core.stat.DefaultStats;
 import dev.core.stat.StatManager;
 import dev.core.stat.StatType;
 import dev.core.stat.modifier.StatModifier;
+import dev.core.stat.engine.StatEngine;
+import dev.core.stat.engine.StatEngineAdapter;
+import dev.core.stat.provider.adapter.ModifierBucketProvider;
 
 public abstract class RPGEntity {
 
@@ -28,6 +31,8 @@ public abstract class RPGEntity {
     private final StatManager statManager;
     private final EquipmentManager equipmentManager;
     private final EffectManagerInterface effectManagerInterface;
+    private final StatEngine statEngine;
+    private final StatEngineAdapter statEngineAdapter;
 
     private boolean alive = true;
     private EventBusInterface eventBusInterface;
@@ -52,10 +57,25 @@ public abstract class RPGEntity {
         this.entityType = entityType;
         this.classType = classType;
         this.attackTracker = new RPGEntityAttackTracker(this);
+        this.statEngine = new StatEngine(this);
+        // register provider that bridges the legacy StatManager modifier buckets
+        this.statEngine.registerProvider(new ModifierBucketProvider(this));
+        // let StatManager know about the new engine so it can invalidate caches on change
+        this.statManager.setStatEngine(this.statEngine);
+        // create adapter for migrating combat methods
+        this.statEngineAdapter = new StatEngineAdapter(this.statEngine, this.statManager);
     }
 
     public RPGClassType getClassType() {
         return classType;
+    }
+
+    /**
+     * Create a builder for constructing RPGEntity instances.
+     * Provides fluent API for flexible entity configuration.
+     */
+    public static RPGEntityBuilder builder(UUID uuid, String name, EntityType entityType) {
+        return new RPGEntityBuilder(uuid, name, entityType);
     }
 
     // =========================- Lifecycle ==========================
@@ -155,7 +175,7 @@ public abstract class RPGEntity {
 
         // Step 1: Apply critical strike (before penetration calculations)
         if (attacker != null) {
-            double critChance = attacker.getStatManager().getCurrentValue(StatType.CRIT_CHANCE,
+            double critChance = attacker.getStatEngineAdapter().getCurrentValue(StatType.CRIT_CHANCE,
                     System.currentTimeMillis());
             int roll = new Random().nextInt(101);
             if (roll < critChance) {
@@ -194,17 +214,17 @@ public abstract class RPGEntity {
     }
 
     private double applyPhysicalDefense(double damage, RPGEntity attacker, RPGEntity target) {
-        double targetArmor = target.getStatManager().getCurrentValue(StatType.ARMOR, System.currentTimeMillis());
+        double targetArmor = target.getStatEngineAdapter().getCurrentValue(StatType.ARMOR, System.currentTimeMillis());
         double effectiveArmor = targetArmor;
 
         if (attacker != null) {
             // Step 1: Apply Lethality (flat armor reduction)
-            double lethality = attacker.getStatManager().getCurrentValue(StatType.LETHALITY,
+            double lethality = attacker.getStatEngineAdapter().getCurrentValue(StatType.LETHALITY,
                     System.currentTimeMillis());
             effectiveArmor = Math.max(0, effectiveArmor - lethality);
 
             // Step 2: Apply Armor Penetration (percentage)
-            double armorPen = attacker.getStatManager().getCurrentValue(StatType.ARMOR_PENETRATION,
+            double armorPen = attacker.getStatEngineAdapter().getCurrentValue(StatType.ARMOR_PENETRATION,
                     System.currentTimeMillis());
             effectiveArmor = effectiveArmor * (1.0 - (armorPen / 100.0));
         }
@@ -222,7 +242,7 @@ public abstract class RPGEntity {
     }
 
     private double applyMagicDefense(double damage, RPGEntity attacker, RPGEntity target) {
-        double targetMR = target.getStatManager().getCurrentValue(StatType.MAGIC_RESIST, System.currentTimeMillis());
+        double targetMR = target.getStatEngineAdapter().getCurrentValue(StatType.MAGIC_RESIST, System.currentTimeMillis());
         double effectiveMR = targetMR;
 
         // Calculate damage reduction without penetration
@@ -252,7 +272,7 @@ public abstract class RPGEntity {
     }
 
     private double applyHealPower(double amount, RPGEntity target) {
-        double healPower = target.getStatManager().getCurrentValue(StatType.HEAL_AND_SHIELD_POWER,
+        double healPower = target.getStatEngineAdapter().getCurrentValue(StatType.HEAL_AND_SHIELD_POWER,
                 System.currentTimeMillis());
 
         return amount * (1.0 + (healPower / 100.0));
@@ -288,6 +308,14 @@ public abstract class RPGEntity {
 
     public EffectManagerInterface getEffectManager() {
         return effectManagerInterface;
+    }
+
+    public StatEngine getStatEngine() {
+        return statEngine;
+    }
+
+    public StatEngineAdapter getStatEngineAdapter() {
+        return statEngineAdapter;
     }
 
     public boolean isAlive() {

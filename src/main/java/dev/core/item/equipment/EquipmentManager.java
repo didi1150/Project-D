@@ -20,6 +20,8 @@ import dev.core.item.RPGItem;
 import dev.core.item.RPGItemSet;
 import dev.core.stat.StatType;
 import dev.core.stat.modifier.StatModifier;
+import dev.core.stat.provider.StatProvider;
+import dev.core.stat.provider.adapter.ItemStatProvider;
 
 public class EquipmentManager {
 
@@ -33,6 +35,10 @@ public class EquipmentManager {
 
 	private final Map<RPGItemSet, Integer> activeSetCounts;
 	private final Map<RPGItemSet, SetBonus> appliedBonuses;
+
+	// Provider tracking for the new StatEngine (migration bridge)
+	private final Map<EquipmentSlot, StatProvider> appliedActiveProviders = new HashMap<>();
+	private final Map<RPGItem, StatProvider> appliedPassiveProviders = new HashMap<>();
 
 	/**
 	 * Ability ID, EventAction ID
@@ -57,6 +63,7 @@ public class EquipmentManager {
 		this.temporaryAbilities = new ArrayList<Ability>();
 		this.activeSetCounts = new HashMap<RPGItemSet, Integer>();
 		this.appliedBonuses = new HashMap<RPGItemSet, SetBonus>();
+		// appliedActiveProviders and appliedPassiveProviders initialized inline
 	}
 
 	/**
@@ -265,67 +272,93 @@ public class EquipmentManager {
 		activeSetCounts.putAll(counts);
 	}
 
-	private void applyActiveStats(EquipmentSlot slot, RPGItem item) {
-		List<StatModifier> activeStats = item.getActiveStats();
-//		System.out.println("Applied stats from slot " + slot.name() + " (" + activeStats.size() + ")");
-		if (activeStats.isEmpty()) {
-			return;
-		}
+    private void applyActiveStats(EquipmentSlot slot, RPGItem item) {
+        if (item.getActiveStats().isEmpty()) {
+            return;
+        }
 
-		// Apply stats to the holder
-		for (StatModifier statModifier : activeStats) {
-			holder.getStatManager().addStatModifier(statModifier);
-		}
+        // Register provider with StatEngine (new way - single source of truth)
+        try {
+            ItemStatProvider provider = new ItemStatProvider(item, true);
+            holder.getStatEngine().registerProvider(provider);
+            appliedActiveProviders.put(slot, provider);
+        } catch (Exception e) {
+            // Fallback: if StatEngine unavailable, still apply to StatManager for backward compat
+            List<StatModifier> activeStats = item.getActiveStats();
+            for (StatModifier statModifier : activeStats) {
+                holder.getStatManager().addStatModifier(statModifier);
+            }
+            appliedActiveStats.put(slot, new ArrayList<>(activeStats));
+        }
+    }
 
-		// Track applied stats for removal
-		appliedActiveStats.put(slot, new ArrayList<StatModifier>(activeStats));
-	}
+    private void removeActiveStats(EquipmentSlot slot) {
+        // Unregister provider from StatEngine
+        StatProvider provider = appliedActiveProviders.remove(slot);
+        if (provider != null) {
+            try {
+                holder.getStatEngine().unregisterProvider(provider.getId());
+                return;
+            } catch (Exception ignored) {
+            }
+        }
 
-	private void removeActiveStats(EquipmentSlot slot) {
-		List<StatModifier> statsToRemove = appliedActiveStats.get(slot);
-		if (statsToRemove == null) {
-			return;
-		}
+        // Fallback: remove from StatManager if StatEngine unavailable
+        List<StatModifier> statsToRemove = appliedActiveStats.get(slot);
+        if (statsToRemove == null) {
+            return;
+        }
 
-		// Remove stats from holder
+        for (StatModifier statModifier : statsToRemove) {
+            holder.getStatManager().removeStatModifier(statModifier);
+        }
 
-		for (StatModifier statModifier : statsToRemove) {
-			holder.getStatManager().removeStatModifier(statModifier);
-		}
+        appliedActiveStats.remove(slot);
+    }
 
-		// Clear tracking
-		appliedActiveStats.remove(slot);
-	}
+    private void applyPassiveStats(RPGItem item) {
+        if (item.getPassiveStats().isEmpty()) {
+            return;
+        }
 
-	private void applyPassiveStats(RPGItem item) {
-		List<StatModifier> passiveStats = item.getPassiveStats();
-		if (passiveStats.isEmpty()) {
-			return;
-		}
+        // Register provider with StatEngine (new way - single source of truth)
+        try {
+            ItemStatProvider provider = new ItemStatProvider(item, false);
+            holder.getStatEngine().registerProvider(provider);
+            appliedPassiveProviders.put(item, provider);
+        } catch (Exception e) {
+            // Fallback: if StatEngine unavailable, still apply to StatManager for backward compat
+            List<StatModifier> passiveStats = item.getPassiveStats();
+            for (StatModifier statModifier : passiveStats) {
+                holder.getStatManager().addStatModifier(statModifier);
+            }
+            appliedPassiveStats.put(item, new ArrayList<>(passiveStats));
+        }
+    }
 
-		// Apply stats to the holder
-		for (StatModifier statModifier : passiveStats) {
-			holder.getStatManager().addStatModifier(statModifier);
-		}
+    private void removePassiveStats(RPGItem item) {
+        // Unregister provider from StatEngine
+        StatProvider provider = appliedPassiveProviders.remove(item);
+        if (provider != null) {
+            try {
+                holder.getStatEngine().unregisterProvider(provider.getId());
+                return;
+            } catch (Exception ignored) {
+            }
+        }
 
-		// Track applied stats for removal
-		appliedPassiveStats.put(item, new ArrayList<>(passiveStats));
-	}
+        // Fallback: remove from StatManager if StatEngine unavailable
+        List<StatModifier> statsToRemove = appliedPassiveStats.get(item);
+        if (statsToRemove == null) {
+            return;
+        }
 
-	private void removePassiveStats(RPGItem item) {
-		List<StatModifier> statsToRemove = appliedPassiveStats.get(item);
-		if (statsToRemove == null) {
-			return;
-		}
+        for (StatModifier statModifier : statsToRemove) {
+            holder.getStatManager().removeStatModifier(statModifier);
+        }
 
-		// Remove stats from holder
-		for (StatModifier statModifier : statsToRemove) {
-			holder.getStatManager().removeStatModifier(statModifier);
-		}
-
-		// Clear tracking
-		appliedPassiveStats.remove(item);
-	}
+        appliedPassiveStats.remove(item);
+    }
 
 	private List<Ability> getManualAbilities(RPGItem item, AbilityAction action) {
 		List<Ability> abilities = new ArrayList<Ability>();

@@ -73,14 +73,14 @@ public class ModifierBucket {
 		// Otherwise, recalc
 		lastCachedBaseValue = baseValue;
 
-		Map<ModifierType, List<StatModifier>> grouped = modifiers.stream()
-				.collect(Collectors.groupingBy(s -> s.modifierType));
+		Map<StatModifierType, List<StatModifier>> grouped = modifiers.stream()
+				.collect(Collectors.groupingBy(s -> s.statModifierType));
 
 		double result = baseValue;
-		result += flatLayer(grouped.get(ModifierType.FLAT));
-		result *= percentAddLayer(grouped.get(ModifierType.PERCENT_ADD));
-		result *= percentMulLayer(grouped.get(ModifierType.MULTIPLY));
-		result = overrideLayer(grouped.get(ModifierType.OVERRIDE), result);
+		result += flatLayer(grouped.get(StatModifierType.FLAT));
+		result *= percentAddLayer(grouped.get(StatModifierType.PERCENT_ADD));
+		result *= percentMulLayer(grouped.get(StatModifierType.MULTIPLY));
+		result = overrideLayer(grouped.get(StatModifierType.OVERRIDE), result);
 
 		cachedValue = result;
 		dirty = false;

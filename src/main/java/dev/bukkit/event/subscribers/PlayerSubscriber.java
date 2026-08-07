@@ -285,7 +285,8 @@ public class PlayerSubscriber {
 
     public void subscribeDropItem() {
         eventBus.subscribe(new EventAction<>(event -> {
-            if (event.getPlayer() instanceof Player player) {
+            Player player = event.getPlayer();
+            if (player != null) {
                 Bukkit.getScheduler().runTask(plugin, () -> {
                     EntityManager.getInstance().getEntity(player.getUniqueId()).ifPresent(rpg -> {
                         BukkitInventorySync.syncInventoryDiff(rpg, player);

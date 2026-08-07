@@ -5,6 +5,7 @@ import java.util.List;
 
 import dev.core.event.EventAction;
 import dev.core.event.EventBusInterface;
+import dev.core.event.EventSubscriptionManager;
 
 public abstract class GameState {
     protected final String name;
@@ -16,14 +17,14 @@ public abstract class GameState {
     protected long startTime;
     protected long remainingTicks;
     private EventBusInterface eventBus;
-    private List<String> subscriberIds;
+    protected EventSubscriptionManager subscriptionManager;
 
     public GameState(String name, long duration, EventBusInterface eventBus) {
         this.name = name;
         this.duration = duration;
         this.remainingTicks = duration;
         this.eventBus = eventBus;
-        this.subscriberIds = new ArrayList<>();
+        this.subscriptionManager = new EventSubscriptionManager(eventBus);
     }
 
     // Called when state becomes active
@@ -114,16 +115,16 @@ public abstract class GameState {
 
     protected abstract void registerSubscribers();
 
+    /**
+     * Helper method to add event subscribers using the subscription manager.
+     * Automatically tracks subscriptions for cleanup.
+     */
     protected void addSubscriber(EventAction<?> eventAction) {
-        eventBus.subscribe(eventAction);
-        subscriberIds.add(eventAction.getId());
+        subscriptionManager.subscribe(eventAction);
     }
 
     private void unregisterSubscribers() {
-        for (String id : subscriberIds) {
-            eventBus.unsubscribe(id);
-        }
-        subscriberIds.clear();
+        subscriptionManager.unsubscribeAll();
     }
 
     /**

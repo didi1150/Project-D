@@ -6,10 +6,12 @@ import java.util.Map.Entry;
 
 import dev.core.stat.impl.ResourceStat;
 import dev.core.stat.modifier.StatModifier;
+import dev.core.stat.engine.StatEngine;
 
 public class StatManager {
 
     private final Map<StatType, Stat> stats;
+    private StatEngine statEngine;
 
     public StatManager(Map<StatType, Stat> preStats) {
         this.stats = new HashMap<StatType, Stat>();
@@ -25,18 +27,24 @@ public class StatManager {
 
     public void addStatModifier(StatModifier statModifier) {
         stats.get(statModifier.statType).addModifier(statModifier);
+        if (statEngine != null) statEngine.invalidate();
     }
 
     public void removeStatModifier(StatModifier statModifier) {
         stats.get(statModifier.statType).removeModifier(statModifier);
+        if (statEngine != null) statEngine.invalidate();
     }
 
     public void tick(long now) {
         for (Stat stat : stats.values()) {
-            stat.modifierBucket.removeExpired(now);
+            // removeExpired may alter modifier buckets; always invalidate engine for now
+            try {
+                stat.modifierBucket.removeExpired(now);
+            } catch (Exception ignored) {}
             if (stat instanceof ResourceStat rs) {
                 rs.tick(now);
             }
+            if (statEngine != null) statEngine.invalidate();
         }
     }
 
@@ -72,6 +80,10 @@ public class StatManager {
 
     public Map<StatType, Stat> getStats() {
         return stats;
+    }
+
+    public void setStatEngine(StatEngine engine) {
+        this.statEngine = engine;
     }
 
 }

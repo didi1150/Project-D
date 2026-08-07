@@ -26,7 +26,7 @@ public class MessageComponent {
 
     public Object getNextArg() {
         if (args.isEmpty()) return "<_>";
-        return args.removeFirst();
+        return args.remove(0);
     }
 
     public static MessageComponent of(MessageText messageText, Object ... args) {
