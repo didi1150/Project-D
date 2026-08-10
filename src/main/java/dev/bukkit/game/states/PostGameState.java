@@ -18,7 +18,7 @@ import org.bukkit.potion.PotionEffectType;
 import dev.bukkit.DMain;
 import dev.bukkit.entity.BukkitPlayerEntity;
 import dev.bukkit.game.coords.PointToLocation;
-import dev.bukkit.game.dungeon.DungeonBuilderBukkit;
+import dev.bukkit.game.dungeon.proceduralDungeon.SimpleDungeonBuilderBukkit;
 import dev.bukkit.item.BukkitInventorySync;
 import dev.bukkit.storage.progression.ClassProgressionService;
 import dev.core.entity.EntityManager;
@@ -45,9 +45,14 @@ public class PostGameState extends GameState {
 
     @Override
     protected void onStart() {
-        DungeonBuilderBukkit dungeonBuilderBukkit = new DungeonBuilderBukkit(plugin,
+        SimpleDungeonBuilderBukkit simpleDungeonBuilderBukkit = new SimpleDungeonBuilderBukkit(plugin,
                 Bukkit.getWorld(GameSettings.getCurrentSettings().getDungeonWorld()));
-        dungeonBuilderBukkit.resetDungeon(GameSettings.getCurrentSettings().getDungeon(), null);
+
+        simpleDungeonBuilderBukkit.resetSpace(GameSettings.getCurrentSettings().getLastGenerator(), null);
+
+//        DungeonBuilderBukkit dungeonBuilderBukkit = new DungeonBuilderBukkit(plugin,
+//                Bukkit.getWorld(GameSettings.getCurrentSettings().getDungeonWorld()));
+//        dungeonBuilderBukkit.resetDungeon(GameSettings.getCurrentSettings().getDungeon(), null);
 
         Bukkit.getOnlinePlayers().forEach(player -> {
             player.teleport(PointToLocation.viewToLoc(GameSettings.getCurrentSettings().getPreLobbySpawn()));
@@ -62,7 +67,7 @@ public class PostGameState extends GameState {
 
     @Override
     protected void onStop() {
-
+        scheduler.cancelAllTasks();
     }
 
     @Override

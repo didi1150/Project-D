@@ -5,10 +5,12 @@ import java.util.Map;
 import java.util.Random;
 import java.util.UUID;
 
+import org.bukkit.Bukkit;
 import org.bukkit.Location;
 import org.bukkit.World;
 import org.bukkit.entity.Display;
 import org.bukkit.entity.Entity;
+import org.bukkit.entity.LivingEntity;
 import org.bukkit.entity.TextDisplay;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
@@ -23,6 +25,7 @@ import org.bukkit.scheduler.BukkitRunnable;
 import org.bukkit.util.Transformation;
 
 import dev.bukkit.event.BukkitEventBus;
+import dev.bukkit.utils.DamageUtils;
 import dev.core.entity.EntityManager;
 import dev.core.entity.RPGDamageResult;
 import dev.core.event.EventAction;
@@ -399,5 +402,11 @@ public class CombatListener implements Listener {
             });
 
         });
+
+        if (event.getEntity() instanceof LivingEntity le && !event.isCancelled()) {
+            Bukkit.getScheduler().runTaskLater(plugin, () -> {
+                DamageUtils.updateName(le);
+            }, 1L);
+        }
     }
 }

@@ -15,6 +15,7 @@ public class GameSettingsLoader {
     public static final String LOCATIONS_PRELOBBYSPAWN = "locations.prelobbyspawn";
     public static final String LOCATIONS_SELECTIONSPAWN = "locations.selectionspawn";
     public static final String LOCATIONS_SELECTIONCLASSES = "locations.selectionclasses";
+    public static final String LOCATIONS_BOSSSPAWN = "locations.bossspawn";
     public static final String MINPLAYERS = "minplayers";
     private GameSettings gameSettings;
     private ConfigProvider configProvider;
@@ -26,7 +27,8 @@ public class GameSettingsLoader {
 
     public void load() {
         boolean setupMode = configProvider.getRoot().getBoolean("setup", true);
-        String dungeonWorld = configProvider.getRoot().getString("dungeonworld", "dungeonworld");
+        String dungeonWorld = configProvider.getRoot().getString("dungeonworld", "");
+        String bossWorld = configProvider.getRoot().getString("bossworld", "");
         ViewPoint3D preLobbySpawn = loadViewCoords(configProvider.getSection(LOCATIONS_PRELOBBYSPAWN));
         ViewPoint3D selectionSpawn = loadViewCoords(configProvider.getSection(LOCATIONS_SELECTIONSPAWN));
         Map<RPGClassType, Point3D> selectionClasses = new HashMap<>();
@@ -37,14 +39,48 @@ public class GameSettingsLoader {
             selectionClasses.put(classType, coord);
         }
 
+        Map<Integer, Point3D> bossSpawns = new HashMap<>();
+        ConfigSection bossSpawnSection = configProvider.getSection(LOCATIONS_BOSSSPAWN);
+        for (String key : bossSpawnSection.getKeys()) {
+            try {
+                int floorIndex = Integer.parseInt(key);
+                bossSpawns.put(floorIndex, loadBlockCoords(bossSpawnSection.getSection(key)));
+            } catch (NumberFormatException ignored) {
+            }
+        }
+
+        Map<Integer, String> bossWorlds = new HashMap<>();
+        ConfigSection bossWorldsSection = configProvider.getSection("bossworlds");
+        for (String key : bossWorldsSection.getKeys()) {
+            try {
+                int floorIndex = Integer.parseInt(key.replaceAll("[^0-9]", ""));
+                bossWorlds.put(floorIndex, bossWorldsSection.getString(key, ""));
+            } catch (NumberFormatException ignored) {
+            }
+        }
+
+        Map<Integer, Point3D> bossPlayerSpawns = new HashMap<>();
+        ConfigSection bossPlayerSpawnSection = configProvider.getSection("locations.bossplayrespawn");
+        for (String key : bossPlayerSpawnSection.getKeys()) {
+            try {
+                int floorIndex = Integer.parseInt(key);
+                bossPlayerSpawns.put(floorIndex, loadBlockCoords(bossPlayerSpawnSection.getSection(key)));
+            } catch (NumberFormatException ignored) {
+            }
+        }
+
         Point3D holeCenter = loadBlockCoords(configProvider.getSection(LOCATIONS_HOLECENTER));
         int minPlayers = configProvider.getRoot().getInt(MINPLAYERS, 1);
 
         gameSettings.setMinPlayers(minPlayers);
         gameSettings.setDungeonWorld(dungeonWorld);
+        gameSettings.setBossWorld(bossWorld);
+        gameSettings.setBossWorlds(bossWorlds);
         gameSettings.setSelectionSpawn(selectionSpawn);
         gameSettings.setPreLobbySpawn(preLobbySpawn);
         gameSettings.setHoleCenter(holeCenter);
+        gameSettings.setBossSpawnLocations(bossSpawns);
+        gameSettings.setBossPlayerSpawnLocations(bossPlayerSpawns);
         gameSettings.setSelectionLocations(selectionClasses);
         gameSettings.setSetupMode(setupMode);
     }
@@ -98,7 +134,33 @@ public class GameSettingsLoader {
     }
 
     public void setDungeonWorld(String world) {
+        gameSettings.setDungeonWorld(world);
         configProvider.getRoot().set("dungeonworld", world);
+        configProvider.save();
+    }
+
+    public void setBossWorld(String world, int floor) {
+        gameSettings.setBossWorldForFloor(floor, world);
+        configProvider.getSection("bossworlds").set("Floor" + floor, world);
+        configProvider.save();
+    }
+
+    public void setBossSpawnLocation(int floorLevel, Point3D point3D) {
+        gameSettings.setBossSpawnLocation(floorLevel, point3D);
+        ConfigSection section = configProvider.getSection(LOCATIONS_BOSSSPAWN + "." + floorLevel);
+        section.set("x", point3D.getX());
+        section.set("y", point3D.getY());
+        section.set("z", point3D.getZ());
+        configProvider.save();
+    }
+
+    public void setBossPlayerSpawnLocation(int floorLevel, Point3D point3D) {
+        gameSettings.setBossPlayerSpawnLocation(floorLevel, point3D);
+        ConfigSection section = configProvider.getSection("locations.bossplayrespawn." + floorLevel);
+        section.set("x", point3D.getX());
+        section.set("y", point3D.getY());
+        section.set("z", point3D.getZ());
+        configProvider.save();
     }
 
     public void setMinPlayers(int count) {

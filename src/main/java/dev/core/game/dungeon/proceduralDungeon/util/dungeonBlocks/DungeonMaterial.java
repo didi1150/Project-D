@@ -54,7 +54,7 @@ public class DungeonMaterial <Mat> {
             }
             start += dungeonMaterial.placeProbability;
         }
-        return dungeonMaterials.getFirst();
+        return dungeonMaterials.get(0);
     }
 
     public static <Mat> Mat getMaterial(List<DungeonMaterial<Mat>> dungeonMaterials, Random random) {

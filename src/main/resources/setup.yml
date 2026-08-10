@@ -1,0 +1,28 @@
+setup: true
+dungeonworld: ""
+bossworld: ""
+bossworlds: {}
+minplayers: 1
+locations:
+  prelobbyspawn:
+    world: ""
+    x: 0
+    y: 64
+    z: 0
+    yaw: 0.0
+    pitch: 0.0
+  selectionspawn:
+    world: ""
+    x: 0
+    y: 64
+    z: 0
+    yaw: 0.0
+    pitch: 0.0
+  holecenter:
+    world: ""
+    x: 0
+    y: 64
+    z: 0
+  selectionclasses: {}
+  bossspawn: {}
+  bossplayrespawn: {}

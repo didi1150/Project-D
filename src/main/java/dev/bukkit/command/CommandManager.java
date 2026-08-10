@@ -12,18 +12,13 @@ import java.util.Optional;
 
 import org.bukkit.Bukkit;
 import org.bukkit.ChatColor;
-import org.bukkit.World;
-import org.bukkit.WorldCreator;
 import org.bukkit.command.CommandMap;
 import org.bukkit.entity.Player;
-import org.bukkit.plugin.Plugin;
 import org.bukkit.plugin.java.JavaPlugin;
 import org.jetbrains.annotations.Nullable;
 
 import dev.bukkit.DMain;
 import dev.bukkit.entity.BukkitPlayerEntity;
-import dev.bukkit.game.dungeon.BukkitStoneWorldGenerator;
-import dev.bukkit.game.dungeon.DungeonBuilderBukkit;
 import dev.bukkit.item.BukkitInventorySync;
 import dev.bukkit.item.BukkitItemStackAdapter;
 import dev.bukkit.item.display.BukkitTextColorAdapter;
@@ -37,12 +32,7 @@ import dev.core.entity.rpgclass.RPGClassType;
 import dev.core.event.EventBusInterface;
 import dev.core.game.GameStateController;
 import dev.core.game.coords.Point3D;
-import dev.core.game.dungeon.DecorationElement;
-import dev.core.game.dungeon.Dungeon;
-import dev.core.game.dungeon.DungeonGenerator;
-import dev.core.game.dungeon.DungeonRoom;
-import dev.core.game.dungeon.DungeonStatistics;
-import dev.core.game.dungeon.SpawnLocation;
+import dev.core.game.settings.GameSettings;
 import dev.core.game.settings.GameSettingsLoader;
 import dev.core.item.RPGItem;
 import dev.core.item.equipment.EquipmentSlot;
@@ -141,21 +131,157 @@ public class CommandManager {
                             SetupUtils.setDungeonWorld(world, gameSettingsLoader);
                             messageSender.sendMessage(player, MessageComponent.of(
                                     "<yellow>The world %s will now be used for dungeon exploration!</yellow> ", world));
+                        }).setPlayerCommandAction(3, "bossworld", (player, args) -> {
+                            try {
+                                String world = args[1];
+                                int floor = Integer.parseInt(args[2]);
+                                SetupUtils.setBossWorld(world, gameSettingsLoader, floor);
+                                messageSender.sendMessage(player, MessageComponent.of(
+                                        "<yellow>The world %s has been set as boss arena of floor %s.</yellow> ", world,
+                                        floor));
+                            } catch (NumberFormatException e) {
+                                messageSender.sendLine(player, "<red></red>");
+                                messageSender.sendCenteredMessage(player,
+                                        MessageComponent.of("<red>Invalid Number <yellow>%s</yellow></red>", args[1]));
+                                messageSender.sendLine(player, "<red></red>");
+                            }
                         }).setPlayerCommandAction(2, "minplayers", (player, args) -> {
                             try {
                                 Integer count = Integer.valueOf(args[1]);
                                 gameSettingsLoader.setMinPlayers(count);
-                                messageSender.sendMessage(player, MessageComponent.of(
-                                        "<yellow>The game will now start at %s player!</yellow> ", args[1]));
+                                messageSender.sendMessage(player, MessageComponent
+                                        .of("<yellow>The game will now start at %s player!</yellow> ", args[1]));
                             } catch (NumberFormatException e) {
                                 messageSender.sendLine(player, "<red></red>");
-                                messageSender.sendCenteredMessage(player, MessageComponent
-                                        .of("<red>Invalid Number <yellow>%s</yellow></red>", args[1]));
+                                messageSender.sendCenteredMessage(player,
+                                        MessageComponent.of("<red>Invalid Number <yellow>%s</yellow></red>", args[1]));
                                 messageSender.sendLine(player, "<red></red>");
                             }
+                        }).setPlayerCommandAction(2, "bossspawn", (player, args) -> {
+                            try {
+                                int floor = Integer.parseInt(args[1]);
+                                Point3D point = new Point3D((int) Math.floor(player.getLocation().getX()),
+                                        (int) Math.floor(player.getLocation().getY()),
+                                        (int) Math.floor(player.getLocation().getZ()));
+                                gameSettingsLoader.setBossSpawnLocation(floor, point);
+                                messageSender.sendCenteredMessage(player, MessageComponent
+                                        .of("<green>Boss spawn for floor %s has been set.</green>", floor));
+                            } catch (NumberFormatException e) {
+                                messageSender.sendLine(player, "<red></red>");
+                                messageSender.sendCenteredMessage(player,
+                                        MessageComponent.of("<red>Invalid Number <yellow>%s</yellow></red>", args[1]));
+                                messageSender.sendLine(player, "<red></red>");
+                            }
+                        }).setPlayerCommandAction(2, "bossplayerspawn", (player, args) -> {
+                            try {
+                                int floor = Integer.parseInt(args[1]);
+                                Point3D point = new Point3D((int) Math.floor(player.getLocation().getX()),
+                                        (int) Math.floor(player.getLocation().getY()),
+                                        (int) Math.floor(player.getLocation().getZ()));
+                                gameSettingsLoader.setBossPlayerSpawnLocation(floor, point);
+                                messageSender.sendCenteredMessage(player, MessageComponent
+                                        .of("<green>Boss player spawn for floor %s has been set.</green>", floor));
+                            } catch (NumberFormatException e) {
+                                messageSender.sendLine(player, "<red></red>");
+                                messageSender.sendCenteredMessage(player,
+                                        MessageComponent.of("<red>Invalid Number <yellow>%s</yellow></red>", args[1]));
+                                messageSender.sendLine(player, "<red></red>");
+                            }
+                        }).setPlayerCommandAction(2, "loadbossworld", (player, args) -> {
+                            String worldId = args[1];
+                            DMain.getInstance().getBossArenaManager().loadTemplateEditWorld(worldId)
+                                    .whenComplete((world, throwable) -> {
+                                        if (throwable != null) {
+                                            messageSender.sendCenteredMessage(player, MessageComponent.of(
+                                                    "<red>Could not load boss template world <yellow>%s</yellow>.Traceback: %s</red>",
+                                                    worldId, throwable.getMessage()));
+                                            return;
+                                        }
+                                        messageSender.sendCenteredMessage(player, MessageComponent.of(
+                                                "<green>Boss template world <yellow>%s</yellow> loaded.</green>",
+                                                worldId));
+                                        player.teleport(world.getSpawnLocation());
+                                    });
+                        }).setPlayerCommandAction(2, "tpbossworld", (player, args) -> {
+                            String worldId = args[1];
+                            String worldName = "boss_template_edit_" + worldId.replaceAll("[^A-Za-z0-9_-]", "_");
+                            org.bukkit.World world = Bukkit.getWorld(worldName);
+                            if (world == null) {
+                                messageSender.sendCenteredMessage(player, MessageComponent.of(
+                                        "<red>Boss template world <yellow>%s</yellow> is not loaded.</red>", worldId));
+                                return;
+                            }
+                            player.teleport(world.getSpawnLocation());
+                            messageSender.sendCenteredMessage(player, MessageComponent.of(
+                                    "<green>Teleported to boss template world <yellow>%s</yellow>.</green>", worldId));
+                        }).setPlayerCommandAction(2, "savebossworld", (player, args) -> {
+                            String worldId = args[1];
+                            DMain.getInstance().getBossArenaManager().saveTemplateEditWorld(worldId)
+                                    .whenComplete((ignored, throwable) -> {
+                                        if (throwable != null) {
+                                            messageSender.sendCenteredMessage(player, MessageComponent.of(
+                                                    "<red>Could not save boss template world <yellow>%s</yellow>.</red>",
+                                                    worldId));
+                                            return;
+                                        }
+                                        messageSender.sendCenteredMessage(player, MessageComponent.of(
+                                                "<green>Boss template world <yellow>%s</yellow> saved back to template.</green>",
+                                                worldId));
+                                    });
+                        }).setPlayerCommandAction(2, "quitbossworld", (player, args) -> {
+                            String worldId = args[1];
+                            DMain.getInstance().getBossArenaManager()
+                                    .quitTemplateEditWorld(worldId, Bukkit.getWorlds().get(0))
+                                    .whenComplete((ignored, throwable) -> {
+                                        if (throwable != null) {
+                                            messageSender.sendCenteredMessage(player, MessageComponent.of(
+                                                    "<red>Could not save boss template world <yellow>%s</yellow>.</red>",
+                                                    worldId));
+                                            return;
+                                        }
+                                        messageSender.sendCenteredMessage(player, MessageComponent.of(
+                                                "<green>Boss template world <yellow>%s</yellow> saved back to template.</green>",
+                                                worldId));
+                                    });
+                        }).setPlayerCommandAction(1, "setupstatus", (player, args) -> {
+                            GameSettings settings = GameSettings.getCurrentSettings();
+                            int floor = settings.getFloor();
+                            boolean hasDungeonWorld = settings.getDungeonWorld() != null
+                                    && !settings.getDungeonWorld().isBlank();
+                            boolean hasPreLobby = settings.getPreLobbySpawn() != null
+                                    && settings.getPreLobbySpawn().getWorld() != null;
+                            boolean hasSelectionSpawn = settings.getSelectionSpawn() != null
+                                    && settings.getSelectionSpawn().getWorld() != null;
+                            boolean hasHoleCenter = settings.getHoleCenter() != null
+                                    && settings.getHoleCenter().getWorld() != null;
+                            boolean hasBossWorld = settings.getBossWorld() != null
+                                    && !settings.getBossWorld().isBlank();
+                            boolean hasBossSpawn = settings.getBossSpawnLocation(floor) != null;
+                            boolean hasBossPlayerSpawn = settings.getBossPlayerSpawnLocation(floor) != null;
+
+                            messageSender.sendLine(player, "<gold>==== Setup Status ====");
+                            messageSender.sendCenteredMessage(player, MessageComponent
+                                    .of("<yellow>Pre-lobby spawn:</yellow> %s", hasPreLobby ? "SET" : "MISSING"));
+                            messageSender.sendCenteredMessage(player, MessageComponent
+                                    .of("<yellow>Selection spawn:</yellow> %s", hasSelectionSpawn ? "SET" : "MISSING"));
+                            messageSender.sendCenteredMessage(player, MessageComponent.of(
+                                    "<yellow>Selection hole center:</yellow> %s", hasHoleCenter ? "SET" : "MISSING"));
+                            messageSender.sendCenteredMessage(player, MessageComponent
+                                    .of("<yellow>Dungeon world:</yellow> %s", hasDungeonWorld ? "SET" : "MISSING"));
+                            messageSender.sendCenteredMessage(player,
+                                    MessageComponent.of("<yellow>Boss world for floor %s:</yellow> %s", floor,
+                                            hasBossWorld ? "SET" : "MISSING"));
+                            messageSender.sendCenteredMessage(player,
+                                    MessageComponent.of("<yellow>Boss spawn for floor %s:</yellow> %s", floor,
+                                            hasBossSpawn ? "SET" : "MISSING"));
+                            messageSender.sendCenteredMessage(player,
+                                    MessageComponent.of("<yellow>Boss player spawn for floor %s:</yellow> %s", floor,
+                                            hasBossPlayerSpawn ? "SET" : "MISSING"));
+                            messageSender.sendLine(player, "<gold>======================");
                         }).setCommandArgumentsList(0,
                                 Arrays.asList("selectionspawn", "holecenter", "prelobby", "classblock", "dungeonworld",
-                                        "minplayers"))
+                                        "bossworld", "minplayers", "bossspawn", "bossplayerspawn", "loadbossworld",
+                                        "tpbossworld", "savebossworld", "setupstatus"))
                                 .setCommandArgumentsList(1, "classblock", Arrays.asList(RPGClassType.validTypes())
                                         .stream().map(type -> type.toString()).toList()))
                 .build());
@@ -306,70 +432,70 @@ public class CommandManager {
                     }
                 }).setCommandArgumentsList(0, Arrays.stream(RPGClassType.values())
                         .filter(classType -> classType != RPGClassType.NONE).map(Enum::name).toList(), "className"));
-        addSubCommand("project-d", SubCommandBuilder.startBuilding("dungeon").setDescription("Main dungeon command")
-//                        .setSyntax("/dungeon <generate|tp> [world_name]")
-                .setPlayerCommandAction(2, (player, args) -> {
-                    Plugin plugin = DMain.getInstance();
-
-                    World world = Bukkit
-                            .createWorld(new WorldCreator(args[1]).generator(new BukkitStoneWorldGenerator()));
-
-                    int tmpRoomCount = 10;
-
-                    try {
-                        tmpRoomCount = Integer.parseInt(args[0]);
-                        tmpRoomCount = Math.max(1, tmpRoomCount); // Limit between 1-50
-                    } catch (NumberFormatException e) {
-                        player.sendMessage("§cInvalid room count! Using default: 10");
-                    }
-
-                    int roomCount = tmpRoomCount;
-
-                    player.sendMessage("§aGenerating dungeon with " + roomCount + " rooms...");
-
-                    // Generate dungeon in async task
-                    Bukkit.getScheduler().runTaskAsynchronously(plugin, () -> {
-                        DungeonGenerator generator = new DungeonGenerator(System.currentTimeMillis(), messageSender);
-                        Point3D startPoint = new Point3D(0, 64, // Fixed Y level for dungeons
-                                0);
-
-                        Dungeon dungeon = generator.generateDungeon(roomCount, startPoint);
-
-                        // Access spawn information
-                        for (DungeonRoom room : dungeon.getRooms()) {
-                            List<SpawnLocation> roomSpawns = room.getSpawnLocations();
-                            List<DecorationElement> roomDecorations = room.getDecorations();
-
-                            System.out.println("Room " + room.getId() + ": " + roomSpawns.size() + " spawns, "
-                                    + roomDecorations.size() + " decorations");
-                        }
-
-                        // Get dungeon-wide statistics
-                        DungeonStatistics stats = dungeon.getStatistics();
-                        player.sendMessage("§6" + stats.toString());
-
-                        // Build dungeon on main thread
-                        Bukkit.getScheduler().runTask(plugin, () -> {
-                            DungeonBuilderBukkit builder = new DungeonBuilderBukkit(plugin, world);
-
-                            // Build dungeon after clearing (delay by 5 seconds)
-                            Bukkit.getScheduler().runTaskLater(plugin, () -> {
-                                builder.buildDungeon(dungeon, () -> {
-                                    player.sendMessage("§aDungeon generation complete! Generated "
-                                            + dungeon.getRooms().size() + " rooms.");
-
-                                    // Teleport player to start room
-                                    DungeonRoom startRoom = dungeon.getStartRoom();
-                                    if (startRoom != null) {
-                                        Point3D center = startRoom.getCenter();
-                                        player.teleport(new org.bukkit.Location(world, center.getX() + 0.5,
-                                                center.getY() + 1, center.getZ() + 0.5));
-                                    }
-                                });
-                            }, 100L); // 5 second delay
-                        });
-                    });
-                }).setCommandArgumentsList(0, "roomSize(Integer)").setCommandArgumentsList(1, "worldName"));
+//        addSubCommand("project-d", SubCommandBuilder.startBuilding("dungeon").setDescription("Main dungeon command")
+////                        .setSyntax("/dungeon <generate|tp> [world_name]")
+//                .setPlayerCommandAction(2, (player, args) -> {
+//                    Plugin plugin = DMain.getInstance();
+//
+//                    World world = Bukkit
+//                            .createWorld(new WorldCreator(args[1]).generator(new BukkitStoneWorldGenerator()));
+//
+//                    int tmpRoomCount = 10;
+//
+//                    try {
+//                        tmpRoomCount = Integer.parseInt(args[0]);
+//                        tmpRoomCount = Math.max(1, tmpRoomCount); // Limit between 1-50
+//                    } catch (NumberFormatException e) {
+//                        player.sendMessage("§cInvalid room count! Using default: 10");
+//                    }
+//
+//                    int roomCount = tmpRoomCount;
+//
+//                    player.sendMessage("§aGenerating dungeon with " + roomCount + " rooms...");
+//
+//                    // Generate dungeon in async task
+//                    Bukkit.getScheduler().runTaskAsynchronously(plugin, () -> {
+//                        DungeonGenerator generator = new DungeonGenerator(System.currentTimeMillis(), messageSender);
+//                        Point3D startPoint = new Point3D(0, 64, // Fixed Y level for dungeons
+//                                0);
+//
+//                        Dungeon dungeon = generator.generateDungeon(roomCount, startPoint);
+//
+//                        // Access spawn information
+//                        for (DungeonRoom room : dungeon.getRooms()) {
+//                            List<SpawnLocation> roomSpawns = room.getSpawnLocations();
+//                            List<DecorationElement> roomDecorations = room.getDecorations();
+//
+//                            System.out.println("Room " + room.getId() + ": " + roomSpawns.size() + " spawns, "
+//                                    + roomDecorations.size() + " decorations");
+//                        }
+//
+//                        // Get dungeon-wide statistics
+//                        DungeonStatistics stats = dungeon.getStatistics();
+//                        player.sendMessage("§6" + stats.toString());
+//
+//                        // Build dungeon on main thread
+//                        Bukkit.getScheduler().runTask(plugin, () -> {
+//                            DungeonBuilderBukkit builder = new DungeonBuilderBukkit(plugin, world);
+//
+//                            // Build dungeon after clearing (delay by 5 seconds)
+//                            Bukkit.getScheduler().runTaskLater(plugin, () -> {
+//                                builder.buildDungeon(dungeon, () -> {
+//                                    player.sendMessage("§aDungeon generation complete! Generated "
+//                                            + dungeon.getRooms().size() + " rooms.");
+//
+//                                    // Teleport player to start room
+//                                    DungeonRoom startRoom = dungeon.getStartRoom();
+//                                    if (startRoom != null) {
+//                                        Point3D center = startRoom.getCenter();
+//                                        player.teleport(new org.bukkit.Location(world, center.getX() + 0.5,
+//                                                center.getY() + 1, center.getZ() + 0.5));
+//                                    }
+//                                });
+//                            }, 100L); // 5 second delay
+//                        });
+//                    });
+//                }).setCommandArgumentsList(0, "roomSize(Integer)").setCommandArgumentsList(1, "worldName"));
         addSubCommand("project-d",
                 SubCommandBuilder.startBuilding("createHole").setDescription("Creates a Hole in the ground")
                         .addAlias("ch").setPlayerCommandAction(0, (player, args) -> {

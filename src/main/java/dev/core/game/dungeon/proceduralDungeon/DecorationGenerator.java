@@ -108,7 +108,7 @@ public class DecorationGenerator {
             if (random.nextFloat() < spawnChance) {
                 int maxLength = ceilingBlock.getMaxSpaceForDecoration(dungeonHeight, allPositions);
                 int length = maxLength / 2;
-                int randomLength = random.nextInt(1, length + 1);
+                int randomLength = random.nextInt(1, length == 0 ? 2 : length + 1);
                 Set<DungeonDecorationBlock> deco = new LinkedHashSet<>();
                 Vector3Int pos = ceilingBlock.getPos();
                 for (int i = 0; i < randomLength; i++) {

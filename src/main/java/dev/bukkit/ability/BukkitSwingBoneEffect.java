@@ -18,6 +18,7 @@ import org.bukkit.entity.Player;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.PlayerInventory;
 import org.bukkit.inventory.meta.ItemMeta;
+import org.bukkit.metadata.FixedMetadataValue;
 import org.bukkit.scheduler.BukkitTask;
 import org.bukkit.util.Vector;
 
@@ -72,6 +73,7 @@ public class BukkitSwingBoneEffect extends Effect {
             stand.setBasePlate(false);
             stand.setMarker(true);
             stand.getEquipment().setHelmet(new ItemStack(Material.BONE));
+            stand.setMetadata("BONEMERANG", new FixedMetadataValue(DMain.getInstance(), true));
         });
 
         speed = 0.6f;
@@ -252,6 +254,9 @@ public class BukkitSwingBoneEffect extends Effect {
 
         for (Entity entity : nearbyEntities) {
             if (entity instanceof LivingEntity le && entity != player && entity.getType() != EntityType.PLAYER) {
+                if (le.hasMetadata("BONEMERANG"))
+                    continue;
+
                 if (!hitList.contains(le.getUniqueId())) {
                     hitList.add(le.getUniqueId());
 

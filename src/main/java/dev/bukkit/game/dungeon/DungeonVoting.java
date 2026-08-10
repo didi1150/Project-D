@@ -83,6 +83,9 @@ public class DungeonVoting {
 
         });
         GameSettings.getCurrentSettings().setFloor(winner);
+        if (GameSettings.getCurrentSettings().getBossWorld() == null || GameSettings.getCurrentSettings().getBossWorld().isBlank()) {
+            GameSettings.getCurrentSettings().setBossWorld("boss:" + winner);
+        }
         broadcastFinalResults();
         return winner;
     }

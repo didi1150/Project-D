@@ -1,15 +1,32 @@
 package dev.core.game.dungeon.proceduralDungeon;
 
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.Comparator;
+import java.util.HashMap;
+import java.util.LinkedHashSet;
+import java.util.LinkedList;
+import java.util.List;
+import java.util.Map;
+import java.util.Random;
+import java.util.Set;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
+
 import dev.core.game.dungeon.BoundingBox;
 import dev.core.game.dungeon.proceduralDungeon.util.Direction3D;
 import dev.core.game.dungeon.proceduralDungeon.util.DungeonRoom;
+import dev.core.game.dungeon.proceduralDungeon.util.DungeonSpawnManager;
+import dev.core.game.dungeon.proceduralDungeon.util.SpawnLocation;
+import dev.core.game.dungeon.proceduralDungeon.util.SpawnTier;
 import dev.core.game.dungeon.proceduralDungeon.util.Vector3Int;
-import dev.core.game.dungeon.proceduralDungeon.util.dungeonBlocks.*;
-
-import java.util.*;
-import java.util.List;
-import java.util.stream.Collectors;
-import java.util.stream.Stream;
+import dev.core.game.dungeon.proceduralDungeon.util.dungeonBlocks.DungeonBlock;
+import dev.core.game.dungeon.proceduralDungeon.util.dungeonBlocks.DungeonCeilingBlock;
+import dev.core.game.dungeon.proceduralDungeon.util.dungeonBlocks.DungeonDecorationBlock;
+import dev.core.game.dungeon.proceduralDungeon.util.dungeonBlocks.DungeonFloorBlock;
+import dev.core.game.dungeon.proceduralDungeon.util.dungeonBlocks.DungeonStairBlock;
+import dev.core.game.dungeon.proceduralDungeon.util.dungeonBlocks.DungeonWallBlock;
+import dev.core.game.settings.GameSettings;
 
 public class RoomFirstDungeonGenerator3D extends SimpleRandomWalkDungeonGenerator {
 
@@ -41,6 +58,9 @@ public class RoomFirstDungeonGenerator3D extends SimpleRandomWalkDungeonGenerato
     protected Set<DungeonWallBlock> wallBlocks = new LinkedHashSet<>();
     protected Set<DungeonCeilingBlock> ceilingBlocks = new LinkedHashSet<>();
 
+    protected Set<Vector3Int> possibleSpawnLocations = new LinkedHashSet<>();
+    protected Set<Vector3Int> safeSpawnLocations = new LinkedHashSet<>();
+    protected List<Vector3Int> randomizedSpawnLocations = new LinkedList<>();
     protected List<Set<DungeonDecorationBlock>> decorationBlocks = new LinkedList<>();
 
     public RoomFirstDungeonGenerator3D(Vector3Int startPosition, SimpleRandomWalkParameters randomWalkParameters, int minRoomWidth, int minRoomHeight, int minRoomLength, int dungeonWidth, int dungeonHeight, int dungeonLength, int roomOffset, boolean randomWalkRooms, int corridorWidth) {
@@ -142,6 +162,18 @@ public class RoomFirstDungeonGenerator3D extends SimpleRandomWalkDungeonGenerato
         return new LinkedHashSet<>(ceilingBlocks);
     }
 
+    public Set<Vector3Int> getPossibleSpawnLocations() {
+        return new LinkedHashSet<>(possibleSpawnLocations);
+    }
+
+    public Set<Vector3Int> getSafeSpawnLocations() {
+        return new LinkedHashSet<>(safeSpawnLocations);
+    }
+
+    public List<Vector3Int> getRandomizedSpawnLocations() {
+        return new LinkedList<>(randomizedSpawnLocations);
+    }
+
     public List<Set<DungeonDecorationBlock>> getDecorationBlocks() {
         return new LinkedList<>(decorationBlocks);
     }
@@ -190,7 +222,7 @@ public class RoomFirstDungeonGenerator3D extends SimpleRandomWalkDungeonGenerato
 
             floorBlocks = floorPositions.stream().map(DungeonFloorBlock::new).collect(Collectors.toCollection(LinkedHashSet::new));
 
-            dungeonRooms = rooms.stream().map(room -> new DungeonRoom(room, roomCenterToRoomFloorMap.get(room.get2DCenter()))).collect(Collectors.toList());
+            dungeonRooms = rooms.stream().map(room -> new DungeonRoom(room, roomCenterToRoomFloorMap.get(room.get2DCenter()), Collections.emptyList())).collect(Collectors.toList());
             Map<Vector3Int, DungeonRoom> roomCenterToDungeonRoomMap = dungeonRooms.stream().collect(Collectors.toMap(d -> d.getRoom().get2DCenter(), d -> d));
 
             List<Vector3Int> roomCenters = new LinkedList<>();
@@ -223,6 +255,8 @@ public class RoomFirstDungeonGenerator3D extends SimpleRandomWalkDungeonGenerato
             wallPositions.addAll(ceilingBlocks.stream().map(DungeonBlock::getPos).collect(Collectors.toCollection(LinkedHashSet::new)));
 
             corridorFloor.addAll(stairFloor);
+
+            possibleSpawnLocations = createPossibleSpawnLocations(floorPositions, corridorFloor, stairFloor);
 
 //        for (var room : rooms) {
 //            if (room.get2DFilledBoxPositions().stream().noneMatch(corridorFloor::contains)) {
@@ -269,6 +303,17 @@ public class RoomFirstDungeonGenerator3D extends SimpleRandomWalkDungeonGenerato
 
                 createDecoration(dungeonRooms, random);
 
+                safeSpawnLocations = createSafeSpawnLocations(possibleSpawnLocations, getAllOccupiedPositions());
+                randomizedSpawnLocations = createRandomizedSpawnLocations(safeSpawnLocations, random);
+                for (DungeonRoom dungeonRoom : dungeonRooms) {
+                    dungeonRoom.setSpawnPositions(createRoomSpawnLocations(dungeonRoom.getRoomFloor(), safeSpawnLocations, dungeonRoom, random));
+                }
+
+                DungeonSpawnManager.getInstance().reset();
+                dungeonRooms.stream()
+                        .flatMap(room -> room.getSpawnPositions().stream())
+                        .forEach(DungeonSpawnManager.getInstance()::registerSpawnLocation);
+
                 if (generationAttempts > 1) {
                     System.out.println("Generated Dungeon (in " + generationAttempts + " attempt(s))");
                 }
@@ -278,6 +323,123 @@ public class RoomFirstDungeonGenerator3D extends SimpleRandomWalkDungeonGenerato
         if (generationAttempts == 10) {
             System.err.println("Dungeon Generation Failure: Didn't manage to create a valid Dungeon in " + generationAttempts + " attempt(s)");
         }
+    }
+
+    private Set<Vector3Int> createPossibleSpawnLocations(Set<Vector3Int> roomFloor, Set<Vector3Int> corridorFloor, Set<Vector3Int> stairFloor) {
+        return Stream.concat(roomFloor.stream(), corridorFloor.stream())
+                .filter(pos -> !stairFloor.contains(pos))
+                .collect(Collectors.toCollection(LinkedHashSet::new));
+    }
+
+    private List<SpawnLocation> createRoomSpawnLocations(Set<Vector3Int> roomFloor, Set<Vector3Int> possibleSpawnPositions, DungeonRoom room, Random random) {
+        if (startRoom != null && room.getRoom().equals(startRoom)) {
+            return Collections.emptyList();
+        }
+
+        List<Vector3Int> spawnCandidates = possibleSpawnPositions.stream()
+                .filter(roomFloor::contains)
+                .filter(pos -> roomFloor.contains(pos.add(1, 0, 0)))
+                .filter(pos -> roomFloor.contains(pos.add(-1, 0, 0)))
+                .filter(pos -> roomFloor.contains(pos.add(0, 0, 1)))
+                .filter(pos -> roomFloor.contains(pos.add(0, 0, -1)))
+                .collect(Collectors.toCollection(LinkedList::new));
+
+        int spawnCount = Math.min(spawnCandidates.size(), calculateRoomSpawnCount(room));
+        List<Vector3Int> selectedPositions = selectSpreadOutSpawnPositions(spawnCandidates, spawnCount, random);
+
+        return selectedPositions.stream()
+                .map(pos -> createSpawnLocation(pos, room, random))
+                .collect(Collectors.toCollection(LinkedList::new));
+    }
+
+    private int calculateRoomSpawnCount(DungeonRoom room) {
+        int floorLevel = GameSettings.getCurrentSettings().getFloor();
+        int areaFactor = room.getRealSize() / 20;
+        int floorFactor = floorLevel / 2;
+        int targetCount = 5 + areaFactor + floorFactor;
+        return Math.max(5, Math.min(20, targetCount));
+    }
+
+    private List<Vector3Int> selectSpreadOutSpawnPositions(List<Vector3Int> candidates, int spawnCount, Random random) {
+        List<Vector3Int> shuffled = new LinkedList<>(candidates);
+        Collections.shuffle(shuffled, random);
+        List<Vector3Int> selected = new LinkedList<>();
+        int minimumSeparation = 4;
+
+        for (Vector3Int candidate : shuffled) {
+            if (selected.size() >= spawnCount) {
+                break;
+            }
+            boolean tooClose = selected.stream().anyMatch(existing ->
+                    Math.abs(candidate.getX() - existing.getX())
+                            + Math.abs(candidate.getY() - existing.getY())
+                            + Math.abs(candidate.getZ() - existing.getZ()) < minimumSeparation);
+            if (!tooClose) {
+                selected.add(candidate);
+            }
+        }
+
+        for (Vector3Int candidate : shuffled) {
+            if (selected.size() >= spawnCount) {
+                break;
+            }
+            if (!selected.contains(candidate)) {
+                selected.add(candidate);
+            }
+        }
+
+        return selected;
+    }
+
+    private SpawnLocation createSpawnLocation(Vector3Int pos, DungeonRoom room, Random random) {
+        SpawnTier tier = determineSpawnTier(room);
+        double baseChance = switch (tier) {
+            case BASIC -> 0.8;
+            case ADVANCED -> 0.6;
+            case ELITE -> 0.4;
+        };
+        double spawnChance = Math.max(0.1, Math.min(1.0, baseChance + (random.nextDouble() - 0.5) * 0.2));
+        int maxEnemyLevel = tier.getMinLevel() + Math.max(0, room.getRealSize() / 40);
+        boolean isElite = tier == SpawnTier.ELITE && random.nextDouble() < 0.2;
+        return new SpawnLocation(pos.convertToPoint3D(), tier, spawnChance, maxEnemyLevel, isElite);
+    }
+
+    private SpawnTier determineSpawnTier(DungeonRoom room) {
+        int size = room.getRealSize();
+        if (size >= 120) {
+            return SpawnTier.ELITE;
+        }
+        if (size >= 60) {
+            return SpawnTier.ADVANCED;
+        }
+        return SpawnTier.BASIC;
+    }
+
+    private Set<Vector3Int> createSafeSpawnLocations(Set<Vector3Int> possibleSpawnLocations, Set<Vector3Int> occupiedPositions) {
+        return possibleSpawnLocations.stream()
+                .filter(pos -> isSafeSpawnPosition(pos, occupiedPositions))
+                .collect(Collectors.toCollection(LinkedHashSet::new));
+    }
+
+    private List<Vector3Int> createRandomizedSpawnLocations(Set<Vector3Int> safeSpawnLocations, Random random) {
+        List<Vector3Int> spawnLocations = new LinkedList<>(safeSpawnLocations);
+        Collections.shuffle(spawnLocations, random);
+        return spawnLocations;
+    }
+
+    private boolean isSafeSpawnPosition(Vector3Int pos, Set<Vector3Int> occupiedPositions) {
+        return !occupiedPositions.contains(pos.add(0, 1, 0)) && !occupiedPositions.contains(pos.add(0, 2, 0));
+    }
+
+    private Set<Vector3Int> getAllOccupiedPositions() {
+        Set<Vector3Int> occupiedPositions = new LinkedHashSet<>();
+        occupiedPositions.addAll(floorBlocks.stream().map(DungeonBlock::getPos).collect(Collectors.toSet()));
+        occupiedPositions.addAll(corridorBlocks.stream().map(DungeonBlock::getPos).collect(Collectors.toSet()));
+        occupiedPositions.addAll(stairBlocks.stream().map(DungeonBlock::getPos).collect(Collectors.toSet()));
+        occupiedPositions.addAll(wallBlocks.stream().map(DungeonBlock::getPos).collect(Collectors.toSet()));
+        occupiedPositions.addAll(ceilingBlocks.stream().map(DungeonBlock::getPos).collect(Collectors.toSet()));
+        occupiedPositions.addAll(decorationBlocks.stream().flatMap(Set::stream).map(DungeonBlock::getPos).collect(Collectors.toSet()));
+        return occupiedPositions;
     }
 
     private void createDecoration(List<DungeonRoom> dungeonRooms, Random random) {
@@ -373,8 +535,9 @@ public class RoomFirstDungeonGenerator3D extends SimpleRandomWalkDungeonGenerato
 
         while (!roomCenters.isEmpty()) {
             boolean validCorridor = false;
+            Set<Vector3Int> newCorridor = new LinkedHashSet<>();
 
-            List<Vector3Int> closestList = findClosestPointListTo(currentRoomCenter, roomCenters);
+            LinkedList<Vector3Int> closestList = new LinkedList<>(findClosestPointListTo(currentRoomCenter, roomCenters));
 
             if (closestList.isEmpty()) {
                 currentRoomCenter = roomCenters.get(random.nextInt(0, roomCenters.size()));
@@ -382,17 +545,18 @@ public class RoomFirstDungeonGenerator3D extends SimpleRandomWalkDungeonGenerato
                 continue;
             }
 
-            while (!validCorridor) {
+            Vector3Int closest = null;
+            while (!validCorridor && !closestList.isEmpty()) {
                 validCorridor = true;
 
-                Vector3Int closest = closestList.removeFirst();
+                closest = closestList.removeFirst();
 //                if (closest == null) {
 //                    currentRoomCenter = roomCenters.get(random.nextInt(0, roomCenters.size()));
 //                    roomCenters.remove(currentRoomCenter);
 //                    break;
 //                }
 
-                Set<Vector3Int> newCorridor = create2DCorridor(currentRoomCenter, closest, roomCenterToRoomMap, roomCenterToRoomFloorMap);
+                newCorridor = create2DCorridor(currentRoomCenter, closest, roomCenterToRoomMap, roomCenterToRoomFloorMap);
                 if (doesCorridorOverlapWithAnything(newCorridor, corridors, rooms, roomCenterToRoomMap.get(currentRoomCenter),roomCenterToRoomMap.get(closest))) {
                     newCorridor = create2DCorridor(closest, currentRoomCenter, roomCenterToRoomMap, roomCenterToRoomFloorMap); // test both directions/startPoints
                 }
@@ -432,6 +596,19 @@ public class RoomFirstDungeonGenerator3D extends SimpleRandomWalkDungeonGenerato
                             complexPaths++;
                         }
                     }
+                }
+
+                if (newCorridor.isEmpty()) {
+                    validCorridor = false;
+                    if (closestList.isEmpty()) {
+                        connectedRoomCenters.add(currentRoomCenter);
+                        roomCenters.remove(closest);
+                        currentRoomCenter = closest;
+                        System.out.println("            Couldn't create a valid path for center: " + currentRoomCenter);
+                        failedPaths++;
+                        break;
+                    }
+                    continue;
                 }
 
                 DungeonRoom dungeonRoomStart = roomCenterToDungeonRoomMap.get(currentRoomCenter);
@@ -521,7 +698,7 @@ public class RoomFirstDungeonGenerator3D extends SimpleRandomWalkDungeonGenerato
         for (var height : roomCenterGroups.keySet().stream().sorted(Comparator.comparing(i -> i)).toList()) {
             List<Vector3Int> centers = roomCenterGroups.get(height);
 
-            List<List<Vector3Int>> otherCentersList = getMapValueListGreaterThan(roomCenterGroups, height);
+            LinkedList<List<Vector3Int>> otherCentersList = new LinkedList<>(getMapValueListGreaterThan(roomCenterGroups, height));
 
             while (!otherCentersList.isEmpty()) {
                 List<Vector3Int> otherCenters = otherCentersList.removeFirst();
@@ -560,20 +737,24 @@ public class RoomFirstDungeonGenerator3D extends SimpleRandomWalkDungeonGenerato
                 DungeonRoom.addConnectionTo(dungeonRoomStart, dungeonRoomEnd);
 
 
-                LinkedHashSet<Vector3Int> newStair = new LinkedHashSet<>(triplet.first());
-                LinkedHashSet<Vector3Int> newCorridor = new LinkedHashSet<>(triplet.second());
+                LinkedList<Vector3Int> newStair = new LinkedList<>(triplet.first());
+                LinkedList<Vector3Int> newCorridor = new LinkedList<>(triplet.second());
 
                 Direction3D stairDirection = triplet.third();
 
                 // first few positions of the corridor are part of the stair
                 for (int i = 0; i < corridorWidth; i++) {
-                    stairBlocks.add(new DungeonStairBlock(newCorridor.removeFirst(), stairDirection));
+                    if (!newCorridor.isEmpty()) {
+                        stairBlocks.add(new DungeonStairBlock(newCorridor.removeFirst(), stairDirection));
+                    }
                 }
-                newCorridor = new LinkedHashSet<>(triplet.second());
+                newCorridor = new LinkedList<>(triplet.second());
 
                 // first few positions of the stair are still at the floor level -> not actual stairs
                 for (int i = 0; i < corridorWidth; i++) {
-                    newCorridor.addFirst(newStair.removeFirst());
+                    if (!newStair.isEmpty()) {
+                        newCorridor.addFirst(newStair.removeFirst());
+                    }
                 }
 
                 for (var pos : newStair) {
@@ -745,8 +926,8 @@ public class RoomFirstDungeonGenerator3D extends SimpleRandomWalkDungeonGenerato
 //                        System.out.println("        Failed corridor extension to target room, adding new overlapping rooms to offset and trying again");
 //                        overlappingRooms.addAll(getOverlappingRoomsWithCorridor(rooms, corridor, currentRoom, targetRoom));
 //                        Vector3Int newOffset = getOverlappingRoomsOffsetVec(currentCenter, currentRoom, overlappingRooms);
-//
-////                        System.out.println("    oldOffset: " + offset + " -> " + "newOffset: " + newOffset);
+////
+//                        System.out.println("    oldOffset: " + offset + " -> " + "newOffset: " + newOffset);
 //                        if (newOffset.equals(offset)) {
 //                            System.out.println("        Failed corridor extension to target room -> something went wrong");
 //                            break;
@@ -907,7 +1088,7 @@ public class RoomFirstDungeonGenerator3D extends SimpleRandomWalkDungeonGenerato
     }
 
     private List<BoundingBox> getOverlappingRoomsWithCorridor(List<BoundingBox> rooms, Set<Vector3Int> corridor, BoundingBox ... ignoredRooms) {
-        Set<Vector3Int> finalCorridor = corridor.stream().flatMap(vec -> getCorridorBox(vec, corridorWidth)).collect(Collectors.toSet());
+        Set<Vector3Int> finalCorridor = expandPositionsForCorridor(corridor, corridorWidth, false);
         List<BoundingBox> updatedRooms = new LinkedList<>(rooms);
         updatedRooms.removeAll(Arrays.asList(ignoredRooms));
         return updatedRooms.stream().filter(b -> finalCorridor.stream().anyMatch(b::contains)).collect(Collectors.toList());
@@ -1098,14 +1279,29 @@ public class RoomFirstDungeonGenerator3D extends SimpleRandomWalkDungeonGenerato
     }
 
     private boolean doesCorridorOverlapWithRooms(List<BoundingBox> rooms, BoundingBox room1, BoundingBox room2, Set<Vector3Int> corridor) {
-        return rooms.stream().filter(b -> !b.equals(room1) && !b.equals(room2)).anyMatch(b -> corridor.stream().anyMatch(b::contains));
+        return rooms.stream()
+                .filter(room -> !room.equals(room1) && !room.equals(room2))
+                .anyMatch(room -> corridor.stream().anyMatch(vec -> isRoomInteriorOverlap(room, vec)));
     }
 
     private boolean doesCorridorOverlapWithRooms(List<BoundingBox> rooms, Set<Vector3Int> corridor, BoundingBox ... ignoredRooms) {
-        Set<Vector3Int> finalCorridor = corridor.stream().flatMap(vec -> getCorridorBox(vec, corridorWidth)).collect(Collectors.toSet());
+        Set<Vector3Int> finalCorridor = expandPositionsForCorridor(corridor, corridorWidth, false);
         List<BoundingBox> updatedRooms = new LinkedList<>(rooms);
         updatedRooms.removeAll(Arrays.asList(ignoredRooms));
-        return updatedRooms.stream().anyMatch(b -> finalCorridor.stream().anyMatch(b::contains));
+        return updatedRooms.stream().anyMatch(room -> finalCorridor.stream().anyMatch(vec -> isRoomInteriorOverlap(room, vec)));
+    }
+
+    private boolean isRoomInteriorOverlap(BoundingBox room, Vector3Int vec) {
+        if (!room.contains(vec)) {
+            return false;
+        }
+        return !isRoomBoundaryPoint(room, vec);
+    }
+
+    private boolean isRoomBoundaryPoint(BoundingBox room, Vector3Int vec) {
+        return vec.getX() == room.minX || vec.getX() == room.maxX
+                || vec.getY() == room.minY || vec.getY() == room.maxY
+                || vec.getZ() == room.minZ || vec.getZ() == room.maxZ;
     }
 
     private Stream<Vector3Int> getCorridorBox(Vector3Int vec, int corridorWidth) {
@@ -1118,9 +1314,9 @@ public class RoomFirstDungeonGenerator3D extends SimpleRandomWalkDungeonGenerato
     }
 
     private boolean doesStairOverlapWithCorridors(Set<Vector3Int> corridors, Set<Vector3Int> stair) {
-        corridors = corridors.stream().flatMap(vec -> getCorridorBox(vec, corridorWidth)).collect(Collectors.toSet());
-        stair = stair.stream().flatMap(vec -> getStairBox(vec, corridorWidth)).collect(Collectors.toSet());
-        return corridors.stream().anyMatch(stair::contains);
+        Set<Vector3Int> expandedCorridors = expandPositionsForCorridor(corridors, corridorWidth, false);
+        Set<Vector3Int> expandedStair = expandPositionsForCorridor(stair, corridorWidth, true);
+        return expandedCorridors.stream().anyMatch(expandedStair::contains);
     }
 
     private boolean doesCorridorOverlapWithCorridors(Set<Vector3Int> corridors, Set<Vector3Int> corridor) {
@@ -1128,22 +1324,55 @@ public class RoomFirstDungeonGenerator3D extends SimpleRandomWalkDungeonGenerato
         Set<Vector3Int> updatedCorridor = new LinkedHashSet<>(corridors);
         updatedCorridor.removeAll(corridor);
 
-        updatedCorridor = updatedCorridor.stream().flatMap(vec -> getCorridorBox(vec, corridorWidth)).collect(Collectors.toSet());
-        corridor = corridor.stream().flatMap(vec -> getCorridorBox(vec, corridorWidth)).collect(Collectors.toSet());
-        return updatedCorridor.stream().anyMatch(corridor::contains);
+        Set<Vector3Int> expandedUpdated = expandPositionsForCorridor(updatedCorridor, corridorWidth, false);
+        Set<Vector3Int> expandedCorridor = expandPositionsForCorridor(corridor, corridorWidth, false);
+        return expandedUpdated.stream().anyMatch(expandedCorridor::contains);
     }
 
     private Stream<Vector3Int> getStairBox(Vector3Int vec, int corridorWidth) {
         List<Vector3Int> list = new LinkedList<>();
         int height = Math.max(3, corridorWidth + 1) + 1;
         for (var i = 0; i <= height; i++) {
-            list.add(vec.add(0,i,0));
+            list.add(vec.add(0, i, 0));
         }
         return list.stream();
     }
 
+    private List<Vector3Int> getCorridorBoxList(Vector3Int vec, int corridorWidth) {
+        List<Vector3Int> list = new LinkedList<>();
+        int height = Math.max(2, corridorWidth) + 1;
+        for (var i = 0; i <= height; i++) {
+            list.add(vec.add(0, i, 0));
+        }
+        return list;
+    }
+
+    private List<Vector3Int> getStairBoxList(Vector3Int vec, int corridorWidth) {
+        List<Vector3Int> list = new LinkedList<>();
+        int height = Math.max(3, corridorWidth + 1) + 1;
+        for (var i = 0; i <= height; i++) {
+            list.add(vec.add(0, i, 0));
+        }
+        return list;
+    }
+
+    private Set<Vector3Int> expandPositionsForCorridor(Set<Vector3Int> positions, int corridorWidth, boolean stair) {
+        Set<Vector3Int> expanded = new LinkedHashSet<>();
+        if (positions == null || positions.isEmpty()) return expanded;
+        if (stair) {
+            for (var p : positions) {
+                expanded.addAll(getStairBoxList(p, corridorWidth));
+            }
+        } else {
+            for (var p : positions) {
+                expanded.addAll(getCorridorBoxList(p, corridorWidth));
+            }
+        }
+        return expanded;
+    }
+
     private boolean doesVecOverlapWithRooms(List<BoundingBox> rooms, BoundingBox room, Vector3Int vec) {
-        return rooms.stream().filter(b -> !b.equals(room)).anyMatch(b -> b.contains(vec));
+        return rooms.stream().filter(b -> !b.equals(room)).anyMatch(b -> isRoomInteriorOverlap(b, vec));
     }
 
 

@@ -104,4 +104,8 @@ public class SetupUtils {
         gameSettingsLoader.setDungeonWorld(world);
     }
 
+    public static void setBossWorld(String world, GameSettingsLoader gameSettingsLoader, int floor) {
+        gameSettingsLoader.setBossWorld(world, floor);
+    }
+
 }

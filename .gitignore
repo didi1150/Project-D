@@ -114,3 +114,5 @@ run/
 /.classpath
 /.project
 /.factorypath
+/REFACTORING_SUMMARY.md
+/STAT_SYSTEM_REFACTOR.md

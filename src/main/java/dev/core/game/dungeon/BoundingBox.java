@@ -1,10 +1,9 @@
 package dev.core.game.dungeon;
 
+import java.util.List;
+
 import dev.core.game.coords.Point3D;
 import dev.core.game.dungeon.proceduralDungeon.util.Vector3Int;
-
-import java.util.LinkedList;
-import java.util.List;
 
 public class BoundingBox {
 
@@ -101,7 +100,7 @@ public class BoundingBox {
     }
 
     public static BoundingBox merge(BoundingBox ... boundingBoxes) {
-        if (boundingBoxes == null) return new BoundingBox(0,0,0,0,0,0);
+        if (boundingBoxes == null || boundingBoxes.length == 0) return new BoundingBox(0,0,0,0,0,0);
         BoundingBox mergedBoundingBox = boundingBoxes[0];
         for (int i = 1; i < boundingBoxes.length; i++) {
             BoundingBox boundingBox = boundingBoxes[i];
@@ -128,10 +127,17 @@ public class BoundingBox {
     }
 
     public List<Vector3Int> getFilledBoxPositions() {
-        List<Vector3Int> positions = new LinkedList<>();
-        for (int x = getMinPoint().getX(); x <= getMaxPoint().getX(); x++) {
-            for (int y = getMinPoint().getY(); y <= getMaxPoint().getY(); y++) {
-                for (int z = getMinPoint().getZ(); z <= getMaxPoint().getZ(); z++) {
+        int minx = minX, maxx = maxX;
+        int miny = minY, maxy = maxY;
+        int minz = minZ, maxz = maxZ;
+        int sizeX = maxx - minx + 1;
+        int sizeY = maxy - miny + 1;
+        int sizeZ = maxz - minz + 1;
+        int capacity = Math.max(0, sizeX * sizeY * sizeZ);
+        List<Vector3Int> positions = new java.util.ArrayList<>(capacity);
+        for (int x = minx; x <= maxx; x++) {
+            for (int y = miny; y <= maxy; y++) {
+                for (int z = minz; z <= maxz; z++) {
                     positions.add(new Vector3Int(x, y, z));
                 }
             }
@@ -147,9 +153,14 @@ public class BoundingBox {
     }
 
     public List<Vector3Int> get2DFilledBoxPositions() {
-        List<Vector3Int> positions = new LinkedList<>();
-        for (int x = getMinPoint().getX(); x <= getMaxPoint().getX(); x++) {
-            for (int z = getMinPoint().getZ(); z <= getMaxPoint().getZ(); z++) {
+        int minx = minX, maxx = maxX;
+        int minz = minZ, maxz = maxZ;
+        int sizeX = maxx - minx + 1;
+        int sizeZ = maxz - minz + 1;
+        int capacity = Math.max(0, sizeX * sizeZ);
+        List<Vector3Int> positions = new java.util.ArrayList<>(capacity);
+        for (int x = minx; x <= maxx; x++) {
+            for (int z = minz; z <= maxz; z++) {
                 positions.add(new Vector3Int(x, minY, z));
             }
         }

@@ -11,9 +11,13 @@ import org.bukkit.event.player.PlayerDropItemEvent;
 import org.bukkit.event.player.PlayerMoveEvent;
 import org.bukkit.event.player.PlayerQuitEvent;
 
+import dev.core.ability.EffectManagerInterface;
+import dev.core.entity.EntityManager;
 import dev.core.event.EventAction;
 import dev.core.event.EventBusInterface;
+import dev.core.event.impl.TickEvent;
 import dev.core.game.GameState;
+import dev.core.game.ScheduledTask;
 
 public class SelectItemState extends GameState {
 
@@ -22,13 +26,30 @@ public class SelectItemState extends GameState {
     private static long lockThreshold = 10;
     private final static int minPlayers = 5;
 
-    public SelectItemState(EventBusInterface eventBus) {
+    private long lastMillis;
+    private ScheduledTask scheduledTask;
+
+    private EffectManagerInterface effectManager;
+
+    private EntityManager entityManager;
+
+    public SelectItemState(EventBusInterface eventBus, EffectManagerInterface effectManager,
+            EntityManager entityManager) {
         super(NAME, DURATION, eventBus);
+        this.effectManager = effectManager;
+        this.entityManager = entityManager;
     }
 
     @Override
     protected void onStart() {
+        scheduledTask = scheduler.runTaskTimer(() -> {
+            float tickDelta = (System.currentTimeMillis() - lastMillis) / 1000f * 20f;
+            lastMillis = System.currentTimeMillis();
+            eventBus.sendEvent(new TickEvent(tickDelta));
 
+            effectManager.tick(System.currentTimeMillis());
+            entityManager.tick(System.currentTimeMillis());
+        }, 0, 1);
     }
 
     @Override

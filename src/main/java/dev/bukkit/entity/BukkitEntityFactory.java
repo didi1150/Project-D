@@ -2,6 +2,7 @@ package dev.bukkit.entity;
 
 import java.util.Arrays;
 import java.util.List;
+import java.util.UUID;
 
 import org.bukkit.Location;
 import org.bukkit.World;
@@ -18,7 +19,12 @@ import org.bukkit.potion.PotionEffectType;
 import dev.bukkit.DMain;
 import dev.bukkit.entity.VanillaEntityMeta.RelationType;
 import dev.bukkit.utils.DamageUtils;
-import dev.core.game.dungeon.SpawnLocation;
+import dev.core.ability.EffectManagerInterface;
+import dev.core.entity.EntityManager;
+import dev.core.entity.RPGMobEntity;
+import dev.core.entity.boss.RPGBossEntity;
+import dev.core.event.EventBusInterface;
+import dev.core.game.dungeon.proceduralDungeon.util.SpawnLocation;
 
 public class BukkitEntityFactory {
 
@@ -55,6 +61,23 @@ public class BukkitEntityFactory {
         }
 
         return hostileTypes.get((int) (Math.random() * hostileTypes.size()));
+    }
+
+    public static RPGMobEntity createDungeonMob(UUID uuid, String name, EffectManagerInterface effectManager,
+            EventBusInterface eventBus) {
+        RPGMobEntity mob = new RPGMobEntity(uuid, name, effectManager, eventBus);
+        EntityManager.getInstance().registerEntity(mob);
+        return mob;
+    }
+
+    public static RPGBossEntity createBoss(UUID uuid, String name, EffectManagerInterface effectManager,
+            EventBusInterface eventBus, String initialStageId) {
+        RPGBossEntity boss = new RPGBossEntity(uuid, name, effectManager, eventBus);
+        if (initialStageId != null && !initialStageId.isEmpty()) {
+            boss.setInitialStage(initialStageId);
+        }
+        EntityManager.getInstance().registerEntity(boss);
+        return boss;
     }
 
     public static Entity spawnVanillaDungeonMob(EntityType entityType, int level, SpawnLocation spawnLocation,
@@ -301,52 +324,52 @@ public class BukkitEntityFactory {
 
     // Utility method to spawn multiple mobs at a spawn location based on spawn
     // chance
-    public static boolean trySpawnAtLocation(SpawnLocation spawnLocation, World world) {
-        // Check spawn chance
-        if (Math.random() > spawnLocation.getSpawnChance()) {
-            return false; // Failed spawn chance roll
-        }
-
-        // Determine mob type based on spawn tier and location
-        EntityType mobType = selectMobTypeForTier(spawnLocation);
-        if (mobType == null) {
-            return false; // No suitable mob type found
-        }
-
-        // Determine level within the spawn location's range
-        int level = (int) (spawnLocation.getTier().getMinLevel()
-                + Math.random() * (spawnLocation.getMaxEnemyLevel() - spawnLocation.getTier().getMinLevel() + 1));
-
-        // Spawn the mob
-        Entity spawnedEntity = spawnVanillaDungeonMob(mobType, level, spawnLocation, world);
-        return spawnedEntity != null;
-    }
-
-    private static EntityType selectMobTypeForTier(SpawnLocation spawnLocation) {
-        switch (spawnLocation.getTier()) {
-        case BASIC:
-            return getRandomMobFromArray(
-                    new EntityType[] { EntityType.ZOMBIE, EntityType.SKELETON, EntityType.SPIDER, EntityType.CREEPER });
-
-        case ADVANCED:
-            return getRandomMobFromArray(
-                    new EntityType[] { EntityType.HUSK, EntityType.STRAY, EntityType.CAVE_SPIDER, EntityType.WITCH,
-                            EntityType.ZOMBIE, EntityType.SKELETON, EntityType.VINDICATOR, EntityType.PILLAGER });
-
-        case ELITE:
-            return getRandomMobFromArray(new EntityType[] { EntityType.WITHER_SKELETON, EntityType.BLAZE,
-                    EntityType.ENDERMAN, EntityType.EVOKER, EntityType.RAVAGER, EntityType.PHANTOM });
-
-        case BOSS:
-            return getRandomMobFromArray(new EntityType[] { EntityType.WITHER_SKELETON, EntityType.ELDER_GUARDIAN,
-                    EntityType.EVOKER, EntityType.RAVAGER // Note: Actual boss mobs like Wither/Dragon need special
-                                                          // handling
-            });
-
-        default:
-            return EntityType.ZOMBIE;
-        }
-    }
+//    public static boolean trySpawnAtLocation(SpawnLocation spawnLocation, World world) {
+//        // Check spawn chance
+//        if (Math.random() > spawnLocation.getSpawnChance()) {
+//            return false; // Failed spawn chance roll
+//        }
+//
+//        // Determine mob type based on spawn tier and location
+//        EntityType mobType = selectMobTypeForTier(spawnLocation);
+//        if (mobType == null) {
+//            return false; // No suitable mob type found
+//        }
+//
+//        // Determine level within the spawn location's range
+//        int level = (int) (spawnLocation.getTier().getMinLevel()
+//                + Math.random() * (spawnLocation.getMaxEnemyLevel() - spawnLocation.getTier().getMinLevel() + 1));
+//
+//        // Spawn the mob
+//        Entity spawnedEntity = spawnVanillaDungeonMob(mobType, level, spawnLocation, world);
+//        return spawnedEntity != null;
+//    }
+//
+//    private static EntityType selectMobTypeForTier(SpawnLocation spawnLocation) {
+//        switch (spawnLocation.getTier()) {
+//        case BASIC:
+//            return getRandomMobFromArray(
+//                    new EntityType[] { EntityType.ZOMBIE, EntityType.SKELETON, EntityType.SPIDER, EntityType.CREEPER });
+//
+//        case ADVANCED:
+//            return getRandomMobFromArray(
+//                    new EntityType[] { EntityType.HUSK, EntityType.STRAY, EntityType.CAVE_SPIDER, EntityType.WITCH,
+//                            EntityType.ZOMBIE, EntityType.SKELETON, EntityType.VINDICATOR, EntityType.PILLAGER });
+//
+//        case ELITE:
+//            return getRandomMobFromArray(new EntityType[] { EntityType.WITHER_SKELETON, EntityType.BLAZE,
+//                    EntityType.ENDERMAN, EntityType.EVOKER, EntityType.RAVAGER, EntityType.PHANTOM });
+//
+//        case BOSS:
+//            return getRandomMobFromArray(new EntityType[] { EntityType.WITHER_SKELETON, EntityType.ELDER_GUARDIAN,
+//                    EntityType.EVOKER, EntityType.RAVAGER // Note: Actual boss mobs like Wither/Dragon need special
+//                                                          // handling
+//            });
+//
+//        default:
+//            return EntityType.ZOMBIE;
+//        }
+//    }
 
     private static EntityType getRandomMobFromArray(EntityType[] mobTypes) {
         if (mobTypes.length == 0)

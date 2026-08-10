@@ -1,8 +1,5 @@
 package dev.core.game;
 
-import java.util.ArrayList;
-import java.util.List;
-
 import dev.core.event.EventAction;
 import dev.core.event.EventBusInterface;
 import dev.core.event.EventSubscriptionManager;
@@ -16,7 +13,7 @@ public abstract class GameState {
     protected boolean active = false;
     protected long startTime;
     protected long remainingTicks;
-    private EventBusInterface eventBus;
+    protected EventBusInterface eventBus;
     protected EventSubscriptionManager subscriptionManager;
 
     public GameState(String name, long duration, EventBusInterface eventBus) {

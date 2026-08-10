@@ -1,6 +1,7 @@
 package dev.bukkit.game.states;
 
 import dev.core.event.EventBusInterface;
+import dev.core.event.impl.TickEvent;
 import dev.core.game.GameState;
 
 public class SetupState extends GameState{

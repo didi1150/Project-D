@@ -3,24 +3,21 @@ package dev.bukkit;
 import java.io.File;
 import java.util.Map;
 
-import dev.bukkit.game.dungeon.proceduralDungeon.SimpleDungeonBuilderBukkit;
-import lombok.Getter;
 import org.bukkit.Bukkit;
 import org.bukkit.World;
 import org.bukkit.WorldCreator;
 import org.bukkit.plugin.java.JavaPlugin;
 
-import com.comphenix.protocol.ProtocolLibrary;
-import com.comphenix.protocol.ProtocolManager;
-
 import dev.bukkit.ability.BukkitEffectManager;
 import dev.bukkit.command.CommandManager;
 import dev.bukkit.event.BukkitEventBus;
-import dev.bukkit.event.bukkitListeners.CancelledListener;
 import dev.bukkit.event.bukkitListeners.CombatListener;
+import dev.bukkit.event.bukkitListeners.EventBusRegistry;
 import dev.bukkit.event.bukkitListeners.EventListener;
+import dev.bukkit.event.subscribers.CancelSubscriber;
 import dev.bukkit.event.subscribers.PlayerSubscriber;
-import dev.bukkit.game.dungeon.BukkitStoneWorldGenerator;
+import dev.bukkit.game.dungeon.proceduralDungeon.BukkitVoidWorldGenerator;
+import dev.bukkit.game.dungeon.proceduralDungeon.SimpleDungeonBuilderBukkit;
 import dev.bukkit.game.scheduler.BukkitTaskScheduler;
 import dev.bukkit.game.states.BossState;
 import dev.bukkit.game.states.ClearState;
@@ -66,9 +63,9 @@ public final class DMain extends JavaPlugin {
     private static DMain instance;
     private BukkitConfigManager configManager;
     private ClassProgressionService progressionService;
-    private ProtocolManager protocolManager;
     private MessageSenderInterface messageSenderInterface;
     private GameStateController gameStateController;
+    private dev.bukkit.game.boss.BossArenaManager bossArenaManager;
 
     @Override
     public void onEnable() {
@@ -79,7 +76,6 @@ public final class DMain extends JavaPlugin {
         entityManager = EntityManager.getInstance();
         effectManagerInterface = BukkitEffectManager.getInstance();
         itemRegistry = RPGItemRegistry.getInstance();
-        protocolManager = ProtocolLibrary.getProtocolManager();
         messageSenderInterface = BukkitMessageSender.getInstance();
         AbilityRegistry.preregister();
 
@@ -110,9 +106,11 @@ public final class DMain extends JavaPlugin {
         GameSettings gameSettings = GameSettings.getCurrentSettings();
         GameSettingsLoader gameSettingsLoader = new GameSettingsLoader(gameSettings, setupConfig);
         gameSettingsLoader.load();
+        // Initialize boss arena manager from setup config
+        this.bossArenaManager = dev.bukkit.game.boss.BossArenaManager.createDefault(this);
         if (gameSettings.getDungeonWorld() != null && Bukkit.getWorld(gameSettings.getDungeonWorld()) == null) {
             Bukkit.createWorld(
-                    new WorldCreator(gameSettings.getDungeonWorld()).generator(new BukkitStoneWorldGenerator()));
+                    new WorldCreator(gameSettings.getDungeonWorld()).generator(new BukkitVoidWorldGenerator()));
             System.out.println("Could not find world " + gameSettings.getDungeonWorld() + ", generating new one.");
         }
 
@@ -126,6 +124,7 @@ public final class DMain extends JavaPlugin {
         // ==============================================[ Events
         // ]=============================================================
         eventBusInterface = BukkitEventBus.getInstance();
+        EventBusRegistry.registerAll(instance);
 
         gameStateController = new GameStateController(new BukkitTaskScheduler(this));
         if (gameSettings.isSetupMode()) {
@@ -135,18 +134,21 @@ public final class DMain extends JavaPlugin {
                 15, eventBusInterface));
         gameStateController.addState(new SelectClassState(gameSettings.getHoleCenter(),
                 gameSettings.getSelectionSpawn(), gameSettings.getSelectionLocations(), eventBusInterface));
-        gameStateController.addState(new SelectItemState(eventBusInterface));
+        gameStateController.addState(new SelectItemState(eventBusInterface, effectManagerInterface, entityManager));
         gameStateController.addState(new ClearState(gameSettings.getHoleCenter(), eventBusInterface,
                 effectManagerInterface, entityManager, progressionService, messageSenderInterface, this));
         gameStateController.addState(new BossState(eventBusInterface, progressionService));
         gameStateController.addState(new PostGameState(eventBusInterface, progressionService, this));
         gameStateController.start();
 
-        CommandManager commandManager = CommandManager.getInstance(itemsConfig, progressionService, gameStateController, gameSettingsLoader, eventBusInterface);
+        CommandManager commandManager = CommandManager.getInstance(itemsConfig, progressionService, gameStateController,
+                gameSettingsLoader, eventBusInterface);
         SimpleDungeonBuilderBukkit.initDungeonTestCommand(commandManager);
         commandManager.registerCommands(this);
         Bukkit.getPluginManager().registerEvents(new EventListener(this), this);
-        Bukkit.getPluginManager().registerEvents(new CancelledListener(this, protocolManager), this);
+//        new CancelledListener(instance);
+        new CancelSubscriber(eventBusInterface, instance);
+//        Bukkit.getPluginManager().registerEvents(new CancelledListener(this, protocolManager), this);
         combatListener = new CombatListener(this);
         Bukkit.getPluginManager().registerEvents(combatListener, this);
         new PlayerSubscriber(eventBusInterface, this).subscribe();
@@ -158,18 +160,27 @@ public final class DMain extends JavaPlugin {
         effectManagerInterface.cancelAll();
         combatListener.cleanup();
         configManager.saveAll();
+        eventBusInterface.getSubscribed().clear();
 
         World dungeonWorld = Bukkit.getWorld(GameSettings.getCurrentSettings().getDungeonWorld());
-        unloadWorld(dungeonWorld);
-        deleteWorld(dungeonWorld.getWorldFolder());
+        if (dungeonWorld != null) {
+            unloadWorld(dungeonWorld);
+            deleteWorld(dungeonWorld.getWorldFolder());
+        } else {
+            Bukkit.getLogger().info("No dungeon world found during shutdown; skipping unload/delete.");
+        }
     }
 
     public static DMain getInstance() {
         return instance;
     }
 
+    public dev.bukkit.game.boss.BossArenaManager getBossArenaManager() {
+        return bossArenaManager;
+    }
+
     public void unloadWorld(World world) {
-        if (!world.equals(null)) {
+        if (world != null) {
             Bukkit.getServer().unloadWorld(world, true);
         }
     }

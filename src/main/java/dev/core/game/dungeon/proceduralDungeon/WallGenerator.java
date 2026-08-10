@@ -1,15 +1,15 @@
 package dev.core.game.dungeon.proceduralDungeon;
 
+import java.util.LinkedHashSet;
+import java.util.List;
+import java.util.Set;
+import java.util.stream.Collectors;
+
 import dev.core.game.dungeon.BoundingBox;
 import dev.core.game.dungeon.proceduralDungeon.util.Direction3D;
 import dev.core.game.dungeon.proceduralDungeon.util.Vector3Int;
 import dev.core.game.dungeon.proceduralDungeon.util.dungeonBlocks.DungeonCeilingBlock;
 import dev.core.game.dungeon.proceduralDungeon.util.dungeonBlocks.DungeonWallBlock;
-
-import java.util.LinkedHashSet;
-import java.util.List;
-import java.util.Set;
-import java.util.stream.Collectors;
 
 public class WallGenerator {
 
@@ -81,7 +81,7 @@ public class WallGenerator {
     private static Set<DungeonCeilingBlock> findRoomCeiling(Set<Vector3Int> roomFloor, List<BoundingBox> rooms, int roomOffset) {
         Set<DungeonCeilingBlock> wallPositions = new LinkedHashSet<>();
         for (var position : roomFloor) {
-            int wallHeight = rooms.stream().filter(r -> r.contains(position)).map(r -> r.getDimensions().getY() - roomOffset).findFirst().orElse(0);
+            int wallHeight = getRoomWallHeight(position, rooms, roomOffset);
             wallPositions.add(new DungeonCeilingBlock(position.add(0, wallHeight + 1,0)));
         }
         return wallPositions;
@@ -169,6 +169,15 @@ public class WallGenerator {
             }
         }
         return wallPositions;
+    }
+
+    private static int getRoomWallHeight(Vector3Int position, List<BoundingBox> rooms, int roomOffset) {
+        for (var room : rooms) {
+            if (room.contains(position)) {
+                return room.getDimensions().getY() - roomOffset;
+            }
+        }
+        return 0;
     }
 }
 

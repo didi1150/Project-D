@@ -1,24 +1,31 @@
 package dev.core.game.dungeon.proceduralDungeon.util;
 
-import dev.core.game.dungeon.BoundingBox;
-import lombok.Getter;
-
+import java.util.Collection;
 import java.util.LinkedHashSet;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Set;
+
+import dev.core.game.dungeon.BoundingBox;
+import lombok.Getter;
 
 @Getter
 public class DungeonRoom {
 
     private BoundingBox room;
     private Set<Vector3Int> roomFloor;
+    private List<SpawnLocation> spawnPositions;
     private Set<DungeonRoom> connectedRooms = new LinkedHashSet<>();
 
-    public DungeonRoom(BoundingBox room, Set<Vector3Int> roomFloor, DungeonRoom ... connectedRooms) {
+    public DungeonRoom(BoundingBox room, Set<Vector3Int> roomFloor, Collection<SpawnLocation> spawnPositions, DungeonRoom ... connectedRooms) {
         this.room = room;
         this.roomFloor = roomFloor;
+        this.spawnPositions = new LinkedList<>(spawnPositions);
         this.connectedRooms.addAll(List.of(connectedRooms));
+    }
+
+    public DungeonRoom(BoundingBox room, Set<Vector3Int> roomFloor, DungeonRoom ... connectedRooms) {
+        this(room, roomFloor, new LinkedHashSet<>(), connectedRooms);
     }
 
     public static void addConnectionTo(DungeonRoom room1, DungeonRoom room2) {
@@ -58,6 +65,14 @@ public class DungeonRoom {
 
     public int getRealSize() {
         return roomFloor.size();
+    }
+
+    public List<SpawnLocation> getSpawnPositions() {
+        return new LinkedList<>(spawnPositions);
+    }
+
+    public void setSpawnPositions(Collection<SpawnLocation> spawnPositions) {
+        this.spawnPositions = new LinkedList<>(spawnPositions);
     }
 
     @Override

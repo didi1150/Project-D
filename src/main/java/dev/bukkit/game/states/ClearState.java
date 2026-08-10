@@ -17,6 +17,7 @@ import org.bukkit.entity.FallingBlock;
 import org.bukkit.entity.Player;
 import org.bukkit.event.player.PlayerJoinEvent;
 import org.bukkit.event.player.PlayerMoveEvent;
+import org.bukkit.event.player.PlayerPortalEvent;
 import org.bukkit.event.player.PlayerQuitEvent;
 import org.bukkit.plugin.Plugin;
 import org.bukkit.potion.PotionEffect;
@@ -28,7 +29,7 @@ import dev.bukkit.entity.BukkitEntityFactory;
 import dev.bukkit.entity.BukkitPlayerEntity;
 import dev.bukkit.game.coords.LocToPoint;
 import dev.bukkit.game.coords.PointToLocation;
-import dev.bukkit.game.dungeon.DungeonBuilderBukkit;
+import dev.bukkit.game.dungeon.proceduralDungeon.SimpleDungeonBuilderBukkit;
 import dev.bukkit.item.BukkitInventorySync;
 import dev.bukkit.storage.progression.ClassProgressionService;
 import dev.core.ability.EffectManagerInterface;
@@ -41,9 +42,12 @@ import dev.core.event.impl.TickEvent;
 import dev.core.game.GameState;
 import dev.core.game.ScheduledTask;
 import dev.core.game.coords.Point3D;
-import dev.core.game.dungeon.Dungeon;
-import dev.core.game.dungeon.DungeonGenerator;
-import dev.core.game.dungeon.SpawnLocation;
+import dev.core.game.dungeon.BoundingBox;
+import dev.core.game.dungeon.proceduralDungeon.RoomFirstDungeonGenerator3D;
+import dev.core.game.dungeon.proceduralDungeon.SimpleRandomWalkDungeonGenerator.SimpleRandomWalkParameters;
+import dev.core.game.dungeon.proceduralDungeon.util.DungeonSpawnManager;
+import dev.core.game.dungeon.proceduralDungeon.util.SpawnLocation;
+import dev.core.game.dungeon.proceduralDungeon.util.Vector3Int;
 import dev.core.game.settings.GameSettings;
 import dev.core.progression.PlayerClassProgression;
 import dev.core.utils.MessageSenderInterface;
@@ -56,18 +60,13 @@ public class ClearState extends GameState {
 
     private long lastMillis;
 
-    private EventBusInterface eventBus;
-
     private EffectManagerInterface effectManager;
 
     private EntityManager entityManager;
 
     private ClassProgressionService classProgressionService;
 
-    private Dungeon dungeon;
-
     private static final int SPAWN_RADIUS_SQRD = 225;
-    private List<Point3D> usedLocations;
 
     private static final List<Point3D> CACHED_CRUMBLE_OFFSETS = new ArrayList<>();
     private static final int CRUMBLE_RADIUS = 9;
@@ -86,19 +85,16 @@ public class ClearState extends GameState {
 
     private Location holeCenter;
 
-    private Location dungeonSpawn;
-
-    private MessageSenderInterface messageSender;
-
     private Plugin plugin;
 
     private World world;
+
+    private SimpleDungeonBuilderBukkit simpleDungeonBuilderBukkit;
 
     public ClearState(Point3D holeCenter, EventBusInterface eventBus, EffectManagerInterface effectManager,
             EntityManager entityManager, ClassProgressionService classProgressionService,
             MessageSenderInterface messageSender, Plugin plugin) {
         super(NAME, -1, eventBus);
-        this.messageSender = messageSender;
         this.plugin = plugin;
         this.holeCenter = PointToLocation.blockToLoc(holeCenter);
         this.eventBus = eventBus;
@@ -106,40 +102,61 @@ public class ClearState extends GameState {
         this.entityManager = entityManager;
         this.classProgressionService = classProgressionService;
         lastMillis = System.currentTimeMillis();
-        this.usedLocations = new ArrayList<Point3D>();
     }
 
     @Override
     protected void onStart() {
         // Handle ground opening
-        scheduler.runTaskLaterAsync(() -> {
-            dungeon = new DungeonGenerator(0, messageSender)
-                    .generateDungeon(roomCount(GameSettings.getCurrentSettings().getFloor()), new Point3D(0, 0, 0));
-            world = Bukkit.getWorld(GameSettings.getCurrentSettings().getDungeonWorld());
-            GameSettings.getCurrentSettings().setDungeon(dungeon);
-            scheduler.runTaskLater(() -> {
-                buildDungeon(dungeon, world);
-            }, 0);
-        }, 0);
-    }
+        int minRoomWidth = new Random().nextInt(10, 20);
+        int minRoomHeight = new Random().nextInt(5, 8);
+        int minRoomLength = new Random().nextInt(10, 20);
+        int dungeonWidth = 30
+                + (GameSettings.getCurrentSettings().getFloor() * GameSettings.getCurrentSettings().getFloor()) * 5;
+        int dungeonHeight = 30
+                + (GameSettings.getCurrentSettings().getFloor() * GameSettings.getCurrentSettings().getFloor()) * 5;
+        int dungeonLength = 30
+                + (GameSettings.getCurrentSettings().getFloor() * GameSettings.getCurrentSettings().getFloor()) * 5;
 
-    private void buildDungeon(Dungeon dungeon, World world) {
-        new DungeonBuilderBukkit(plugin, world).buildDungeon(dungeon, () -> {
+        int roomOffset = 1;
+        boolean randomWalkRooms = true;
+        int corridorWidth = new Random().nextInt(3, 5);
+
+        int iterations = 50;
+        int walkLength = 15;
+        boolean startRandomlyEachIteration = true;
+        SimpleRandomWalkParameters parameters = new SimpleRandomWalkParameters(iterations, walkLength,
+                startRandomlyEachIteration);
+
+        Vector3Int startPoint = new Vector3Int(0, 64, 0);
+        BoundingBox space = new BoundingBox(startPoint, startPoint.add(dungeonWidth, dungeonHeight, dungeonLength));
+        RoomFirstDungeonGenerator3D dungeonGenerator = new RoomFirstDungeonGenerator3D(startPoint, parameters,
+                minRoomWidth, minRoomHeight, minRoomLength, dungeonWidth, dungeonHeight, dungeonLength, roomOffset,
+                randomWalkRooms, corridorWidth);
+
+        dungeonGenerator.generateDungeon(1786367046024l);
+        world = Bukkit.getWorld(GameSettings.getCurrentSettings().getDungeonWorld());
+        simpleDungeonBuilderBukkit = new SimpleDungeonBuilderBukkit(plugin, world);
+
+        simpleDungeonBuilderBukkit.buildDungeon(dungeonGenerator, () -> {
+            GameSettings.getCurrentSettings()
+                    .setLastGeneratedDungeon(new BoundingBox(space.getMinPoint().add(0, -1, 0), space.getMaxPoint())); // -1
+                                                                                                                       // for
+                                                                                                                       // testing
+            GameSettings.getCurrentSettings().setLastGenerator(dungeonGenerator);
+
+//            triggerGroundCrumble(() -> {
+//                Bukkit.getOnlinePlayers().forEach(player -> {
+//                    var startRoom = dungeonGenerator.getStartRoom();
+//                    if (startRoom == null) return;
+//                    Vector3Int center = startRoom.get3DCenter();
+//                    // Teleport into the center of the room (center + 0.5, +1 to stand above floor)
+//                    Location spawn = new Location(player.getWorld(), center.getX() + 0.5, center.getY() + 1,
+//                            center.getZ() + 0.5);
+//                    player.setFallDistance(0);
+//                    player.teleport(spawn);
+//                });
+//            });
             triggerGroundCrumble(() -> {
-                teleportPlayerToDungeon(dungeon, world);
-            });
-
-        });
-    }
-
-    private void teleportPlayerToDungeon(Dungeon dungeon, World world) {
-        scheduler.runTaskLater(() -> {
-            Bukkit.getOnlinePlayers().forEach(player -> {
-                Point3D center = dungeon.getStartRoom().getCenter();
-                dungeonSpawn = new Location(world, center.getX() + 0.5, center.getY() + 1, center.getZ() + 0.5);
-                player.setFallDistance(0);
-                player.teleport(dungeonSpawn);
-
                 scheduledTask = scheduler.runTaskTimer(() -> {
                     float tickDelta = (System.currentTimeMillis() - lastMillis) / 1000f * 20f;
                     lastMillis = System.currentTimeMillis();
@@ -149,12 +166,12 @@ public class ClearState extends GameState {
                     entityManager.tick(System.currentTimeMillis());
                 }, 0, 1);
             });
-        }, 20L);
+
+        });
     }
 
     @Override
     protected void onStop() {
-        cancelTask();
     }
 
     @Override
@@ -163,30 +180,66 @@ public class ClearState extends GameState {
                 PlayerQuitEvent.class);
         EventAction<PlayerJoinEvent> joinAction = new EventAction<PlayerJoinEvent>(this::handleJoin,
                 PlayerJoinEvent.class);
-
+        EventAction<PlayerPortalEvent> portalAction = new EventAction<PlayerPortalEvent>(this::handlePortal,
+                PlayerPortalEvent.class);
         EventAction<PlayerMoveEvent> moveAction = new EventAction<PlayerMoveEvent>(this::handleMovement,
                 PlayerMoveEvent.class);
         addSubscriber(quitAction);
         addSubscriber(joinAction);
+        addSubscriber(portalAction);
         addSubscriber(moveAction);
     }
 
-    private void cancelTask() {
-        if (scheduledTask != null) {
-            scheduledTask.cancel();
-            scheduledTask = null;
+    private void handleMovement(PlayerMoveEvent event) {
+        if (event.getFrom().getBlockX() == event.getTo().getBlockX()
+                && event.getFrom().getBlockY() == event.getTo().getBlockY()
+                && event.getFrom().getBlockZ() == event.getTo().getBlockZ()) {
+            return;
+        }
+        if (!event.getFrom().getWorld().getName().contains("dungeon")
+                && !event.getFrom().getWorld().getName().contains("boss")) {
+            return;
+        }
+        if (!EntityManager.getInstance().getEntity(event.getPlayer().getUniqueId()).get().isAlive()) {
+            return;
+        }
+        // TODO:
+        /*
+         * 
+         * Suggested Implementation Steps (High Level) Create PlayerLocationTracker: A
+         * singleton service responsible for maintaining the map of players to rooms and
+         * handling location change events.
+         * 
+         * Modify Event Listener: Update your primary event listener to call
+         * PlayerLocationTracker.updateLocation(player, newRoomId) upon detecting
+         * movement.
+         * 
+         * Refactor Spawning Logic: Move the spawn logic out of individual room classes
+         * and into a dedicated service that accepts (Player player, Room room) as
+         * parameters. This service will use the SpawnTier (from your current file) to
+         * determine difficulty and then instantiate/spawn mobs in that specific
+         * context.
+         */
+
+        if (GameSettings.getCurrentSettings().getLastGenerator() instanceof RoomFirstDungeonGenerator3D) {
+            Point3D toPoint = LocToPoint.locToBlock(event.getTo());
+            int currentChunkX = DungeonSpawnManager.chunkFromBlock(toPoint.getX());
+            int currentChunkY = DungeonSpawnManager.chunkFromBlock(toPoint.getY());
+            int currentChunkZ = DungeonSpawnManager.chunkFromBlock(toPoint.getZ());
+
+            DungeonSpawnManager.getInstance()
+                    .getNearbyActiveSpawnLocations(currentChunkX, currentChunkY, currentChunkZ, 1).stream()
+                    .filter(location -> location.getPosition().distanceSqrd(toPoint) <= SPAWN_RADIUS_SQRD)
+                    .forEach(location -> {
+                        if (DungeonSpawnManager.getInstance().consumeSpawnLocation(location)) {
+                            spawnMob(location);
+                        }
+                    });
         }
     }
 
-    private void handleMovement(PlayerMoveEvent event) {
-        dungeon.getAllSpawnLocations().forEach(location -> {
-            if (!usedLocations.contains(location.getPosition())
-                    && location.getPosition().distanceSqrd(LocToPoint.locToBlock(event.getTo())) <= SPAWN_RADIUS_SQRD) {
-                usedLocations.add(location.getPosition());
+    private void handlePortal(PlayerPortalEvent event) {
 
-                spawnMob(location);
-            }
-        });
     }
 
     private void handleQuit(PlayerQuitEvent event) {
@@ -316,30 +369,10 @@ public class ClearState extends GameState {
         }, 200L); // 10 seconds cleanup
     }
 
-    private int roomCount(int floor) {
-        Random random = new Random();
-        return switch (floor) {
-        case 1: {
-            yield random.nextInt(5, 8);
-        }
-        case 2: {
-            yield random.nextInt(8, 13);
-        }
-        case 3: {
-            yield random.nextInt(13, 17);
-        }
-        case 4: {
-            yield random.nextInt(17, 22);
-        }
-        case 5: {
-            yield random.nextInt(22, 50);
-        }
-        default:
-            yield 5;
-        };
-    }
-
     private void spawnMob(SpawnLocation spawnLocation) {
+        if (spawnLocation == null || world == null) {
+            return;
+        }
         BukkitEntityFactory.spawnHostileVanillaDungeonMob(spawnLocation.getMaxEnemyLevel(), spawnLocation, world);
     }
 
