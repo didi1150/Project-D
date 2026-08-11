@@ -2,6 +2,7 @@ package dev.core.progression;
 
 import static org.junit.Assert.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.EnumMap;
@@ -94,16 +95,23 @@ public class PlayerClassProgressionTest {
     }
 
     @Test
-    void testGetBaseStatsScalesWithLevel() {
+    void testGetBonusStatsScalesWithLevel() {
         PlayerClassProgression prog = new PlayerClassProgression(RPGClassType.MAGE);
         prog.setLevel(3); // +10% scaling
 
-        Map<StatType, Stat> stats = prog.getBaseStats();
+        Map<StatType, Stat> stats = prog.getBonusStats();
 
-        assertNotNull(stats.get(StatType.HEALTH_RESOURCE));
-        assertNotNull(stats.get(StatType.MANA_RESOURCE));
+        // Bonus stats are combat stats only; resources are wired from the base.
+        assertNull(stats.get(StatType.HEALTH_RESOURCE));
+        assertNull(stats.get(StatType.MANA_RESOURCE));
 
         double scaledHealth = stats.get(StatType.HEALTH_MAX).getCurrent(System.currentTimeMillis());
         assertEquals(100 * 1.10, scaledHealth, 0.01); // 10% increase
+    }
+
+    @Test
+    void testGetBonusStatsIsEmptyForNoneClass() {
+        PlayerClassProgression prog = new PlayerClassProgression(RPGClassType.NONE);
+        assertTrue(prog.getBonusStats().isEmpty());
     }
 }

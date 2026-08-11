@@ -132,9 +132,9 @@
         </dependency>
      <!-- https://mvnrepository.com/artifact/com.github.dmulloy2/protocollib -->
         <dependency>
-            <groupId>com.github.dmulloy2</groupId>
-            <artifactId>protocollib</artifactId>
-            <version>5.3.0</version>
+            <groupId>net.dmulloy2</groupId>
+            <artifactId>ProtocolLib</artifactId>
+            <version>5.4.0</version>
             <scope>provided</scope>
         </dependency>
 	    <dependency>

@@ -3,8 +3,6 @@ package dev.core.entity.boss;
 import java.util.HashMap;
 import java.util.Map;
 
-import dev.bukkit.DMain;
-import dev.bukkit.game.scheduler.BukkitTaskScheduler;
 import dev.core.game.TaskScheduler;
 
 public class BossStageManager {
@@ -14,12 +12,12 @@ public class BossStageManager {
     private BossStage currentStage;
     private BossStageContext context;
     private long stageStartTime;
-    private TaskScheduler scheduler;
+    private final TaskScheduler scheduler;
 
-    public BossStageManager(RPGBossEntity boss) {
+    public BossStageManager(RPGBossEntity boss, TaskScheduler scheduler) {
         this.boss = boss;
+        this.scheduler = scheduler;
         this.context = new BossStageContext(boss, this);
-        scheduler = new BukkitTaskScheduler(DMain.getInstance());
     }
 
     public void addStage(BossStage stage) {
@@ -33,6 +31,7 @@ public class BossStageManager {
         }
         currentStage = stage;
         stageStartTime = System.currentTimeMillis();
+        boss.onStageTransition(stage);
         currentStage.onEnter(context);
     }
 
@@ -64,6 +63,7 @@ public class BossStageManager {
         currentStage = nextStage;
         stageStartTime = now;
         context.setState("lastStageChangeTime", now);
+        boss.onStageTransition(nextStage);
         currentStage.onEnter(context);
     }
 

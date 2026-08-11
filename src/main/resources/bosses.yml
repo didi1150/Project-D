@@ -1,0 +1,68 @@
+# Per-floor boss definitions.
+# The first boss defined for a floor is the boss that spawns on that floor.
+#
+# Stage types:
+#   THRESHOLD  - applies movement/targeting/attack strategies, transitions when
+#                health falls to `health-threshold` (0.75 = 75% remaining HP)
+#   MONOLOGUE  - final stage; broadcasts `lines` at `tick-delay` intervals, then
+#                the boss is defeated (used with `defeat-stage`)
+#   SUMMON     - spawns `summon-entity` minions every `interval-ticks` for
+#                `duration-ticks`, then transitions to `next-stage`
+#
+# Strategy keys:
+#   movement:  NONE, PATHFIND, TELEPORT
+#   targeting: NONE, FIRST_ALIVE, NEAREST
+#   attack:    NONE, MELEE, WITHER_SKULL
+#
+# Strategy parameters (read from the stage section):
+#   attack-count / attack-cooldown-ms        (WITHER_SKULL)
+#   movement-speed / stop-distance           (PATHFIND)
+#   teleport-distance / teleport-cooldown-ms (TELEPORT)
+
+bosses:
+  1:
+    wither-king:
+      display-name: "&c&lWither King"
+      entity-type: WITHER
+      defeat-stage: death
+      stats:
+        HEALTH_MAX: 15000
+        MANA_MAX: 100
+        ARMOR: 20
+        MAGIC_RESIST: 20
+        ATTACK_DAMAGE: 80
+        ATTACK_SPEED: 1.0
+        MOVE_SPEED: 100
+        HEALTH_REGEN: 0
+        MANA_REGEN: 0
+        CRIT_CHANCE: 0.0
+        LETHALITY: 0
+        ARMOR_PENETRATION: 0
+      stages:
+        - type: THRESHOLD
+          id: phase1
+          health-threshold: 0.75
+          next-stage: phase2
+          targeting: FIRST_ALIVE
+          movement: PATHFIND
+          movement-speed: 1.2
+          attack: WITHER_SKULL
+          attack-count: 1
+          attack-cooldown-ms: 1200
+        - type: THRESHOLD
+          id: phase2
+          health-threshold: 0.0
+          next-stage: death
+          targeting: FIRST_ALIVE
+          movement: PATHFIND
+          movement-speed: 1.5
+          attack: WITHER_SKULL
+          attack-count: 2
+          attack-cooldown-ms: 900
+        - type: MONOLOGUE
+          id: death
+          tick-delay: 60
+          lines:
+            - "§cThe Wither King staggers... 'Impossible... you cannot defeat me!'"
+            - "§c'The dungeon... will consume you all...'" 
+            - "§7The Wither King collapses into dust."

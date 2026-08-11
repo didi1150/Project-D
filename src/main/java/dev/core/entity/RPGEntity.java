@@ -41,7 +41,7 @@ public abstract class RPGEntity {
 
     public RPGEntity(UUID uuid, String name, EntityType entityType, EffectManagerInterface effectManagerInterface,
             EventBusInterface eventBusInterface) {
-        this(new StatManager(DefaultStats.getStatsByClass(RPGClassType.NONE)), uuid, name, entityType,
+        this(new StatManager(DefaultStats.getDefaultStats()), uuid, name, entityType,
                 effectManagerInterface, eventBusInterface, RPGClassType.NONE);
     }
 

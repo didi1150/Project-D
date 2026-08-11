@@ -8,7 +8,6 @@ import dev.core.stat.DefaultStats;
 import dev.core.stat.Stat;
 import dev.core.stat.StatType;
 import dev.core.stat.impl.CombatStat;
-import dev.core.stat.impl.ResourceStat;
 import dev.core.storage.database.ExperienceTable;
 
 public class PlayerClassProgression {
@@ -94,12 +93,19 @@ public class PlayerClassProgression {
         return usableItems;
     }
 
-    public Map<StatType, Stat> getBaseStats() {
-        Map<StatType, Stat> base = DefaultStats.getStatsByClass(classType);
-        if (base == null) {
+    /**
+     * The stats this class grants <em>on top of</em> the default (NONE) base stat
+     * set, scaled by +5% per level above 1. Resource stats are deliberately not
+     * produced here: they are re-wired from the merged base when
+     * {@link PlayerProgression#setActiveClass(RPGClassType, StatManager)} installs
+     * the final stat set.
+     */
+    public Map<StatType, Stat> getBonusStats() {
+        if (classType == RPGClassType.NONE) {
             return new HashMap<>();
         }
 
+        Map<StatType, Stat> base = DefaultStats.getStatsByClass(classType);
         Map<StatType, Stat> scaled = new HashMap<>();
         for (Map.Entry<StatType, Stat> entry : base.entrySet()) {
             StatType type = entry.getKey();
@@ -114,21 +120,6 @@ public class PlayerClassProgression {
                 scaled.put(type, new CombatStat(stat.getName(), newCurrent));
             }
         }
-
-        Stat healthMaxStat = scaled.get(StatType.HEALTH_MAX);
-        Stat healthRegenStat = scaled.get(StatType.HEALTH_REGEN);
-        Stat healAndShieldPowerStat = scaled.get(StatType.HEAL_AND_SHIELD_POWER);
-
-        Stat manaMaxStat = scaled.get(StatType.MANA_MAX);
-        Stat manaRegenStat = scaled.get(StatType.MANA_REGEN);
-
-        scaled.put(StatType.HEALTH_RESOURCE,
-                new ResourceStat(StatType.HEALTH_RESOURCE.toString(), t -> healthMaxStat.getCurrent(t),
-                        t -> healthRegenStat.getCurrent(t) * (1 + healAndShieldPowerStat.getCurrent(t) / 100),
-                        System.currentTimeMillis()));
-
-        scaled.put(StatType.MANA_RESOURCE, new ResourceStat(StatType.MANA_RESOURCE.toString(),
-                t -> manaMaxStat.getCurrent(t), t -> manaRegenStat.getCurrent(t), System.currentTimeMillis()));
 
         return scaled;
     }

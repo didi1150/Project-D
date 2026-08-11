@@ -9,10 +9,7 @@ import org.bukkit.Location;
 import org.bukkit.World;
 import org.bukkit.attribute.Attribute;
 import org.bukkit.entity.Entity;
-import org.bukkit.entity.EntityType;
-import org.bukkit.entity.LivingEntity;
 import org.bukkit.entity.Player;
-import org.bukkit.event.entity.EntityDeathEvent;
 import org.bukkit.event.player.PlayerJoinEvent;
 import org.bukkit.event.player.PlayerQuitEvent;
 import org.bukkit.metadata.FixedMetadataValue;
@@ -21,16 +18,23 @@ import org.bukkit.potion.PotionEffectType;
 
 import dev.bukkit.DMain;
 import dev.bukkit.entity.BukkitPlayerEntity;
-import dev.bukkit.entity.boss.BukkitWitherBoss;
+import dev.bukkit.entity.boss.BukkitBossEntity;
+import dev.bukkit.entity.boss.BukkitBossFactory;
+import dev.bukkit.game.scheduler.BukkitTaskScheduler;
 import dev.bukkit.item.BukkitInventorySync;
 import dev.bukkit.storage.progression.ClassProgressionService;
 import dev.core.entity.EntityManager;
 import dev.core.entity.RPGEntity;
+import dev.core.entity.boss.BossDefinition;
+import dev.core.entity.boss.BossDefinitionRegistry;
 import dev.core.entity.rpgclass.RPGClassType;
 import dev.core.event.EventAction;
 import dev.core.event.EventBusInterface;
+import dev.core.event.impl.RPGEntityDeathEvent;
 import dev.core.game.GameState;
 import dev.core.game.GameStateResult;
+import dev.core.game.ScheduledTask;
+import dev.core.game.TaskScheduler;
 import dev.core.game.coords.Point3D;
 import dev.core.game.settings.GameSettings;
 import dev.core.progression.PlayerClassProgression;
@@ -41,13 +45,18 @@ public class BossState extends GameState {
 
     private final ClassProgressionService classProgressionService;
     private final EventBusInterface eventBus;
+    private final BukkitBossFactory bossFactory;
+    private final TaskScheduler scheduler;
     private UUID bossUuid;
-    private BukkitWitherBoss activeBoss;
+    private BukkitBossEntity activeBoss;
+    private ScheduledTask bossTickTask;
 
     public BossState(EventBusInterface eventBus, ClassProgressionService classProgressionService) {
         super(NAME, -1, eventBus);
         this.eventBus = eventBus;
         this.classProgressionService = classProgressionService;
+        this.scheduler = new BukkitTaskScheduler(DMain.getInstance());
+        this.bossFactory = new BukkitBossFactory(eventBus, scheduler);
     }
 
     @Override
@@ -66,8 +75,12 @@ public class BossState extends GameState {
 
     @Override
     protected void onStop() {
+        if (bossTickTask != null) {
+            bossTickTask.cancel();
+            bossTickTask = null;
+        }
         if (activeBoss != null) {
-            activeBoss.shutdown();
+            bossFactory.despawn(activeBoss);
             activeBoss = null;
         }
         bossUuid = null;
@@ -77,7 +90,8 @@ public class BossState extends GameState {
     protected void registerSubscribers() {
         EventAction<PlayerQuitEvent> quitAction = new EventAction<>(this::handleQuit, PlayerQuitEvent.class);
         EventAction<PlayerJoinEvent> joinAction = new EventAction<>(this::handleJoin, PlayerJoinEvent.class);
-        EventAction<EntityDeathEvent> deathAction = new EventAction<>(this::handleBossDeath, EntityDeathEvent.class);
+        EventAction<RPGEntityDeathEvent> deathAction = new EventAction<>(this::handleBossDeath,
+                RPGEntityDeathEvent.class);
 
         addSubscriber(quitAction);
         addSubscriber(joinAction);
@@ -140,11 +154,11 @@ public class BossState extends GameState {
         });
     }
 
-    private void handleBossDeath(EntityDeathEvent event) {
+    private void handleBossDeath(RPGEntityDeathEvent event) {
         if (bossUuid == null) {
             return;
         }
-        if (!event.getEntity().getUniqueId().equals(bossUuid)) {
+        if (!event.getTarget().getUuid().equals(bossUuid)) {
             return;
         }
 
@@ -169,7 +183,8 @@ public class BossState extends GameState {
 
     private boolean spawnBoss(World world, Location spawnLocation) {
         if (activeBoss != null) {
-            activeBoss.shutdown();
+            bossFactory.despawn(activeBoss);
+            activeBoss = null;
         }
 
         Entity existing = world.getNearbyEntities(spawnLocation, 1, 1, 1).stream()
@@ -178,29 +193,28 @@ public class BossState extends GameState {
             existing.remove();
         }
 
-        Entity entity = world.spawnEntity(spawnLocation, EntityType.WITHER);
-        if (!(entity instanceof LivingEntity wither)) {
-            throw new IllegalStateException("Failed to spawn wither boss entity");
+        GameSettings settings = GameSettings.getCurrentSettings();
+        BossDefinition definition = BossDefinitionRegistry.getInstance().getForFloor(settings.getFloor())
+                .orElse(null);
+        if (definition == null) {
+            Bukkit.broadcastMessage("§cBossState failed: no boss configured for floor " + settings.getFloor());
+            return false;
         }
 
-        wither.setCustomName("§c§lWither Boss");
-        wither.setCustomNameVisible(true);
-        wither.setRemoveWhenFarAway(false);
-        wither.setAI(false);
-
-        BukkitWitherBoss boss = new BukkitWitherBoss(entity.getUniqueId(), "End Boss", eventBus);
-        boss.spawn(spawnLocation);
-
+        BukkitBossEntity boss = bossFactory.spawn(definition, world, spawnLocation);
         this.activeBoss = boss;
         this.bossUuid = boss.getUuid();
-        if (Bukkit.getEntity(boss.getUuid()) instanceof LivingEntity living) {
-            living.setMetadata("BOSS", new FixedMetadataValue(DMain.getInstance(), true));
-            living.setMetadata("DUNGEON", new FixedMetadataValue(DMain.getInstance(), true));
-            if (living instanceof org.bukkit.entity.Creature creature) {
-                creature.setRemoveWhenFarAway(false);
-            }
-        }
+        boss.getBukkitEntity().ifPresent(living -> living.setMetadata("BOSS", new FixedMetadataValue(DMain.getInstance(), true)));
+
+        startBossTicking();
         return true;
+    }
+
+    private void startBossTicking() {
+        if (bossTickTask != null) {
+            bossTickTask.cancel();
+        }
+        bossTickTask = scheduler.runTaskTimer(() -> EntityManager.getInstance().tick(System.currentTimeMillis()), 0, 1);
     }
 
     private void prepareBossArena(String bossTemplate, GameSettings settings) {

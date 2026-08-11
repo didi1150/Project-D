@@ -16,6 +16,8 @@ import dev.bukkit.event.bukkitListeners.EventBusRegistry;
 import dev.bukkit.event.bukkitListeners.EventListener;
 import dev.bukkit.event.subscribers.CancelSubscriber;
 import dev.bukkit.event.subscribers.PlayerSubscriber;
+import dev.bukkit.entity.boss.BukkitBossStageTypeRegistry;
+import dev.bukkit.entity.boss.BukkitBossStrategyRegistry;
 import dev.bukkit.game.dungeon.proceduralDungeon.BukkitVoidWorldGenerator;
 import dev.bukkit.game.dungeon.proceduralDungeon.SimpleDungeonBuilderBukkit;
 import dev.bukkit.game.scheduler.BukkitTaskScheduler;
@@ -36,6 +38,8 @@ import dev.core.ability.AbilityRegistry;
 import dev.core.ability.EffectManagerInterface;
 import dev.core.ability.storage.AbilityLoader;
 import dev.core.entity.EntityManager;
+import dev.core.entity.boss.BossDefinitionLoader;
+import dev.core.entity.boss.BossDefinitionRegistry;
 import dev.core.entity.rpgclass.RPGClassType;
 import dev.core.event.EventBusInterface;
 import dev.core.game.GameStateController;
@@ -99,6 +103,12 @@ public final class DMain extends JavaPlugin {
         Map<String, RPGItem> items = RPGItemLoader.loadAll(itemsConfig);
         Bukkit.getConsoleSender().sendMessage("Loaded " + items.size() + " item(s).");
         itemRegistry.addAll(items);
+
+        // ==============================================[ Load bosses.yml
+        // ]=====================================================
+        ConfigProvider bossesConfig = configManager.getProvider("bosses.yml");
+        BossDefinitionRegistry.getInstance().registerAll(BossDefinitionLoader.loadAll(bossesConfig,
+                new BukkitBossStageTypeRegistry(), new BukkitBossStrategyRegistry()));
 
         // ==============================================[ Setup Settings
         // ]=====================================================

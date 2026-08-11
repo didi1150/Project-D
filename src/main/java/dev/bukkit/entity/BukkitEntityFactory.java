@@ -2,7 +2,6 @@ package dev.bukkit.entity;
 
 import java.util.Arrays;
 import java.util.List;
-import java.util.UUID;
 
 import org.bukkit.Location;
 import org.bukkit.World;
@@ -19,11 +18,6 @@ import org.bukkit.potion.PotionEffectType;
 import dev.bukkit.DMain;
 import dev.bukkit.entity.VanillaEntityMeta.RelationType;
 import dev.bukkit.utils.DamageUtils;
-import dev.core.ability.EffectManagerInterface;
-import dev.core.entity.EntityManager;
-import dev.core.entity.RPGMobEntity;
-import dev.core.entity.boss.RPGBossEntity;
-import dev.core.event.EventBusInterface;
 import dev.core.game.dungeon.proceduralDungeon.util.SpawnLocation;
 
 public class BukkitEntityFactory {
@@ -61,23 +55,6 @@ public class BukkitEntityFactory {
         }
 
         return hostileTypes.get((int) (Math.random() * hostileTypes.size()));
-    }
-
-    public static RPGMobEntity createDungeonMob(UUID uuid, String name, EffectManagerInterface effectManager,
-            EventBusInterface eventBus) {
-        RPGMobEntity mob = new RPGMobEntity(uuid, name, effectManager, eventBus);
-        EntityManager.getInstance().registerEntity(mob);
-        return mob;
-    }
-
-    public static RPGBossEntity createBoss(UUID uuid, String name, EffectManagerInterface effectManager,
-            EventBusInterface eventBus, String initialStageId) {
-        RPGBossEntity boss = new RPGBossEntity(uuid, name, effectManager, eventBus);
-        if (initialStageId != null && !initialStageId.isEmpty()) {
-            boss.setInitialStage(initialStageId);
-        }
-        EntityManager.getInstance().registerEntity(boss);
-        return boss;
     }
 
     public static Entity spawnVanillaDungeonMob(EntityType entityType, int level, SpawnLocation spawnLocation,

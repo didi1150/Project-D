@@ -16,6 +16,9 @@ public class StatManager {
     public StatManager(Map<StatType, Stat> preStats) {
         this.stats = new HashMap<StatType, Stat>();
 
+        if (preStats == null) {
+            return;
+        }
         for (Entry<StatType, Stat> entry : preStats.entrySet()) {
             stats.put(entry.getKey(), entry.getValue());
         }
@@ -23,6 +26,7 @@ public class StatManager {
 
     public void addAll(Map<StatType, Stat> stats) {
         this.stats.putAll(new HashMap<StatType, Stat>(stats));
+        if (statEngine != null) statEngine.invalidate();
     }
 
     public void addStatModifier(StatModifier statModifier) {
@@ -58,16 +62,24 @@ public class StatManager {
 
     public double getMaxValue(StatType type, long now) {
         Stat stat = stats.get(type);
+        if (stat == null) {
+            return 0;
+        }
         return stat.getMax(now);
     }
 
     public void setCurrentValue(StatType type, double value) {
         Stat stat = stats.get(type);
-        stat.setCurrent(value);
+        if (stat != null) {
+            stat.setCurrent(value);
+        }
     }
 
     public void modifyStat(StatType type, double delta) {
-        stats.get(type).modify(delta);
+        Stat stat = stats.get(type);
+        if (stat != null) {
+            stat.modify(delta);
+        }
     }
 
     public void clearAll() {
@@ -76,6 +88,7 @@ public class StatManager {
         }
 
         stats.clear();
+        if (statEngine != null) statEngine.invalidate();
     }
 
     public Map<StatType, Stat> getStats() {

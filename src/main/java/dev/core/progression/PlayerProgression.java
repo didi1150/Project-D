@@ -5,9 +5,11 @@ import java.util.Map;
 import java.util.UUID;
 
 import dev.core.entity.rpgclass.RPGClassType;
+import dev.core.stat.DefaultStats;
 import dev.core.stat.Stat;
 import dev.core.stat.StatManager;
 import dev.core.stat.StatType;
+import dev.core.stat.loader.StatLoader;
 
 public class PlayerProgression {
 
@@ -36,9 +38,17 @@ public class PlayerProgression {
         unlockClass(type);
         this.activeClass = type;
 
+        Map<StatType, Stat> stats;
+        if (type == RPGClassType.NONE) {
+            // No class: keep only the universal base stat set.
+            stats = DefaultStats.getDefaultStats();
+        } else {
+            // Default (NONE) base + class bonus scaled by level.
+            stats = StatLoader.mergeStats(DefaultStats.getDefaultStats(), getProgression(type).getBonusStats());
+        }
+
         statManager.clearAll();
-        Map<StatType, Stat> baseStats = getProgression(type).getBaseStats();
-        statManager.addAll(baseStats);
+        statManager.addAll(stats);
     }
 
     public RPGClassType getActiveClass() {

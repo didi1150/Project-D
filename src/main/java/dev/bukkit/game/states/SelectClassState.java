@@ -259,9 +259,11 @@ public class SelectClassState extends GameState {
 //                }
             player.setLevel(0);
             player.setExp(0);
-            playerEntity.getPlayerProgression().setActiveClass(
-                    roleStates.get(playerSelections.get(player.getUniqueId())).classType,
-                    playerEntity.getStatManager());
+            String selection = playerSelections.get(player.getUniqueId());
+            RPGClassType assignedClass = (selection != null && roleStates.containsKey(selection))
+                    ? roleStates.get(selection).classType
+                    : RPGClassType.NONE; // defensive: no finalized selection -> keep base stats
+            playerEntity.getPlayerProgression().setActiveClass(assignedClass, playerEntity.getStatManager());
         }
         cancelUpdateTask();
     }

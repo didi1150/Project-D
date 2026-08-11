@@ -5,23 +5,22 @@ import java.util.Set;
 import java.util.UUID;
 
 import org.bukkit.Bukkit;
+import org.bukkit.boss.BarColor;
+import org.bukkit.boss.BarStyle;
+import org.bukkit.boss.BossBar;
 import org.bukkit.entity.Player;
-
-import com.comphenix.protocol.PacketType;
-import com.comphenix.protocol.ProtocolLibrary;
-import com.comphenix.protocol.ProtocolManager;
-import com.comphenix.protocol.events.PacketContainer;
-import com.comphenix.protocol.wrappers.WrappedChatComponent;
 
 public class BossBarController {
 
-    private final UUID id = UUID.randomUUID();
     private final String title;
     private final Set<UUID> viewers = new HashSet<>();
     private float progress = 1.0f;
 
+    private final BossBar bossBar;
+
     public BossBarController(String title) {
         this.title = title;
+        this.bossBar = Bukkit.createBossBar(title, BarColor.RED, BarStyle.SOLID);
     }
 
     public void addViewer(Player player) {
@@ -58,27 +57,17 @@ public class BossBarController {
 
     private void sendBar(Player player, boolean visible) {
         if (!player.isOnline()) {
+            bossBar.removePlayer(player);
             viewers.remove(player.getUniqueId());
             return;
         }
 
-        int action = visible ? 0 : 1;
-        ProtocolManager pm = ProtocolLibrary.getProtocolManager();
-        PacketContainer packet = pm.createPacket(PacketType.Play.Server.BOSS);
-        packet.getUUIDs().write(0, id);
-        packet.getIntegers().write(0, action);
-        packet.getChatComponents().write(0, WrappedChatComponent.fromText(title));
-        packet.getFloat().write(0, progress);
-
-        try {
-            ProtocolLibrary.getProtocolManager().sendServerPacket(player, packet);
-        } catch (Exception ignored) {
-            // Packet-based boss bars are intentionally best-effort for compatibility
-            // without a
-            // dedicated server-version specific packet mapper.
-        }
-
-        if (!visible) {
+        if (visible) {
+            bossBar.setTitle(title);
+            bossBar.setProgress(progress);
+            bossBar.addPlayer(player);
+        } else {
+            bossBar.removePlayer(player);
             viewers.remove(player.getUniqueId());
         }
     }

@@ -1,3 +1,6 @@
+# NONE is the universal base stat set that every entity starts from (players
+# before class selection, mobs and bosses without their own stats).
+# Each class block is a BONUS layered on top of that base, scaled by level.
 statDefaults:
   NONE:
     HEALTH_MAX: 100
