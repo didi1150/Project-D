@@ -53,23 +53,34 @@ public class BukkitLoreRenderer implements RPGItemLoreRenderer {
 					lore.add("");
 
 				}
-				lore.add(ChatColor.YELLOW.toString() + "Ability: " + ability.getName()
-						+ (ability.getTriggerType() == AbilityTriggerType.MANUAL ? " " + ChatColor.DARK_GRAY
-								+ ChatColor.BOLD + ability.getAction().toString().replaceAll("_", " ") : ""));
+				// Defensive: an ability attached to an item but not configured in
+				// abilities.yml keeps null name/description/action.
+				String abilityName = ability.getName() != null ? ability.getName() : ability.getId();
+				lore.add(ChatColor.YELLOW.toString() + "Ability: " + abilityName
+						+ (ability.getTriggerType() == AbilityTriggerType.MANUAL && ability.getAction() != null
+								? " " + ChatColor.DARK_GRAY + ChatColor.BOLD
+										+ ability.getAction().toString().replaceAll("_", " ")
+								: ""));
 
-				for (String line : ability.getDescription()) {
-					StringBuilder parsedLine = new StringBuilder();
+				List<String> description = ability.getDescription();
+				if (description != null) {
+					for (String line : description) {
+						if (line == null) {
+							continue;
+						}
+						StringBuilder parsedLine = new StringBuilder();
 
-					for (StyleTagParser.StyledSegment seg : parser.parse(line)) {
-						parsedLine.append(toChatFormatting(seg.style())).append(seg.text());
+						for (StyleTagParser.StyledSegment seg : parser.parse(line)) {
+							parsedLine.append(toChatFormatting(seg.style())).append(seg.text());
+						}
+
+						lore.add(parsedLine.toString());
 					}
-
-					lore.add(parsedLine.toString());
 				}
 
 				lore.add("");
 
-				if (ability.getCost().hasCost()) {
+				if (ability.getCost() != null && ability.getCost().hasCost()) {
 					lore.add(ChatColor.DARK_GRAY + "Cost: ");
 					for (Entry<String, Double> entry : ability.getCost().getResourceCosts().entrySet()) {
 						StatType type = StatType.valueOf(entry.getKey());

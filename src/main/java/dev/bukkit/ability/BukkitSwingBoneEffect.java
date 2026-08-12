@@ -24,11 +24,14 @@ import org.bukkit.util.Vector;
 
 import dev.bukkit.DMain;
 import dev.bukkit.entity.BukkitPlayerEntity;
+import dev.bukkit.event.bukkitListeners.CombatListener;
 import dev.bukkit.item.BukkitItemStackAdapter;
 import dev.bukkit.utils.DamageUtils;
 import dev.core.ability.Effect;
 import dev.core.entity.EntityManager;
+import dev.core.entity.RPGDamageResult;
 import dev.core.entity.RPGEntity;
+import dev.core.event.impl.RPGEntityDamageEvent.DamageResult;
 import dev.core.event.impl.RPGEntityDamageEvent.DamageType;
 import dev.core.stat.StatType;
 
@@ -250,7 +253,7 @@ public class BukkitSwingBoneEffect extends Effect {
     private void dealDamage(BukkitPlayerEntity playerEntity, long now, List<UUID> hitList) {
         Player player = playerEntity.getPlayer().get();
         List<Entity> nearbyEntities = (List<Entity>) player.getWorld()
-                .getNearbyEntities(armorStand.getLocation().clone().add(0, 1.575, 0), 0.4, 0.4, 0.4);
+                .getNearbyEntities(armorStand.getLocation().clone().add(0, 1.575, 0), 0.8, 0.8, 0.8);
 
         for (Entity entity : nearbyEntities) {
             if (entity instanceof LivingEntity le && entity != player && entity.getType() != EntityType.PLAYER) {
@@ -261,20 +264,54 @@ public class BukkitSwingBoneEffect extends Effect {
                     hitList.add(le.getUniqueId());
 
                     double multiplier = hitReturn ? 2 : 1;
-                    double attackDamage = (playerEntity.getStatManager().getCurrentValue(StatType.ATTACK_DAMAGE, now)
-                            + BONE_DAMAGE) * multiplier;
+                    // Read ATTACK_DAMAGE through the StatEngine so equipped-item
+                    // active stats (e.g. a weapon's +ATTACK_DAMAGE) apply to the
+                    // bone projectile; the legacy StatManager alone misses them.
+                    double attackDamage = (playerEntity.getStatEngineAdapter().getCurrentValue(StatType.ATTACK_DAMAGE,
+                            now) + BONE_DAMAGE) * multiplier;
                     EntityManager.getInstance().getEntity(entity.getUniqueId()).ifPresentOrElse(target -> {
-                        target.dealRPGDamage(playerEntity, target, attackDamage, DamageType.PHYSICAL);
+                        RPGDamageResult rpgDamage = target.dealRPGDamage(playerEntity, target, attackDamage,
+                                DamageType.PHYSICAL);
+                        // Hurt animation/sound are handled centrally by
+                        // dealRPGDamage (only when the target is not immune). Here
+                        // we only knock back + render the floating damage numbers,
+                        // and skip both when the hit was denied (immune boss).
+                        if (rpgDamage.getResult() != DamageResult.DENY) {
+                            knockback(le);
+                            showDamageIndicator(le, rpgDamage.getDamage(), rpgDamage.getResult());
+                        }
                     }, () -> {
-                        // Visuals
+                        // Vanilla mob: damageMob fires an EntityDamageByEntityEvent
+                        // that CombatListener already renders an indicator for, so we
+                        // must NOT render again here or the indicator doubles.
                         DamageUtils.damageMob(le, attackDamage, playerEntity);
+                        knockback(le);
                     });
-                    Vector knockbackDirection = le.getLocation().toVector()
-                            .subtract(armorStand.getLocation().toVector()).normalize();
-                    le.setVelocity(knockbackDirection.multiply(0.1));
                 }
             }
         }
+    }
+
+    private void knockback(LivingEntity le) {
+        Vector knockbackDirection = le.getLocation().toVector()
+                .subtract(armorStand.getLocation().toVector()).normalize();
+        le.setVelocity(knockbackDirection.multiply(0.1));
+    }
+
+    /**
+     * Mirror of the melee damage numbers (CombatListener.showPhysicalDamage) so a
+     * bone hit is as visible as a sword swing.
+     */
+    private void showDamageIndicator(LivingEntity le, double damage, DamageResult result) {
+        if (damage <= 0) {
+            return;
+        }
+        DMain plugin = DMain.getInstance();
+        CombatListener combatListener = plugin == null ? null : plugin.getCombatListener();
+        if (combatListener == null) {
+            return;
+        }
+        combatListener.showPhysicalDamage(le.getLocation(), damage, result);
     }
 
 }

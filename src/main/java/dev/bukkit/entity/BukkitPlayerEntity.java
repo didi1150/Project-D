@@ -5,6 +5,7 @@ import java.util.Optional;
 import org.bukkit.Bukkit;
 import org.bukkit.GameMode;
 import org.bukkit.attribute.Attribute;
+import org.bukkit.entity.Entity;
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.potion.PotionEffect;
@@ -12,6 +13,7 @@ import org.bukkit.potion.PotionEffectType;
 
 import dev.bukkit.DMain;
 import dev.bukkit.ability.BukkitEffectManager;
+import dev.bukkit.entity.boss.BukkitBossEntity;
 import dev.bukkit.event.BukkitEventBus;
 import dev.bukkit.stat.BukkitStatManager;
 import dev.core.entity.EntityManager;
@@ -141,5 +143,24 @@ public class BukkitPlayerEntity extends RPGEntity {
 //      TODO: Remove GHOST
         syncState();
         return super.onRevive();
+    }
+
+    @Override
+    protected void playHitReaction(RPGEntity attacker) {
+        getPlayer().ifPresent(player -> player.damage(0.001, bukkitSourceOf(attacker)));
+    }
+
+    /**
+     * Resolves the Bukkit {@link Entity} (if any) backing an attacker, so the
+     * 0-damage hurt poke is attributed to the right source.
+     */
+    public static Entity bukkitSourceOf(RPGEntity attacker) {
+        if (attacker instanceof BukkitPlayerEntity playerEntity) {
+            return playerEntity.getPlayer().orElse(null);
+        }
+        if (attacker instanceof BukkitBossEntity bossEntity) {
+            return bossEntity.getLivingEntity().orElse(null);
+        }
+        return null;
     }
 }

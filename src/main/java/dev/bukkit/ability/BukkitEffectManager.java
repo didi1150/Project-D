@@ -7,6 +7,7 @@ import java.util.Map;
 import java.util.Map.Entry;
 
 import org.bukkit.entity.Player;
+import org.bukkit.inventory.ItemStack;
 import org.bukkit.persistence.PersistentDataType;
 
 import dev.bukkit.entity.BukkitPlayerEntity;
@@ -15,8 +16,6 @@ import dev.core.ability.Ability;
 import dev.core.ability.CooldownScope;
 import dev.core.ability.Effect;
 import dev.core.ability.EffectManagerInterface;
-import dev.core.ability.impl.ParticleTestAbility;
-import dev.core.ability.impl.SwingBoneAbility;
 import dev.core.entity.RPGEntity;
 import dev.core.stat.StatType;
 
@@ -45,45 +44,51 @@ public class BukkitEffectManager implements EffectManagerInterface {
 		if (!canActivate(entity, ability)) {
 			return null;
 		}
-		Effect effect = null;
 		for (Entry<String, Double> entry : ability.getCost().getResourceCosts().entrySet()) {
 			entity.getStatManager().modifyStat(StatType.valueOf(entry.getKey()), -entry.getValue());
 		}
 
 		String cooldownKey = getCooldownKey(entity, ability);
 
-		if (ability instanceof ParticleTestAbility) {
-			effect = new BukkitParticleTestEffect(cooldownKey);
+		Effect effect = BukkitEffectRegistry.create(ability.getId(), cooldownKey);
+		if (effect == null) {
+			return null; // registry already logged the warning
+		}
+
+		if (effect.isSingleInstance() && entity instanceof BukkitPlayerEntity) {
+			String effectKey = getEffectKey(entity, ability);
+			Map<String, List<Effect>> effectsByKey = activeEffects.computeIfAbsent(entity, k -> new HashMap<>());
+			List<Effect> effects = effectsByKey.computeIfAbsent(effectKey, k -> new ArrayList<>());
+
+			// Purge already-expired effects from the single-instance slot. This
+			// manager's tick() is only driven from a few game states, so an expired
+			// effect otherwise lingers forever and silently blocks every later cast
+			// of the same ability (the "right-click does nothing" failure).
+			long now = System.currentTimeMillis();
+			effects.removeIf(e -> e.hasExpired(now));
+			if (effects.isEmpty()) {
+				effectsByKey.remove(effectKey);
+			}
+
+			boolean alreadyActive = effects.stream().anyMatch(e -> e.getClass() == effect.getClass());
+
+			if (!alreadyActive) {
+				effect.cast(entity, () -> setCooldown(entity, ability, cooldownKey),
+						() -> reduceCooldown(entity, ability, ability.getCooldown(), cooldownKey));
+			} else {
+				return effect;
+			}
+		} else {
 			effect.cast(entity, () -> setCooldown(entity, ability, cooldownKey), () -> {
 			});
 		}
 
-		if (ability instanceof SwingBoneAbility) {
-			effect = new BukkitSwingBoneEffect(cooldownKey);
-			if (entity instanceof BukkitPlayerEntity) {
-				String effectKey = getEffectKey(entity, ability);
-				List<Effect> effects = activeEffects.getOrDefault(entity, new HashMap<>()).getOrDefault(effectKey,
-						new ArrayList<>());
+		String effectKey = getEffectKey(entity, ability);
 
-				boolean alreadyActive = effects.stream().anyMatch(e -> e instanceof BukkitSwingBoneEffect);
+		Map<String, List<Effect>> effectsByKey = activeEffects.computeIfAbsent(entity, k -> new HashMap<>());
+		List<Effect> effectsList = effectsByKey.computeIfAbsent(effectKey, k -> new ArrayList<>());
 
-				if (!alreadyActive) {
-					effect.cast(entity, () -> setCooldown(entity, ability, cooldownKey),
-							() -> reduceCooldown(entity, ability, ability.getCooldown(), cooldownKey));
-				} else {
-					return effect;
-				}
-			}
-		}
-
-		if (effect != null) {
-			String effectKey = getEffectKey(entity, ability);
-
-			Map<String, List<Effect>> effectsByKey = activeEffects.computeIfAbsent(entity, k -> new HashMap<>());
-			List<Effect> effectsList = effectsByKey.computeIfAbsent(effectKey, k -> new ArrayList<>());
-
-			effectsList.add(effect);
-		}
+		effectsList.add(effect);
 		return effect;
 	}
 
@@ -104,15 +109,30 @@ public class BukkitEffectManager implements EffectManagerInterface {
 	}
 
 	private String getEffectKey(RPGEntity entity, Ability ability) {
+		return itemScopeKey(entity, ability);
+	}
+
+	private String itemScopeKey(RPGEntity entity, Ability ability) {
 		if (ability.getScope() == CooldownScope.PLAYER) {
 			return ability.getId();
 		}
 
-		// ITEM scope
+		// ITEM scope: key by the held item's instance UUID so each item has its own
+		// effect slot/cooldown. Fall back to the ability id when there is no
+		// identifiable RPG item (air/vanilla hand without our UUID PDC, offline
+		// player, non-player entity) so keys are never null.
 		if (entity instanceof BukkitPlayerEntity playerEntity) {
-			Player player = playerEntity.getPlayer().get();
-			return player.getInventory().getItemInMainHand().getItemMeta().getPersistentDataContainer()
-					.get(BukkitItemStackAdapter.UUID_ID_KEY, PersistentDataType.STRING);
+			Player player = playerEntity.getPlayer().orElse(null);
+			if (player != null) {
+				ItemStack item = player.getInventory().getItemInMainHand();
+				if (item != null && item.hasItemMeta() && item.getItemMeta() != null) {
+					String uuid = item.getItemMeta().getPersistentDataContainer()
+							.get(BukkitItemStackAdapter.UUID_ID_KEY, PersistentDataType.STRING);
+					if (uuid != null) {
+						return uuid;
+					}
+				}
+			}
 		}
 
 		return ability.getId();
@@ -193,19 +213,7 @@ public class BukkitEffectManager implements EffectManagerInterface {
 	}
 
 	private String getCooldownKey(RPGEntity entity, Ability ability) {
-		if (ability.getScope() == CooldownScope.PLAYER) {
-			return ability.getId();
-		}
-
-		// ITEM scope
-		if (entity instanceof BukkitPlayerEntity playerEntity) {
-			Player player = playerEntity.getPlayer().get();
-			return player.getInventory().getItemInMainHand().getItemMeta().getPersistentDataContainer()
-					.get(BukkitItemStackAdapter.UUID_ID_KEY, PersistentDataType.STRING);
-		}
-
-		// Fallback to ability id if no UUID
-		return ability.getId();
+		return itemScopeKey(entity, ability);
 	}
 
 	/**

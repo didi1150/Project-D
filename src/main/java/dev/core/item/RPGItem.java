@@ -221,7 +221,7 @@ public class RPGItem {
             List<String> abilityIds = (List<String>) data.get("abilities");
             List<Ability> abilities = new ArrayList<>();
             for (String abilityId : abilityIds) {
-                AbilityRegistry.get(abilityId).ifPresent(abilities::add);
+                AbilityRegistry.getOrWarn(abilityId, "item " + id).ifPresent(abilities::add);
             }
             builder.withAbilities(abilities);
         }
@@ -240,7 +240,12 @@ public class RPGItem {
     private static StatModifier deserializeStatModifier(String sourceId, Map<String, Object> data) {
         double amount = ((Number) data.getOrDefault("amount", 0)).doubleValue();
         ModifierStackPolicy policy = ModifierStackPolicy.valueOf((String) data.getOrDefault("policy", "STACK"));
-        StatModifierType statModifierType = StatModifierType.valueOf((String) data.getOrDefault("statModifierType", "FLAT"));
+        Object rawType = data.get("statModifierType");
+        if (rawType == null) {
+            rawType = data.get("modifierType");
+        }
+        StatModifierType statModifierType = StatModifierType
+                .valueOf(rawType != null ? rawType.toString() : "FLAT");
         StatType statType = StatType.valueOf((String) data.getOrDefault("statType", StatType.ATTACK_DAMAGE.name()));
         StatTarget statTarget = StatTarget.valueOf((String) data.getOrDefault("statTarget", "BOTH"));
         int priority = ((Number) data.getOrDefault("priority", 0)).intValue();

@@ -35,6 +35,7 @@ public abstract class RPGEntity {
     private final StatEngineAdapter statEngineAdapter;
 
     private boolean alive = true;
+    private boolean damageImmune = false;
     private EventBusInterface eventBusInterface;
     private RPGClassType classType;
     private RPGEntityAttackTracker attackTracker;
@@ -170,6 +171,12 @@ public abstract class RPGEntity {
 
     public RPGDamageResult dealRPGDamage(RPGEntity attacker, RPGEntity target, double baseDamage,
             DamageType damageType) {
+        // Step 0: Damage immunity (e.g. a boss stage that turns it on). Immune
+        // targets take no damage and get no hurt reaction.
+        if (target.isDamageImmune()) {
+            return new RPGDamageResult(DamageResult.DENY, 0);
+        }
+
         boolean crit = false;
         double finalDamage = baseDamage;
 
@@ -200,8 +207,25 @@ public abstract class RPGEntity {
         target.setHealth(target.getHealth() - reducedDamage);
         target.checkAlive();
 
+        // Step 6: Central hurt reaction (flash + sound + small knockback) on the
+        // victim. Only runs for a landed hit on a non-immune target — immune
+        // targets returned DENY at step 0. Bukkit subclasses override
+        // playHitReaction(); the core default does nothing.
+        if (reducedDamage > 0) {
+            target.playHitReaction(attacker);
+        }
+
         return crit ? new RPGDamageResult(DamageResult.CRIT, reducedDamage)
                 : new RPGDamageResult(DamageResult.NORMAL, reducedDamage);
+    }
+
+    /**
+     * Hook for the vanilla hurt reaction after a landed RPG hit. Overridden by
+     * Bukkit subclasses to {@code damage()} the backing entity with a negligible
+     * amount so Minecraft plays the full hit reaction (hurt flash + sound + slight
+     * knockback). Only called when the target is not immune.
+     */
+    protected void playHitReaction(RPGEntity attacker) {
     }
 
     private double applyAllDefenses(double damage, DamageType damageType, RPGEntity attacker, RPGEntity target) {
@@ -346,6 +370,19 @@ public abstract class RPGEntity {
 
     public void setHealth(double value) {
         statManager.setCurrentValue(StatType.HEALTH_RESOURCE, value);
+    }
+
+    /**
+     * Whether this entity currently ignores all {@link #dealRPGDamage}. Boss
+     * stages can toggle this to make the boss invulnerable to damage (and to the
+     * hurt reaction) during a phase.
+     */
+    public boolean isDamageImmune() {
+        return damageImmune;
+    }
+
+    public void setDamageImmune(boolean damageImmune) {
+        this.damageImmune = damageImmune;
     }
 
     public void setMana(double value) {

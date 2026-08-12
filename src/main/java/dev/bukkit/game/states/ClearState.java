@@ -32,7 +32,6 @@ import dev.bukkit.game.coords.PointToLocation;
 import dev.bukkit.game.dungeon.proceduralDungeon.SimpleDungeonBuilderBukkit;
 import dev.bukkit.item.BukkitInventorySync;
 import dev.bukkit.storage.progression.ClassProgressionService;
-import dev.core.ability.EffectManagerInterface;
 import dev.core.entity.EntityManager;
 import dev.core.entity.RPGEntity;
 import dev.core.entity.rpgclass.RPGClassType;
@@ -59,10 +58,6 @@ public class ClearState extends GameState {
     private ScheduledTask scheduledTask;
 
     private long lastMillis;
-
-    private EffectManagerInterface effectManager;
-
-    private EntityManager entityManager;
 
     private ClassProgressionService classProgressionService;
 
@@ -91,15 +86,12 @@ public class ClearState extends GameState {
 
     private SimpleDungeonBuilderBukkit simpleDungeonBuilderBukkit;
 
-    public ClearState(Point3D holeCenter, EventBusInterface eventBus, EffectManagerInterface effectManager,
-            EntityManager entityManager, ClassProgressionService classProgressionService,
-            MessageSenderInterface messageSender, Plugin plugin) {
+    public ClearState(Point3D holeCenter, EventBusInterface eventBus,
+            ClassProgressionService classProgressionService, MessageSenderInterface messageSender, Plugin plugin) {
         super(NAME, -1, eventBus);
         this.plugin = plugin;
         this.holeCenter = PointToLocation.blockToLoc(holeCenter);
         this.eventBus = eventBus;
-        this.effectManager = effectManager;
-        this.entityManager = entityManager;
         this.classProgressionService = classProgressionService;
         lastMillis = System.currentTimeMillis();
     }
@@ -157,13 +149,13 @@ public class ClearState extends GameState {
 //                });
 //            });
             triggerGroundCrumble(() -> {
+                // effect + entity ticking is owned by GameStateController (active
+                // in every state); this state keeps publishing the per-tick
+                // TickEvent for combat text-display animations.
                 scheduledTask = scheduler.runTaskTimer(() -> {
                     float tickDelta = (System.currentTimeMillis() - lastMillis) / 1000f * 20f;
                     lastMillis = System.currentTimeMillis();
                     eventBus.sendEvent(new TickEvent(tickDelta));
-
-                    effectManager.tick(System.currentTimeMillis());
-                    entityManager.tick(System.currentTimeMillis());
                 }, 0, 1);
             });
 

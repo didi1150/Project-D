@@ -9,6 +9,9 @@ import org.bukkit.WorldCreator;
 import org.bukkit.plugin.java.JavaPlugin;
 
 import dev.bukkit.ability.BukkitEffectManager;
+import dev.bukkit.ability.BukkitEffectRegistry;
+import dev.bukkit.ability.BukkitParticleTestEffect;
+import dev.bukkit.ability.BukkitSwingBoneEffect;
 import dev.bukkit.command.CommandManager;
 import dev.bukkit.event.BukkitEventBus;
 import dev.bukkit.event.bukkitListeners.CombatListener;
@@ -83,6 +86,12 @@ public final class DMain extends JavaPlugin {
         messageSenderInterface = BukkitMessageSender.getInstance();
         AbilityRegistry.preregister();
 
+        // ---- Extension point: wire ability ids to their Bukkit effects ----
+        // (register additional abilities via AbilityRegistry.register(...) BEFORE
+        //  abilities.yml loads below so the config metadata is applied to them.)
+        BukkitEffectRegistry.register("PARTICLE_TEST_ABILITY", BukkitParticleTestEffect::new);
+        BukkitEffectRegistry.register("BONE_SWING", BukkitSwingBoneEffect::new);
+
         configManager = new BukkitConfigManager(this);
         // ==============================================[ Load Default Stats
         // ]===============================================
@@ -136,7 +145,8 @@ public final class DMain extends JavaPlugin {
         eventBusInterface = BukkitEventBus.getInstance();
         EventBusRegistry.registerAll(instance);
 
-        gameStateController = new GameStateController(new BukkitTaskScheduler(this));
+        gameStateController = new GameStateController(new BukkitTaskScheduler(this), effectManagerInterface,
+                entityManager);
         if (gameSettings.isSetupMode()) {
             gameStateController.addState(new SetupState(eventBusInterface));
         }
@@ -144,9 +154,9 @@ public final class DMain extends JavaPlugin {
                 15, eventBusInterface));
         gameStateController.addState(new SelectClassState(gameSettings.getHoleCenter(),
                 gameSettings.getSelectionSpawn(), gameSettings.getSelectionLocations(), eventBusInterface));
-        gameStateController.addState(new SelectItemState(eventBusInterface, effectManagerInterface, entityManager));
+        gameStateController.addState(new SelectItemState(eventBusInterface));
         gameStateController.addState(new ClearState(gameSettings.getHoleCenter(), eventBusInterface,
-                effectManagerInterface, entityManager, progressionService, messageSenderInterface, this));
+                progressionService, messageSenderInterface, this));
         gameStateController.addState(new BossState(eventBusInterface, progressionService));
         gameStateController.addState(new PostGameState(eventBusInterface, progressionService, this));
         gameStateController.start();
@@ -187,6 +197,10 @@ public final class DMain extends JavaPlugin {
 
     public dev.bukkit.game.boss.BossArenaManager getBossArenaManager() {
         return bossArenaManager;
+    }
+
+    public CombatListener getCombatListener() {
+        return combatListener;
     }
 
     public void unloadWorld(World world) {

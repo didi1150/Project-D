@@ -341,8 +341,8 @@ public class CombatListener implements Listener {
                     damager.recordAttack();
                 }
 
-                event.setDamage(
-                        damager.getStatManager().getCurrentValue(StatType.ATTACK_DAMAGE, System.currentTimeMillis()));
+                event.setDamage(damager.getStatEngineAdapter().getCurrentValue(StatType.ATTACK_DAMAGE,
+                        System.currentTimeMillis()));
                 // Case 1: Both attacker and victim are RPG entities
                 // 'damager' is the RPG entity dealing damage
                 // 'entity' is the RPG entity receiving damage
@@ -381,11 +381,11 @@ public class CombatListener implements Listener {
                     }
                     damager.recordAttack();
                     // ONLY SET ON AUTO ATTACKS
-                    event.setDamage(damager.getStatManager().getCurrentValue(StatType.ATTACK_DAMAGE,
+                    event.setDamage(damager.getStatEngineAdapter().getCurrentValue(StatType.ATTACK_DAMAGE,
                             System.currentTimeMillis()));
                 }
 
-                double critChance = damager.getStatManager().getCurrentValue(StatType.CRIT_CHANCE,
+                double critChance = damager.getStatEngineAdapter().getCurrentValue(StatType.CRIT_CHANCE,
                         System.currentTimeMillis());
                 if (new Random().nextInt(101) < critChance) {
 

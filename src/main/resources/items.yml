@@ -13,19 +13,26 @@ items:
     abilities:
     - BONE_SWING
   ASPECT_OF_THE_DRAGON:
-    name: "Aspect of the Dragon"
-    material: "DIAMOND_SWORD"
-    slot: "MAIN_HAND"
+    name: Aspect of the Dragon
+    material: DIAMOND_SWORD
+    slot: MAIN_HAND
     passive-stats: []
     active-stats:
     - amount: 69.0
-      statType: "ATTACK_DAMAGE"
-      modifierType: "FLAT"
-      statTarget: "BOTH"
-      policy: "STACK"
-    - amount: 75.0
-      statType: "CRIT_CHANCE"
-      modifierType: "FLAT"
-      statTarget: "BOTH"
-      policy: "STACK"
+      statType: ATTACK_DAMAGE
+      modifierType: FLAT
+      statTarget: BOTH
+      policy: STACK
+    abilities: []
+  ADMIN_CHESTPLATE:
+    name: Admin Chestplate
+    material: DIAMOND_CHESTPLATE
+    slot: CHEST
+    passive-stats: []
+    active-stats:
+    - amount: 1000.0
+      statType: ARMOR
+      modifierType: FLAT
+      statTarget: BOTH
+      policy: STACK
     abilities: []

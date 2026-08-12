@@ -33,7 +33,6 @@ import dev.core.event.EventBusInterface;
 import dev.core.event.impl.RPGEntityDeathEvent;
 import dev.core.game.GameState;
 import dev.core.game.GameStateResult;
-import dev.core.game.ScheduledTask;
 import dev.core.game.TaskScheduler;
 import dev.core.game.coords.Point3D;
 import dev.core.game.settings.GameSettings;
@@ -49,7 +48,6 @@ public class BossState extends GameState {
     private final TaskScheduler scheduler;
     private UUID bossUuid;
     private BukkitBossEntity activeBoss;
-    private ScheduledTask bossTickTask;
 
     public BossState(EventBusInterface eventBus, ClassProgressionService classProgressionService) {
         super(NAME, -1, eventBus);
@@ -75,10 +73,6 @@ public class BossState extends GameState {
 
     @Override
     protected void onStop() {
-        if (bossTickTask != null) {
-            bossTickTask.cancel();
-            bossTickTask = null;
-        }
         if (activeBoss != null) {
             bossFactory.despawn(activeBoss);
             activeBoss = null;
@@ -206,15 +200,7 @@ public class BossState extends GameState {
         this.bossUuid = boss.getUuid();
         boss.getBukkitEntity().ifPresent(living -> living.setMetadata("BOSS", new FixedMetadataValue(DMain.getInstance(), true)));
 
-        startBossTicking();
         return true;
-    }
-
-    private void startBossTicking() {
-        if (bossTickTask != null) {
-            bossTickTask.cancel();
-        }
-        bossTickTask = scheduler.runTaskTimer(() -> EntityManager.getInstance().tick(System.currentTimeMillis()), 0, 1);
     }
 
     private void prepareBossArena(String bossTemplate, GameSettings settings) {

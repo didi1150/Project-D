@@ -11,8 +11,6 @@ import org.bukkit.event.player.PlayerDropItemEvent;
 import org.bukkit.event.player.PlayerMoveEvent;
 import org.bukkit.event.player.PlayerQuitEvent;
 
-import dev.core.ability.EffectManagerInterface;
-import dev.core.entity.EntityManager;
 import dev.core.event.EventAction;
 import dev.core.event.EventBusInterface;
 import dev.core.event.impl.TickEvent;
@@ -29,15 +27,8 @@ public class SelectItemState extends GameState {
     private long lastMillis;
     private ScheduledTask scheduledTask;
 
-    private EffectManagerInterface effectManager;
-
-    private EntityManager entityManager;
-
-    public SelectItemState(EventBusInterface eventBus, EffectManagerInterface effectManager,
-            EntityManager entityManager) {
+    public SelectItemState(EventBusInterface eventBus) {
         super(NAME, DURATION, eventBus);
-        this.effectManager = effectManager;
-        this.entityManager = entityManager;
     }
 
     @Override
@@ -46,9 +37,6 @@ public class SelectItemState extends GameState {
             float tickDelta = (System.currentTimeMillis() - lastMillis) / 1000f * 20f;
             lastMillis = System.currentTimeMillis();
             eventBus.sendEvent(new TickEvent(tickDelta));
-
-            effectManager.tick(System.currentTimeMillis());
-            entityManager.tick(System.currentTimeMillis());
         }, 0, 1);
     }
 

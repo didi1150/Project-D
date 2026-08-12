@@ -10,8 +10,10 @@ import org.bukkit.entity.LivingEntity;
 import org.bukkit.event.entity.EntityDamageByEntityEvent;
 
 import dev.bukkit.ability.BukkitEffectManager;
+import dev.bukkit.entity.BukkitPlayerEntity;
 import dev.bukkit.stat.BukkitBossStatManager;
 import dev.core.entity.EntityManager;
+import dev.core.entity.RPGEntity;
 import dev.core.entity.boss.BossRuntime;
 import dev.core.entity.boss.BossStage;
 import dev.core.entity.boss.RPGBossEntity;
@@ -79,6 +81,11 @@ public class BukkitBossEntity extends RPGBossEntity {
 
     public Optional<Entity> getBukkitEntity() {
         return Optional.ofNullable(Bukkit.getEntity(getUuid()));
+    }
+
+    @Override
+    protected void playHitReaction(RPGEntity attacker) {
+        getLivingEntity().ifPresent(living -> living.damage(0.001, BukkitPlayerEntity.bukkitSourceOf(attacker)));
     }
 
     private void handleDamage(EntityDamageByEntityEvent event) {

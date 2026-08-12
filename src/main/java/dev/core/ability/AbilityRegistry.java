@@ -16,12 +16,28 @@ public class AbilityRegistry {
 		register(new SwingBoneAbility());
 	}
 
-	private static void register(Ability ability) {
+	public static void register(Ability ability) {
+		if (ability == null || ability.getId() == null) {
+			return;
+		}
 		ABILITIES.put(ability.getId(), ability);
 	}
 
 	public static Optional<Ability> get(String id) {
 		return Optional.ofNullable(ABILITIES.get(id));
+	}
+
+	/**
+	 * Look up an ability by id. If absent, prints a warning (matching
+	 * AbilityLoader's style) so silently-dropped ability references in config
+	 * become visible.
+	 */
+	public static Optional<Ability> getOrWarn(String id, String context) {
+		Ability ability = ABILITIES.get(id);
+		if (ability == null) {
+			System.out.println("Couldn't find Ability with id: " + id + " (" + context + ")");
+		}
+		return Optional.ofNullable(ability);
 	}
 
 	public static Map<String, Ability> all() {
@@ -30,6 +46,13 @@ public class AbilityRegistry {
 
 	public static void updateAll(Map<String, Ability> abilities) {
 		ABILITIES.putAll(abilities);
+	}
+
+	/**
+	 * Test support: clear all registered abilities.
+	 */
+	public static void clear() {
+		ABILITIES.clear();
 	}
 
 }

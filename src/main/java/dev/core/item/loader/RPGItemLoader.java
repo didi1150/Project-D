@@ -41,7 +41,8 @@ public class RPGItemLoader {
         for (ConfigSection s : section.getSectionList("passive-stats")) {
             double amount = s.getDouble("amount", 0);
             ModifierStackPolicy policy = ModifierStackPolicy.valueOf(s.getString("policy", "STACK"));
-            StatModifierType statModifierType = StatModifierType.valueOf(s.getString("statModifierType", "FLAT"));
+            StatModifierType statModifierType = StatModifierType
+                    .valueOf(s.getString("statModifierType", s.getString("modifierType", "FLAT")));
             StatType statType = StatType.valueOf(s.getString("statType", StatType.ATTACK_DAMAGE.name()));
             StatTarget statTarget = StatTarget.valueOf(s.getString("statTarget", "BOTH"));
             int priority = s.getInt("priority", 0);
@@ -57,7 +58,8 @@ public class RPGItemLoader {
         for (ConfigSection s : section.getSectionList("active-stats")) {
             double amount = s.getDouble("amount", 0);
             ModifierStackPolicy policy = ModifierStackPolicy.valueOf(s.getString("policy", "STACK"));
-            StatModifierType statModifierType = StatModifierType.valueOf(s.getString("statModifierType", "FLAT"));
+            StatModifierType statModifierType = StatModifierType
+                    .valueOf(s.getString("statModifierType", s.getString("modifierType", "FLAT")));
             StatType statType = StatType.valueOf(s.getString("statType", StatType.ATTACK_DAMAGE.name()));
             StatTarget statTarget = StatTarget.valueOf(s.getString("statTarget", "BOTH"));
             int priority = s.getInt("priority", 0);
@@ -71,7 +73,7 @@ public class RPGItemLoader {
 
         List<Ability> abilities = new ArrayList<>();
         for (String abilityId : section.getStringList("abilities")) {
-            AbilityRegistry.get(abilityId).ifPresent(abilities::add);
+            AbilityRegistry.getOrWarn(abilityId, "item " + id).ifPresent(abilities::add);
         }
 
         RPGClassType classType = RPGClassType.valueOf(section.getString("classType", RPGClassType.NONE.name()));
@@ -137,7 +139,7 @@ public class RPGItemLoader {
             Map<String, Object> map = new HashMap<>();
             map.put("amount", sm.amount);
             map.put("policy", sm.stackPolicy.name());
-            map.put("statModifierType", sm.statType.name());
+            map.put("statModifierType", sm.statModifierType.name());
             map.put("statType", sm.statType.name());
             map.put("statTarget", sm.statTarget.name());
             passive.add(map);
@@ -149,7 +151,7 @@ public class RPGItemLoader {
             Map<String, Object> map = new HashMap<>();
             map.put("amount", sm.amount);
             map.put("policy", sm.stackPolicy.name());
-            map.put("statModifierType", sm.statType.name());
+            map.put("statModifierType", sm.statModifierType.name());
             map.put("statType", sm.statType.name());
             map.put("statTarget", sm.statTarget.name());
             active.add(map);

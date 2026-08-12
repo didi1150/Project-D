@@ -27,7 +27,7 @@ public abstract class Ability {
 	public Ability(String id, Event triggerEvent, AbilityCost abilityCost) {
 		this.id = id;
 		this.triggerEvent = triggerEvent;
-		this.cost = abilityCost;
+		this.cost = abilityCost != null ? abilityCost : AbilityCost.noCost();
 	}
 
 	public Ability(String id) {

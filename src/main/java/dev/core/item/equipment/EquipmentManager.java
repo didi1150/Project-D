@@ -143,6 +143,11 @@ public class EquipmentManager {
 			temporaryAbilities.add(ability);
 
 			if (ability.getTriggerType() == AbilityTriggerType.AUTOMATIC) {
+				if (ability.getTriggerEvent() == null) {
+					System.out.println(
+							"Ability " + ability.getId() + " is AUTOMATIC but has no trigger event; skipping.");
+					return;
+				}
 				EventAction<? extends Event> eventAction = new EventAction<>(event -> {
 					triggerSingleAbility(ability, effectManager);
 				}, ability.getTriggerEvent().getClass());
@@ -171,6 +176,18 @@ public class EquipmentManager {
 
 			// Filter manual abilities that match the action
 			List<Ability> manualAbilities = getManualAbilities(item, abilityAction);
+
+			// Diagnostic: an equipped item WITH abilities but zero matches usually
+			// means abilities.yml never configured them (triggerType/action are
+			// null), so casting silently does nothing. Surface it instead.
+			if (manualAbilities.isEmpty() && !item.getAbilities().isEmpty()) {
+				Ability first = item.getAbilities().get(0);
+				if (first.getTriggerType() == null || first.getAction() == null) {
+					System.out.println("Ability " + first.getId() + " on item " + item.getId()
+							+ " is not configured for " + abilityAction + " (triggerType=" + first.getTriggerType()
+							+ ", action=" + first.getAction() + "); check abilities.yml.");
+				}
+			}
 
 			for (Ability ability : manualAbilities) {
 				triggerSingleAbility(ability, effectManager);
@@ -391,6 +408,10 @@ public class EquipmentManager {
 	private void registerAutomaticAbilities(RPGItem item) {
 		List<Ability> autoAbilities = getAutomaticAbilities(item);
 		for (Ability ability : autoAbilities) {
+			if (ability.getTriggerEvent() == null) {
+				System.out.println("Ability " + ability.getId() + " is AUTOMATIC but has no trigger event; skipping.");
+				continue;
+			}
 			EventAction<? extends Event> eventAction = new EventAction<>(t -> {
 				triggerSingleAbility(ability, effectManager);
 			}, ability.getTriggerEvent().getClass());
@@ -413,6 +434,9 @@ public class EquipmentManager {
 		}
 
 		Effect castedEffect = effectManagerInterface.cast(holder, ability);
+		if (castedEffect == null) {
+			return; // effect manager rejected the cast (e.g. no effect registered)
+		}
 		if (castedEffect.getCancelEvent() != null) {
 			EventAction<? extends Event> eventAction = new EventAction<>(t -> {
 				castedEffect.cancel();
