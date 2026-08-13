@@ -1,0 +1,137 @@
+# Data-driven dungeon mob definitions.
+#
+# Every mob is a full RPG entity: it is registered in the EntityManager with its
+# own StatManager (the `stats` block, same format as bosses.yml), so all damage
+# routes through the RPG damage system and the mob's name/boss bar show its RPG
+# health. The mob's AI stays vanilla; the RPG facade syncs health, casts
+# abilities, and refreshes the name.
+#
+# A mob is selected at spawn time from the pool matching the spawn location's
+# tier (BASIC / ADVANCED / ELITE), weighted by `weight`.
+#
+#   entity-type:             vanilla EntityType name (required)
+#   weight:                  relative spawn weight (higher = more common)
+#   tiers:                   which spawn tiers this mob may appear in (default: all)
+#   display-name:            optional custom name (color codes with &)
+#   stats:                   integer RPG stats (HEALTH_MAX, ATTACK_DAMAGE, ARMOR,
+#                            ATTACK_SPEED, CRIT_CHANCE, ...). HEALTH_MAX/ATTACK_DAMAGE/
+#                            ARMOR/MOVE_SPEED are scaled per floor level.
+#                            MOVE_SPEED uses the custom player base of 100 (the mob's
+#                            vanilla speed is derived from it, so it needs no config).
+#   weapon-material:         optional vanilla main-hand item (cosmetic only)
+#   main-hand-item:          optional items.yml id: a real RPG weapon the mob equips,
+#                            gaining its active stats and ability to cast its abilities
+#   armor:
+#     head / chest / legs / feet: optional items.yml ids equipped as armor (stats apply)
+#   ability-damage-multiplier: damage multiplier for abilities this mob triggers
+#   ability-cast-interval:     ticks between ability casts while a target is in range (default 80)
+#   mini-boss:               only spawned at mini-boss spawn spots (ELITE rooms)
+#   boss-bar:                show a boss bar for this mob's health (default false)
+#   effects:                 optional potion effects applied on spawn
+#                            (type, amplifier, duration in ticks; -1 = infinite)
+
+dungeon-mobs:
+  basic-zombie:
+    entity-type: ZOMBIE
+    weight: 10
+    tiers: [BASIC]
+    display-name: "&7Dungeon Zombie"
+    stats:
+      HEALTH_MAX: 20
+      ATTACK_DAMAGE: 5
+      ARMOR: 0
+      ATTACK_SPEED: 1
+      CRIT_CHANCE: 0
+  basic-skeleton:
+    entity-type: SKELETON
+    weight: 8
+    tiers: [BASIC]
+    display-name: "&7Dungeon Skeleton"
+    stats:
+      HEALTH_MAX: 16
+      ATTACK_DAMAGE: 4
+      ARMOR: 0
+      ATTACK_SPEED: 1
+  advanced-zombie:
+    entity-type: HUSK
+    weight: 6
+    tiers: [ADVANCED]
+    display-name: "&7Dungeon Husk"
+    weapon-material: IRON_SWORD
+    stats:
+      HEALTH_MAX: 30
+      ATTACK_DAMAGE: 8
+      ARMOR: 2
+      ATTACK_SPEED: 1
+  advanced-skeleton:
+    entity-type: STRAY
+    weight: 6
+    tiers: [ADVANCED]
+    display-name: "&7Dungeon Stray"
+    stats:
+      HEALTH_MAX: 24
+      ATTACK_DAMAGE: 7
+      ARMOR: 1
+      ATTACK_SPEED: 1
+  bonemerang-zombie:
+    entity-type: ZOMBIE
+    weight: 4
+    tiers: [ADVANCED, ELITE]
+    display-name: "&eBonemerang Thrower"
+    main-hand-item: BONEMERANG
+    ability-damage-multiplier: 0.5
+    ability-cast-interval: 80
+    stats:
+      HEALTH_MAX: 32
+      ATTACK_DAMAGE: 6
+      ARMOR: 1
+      ATTACK_SPEED: 1
+  elite-wither-skeleton:
+    entity-type: WITHER_SKELETON
+    weight: 3
+    tiers: [ELITE]
+    display-name: "&cElite Wither Skeleton"
+    weapon-material: STONE_SWORD
+    stats:
+      HEALTH_MAX: 50
+      ATTACK_DAMAGE: 12
+      MOVE_SPEED: 120
+      ARMOR: 4
+      ATTACK_SPEED: 1
+    effects:
+      - type: FIRE_RESISTANCE
+        amplifier: 0
+        duration: -1
+  elite-blaze:
+    entity-type: BLAZE
+    weight: 2
+    tiers: [ELITE]
+    display-name: "&cElite Blaze"
+    stats:
+      HEALTH_MAX: 40
+      ATTACK_DAMAGE: 9
+      ARMOR: 2
+      ATTACK_SPEED: 1
+  skull-king:
+    entity-type: WITHER_SKELETON
+    weight: 1
+    tiers: [ELITE]
+    display-name: "&5&lSkull King"
+    mini-boss: true
+    boss-bar: true
+    main-hand-item: BONEMERANG
+    ability-damage-multiplier: 0.7
+    ability-cast-interval: 70
+    stats:
+      HEALTH_MAX: 200
+      ATTACK_DAMAGE: 16
+      MOVE_SPEED: 130
+      ARMOR: 6
+      ATTACK_SPEED: 1
+      CRIT_CHANCE: 0
+    effects:
+      - type: FIRE_RESISTANCE
+        amplifier: 0
+        duration: -1
+    armor:
+      head: BONEMERANG

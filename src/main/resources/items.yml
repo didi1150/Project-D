@@ -36,3 +36,12 @@ items:
       statTarget: BOTH
       policy: STACK
     abilities: []
+  MONSTER_BONE:
+    name: Monster Bone
+    material: BONE
+    slot: MAIN_HAND
+    mob-only: true
+    allowed-classes: []
+    passive-stats: []
+    active-stats: []
+    abilities: []
