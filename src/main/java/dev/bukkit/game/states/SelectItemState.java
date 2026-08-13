@@ -1,9 +1,13 @@
 package dev.bukkit.game.states;
 
+import java.util.HashMap;
+import java.util.Map;
 import java.util.Optional;
+import java.util.UUID;
 
 import org.bukkit.Bukkit;
 import org.bukkit.Location;
+import org.bukkit.enchantments.Enchantment;
 import org.bukkit.entity.Player;
 import org.bukkit.event.block.BlockBreakEvent;
 import org.bukkit.event.block.BlockPlaceEvent;
@@ -14,7 +18,9 @@ import org.bukkit.event.player.PlayerDropItemEvent;
 import org.bukkit.event.player.PlayerMoveEvent;
 import org.bukkit.event.player.PlayerQuitEvent;
 import org.bukkit.inventory.Inventory;
+import org.bukkit.inventory.ItemFlag;
 import org.bukkit.inventory.ItemStack;
+import org.bukkit.inventory.meta.ItemMeta;
 
 import dev.bukkit.entity.BukkitPlayerEntity;
 import dev.bukkit.item.BukkitItemStackAdapter;
@@ -40,6 +46,9 @@ public class SelectItemState extends GameState {
     private long lastMillis;
     private ScheduledTask scheduledTask;
 
+    /** Per-player running selection: item id -> how many of that template have been taken. */
+    private final Map<UUID, Map<String, Integer>> selections = new HashMap<>();
+
     public SelectItemState(EventBusInterface eventBus) {
         super(NAME, DURATION, eventBus);
     }
@@ -57,12 +66,16 @@ public class SelectItemState extends GameState {
     }
 
     /**
-     * Opens the item draft chest for a player, listing only player-usable items
-     * (never {@code mob-only}) that match the player's active RPG class.
+     * Opens the item draft chest for a player. Templates are the items usable by
+     * the player's class (never {@code mob-only}, filtered by {@code allowed-classes}
+     * — the class lock is used only here, to list a class's items). Each template's
+     * stack amount shows how many of that item the player has already taken, and
+     * taken templates glow in the menu (the inventory copy does not).
      */
     private void openShop(Player player) {
         Inventory shop = Bukkit.createInventory(null, 54, SHOP_TITLE);
         RPGClassType playerClass = activeClassOf(player);
+        Map<String, Integer> owned = selections.computeIfAbsent(player.getUniqueId(), k -> new HashMap<>());
         int slot = 0;
         for (RPGItem item : RPGItemRegistry.getInstance().allItems().values()) {
             if (!item.isAllowedForClass(playerClass)) {
@@ -71,7 +84,13 @@ public class SelectItemState extends GameState {
             if (slot >= 54) {
                 break;
             }
-            shop.setItem(slot++, BukkitItemStackAdapter.toItemStack(item));
+            int count = owned.getOrDefault(item.getId(), 0);
+            ItemStack stack = BukkitItemStackAdapter.toItemStack(item);
+            stack.setAmount(Math.max(1, count)); // a template is always visible; 0 bought shows as 1
+            if (count > 0) {
+                applyGlow(stack);
+            }
+            shop.setItem(slot++, stack);
         }
         player.openInventory(shop);
     }
@@ -155,7 +174,10 @@ public class SelectItemState extends GameState {
         if (!event.getView().getTitle().equals(SHOP_TITLE)) {
             return; // not the item shop
         }
-        event.setCancelled(true);
+        if (event.getClickedInventory() != event.getInventory()) {
+            return; // clicks in the player's own inventory are ignored
+        }
+        event.setCancelled(true); // never let the menu item move to the cursor
         ItemStack stack = event.getCurrentItem();
         if (stack == null || stack.getType().isAir()) {
             return;
@@ -168,8 +190,44 @@ public class SelectItemState extends GameState {
             if (!item.isAllowedForClass(activeClassOf(player))) {
                 return; // mob-only / class-gated items can't be taken
             }
-            player.getInventory().addItem(stack.clone());
+            // Bound by the player's remaining inventory slots.
+            if (countEmptySlots(player) <= 0) {
+                player.sendMessage("§cNo inventory space left to select more items.");
+                return;
+            }
+            // Take one: put a plain copy into the inventory, track it for the menu.
+            player.getInventory().addItem(BukkitItemStackAdapter.toItemStack(item));
+            Map<String, Integer> owned = selections.computeIfAbsent(player.getUniqueId(), k -> new HashMap<>());
+            int count = owned.merge(item.getId(), 1, Integer::sum);
+
+            // Reflect the new count in the menu and glow the template (menu only).
+            ItemStack updated = BukkitItemStackAdapter.toItemStack(item);
+            updated.setAmount(Math.max(1, count));
+            applyGlow(updated);
+            event.getInventory().setItem(event.getSlot(), updated);
         });
+    }
+
+    /** Empty slots in the player's storage + hotbar (excludes armor/offhand). */
+    private static int countEmptySlots(Player player) {
+        int empty = 0;
+        for (ItemStack slot : player.getInventory().getStorageContents()) {
+            if (slot == null || slot.getType().isAir()) {
+                empty++;
+            }
+        }
+        return empty;
+    }
+
+    /** Adds a cosmetic glow (no enchant lore) to a menu ItemStack. */
+    private static void applyGlow(ItemStack stack) {
+        ItemMeta meta = stack.getItemMeta();
+        if (meta == null) {
+            return;
+        }
+        meta.addEnchant(Enchantment.LURE, 1, true);
+        meta.addItemFlags(ItemFlag.HIDE_ENCHANTS);
+        stack.setItemMeta(meta);
     }
 
     private void handleDamage(EntityDamageEvent event) {
