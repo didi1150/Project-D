@@ -6,6 +6,7 @@ import org.bukkit.Bukkit;
 import org.bukkit.GameMode;
 import org.bukkit.attribute.Attribute;
 import org.bukkit.entity.Entity;
+import org.bukkit.entity.LivingEntity;
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.potion.PotionEffect;
@@ -155,12 +156,16 @@ public class BukkitPlayerEntity extends RPGEntity {
      * 0-damage hurt poke is attributed to the right source.
      */
     public static Entity bukkitSourceOf(RPGEntity attacker) {
+        if (attacker == null) {
+            return null; // vanilla/environmental damage has no RPG source
+        }
         if (attacker instanceof BukkitPlayerEntity playerEntity) {
             return playerEntity.getPlayer().orElse(null);
         }
         if (attacker instanceof BukkitBossEntity bossEntity) {
             return bossEntity.getLivingEntity().orElse(null);
         }
-        return null;
+        Entity entity = Bukkit.getEntity(attacker.getUuid());
+        return entity instanceof LivingEntity living ? living : null;
     }
 }

@@ -198,6 +198,9 @@ public class BukkitInventorySync {
         }
 
         Optional<RPGItem> rpgItem = RPGItemRegistry.getInstance().getItem(itemId);
+        if (rpgItem.isPresent() && rpgItem.get().isMobOnly()) {
+            return null; // mob-only items are never equipped by players
+        }
         return rpgItem.orElse(null);
     }
 

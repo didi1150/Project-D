@@ -42,6 +42,8 @@ import dev.core.ability.EffectManagerInterface;
 import dev.core.ability.storage.AbilityLoader;
 import dev.core.entity.EntityManager;
 import dev.core.entity.boss.BossDefinitionLoader;
+import dev.core.entity.mob.MobDefinitionLoader;
+import dev.core.entity.mob.MobDefinitionRegistry;
 import dev.core.entity.boss.BossDefinitionRegistry;
 import dev.core.entity.rpgclass.RPGClassType;
 import dev.core.event.EventBusInterface;
@@ -118,6 +120,14 @@ public final class DMain extends JavaPlugin {
         ConfigProvider bossesConfig = configManager.getProvider("bosses.yml");
         BossDefinitionRegistry.getInstance().registerAll(BossDefinitionLoader.loadAll(bossesConfig,
                 new BukkitBossStageTypeRegistry(), new BukkitBossStrategyRegistry()));
+
+        // ==============================================[ Load dungeon-mobs.yml
+        // ]=============================================
+        ConfigProvider dungeonMobsConfig = configManager.getProvider("dungeon-mobs.yml");
+        MobDefinitionRegistry.getInstance()
+                .registerAll(MobDefinitionLoader.loadAll(dungeonMobsConfig).values());
+        Bukkit.getConsoleSender().sendMessage(
+                "Loaded " + MobDefinitionRegistry.getInstance().size() + " dungeon mob definition(s).");
 
         // ==============================================[ Setup Settings
         // ]=====================================================

@@ -55,8 +55,7 @@ public class BukkitSwingBoneEffect extends Effect {
     private BukkitTask resetItemTask;
 
     private static final int BONE_DAMAGE = 0;
-    private static final double RETURN_DISTANCE_THRESHOLD = 0.5; // Distance to player to auto-complete return
-//    private static final String BONE_ID = "BONEMERANG";
+    private static final double RETURN_DISTANCE_THRESHOLD = 0.5; // Distance to caster to auto-complete return
 
     public BukkitSwingBoneEffect(String cooldownKey) {
         super(null, 1850, true, cooldownKey);
@@ -66,9 +65,27 @@ public class BukkitSwingBoneEffect extends Effect {
         return uuid;
     }
 
-    private void startBoneProjectile(Player player) {
-        Location spawnLoc = player.getEyeLocation().subtract(0, 1.5, 0);
-        armorStand = player.getWorld().spawn(spawnLoc, ArmorStand.class, stand -> {
+    /**
+     * Resolves the Bukkit living entity backing a caster, so the bone can be
+     * thrown by players AND mobs. Mobs keep their vanilla AI but cast abilities
+     * through an {@code RPGMobEntity} wrapper that shares the vanilla entity's
+     * uuid, so {@link Bukkit#getEntity(uuid)} resolves the living mob.
+     */
+    private static LivingEntity resolveEntity(RPGEntity caster) {
+        if (caster instanceof BukkitPlayerEntity playerEntity) {
+            return playerEntity.getPlayer().orElse(null);
+        }
+        // Off-server (tests/headless): there is no entity registry, so no-op.
+        if (Bukkit.getServer() == null) {
+            return null;
+        }
+        Entity entity = Bukkit.getEntity(caster.getUuid());
+        return entity instanceof LivingEntity living ? living : null;
+    }
+
+    private void startBoneProjectile(LivingEntity casterEntity) {
+        Location spawnLoc = casterEntity.getEyeLocation().subtract(0, 1.5, 0);
+        armorStand = casterEntity.getWorld().spawn(spawnLoc, ArmorStand.class, stand -> {
             stand.setInvisible(true);
             stand.setInvulnerable(true);
             stand.setGravity(false);
@@ -81,10 +98,10 @@ public class BukkitSwingBoneEffect extends Effect {
 
         speed = 0.6f;
 
-        directionOutward = player.getEyeLocation().getDirection().normalize();
+        directionOutward = casterEntity.getEyeLocation().getDirection().normalize();
 
         inAnimation = true;
-        player.playSound(spawnLoc, Sound.ENTITY_SKELETON_HURT, new Random().nextFloat(0.3f, 0.6f),
+        casterEntity.getWorld().playSound(spawnLoc, Sound.ENTITY_SKELETON_HURT, new Random().nextFloat(0.3f, 0.6f),
                 new Random().nextFloat(1.75f, 2.0f));
     }
 
@@ -110,25 +127,25 @@ public class BukkitSwingBoneEffect extends Effect {
         if (inAnimation) {
             return;
         }
+        LivingEntity casterEntity = resolveEntity(caster);
+        if (casterEntity == null) {
+            return;
+        }
+
+        // Players swap the weapon to a ghast tear while it is in flight and then
+        // restore it on return; mobs keep their vanilla equipment untouched.
         if (caster instanceof BukkitPlayerEntity playerEntity) {
             Player player = playerEntity.getPlayer().get();
-//            String rpgItemId = BukkitItemStackAdapter.getRpgItemId(player.getInventory().getItemInMainHand());
-
             UUID uuid2 = BukkitItemStackAdapter.getUUID(player.getInventory().getItemInMainHand());
-//            if (rpgItemId == null || !rpgItemId.equals(BONE_ID)) {
-//                Bukkit.broadcastMessage("Invalid " + rpgItemId);
-//                return;
-//            }
-//            Bukkit.broadcastMessage("Valid " + rpgItemId);
             if (uuid2 != null) {
                 uuid = uuid2.toString();
             }
             newItemStack = copyItemStackWithMaterial(player.getInventory().getItemInMainHand(), Material.GHAST_TEAR);
             player.getInventory().setItemInMainHand(newItemStack);
             this.startCooldown = startCooldown;
-            startBoneProjectile(player);
         }
 
+        startBoneProjectile(casterEntity);
     }
 
     @Override
@@ -142,55 +159,46 @@ public class BukkitSwingBoneEffect extends Effect {
 
     @Override
     public void tick(RPGEntity caster, long now) {
-        if (!(caster instanceof BukkitPlayerEntity playerEntity)) {
+        LivingEntity casterEntity = resolveEntity(caster);
+        if (casterEntity == null || !inAnimation || armorStand == null || !armorStand.isValid()) {
             return;
         }
-        Player player = playerEntity.getPlayer().get();
-
-        if (!inAnimation || armorStand == null || !armorStand.isValid()) {
-            return;
-        }
-
-//		float backYaw = (float) Math.toRadians(player.getLocation().getYaw());
-//		float backPitch = (float) Math.toRadians(player.getLocation().getPitch());
 
         Location teleportLoc = armorStand.getLocation();
 
         // Collision with solid block ends immediately
         if (teleportLoc.clone().add(0, 1.485, 0).getBlock().getType().isSolid()) {
-            cleanup(player, teleportLoc, true);
+            cleanup(caster, casterEntity, teleportLoc, true);
             return;
         }
 
         if (ticks < 18) { // Outward phase
-//			teleportLoc.add(-Math.sin(toYaw) * speed, -Math.sin(toPitch) * speed, Math.cos(toYaw) * speed);
             teleportLoc.add(directionOutward.clone().multiply(speed));
-            dealDamage(playerEntity, now, forwardHits);
+            dealDamage(caster, casterEntity, now, forwardHits);
 
             if (!hitOutward) {
                 hitOutward = true;
             }
-            dealDamage(playerEntity, now, forwardHits);
+            dealDamage(caster, casterEntity, now, forwardHits);
 
         } else if (ticks < 36) { // Return phase
-//			teleportLoc.add(Math.sin(backYaw) * speed, Math.sin(backPitch) * speed, -Math.cos(backYaw) * speed);
-
-            Vector directionToPlayer = player.getLocation().toVector().subtract(teleportLoc.toVector()).normalize();
-            teleportLoc.add(directionToPlayer.multiply(speed));
-            player.getWorld().spawnParticle(Particle.ENCHANT, teleportLoc, 1);
+            Vector directionToCaster = casterEntity.getLocation().toVector().subtract(teleportLoc.toVector())
+                    .normalize();
+            teleportLoc.add(directionToCaster.multiply(speed));
+            casterEntity.getWorld().spawnParticle(Particle.ENCHANT, teleportLoc, 1);
 
             if (!hitReturn) {
                 hitReturn = true;
             }
-            dealDamage(playerEntity, now, backwardHits);
+            dealDamage(caster, casterEntity, now, backwardHits);
 
-            if (teleportLoc.distanceSquared(player.getLocation()) <= RETURN_DISTANCE_THRESHOLD) {
-                cleanup(player, teleportLoc, false);
+            if (teleportLoc.distanceSquared(casterEntity.getLocation()) <= RETURN_DISTANCE_THRESHOLD) {
+                cleanup(caster, casterEntity, teleportLoc, false);
                 resetCooldown.run();
                 return;
             }
         } else { // End of animation
-            cleanup(player, teleportLoc, false);
+            cleanup(caster, casterEntity, teleportLoc, false);
             return;
         }
 
@@ -200,40 +208,45 @@ public class BukkitSwingBoneEffect extends Effect {
         ticks++;
     }
 
-    private void cleanup(Player player, Location loc, boolean cooldown) {
+    private void cleanup(RPGEntity caster, LivingEntity casterEntity, Location loc, boolean cooldown) {
         cancel();
 
         if (startCooldown != null && cooldown) {
-            player.getWorld().spawnParticle(Particle.SNOWFLAKE, loc, 50);
+            casterEntity.getWorld().spawnParticle(Particle.SNOWFLAKE, loc, 50);
             startCooldown.run();
             long baseCooldownTime = 3000;
-            EntityManager.getInstance().getEntity(player.getUniqueId()).ifPresent(entity -> {
+            EntityManager.getInstance().getEntity(caster.getUuid()).ifPresent(entity -> {
                 long reducedCooldownTime = (long) (baseCooldownTime * 100 / (100
                         + entity.getStatManager().getCurrentValue(StatType.ABILITY_HASTE, System.currentTimeMillis())));
-                resetItemTask = Bukkit.getScheduler().runTaskTimer(DMain.getInstance(), () -> {
-                    if (resetItem(player)) {
-                        player.playSound(loc, Sound.BLOCK_WOOD_PLACE, new Random().nextFloat(0.3f, 0.6f),
-                                new Random().nextFloat(1.25f, 1.5f));
-                        if (resetItemTask != null) {
-                            resetItemTask.cancel();
-                        }
-                    }
-                }, reducedCooldownTime / 1000 * 20, 5);
+                if (caster instanceof BukkitPlayerEntity) {
+                    scheduleItemRestore((Player) casterEntity, loc, reducedCooldownTime / 1000 * 20);
+                }
             });
-            player.playSound(loc, Sound.ENTITY_ITEM_BREAK, new Random().nextFloat(0.3f, 0.6f),
+            casterEntity.getWorld().playSound(loc, Sound.ENTITY_ITEM_BREAK, new Random().nextFloat(0.3f, 0.6f),
                     new Random().nextFloat(0.8f, 1.2f));
         } else {
-            resetItemTask = Bukkit.getScheduler().runTaskTimer(DMain.getInstance(), () -> {
-                if (resetItem(player)) {
-                    player.playSound(loc, Sound.BLOCK_WOOD_PLACE, new Random().nextFloat(0.3f, 0.6f),
-                            new Random().nextFloat(1.25f, 1.5f));
-                    if (resetItemTask != null) {
-                        resetItemTask.cancel();
-                    }
+            if (caster instanceof BukkitPlayerEntity) {
+                scheduleItemRestore((Player) casterEntity, loc, 0);
+            } else {
+                resetCooldown.run();
+            }
+        }
+    }
+
+    private void scheduleItemRestore(Player player, Location loc, long startDelayTicks) {
+        final boolean restoreCooldown = startDelayTicks <= 0;
+        resetItemTask = Bukkit.getScheduler().runTaskTimer(DMain.getInstance(), () -> {
+            if (resetItem(player)) {
+                player.playSound(loc, Sound.BLOCK_WOOD_PLACE, new Random().nextFloat(0.3f, 0.6f),
+                        new Random().nextFloat(1.25f, 1.5f));
+                if (resetItemTask != null) {
+                    resetItemTask.cancel();
+                }
+                if (restoreCooldown) {
                     resetCooldown.run();
                 }
-            }, 0, 5);
-        }
+            }
+        }, startDelayTicks, 5);
     }
 
     private boolean resetItem(Player player) {
@@ -250,44 +263,57 @@ public class BukkitSwingBoneEffect extends Effect {
         return false;
     }
 
-    private void dealDamage(BukkitPlayerEntity playerEntity, long now, List<UUID> hitList) {
-        Player player = playerEntity.getPlayer().get();
-        List<Entity> nearbyEntities = (List<Entity>) player.getWorld()
+    private void dealDamage(RPGEntity caster, LivingEntity casterEntity, long now, List<UUID> hitList) {
+        List<Entity> nearbyEntities = (List<Entity>) casterEntity.getWorld()
                 .getNearbyEntities(armorStand.getLocation().clone().add(0, 1.575, 0), 0.8, 0.8, 0.8);
 
+        boolean casterIsPlayer = caster instanceof BukkitPlayerEntity;
+
         for (Entity entity : nearbyEntities) {
-            if (entity instanceof LivingEntity le && entity != player && entity.getType() != EntityType.PLAYER) {
-                if (le.hasMetadata("BONEMERANG"))
-                    continue;
+            if (!(entity instanceof LivingEntity le) || le.getUniqueId().equals(caster.getUuid())) {
+                continue;
+            }
+            if (le.hasMetadata("BONEMERANG")) {
+                continue;
+            }
+            if (EntityManager.getInstance().isSpectator(le.getUniqueId())) {
+                continue; // ghosts take no damage; don't track them as a hit
+            }
 
-                if (!hitList.contains(le.getUniqueId())) {
-                    hitList.add(le.getUniqueId());
+            // Players throw at mobs; mobs throw at players.
+            if (casterIsPlayer && entity.getType() == EntityType.PLAYER) {
+                continue;
+            }
+            if (!casterIsPlayer && entity.getType() != EntityType.PLAYER) {
+                continue;
+            }
 
-                    double multiplier = hitReturn ? 2 : 1;
-                    // Read ATTACK_DAMAGE through the StatEngine so equipped-item
-                    // active stats (e.g. a weapon's +ATTACK_DAMAGE) apply to the
-                    // bone projectile; the legacy StatManager alone misses them.
-                    double attackDamage = (playerEntity.getStatEngineAdapter().getCurrentValue(StatType.ATTACK_DAMAGE,
-                            now) + BONE_DAMAGE) * multiplier;
-                    EntityManager.getInstance().getEntity(entity.getUniqueId()).ifPresentOrElse(target -> {
-                        RPGDamageResult rpgDamage = target.dealRPGDamage(playerEntity, target, attackDamage,
-                                DamageType.PHYSICAL);
-                        // Hurt animation/sound are handled centrally by
-                        // dealRPGDamage (only when the target is not immune). Here
-                        // we only knock back + render the floating damage numbers,
-                        // and skip both when the hit was denied (immune boss).
-                        if (rpgDamage.getResult() != DamageResult.DENY) {
-                            knockback(le);
-                            showDamageIndicator(le, rpgDamage.getDamage(), rpgDamage.getResult());
-                        }
-                    }, () -> {
-                        // Vanilla mob: damageMob fires an EntityDamageByEntityEvent
-                        // that CombatListener already renders an indicator for, so we
-                        // must NOT render again here or the indicator doubles.
-                        DamageUtils.damageMob(le, attackDamage, playerEntity);
+            if (!hitList.contains(le.getUniqueId())) {
+                hitList.add(le.getUniqueId());
+
+                double multiplier = hitReturn ? 2 : 1;
+                // Damage comes from the caster's ATTACK_DAMAGE stat (players: their
+                // weapon's stat included; mobs: base stats + equipped weapon), then
+                // scaled by the caster's (config-driven) ability-damage-multiplier.
+                double attackDamage = (caster.getStatEngineAdapter().getCurrentValue(StatType.ATTACK_DAMAGE, now)
+                        + BONE_DAMAGE) * multiplier * caster.getAbilityDamageMultiplier();
+                EntityManager.getInstance().getEntity(entity.getUniqueId()).ifPresentOrElse(target -> {
+                    RPGDamageResult rpgDamage = target.dealRPGDamage(caster, target, attackDamage,
+                            DamageType.PHYSICAL);
+                    // Hurt animation/sound are handled centrally by dealRPGDamage (only
+                    // when the target is not immune). Here we only knock back + render
+                    // the floating damage numbers, and skip both on a denied hit.
+                    if (rpgDamage.getResult() != DamageResult.DENY) {
                         knockback(le);
-                    });
-                }
+                        showDamageIndicator(le, rpgDamage.getDamage(), rpgDamage.getResult());
+                    }
+                }, () -> {
+                    // Vanilla mob: damageMob fires an EntityDamageByEntityEvent that
+                    // CombatListener already renders an indicator for, so we must NOT
+                    // render again here or the indicator doubles.
+                    DamageUtils.damageMob(le, attackDamage, casterEntity);
+                    knockback(le);
+                });
             }
         }
     }

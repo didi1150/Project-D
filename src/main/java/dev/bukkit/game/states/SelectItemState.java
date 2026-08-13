@@ -1,7 +1,10 @@
 package dev.bukkit.game.states;
 
+import java.util.Optional;
+
 import org.bukkit.Bukkit;
 import org.bukkit.Location;
+import org.bukkit.entity.Player;
 import org.bukkit.event.block.BlockBreakEvent;
 import org.bukkit.event.block.BlockPlaceEvent;
 import org.bukkit.event.entity.EntityDamageEvent;
@@ -10,12 +13,21 @@ import org.bukkit.event.inventory.InventoryCloseEvent;
 import org.bukkit.event.player.PlayerDropItemEvent;
 import org.bukkit.event.player.PlayerMoveEvent;
 import org.bukkit.event.player.PlayerQuitEvent;
+import org.bukkit.inventory.Inventory;
+import org.bukkit.inventory.ItemStack;
 
+import dev.bukkit.entity.BukkitPlayerEntity;
+import dev.bukkit.item.BukkitItemStackAdapter;
+import dev.core.entity.EntityManager;
+import dev.core.entity.RPGEntity;
+import dev.core.entity.rpgclass.RPGClassType;
 import dev.core.event.EventAction;
 import dev.core.event.EventBusInterface;
 import dev.core.event.impl.TickEvent;
 import dev.core.game.GameState;
 import dev.core.game.ScheduledTask;
+import dev.core.item.RPGItem;
+import dev.core.item.loader.RPGItemRegistry;
 
 public class SelectItemState extends GameState {
 
@@ -23,6 +35,7 @@ public class SelectItemState extends GameState {
     public static long DURATION = 20 * 60L;
     private static long lockThreshold = 10;
     private final static int minPlayers = 5;
+    private static final String SHOP_TITLE = "Select an Item";
 
     private long lastMillis;
     private ScheduledTask scheduledTask;
@@ -38,6 +51,37 @@ public class SelectItemState extends GameState {
             lastMillis = System.currentTimeMillis();
             eventBus.sendEvent(new TickEvent(tickDelta));
         }, 0, 1);
+
+        // Open the class-filtered item shop for everyone, once the state settles.
+        scheduler.runTaskLater(() -> Bukkit.getOnlinePlayers().forEach(this::openShop), 5L);
+    }
+
+    /**
+     * Opens the item draft chest for a player, listing only player-usable items
+     * (never {@code mob-only}) that match the player's active RPG class.
+     */
+    private void openShop(Player player) {
+        Inventory shop = Bukkit.createInventory(null, 54, SHOP_TITLE);
+        RPGClassType playerClass = activeClassOf(player);
+        int slot = 0;
+        for (RPGItem item : RPGItemRegistry.getInstance().allItems().values()) {
+            if (!item.isAllowedForClass(playerClass)) {
+                continue;
+            }
+            if (slot >= 54) {
+                break;
+            }
+            shop.setItem(slot++, BukkitItemStackAdapter.toItemStack(item));
+        }
+        player.openInventory(shop);
+    }
+
+    private RPGClassType activeClassOf(Player player) {
+        Optional<RPGEntity> entity = EntityManager.getInstance().getEntity(player.getUniqueId());
+        if (entity.isPresent() && entity.get() instanceof BukkitPlayerEntity playerEntity) {
+            return playerEntity.getPlayerProgression().getActiveClass();
+        }
+        return RPGClassType.NONE;
     }
 
     @Override
@@ -102,8 +146,30 @@ public class SelectItemState extends GameState {
 
     private void handleClick(InventoryClickEvent event) {
         if (remainingTicks / 20 <= lockThreshold) {
+            event.setCancelled(true);
             return;
         }
+        if (!(event.getWhoClicked() instanceof Player player)) {
+            return;
+        }
+        if (!event.getView().getTitle().equals(SHOP_TITLE)) {
+            return; // not the item shop
+        }
+        event.setCancelled(true);
+        ItemStack stack = event.getCurrentItem();
+        if (stack == null || stack.getType().isAir()) {
+            return;
+        }
+        String itemId = BukkitItemStackAdapter.getRpgItemId(stack);
+        if (itemId == null) {
+            return;
+        }
+        RPGItemRegistry.getInstance().getItem(itemId).ifPresent(item -> {
+            if (!item.isAllowedForClass(activeClassOf(player))) {
+                return; // mob-only / class-gated items can't be taken
+            }
+            player.getInventory().addItem(stack.clone());
+        });
     }
 
     private void handleDamage(EntityDamageEvent event) {

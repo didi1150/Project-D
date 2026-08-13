@@ -2,9 +2,11 @@ package dev.bukkit.utils;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 import java.util.Set;
 
 import org.bukkit.Bukkit;
+import org.bukkit.ChatColor;
 import org.bukkit.Location;
 import org.bukkit.Material;
 import org.bukkit.Particle;
@@ -21,17 +23,18 @@ import org.bukkit.event.entity.EntityDamageEvent.DamageCause;
 import org.bukkit.plugin.Plugin;
 import org.bukkit.scheduler.BukkitRunnable;
 
-import dev.bukkit.entity.BukkitPlayerEntity;
 import dev.bukkit.entity.VanillaEntityMeta;
+import dev.core.entity.EntityManager;
+import dev.core.entity.RPGEntity;
 
 public class DamageUtils {
 
-    public static void damageMob(LivingEntity le, double damage, BukkitPlayerEntity playerEntity) {
-        le.damage(0.001, playerEntity.getPlayer().get());
+    public static void damageMob(LivingEntity le, double damage, LivingEntity source) {
+        le.damage(0.001, source);
         if (le.getHealth() > 0) {
             le.setHealth(Math.max(le.getHealth() - damage, 0));
-            Bukkit.getPluginManager().callEvent(new EntityDamageByEntityEvent(playerEntity.getPlayer().get(), le,
-                    DamageCause.CUSTOM, DamageSource.builder(org.bukkit.damage.DamageType.GENERIC).build(), damage));
+            Bukkit.getPluginManager().callEvent(new EntityDamageByEntityEvent(source, le, DamageCause.CUSTOM,
+                    DamageSource.builder(org.bukkit.damage.DamageType.GENERIC).build(), damage));
         }
         updateName(le);
     }
@@ -43,8 +46,7 @@ public class DamageUtils {
 
         VanillaEntityMeta meta = (VanillaEntityMeta) entity.getMetadata("VANILLA_META").get(0).value();
 
-        double hp = entity.getHealth();
-        double maxHp = entity.getAttribute(Attribute.MAX_HEALTH).getValue();
+        double[] health = rpgHealthOf(entity);
 
         String color;
         switch (meta.getRelation()) {
@@ -54,11 +56,29 @@ public class DamageUtils {
         default -> color = "§f";
         }
 
-        String name = color + "[Lvl " + meta.getLevel() + "] " + entity.getType().name() + " §7" + (int) Math.ceil(hp)
-                + "/" + (int) maxHp + " ❤";
+        String typePart = meta.getDisplayName() != null
+                ? ChatColor.translateAlternateColorCodes('&', meta.getDisplayName())
+                : entity.getType().name();
+        String name = color + "[Lvl " + meta.getLevel() + "] " + typePart + " [❤] " + Math.round(health[0]) + "/"
+                + Math.round(health[1]);
 
         entity.setCustomName(name);
         entity.setCustomNameVisible(true);
+    }
+
+    /**
+     * Resolves the health shown for a spawned entity: the RPG entity's
+     * {@code HEALTH_RESOURCE}/{@code HEALTH_MAX} when one is registered for this
+     * entity's uuid (bosses, RPG-managed mobs), otherwise the vanilla entity's
+     * health. Shown in the {@code [❤] current/max} name format.
+     */
+    private static double[] rpgHealthOf(LivingEntity entity) {
+        double maxHp = entity.getAttribute(Attribute.MAX_HEALTH).getValue();
+        Optional<RPGEntity> rpg = EntityManager.getInstance().getEntity(entity.getUniqueId());
+        if (rpg.isPresent()) {
+            return new double[] { rpg.get().getHealth(), rpg.get().getMaxHealth() };
+        }
+        return new double[] { entity.getHealth(), maxHp };
     }
 
     public static void playEpicHoleAnimation(Plugin plugin, Location center, int baseRadius, int depth,

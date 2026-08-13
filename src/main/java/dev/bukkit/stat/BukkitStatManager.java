@@ -44,18 +44,7 @@ public class BukkitStatManager {
 
             case MOVE_SPEED: {
                 entity.getAttribute(Attribute.MOVEMENT_SPEED).getModifiers().clear();
-                double defaultSpeed = 0.1;
-                double moveSpeedStat = stat.getCurrent(now);
-
-                // diminishing returns (soft cap at ~400-500)
-                double ratio;
-                if (moveSpeedStat <= 100) {
-                    ratio = moveSpeedStat / 100.0; // linear up to 100
-                } else {
-                    ratio = 1.0 + (Math.sqrt(moveSpeedStat - 100) / 10.0);
-                    // slows down scaling after 100
-                }
-                entity.getAttribute(Attribute.MOVEMENT_SPEED).setBaseValue(defaultSpeed * ratio);
+                entity.getAttribute(Attribute.MOVEMENT_SPEED).setBaseValue(computeMoveSpeed(stat.getCurrent(now)));
                 break;
             }
             default:
@@ -118,6 +107,22 @@ public class BukkitStatManager {
         } else {
             ((LivingEntity) Bukkit.getEntity(uuid)).setHealth(health);
         }
+    }
+
+    /**
+     * Converts the RPG MOVE_SPEED stat to the vanilla {@code Attribute.MOVEMENT_SPEED}
+     * value, using the same diminishing-returns curve players use
+     * (100 = the base custom speed). Shared by mob spawning and per-entity ticks.
+     */
+    public static double computeMoveSpeed(double moveSpeedStat) {
+        double defaultSpeed = 0.1;
+        double ratio;
+        if (moveSpeedStat <= 100) {
+            ratio = moveSpeedStat / 100.0; // linear up to 100
+        } else {
+            ratio = 1.0 + (Math.sqrt(moveSpeedStat - 100) / 10.0); // softer after 100
+        }
+        return defaultSpeed * ratio;
     }
 
 }

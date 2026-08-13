@@ -4,6 +4,7 @@ import java.util.Optional;
 import java.util.UUID;
 
 import org.bukkit.Bukkit;
+import org.bukkit.ChatColor;
 import org.bukkit.Location;
 import org.bukkit.entity.Entity;
 import org.bukkit.entity.LivingEntity;
@@ -50,6 +51,7 @@ public class BukkitBossEntity extends RPGBossEntity {
 
     public void onSpawn(Location location) {
         bossBar.setVisibleToPlayers(Bukkit.getOnlinePlayers());
+        BossBarController.hideVanillaBossBar(getLivingEntity().orElse(null));
     }
 
     @Override
@@ -58,7 +60,17 @@ public class BukkitBossEntity extends RPGBossEntity {
         if (isAlive() && !isDefeatSequenceActive()) {
             bukkitStatManager.tick(now, this::onDeath);
             updateBossBar();
+            updateName();
         }
+    }
+
+    /** Show the boss's RPG health in its custom name as {@code [❤] current/max}. */
+    private void updateName() {
+        getLivingEntity().ifPresent(living -> {
+            String base = ChatColor.translateAlternateColorCodes('&', getName());
+            living.setCustomName(base + " [❤] " + Math.round(getHealth()) + "/" + Math.round(getMaxHealth()));
+            living.setCustomNameVisible(true);
+        });
     }
 
     @Override

@@ -8,6 +8,8 @@ import org.bukkit.Bukkit;
 import org.bukkit.boss.BarColor;
 import org.bukkit.boss.BarStyle;
 import org.bukkit.boss.BossBar;
+import org.bukkit.entity.Boss;
+import org.bukkit.entity.Entity;
 import org.bukkit.entity.Player;
 
 public class BossBarController {
@@ -78,5 +80,28 @@ public class BossBarController {
 
     public float getProgress() {
         return progress;
+    }
+
+    /**
+     * Hides the vanilla boss bar of an entity that has one natively (Wither,
+     * Ender Dragon), so it does not double up with our {@link BossBarController}.
+     */
+    public static void hideVanillaBossBar(Entity entity) {
+        if (entity instanceof Boss boss) {
+            BossBar bar = boss.getBossBar();
+            if (bar != null) {
+                bar.setVisible(false);
+            }
+        }
+    }
+
+    /** Restores the vanilla boss bar previously hidden by {@link #hideVanillaBossBar}. */
+    public static void showVanillaBossBar(Entity entity) {
+        if (entity instanceof Boss boss) {
+            BossBar bar = boss.getBossBar();
+            if (bar != null) {
+                bar.setVisible(true);
+            }
+        }
     }
 }
