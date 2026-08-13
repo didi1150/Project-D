@@ -1,6 +1,7 @@
 package dev.bukkit;
 
 import java.io.File;
+import java.io.IOException;
 import java.util.Map;
 
 import org.bukkit.Bukkit;
@@ -193,11 +194,20 @@ public final class DMain extends JavaPlugin {
         eventBusInterface.getSubscribed().clear();
 
         World dungeonWorld = Bukkit.getWorld(GameSettings.getCurrentSettings().getDungeonWorld());
-        if (dungeonWorld != null) {
+        if (dungeonWorld == null) {
+            Bukkit.getLogger().info("No dungeon world found during shutdown; skipping unload/delete.");
+            return;
+        }
+        if (!isDisposableDungeonWorld(dungeonWorld)) {
+            Bukkit.getLogger().warning("Refusing to delete world '" + dungeonWorld.getName()
+                    + "' during shutdown: it is not the configured disposable dungeon world.");
+            return;
+        }
+        try {
             unloadWorld(dungeonWorld);
             deleteWorld(dungeonWorld.getWorldFolder());
-        } else {
-            Bukkit.getLogger().info("No dungeon world found during shutdown; skipping unload/delete.");
+        } catch (Exception e) {
+            Bukkit.getLogger().warning("Failed to clean up dungeon world during shutdown: " + e.getMessage());
         }
     }
 
@@ -214,22 +224,102 @@ public final class DMain extends JavaPlugin {
     }
 
     public void unloadWorld(World world) {
-        if (world != null) {
-            Bukkit.getServer().unloadWorld(world, true);
+        try {
+            if (world != null) {
+                Bukkit.getServer().unloadWorld(world, true);
+            }
+        } catch (Exception e) {
+            Bukkit.getLogger().warning("Failed to unload world "
+                    + (world == null ? "null" : world.getName()) + ": " + e.getMessage());
         }
     }
 
+    /**
+     * Deletes a world folder recursively, but only when the folder is a direct
+     * child of the server's world container and its name exactly matches the
+     * dungeon world configured in setup.yml. Children whose canonical path
+     * resolves outside the world folder (e.g. symlinks) are skipped, so a
+     * misconfiguration can never delete anything but the intended dungeon world.
+     */
     public boolean deleteWorld(File path) {
-        if (path.exists()) {
-            File files[] = path.listFiles();
-            for (int i = 0; i < files.length; i++) {
-                if (files[i].isDirectory()) {
-                    deleteWorld(files[i]);
-                } else {
-                    files[i].delete();
+        if (path == null || !path.exists()) {
+            return false;
+        }
+        String configuredWorld = GameSettings.getCurrentSettings().getDungeonWorld();
+        if (configuredWorld == null || configuredWorld.isBlank()
+                || !isDirectChildOfWorldContainer(path, configuredWorld)) {
+            Bukkit.getLogger().warning("Refusing to delete " + path.getAbsolutePath()
+                    + ": it is not the configured disposable dungeon world.");
+            return false;
+        }
+        return deleteWorldTree(path, path);
+    }
+
+    /**
+     * True only if the world is exactly the configured disposable dungeon world:
+     * it must be loaded under a sane configured name, must not be the server's
+     * main world, and its folder must be a direct child of the server's world
+     * container with a matching name.
+     */
+    private boolean isDisposableDungeonWorld(World world) {
+        String configuredWorld = GameSettings.getCurrentSettings().getDungeonWorld();
+        if (configuredWorld == null || configuredWorld.isBlank() || configuredWorld.equals(".")
+                || configuredWorld.equals("..") || configuredWorld.contains("\\")
+                || configuredWorld.contains("/") || !world.getName().equals(configuredWorld)) {
+            return false;
+        }
+        if (!Bukkit.getWorlds().isEmpty() && Bukkit.getWorlds().get(0).equals(world)) {
+            return false;
+        }
+        return isDirectChildOfWorldContainer(world.getWorldFolder(), configuredWorld);
+    }
+
+    private boolean isDirectChildOfWorldContainer(File folder, String expectedName) {
+        try {
+            File worldContainer = Bukkit.getWorldContainer().getCanonicalFile();
+            File worldFolder = folder.getCanonicalFile();
+            return worldFolder.getParentFile() != null && worldFolder.getParentFile().equals(worldContainer)
+                    && worldFolder.getName().equals(expectedName);
+        } catch (IOException e) {
+            Bukkit.getLogger().warning("Could not resolve world folder " + folder.getAbsolutePath() + ": "
+                    + e.getMessage());
+            return false;
+        }
+    }
+
+    private boolean deleteWorldTree(File root, File file) {
+        if (file == null || !file.exists()) {
+            return true;
+        }
+        try {
+            if (!isWithinCanonical(root, file)) {
+                Bukkit.getLogger().warning("Skipping " + file.getAbsolutePath()
+                        + ": it resolves outside the dungeon world folder.");
+                return false;
+            }
+        } catch (IOException e) {
+            Bukkit.getLogger().warning("Could not verify path " + file.getAbsolutePath() + ": " + e.getMessage());
+            return false;
+        }
+        if (file.isDirectory()) {
+            File[] children = file.listFiles();
+            if (children != null) {
+                for (File child : children) {
+                    deleteWorldTree(root, child);
                 }
             }
         }
-        return (path.delete());
+        try {
+            return file.delete();
+        } catch (SecurityException e) {
+            Bukkit.getLogger().warning("Refused to delete " + file.getAbsolutePath() + ": " + e.getMessage());
+            return false;
+        }
+    }
+
+    private boolean isWithinCanonical(File root, File child) throws IOException {
+        String rootPath = root.getCanonicalPath();
+        String childPath = child.getCanonicalPath();
+        return childPath.equals(rootPath) || childPath.startsWith(rootPath + File.separator);
     }
 }
