@@ -19,6 +19,7 @@ import org.jetbrains.annotations.Nullable;
 
 import dev.bukkit.DMain;
 import dev.bukkit.entity.BukkitPlayerEntity;
+import dev.bukkit.game.states.SelectItemState;
 import dev.bukkit.item.BukkitInventorySync;
 import dev.bukkit.item.BukkitItemStackAdapter;
 import dev.bukkit.item.display.BukkitTextColorAdapter;
@@ -30,6 +31,7 @@ import dev.core.entity.EntityManager;
 import dev.core.entity.RPGEntity;
 import dev.core.entity.rpgclass.RPGClassType;
 import dev.core.event.EventBusInterface;
+import dev.core.game.GameState;
 import dev.core.game.GameStateController;
 import dev.core.game.coords.Point3D;
 import dev.core.game.settings.GameSettings;
@@ -39,7 +41,6 @@ import dev.core.item.equipment.EquipmentSlot;
 import dev.core.item.loader.RPGItemLoader;
 import dev.core.item.loader.RPGItemRegistry;
 import dev.core.progression.PlayerClassProgression;
-import dev.core.stat.Stat;
 import dev.core.stat.StatType;
 import dev.core.storage.config.ConfigProvider;
 import dev.core.utils.MessageComponent;
@@ -407,10 +408,13 @@ public class CommandManager {
                         BukkitPlayerEntity playerEntity = (BukkitPlayerEntity) optional.get();
 
                         player.sendMessage(ChatColor.GOLD + "═══════════════════════════════════");
-                        for (Map.Entry<StatType, Stat> entry : playerEntity.getStatManager().getStats().entrySet()) {
-                            StatType type = entry.getKey();
+                        long now = System.currentTimeMillis();
+                        // Read through the StatEngine adapter so item-contributed stats
+                        // (e.g. armor from equipped gear) are reflected, not just base stats.
+                        for (StatType type : playerEntity.getStatManager().getStats().keySet()) {
+                            double value = playerEntity.getStatEngineAdapter().getCurrentValue(type, now);
                             player.sendMessage(BukkitTextColorAdapter.colored(type.getColor(),
-                                    type.formatValue(entry.getValue().getCurrent(System.currentTimeMillis()), false)));
+                                    type.formatValue(value, false)));
 
                         }
                         player.sendMessage(ChatColor.GOLD + "═══════════════════════════════════");
@@ -516,6 +520,17 @@ public class CommandManager {
                     messageSender.sendCenteredDebugMessage(player, MessageComponent
                             .of("<yellow>Current State: %s</yellow>", gameStateController.getCurrentState().getName()));
                 }).setCommandArgumentsList(0, Arrays.asList("next", "current")));
+
+        addSubCommand("project-d", SubCommandBuilder.startBuilding("open")
+                .setDescription("Open the item selection shop").setPlayerCommandAction(0, (player, args) -> {
+                    GameState current = gameStateController.getCurrentState();
+                    if (current instanceof SelectItemState select) {
+                        select.openShop(player);
+                        player.sendMessage("§eOpening the item shop...");
+                    } else {
+                        player.sendMessage("§cThe item shop is only available during item selection.");
+                    }
+                }));
     }
 
     public void registerCommands(JavaPlugin javaPlugin) {
