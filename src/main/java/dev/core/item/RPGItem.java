@@ -31,7 +31,7 @@ public class RPGItem {
     private final RPGClassType rpgClassType;
     private final int unlockLevel;
     private final List<RPGClassType> allowedClasses;
-    private final boolean mobOnly;
+    private final ItemUsage usage;
 
     private RPGItem(Builder builder) {
         this.id = builder.id;
@@ -46,7 +46,7 @@ public class RPGItem {
         this.rpgClassType = builder.rpgClassType;
         this.unlockLevel = builder.unlockLevel;
         this.allowedClasses = builder.allowedClasses == null ? new ArrayList<>() : new ArrayList<>(builder.allowedClasses);
-        this.mobOnly = builder.mobOnly;
+        this.usage = builder.usage;
     }
 
     public RPGItem(String id, String name, String material, EquipmentSlot equipmentSlot,
@@ -162,8 +162,8 @@ public class RPGItem {
         if (!allowedClasses.isEmpty()) {
             data.put("allowed-classes", allowedClasses.stream().map(Enum::name).toList());
         }
-        if (mobOnly) {
-            data.put("mob-only", true);
+        if (usage == ItemUsage.MOB_ONLY) {
+            data.put("usage", usage.name());
         }
 
         // Item set
@@ -212,10 +212,20 @@ public class RPGItem {
             }
             builder.withAllowedClasses(classes);
         }
-        Object mobOnlyRaw = data.get("mob-only");
-        if (mobOnlyRaw instanceof Boolean mobOnly) {
-            builder.mobOnly(mobOnly);
+        // Classification: prefer the explicit `usage` key, fall back to legacy `mob-only`.
+        ItemUsage usage = ItemUsage.BOTH;
+        Object usageRaw = data.get("usage");
+        if (usageRaw instanceof String s) {
+            try {
+                usage = ItemUsage.valueOf(s.trim().toUpperCase());
+            } catch (IllegalArgumentException ignored) {
+                // fall through to BOTH, then check the legacy alias below
+            }
         }
+        if (usage == ItemUsage.BOTH && data.get("mob-only") instanceof Boolean legacy && legacy) {
+            usage = ItemUsage.MOB_ONLY;
+        }
+        builder.usage(usage);
 
         // Description
         if (data.containsKey("description")) {
@@ -351,14 +361,24 @@ public class RPGItem {
         return new ArrayList<>(allowedClasses);
     }
 
-    /** Whether this item is exclusively for mobs (players can't purchase/equip it). */
-    public boolean isMobOnly() {
-        return mobOnly;
+    /** What this item is usable for: both players and mobs, or mobs only. */
+    public ItemUsage getUsage() {
+        return usage;
     }
 
-    /** True if a player of the given class may use this item (not mob-only + class allowed). */
+    /** Whether this item is exclusively for mobs (players can't select/equip it). */
+    public boolean isMobOnly() {
+        return usage == ItemUsage.MOB_ONLY;
+    }
+
+    /**
+     * Whether a player of the given class may select this item. Used only by the
+     * item draft menu (SelectItemState) to list a class's items; it filters out
+     * {@code mob-only} items and applies the {@code allowed-classes} lock. This is
+     * a player-only concern — mobs equip items purely by id and never call this.
+     */
     public boolean isAllowedForClass(RPGClassType classType) {
-        return !mobOnly && (allowedClasses.isEmpty() || allowedClasses.contains(classType));
+        return usage != ItemUsage.MOB_ONLY && (allowedClasses.isEmpty() || allowedClasses.contains(classType));
     }
 
     @Override
@@ -391,7 +411,7 @@ public class RPGItem {
         private RPGClassType rpgClassType = RPGClassType.NONE;
         private int unlockLevel = 0;
         private List<RPGClassType> allowedClasses = new ArrayList<>();
-        private boolean mobOnly = false;
+        private ItemUsage usage = ItemUsage.BOTH;
 
         public Builder(String id, String name, EquipmentSlot equipmentSlot) {
             this.id = id;
@@ -490,7 +510,12 @@ public class RPGItem {
         }
 
         public Builder mobOnly(boolean mobOnly) {
-            this.mobOnly = mobOnly;
+            this.usage = mobOnly ? ItemUsage.MOB_ONLY : ItemUsage.BOTH;
+            return this;
+        }
+
+        public Builder usage(ItemUsage usage) {
+            this.usage = usage != null ? usage : ItemUsage.BOTH;
             return this;
         }
 

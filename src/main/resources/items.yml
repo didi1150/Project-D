@@ -40,7 +40,7 @@ items:
     name: Monster Bone
     material: BONE
     slot: MAIN_HAND
-    mob-only: true
+    usage: mob_only
     allowed-classes: []
     passive-stats: []
     active-stats: []

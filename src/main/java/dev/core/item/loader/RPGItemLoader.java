@@ -8,6 +8,7 @@ import java.util.Map;
 import dev.core.ability.Ability;
 import dev.core.ability.AbilityRegistry;
 import dev.core.entity.rpgclass.RPGClassType;
+import dev.core.item.ItemUsage;
 import dev.core.item.RPGItem;
 import dev.core.item.equipment.EquipmentSlot;
 import dev.core.stat.StatTarget;
@@ -88,10 +89,21 @@ public class RPGItemLoader {
             }
         }
         boolean mobOnly = section.getBoolean("mob-only", false);
+        ItemUsage usage;
+        String usageRaw = section.getString("usage", null);
+        if (usageRaw != null) {
+            try {
+                usage = ItemUsage.valueOf(usageRaw.trim().toUpperCase());
+            } catch (IllegalArgumentException e) {
+                usage = mobOnly ? ItemUsage.MOB_ONLY : ItemUsage.BOTH;
+            }
+        } else {
+            usage = mobOnly ? ItemUsage.MOB_ONLY : ItemUsage.BOTH;
+        }
 
         return RPGItem.builder(id, name, slot).withMaterial(material).withPassiveStats(passive).withActiveStats(active)
                 .withAbilities(abilities).withRpgClassType(classType).withUnlockLevel(unlockLevel)
-                .withAllowedClasses(allowedClasses).mobOnly(mobOnly).build();
+                .withAllowedClasses(allowedClasses).usage(usage).build();
     }
 
     public static void saveAll(ConfigProvider provider, Map<String, RPGItem> items) {
@@ -135,8 +147,8 @@ public class RPGItemLoader {
             if (!item.getAllowedClasses().isEmpty()) {
                 section.set("allowed-classes", item.getAllowedClasses().stream().map(Enum::name).toList());
             }
-            if (item.isMobOnly()) {
-                section.set("mob-only", true);
+            if (item.getUsage() == ItemUsage.MOB_ONLY) {
+                section.set("usage", item.getUsage().name());
             }
         }
 
@@ -183,8 +195,8 @@ public class RPGItemLoader {
         if (!item.getAllowedClasses().isEmpty()) {
             section.set("allowed-classes", item.getAllowedClasses().stream().map(Enum::name).toList());
         }
-        if (item.isMobOnly()) {
-            section.set("mob-only", true);
+        if (item.getUsage() == ItemUsage.MOB_ONLY) {
+            section.set("usage", item.getUsage().name());
         }
         provider.save();
     }
