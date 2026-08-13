@@ -400,8 +400,10 @@ public class RoomFirstDungeonGenerator3D extends SimpleRandomWalkDungeonGenerato
         };
         double spawnChance = Math.max(0.1, Math.min(1.0, baseChance + (random.nextDouble() - 0.5) * 0.2));
         int maxEnemyLevel = tier.getMinLevel() + Math.max(0, room.getRealSize() / 40);
-        boolean isElite = tier == SpawnTier.ELITE && random.nextDouble() < 0.2;
-        return new SpawnLocation(pos.convertToPoint3D(), tier, spawnChance, maxEnemyLevel, isElite);
+        // ~15% of ELITE spawn spots are mini-boss spots (which are also elite).
+        boolean miniBoss = tier == SpawnTier.ELITE && random.nextDouble() < 0.15;
+        boolean isElite = miniBoss || (tier == SpawnTier.ELITE && random.nextDouble() < 0.2);
+        return new SpawnLocation(pos.convertToPoint3D(), tier, spawnChance, maxEnemyLevel, isElite, miniBoss);
     }
 
     private SpawnTier determineSpawnTier(DungeonRoom room) {

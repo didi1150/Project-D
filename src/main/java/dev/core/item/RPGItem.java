@@ -30,6 +30,8 @@ public class RPGItem {
     private final Optional<RPGItemSet> itemSet;
     private final RPGClassType rpgClassType;
     private final int unlockLevel;
+    private final List<RPGClassType> allowedClasses;
+    private final boolean mobOnly;
 
     private RPGItem(Builder builder) {
         this.id = builder.id;
@@ -43,6 +45,8 @@ public class RPGItem {
         this.description = new ArrayList<String>(builder.description);
         this.rpgClassType = builder.rpgClassType;
         this.unlockLevel = builder.unlockLevel;
+        this.allowedClasses = builder.allowedClasses == null ? new ArrayList<>() : new ArrayList<>(builder.allowedClasses);
+        this.mobOnly = builder.mobOnly;
     }
 
     public RPGItem(String id, String name, String material, EquipmentSlot equipmentSlot,
@@ -154,6 +158,14 @@ public class RPGItem {
             data.put("abilities", abilityIds);
         }
 
+        // Classification
+        if (!allowedClasses.isEmpty()) {
+            data.put("allowed-classes", allowedClasses.stream().map(Enum::name).toList());
+        }
+        if (mobOnly) {
+            data.put("mob-only", true);
+        }
+
         // Item set
         if (itemSet.isPresent()) {
             data.put("itemSet", itemSet.get().getId());
@@ -186,6 +198,23 @@ public class RPGItem {
             if (unlockLevelObj instanceof Number) {
                 builder.withUnlockLevel(((Number) unlockLevelObj).intValue());
             }
+        }
+
+        // Classification
+        if (data.containsKey("allowed-classes")) {
+            List<String> classNames = (List<String>) data.get("allowed-classes");
+            List<RPGClassType> classes = new ArrayList<>();
+            for (String name : classNames) {
+                try {
+                    classes.add(RPGClassType.valueOf(name));
+                } catch (IllegalArgumentException ignored) {
+                }
+            }
+            builder.withAllowedClasses(classes);
+        }
+        Object mobOnlyRaw = data.get("mob-only");
+        if (mobOnlyRaw instanceof Boolean mobOnly) {
+            builder.mobOnly(mobOnly);
         }
 
         // Description
@@ -314,6 +343,24 @@ public class RPGItem {
         return unlockLevel;
     }
 
+    /**
+     * Classes that may use this item. Empty means any class. {@code mobOnly}
+     * items are never usable by players regardless of this list.
+     */
+    public List<RPGClassType> getAllowedClasses() {
+        return new ArrayList<>(allowedClasses);
+    }
+
+    /** Whether this item is exclusively for mobs (players can't purchase/equip it). */
+    public boolean isMobOnly() {
+        return mobOnly;
+    }
+
+    /** True if a player of the given class may use this item (not mob-only + class allowed). */
+    public boolean isAllowedForClass(RPGClassType classType) {
+        return !mobOnly && (allowedClasses.isEmpty() || allowedClasses.contains(classType));
+    }
+
     @Override
     public boolean equals(Object obj) {
         if (this == obj) {
@@ -343,6 +390,8 @@ public class RPGItem {
         private List<String> description = new ArrayList<String>();
         private RPGClassType rpgClassType = RPGClassType.NONE;
         private int unlockLevel = 0;
+        private List<RPGClassType> allowedClasses = new ArrayList<>();
+        private boolean mobOnly = false;
 
         public Builder(String id, String name, EquipmentSlot equipmentSlot) {
             this.id = id;
@@ -430,6 +479,18 @@ public class RPGItem {
 
         public Builder withUnlockLevel(int unlockLevel) {
             this.unlockLevel = unlockLevel;
+            return this;
+        }
+
+        public Builder withAllowedClasses(List<RPGClassType> allowedClasses) {
+            if (allowedClasses != null) {
+                this.allowedClasses = new ArrayList<>(allowedClasses);
+            }
+            return this;
+        }
+
+        public Builder mobOnly(boolean mobOnly) {
+            this.mobOnly = mobOnly;
             return this;
         }
 

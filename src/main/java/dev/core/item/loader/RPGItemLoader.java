@@ -79,8 +79,19 @@ public class RPGItemLoader {
         RPGClassType classType = RPGClassType.valueOf(section.getString("classType", RPGClassType.NONE.name()));
         int unlockLevel = section.getInt("unlockLevel", 0);
 
+        List<RPGClassType> allowedClasses = new ArrayList<>();
+        for (String className : section.getStringList("allowed-classes")) {
+            try {
+                allowedClasses.add(RPGClassType.valueOf(className.trim().toUpperCase()));
+            } catch (IllegalArgumentException ignored) {
+                System.out.println("Unknown allowed class '" + className + "' for item " + id + "; ignored.");
+            }
+        }
+        boolean mobOnly = section.getBoolean("mob-only", false);
+
         return RPGItem.builder(id, name, slot).withMaterial(material).withPassiveStats(passive).withActiveStats(active)
-                .withAbilities(abilities).withRpgClassType(classType).withUnlockLevel(unlockLevel).build();
+                .withAbilities(abilities).withRpgClassType(classType).withUnlockLevel(unlockLevel)
+                .withAllowedClasses(allowedClasses).mobOnly(mobOnly).build();
     }
 
     public static void saveAll(ConfigProvider provider, Map<String, RPGItem> items) {
@@ -121,6 +132,12 @@ public class RPGItemLoader {
 
             section.set("classType", item.getRpgClassType().name());
             section.set("unlockLevel", item.getUnlockLevel());
+            if (!item.getAllowedClasses().isEmpty()) {
+                section.set("allowed-classes", item.getAllowedClasses().stream().map(Enum::name).toList());
+            }
+            if (item.isMobOnly()) {
+                section.set("mob-only", true);
+            }
         }
 
         provider.save();
@@ -163,6 +180,12 @@ public class RPGItemLoader {
         
         section.set("classType", item.getRpgClassType().name());
         section.set("unlockLevel", item.getUnlockLevel());
+        if (!item.getAllowedClasses().isEmpty()) {
+            section.set("allowed-classes", item.getAllowedClasses().stream().map(Enum::name).toList());
+        }
+        if (item.isMobOnly()) {
+            section.set("mob-only", true);
+        }
         provider.save();
     }
 }

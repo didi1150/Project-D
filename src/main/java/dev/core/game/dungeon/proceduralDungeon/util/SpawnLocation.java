@@ -9,14 +9,21 @@ public class SpawnLocation {
     private final double spawnChance;
     private final int maxEnemyLevel;
     private final boolean isEliteSpawn;
+    private final boolean isMiniBossSpawn;
 
     public SpawnLocation(Point3D position, SpawnTier tier, double spawnChance, int maxEnemyLevel,
             boolean isEliteSpawn) {
+        this(position, tier, spawnChance, maxEnemyLevel, isEliteSpawn, false);
+    }
+
+    public SpawnLocation(Point3D position, SpawnTier tier, double spawnChance, int maxEnemyLevel, boolean isEliteSpawn,
+            boolean isMiniBossSpawn) {
         this.position = position;
         this.tier = tier;
         this.spawnChance = Math.max(0.0, Math.min(1.0, spawnChance));
         this.maxEnemyLevel = Math.max(1, maxEnemyLevel);
         this.isEliteSpawn = isEliteSpawn;
+        this.isMiniBossSpawn = isMiniBossSpawn;
     }
 
     public Point3D getPosition() {
@@ -37,6 +44,10 @@ public class SpawnLocation {
 
     public boolean isEliteSpawn() {
         return isEliteSpawn;
+    }
+
+    public boolean isMiniBossSpawn() {
+        return isMiniBossSpawn;
     }
 
     @Override

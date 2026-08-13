@@ -36,6 +36,7 @@ public abstract class RPGEntity {
 
     private boolean alive = true;
     private boolean damageImmune = false;
+    private double abilityDamageMultiplier = 1.0;
     private EventBusInterface eventBusInterface;
     private RPGClassType classType;
     private RPGEntityAttackTracker attackTracker;
@@ -383,6 +384,18 @@ public abstract class RPGEntity {
 
     public void setDamageImmune(boolean damageImmune) {
         this.damageImmune = damageImmune;
+    }
+
+    /**
+     * Multiplier applied to the damage this entity's abilities deal (e.g. a mob's
+     * reduced bone damage). Effects read it at cast/tick time; default 1.0.
+     */
+    public double getAbilityDamageMultiplier() {
+        return abilityDamageMultiplier;
+    }
+
+    public void setAbilityDamageMultiplier(double abilityDamageMultiplier) {
+        this.abilityDamageMultiplier = abilityDamageMultiplier;
     }
 
     public void setMana(double value) {
