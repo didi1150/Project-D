@@ -18,15 +18,20 @@
 #                            ARMOR/MOVE_SPEED are scaled per floor level.
 #                            MOVE_SPEED uses the custom player base of 100 (the mob's
 #                            vanilla speed is derived from it, so it needs no config).
-#   weapon-material:         optional vanilla main-hand item (cosmetic only)
-#   main-hand-item:          optional items.yml id: a real RPG weapon the mob equips,
-#                            gaining its active stats and ability to cast its abilities
+#   main-hand-item:          optional items.yml id: a real RPG weapon the mob equipies
+#                            in its main hand, gaining its active stats and ability to
+#                            cast its abilities. Only items.yml ids are valid here.
 #   armor:
-#     head / chest / legs / feet: optional items.yml ids equipped as armor (stats apply)
+#     head / chest / legs / feet: optional items.yml ids equipped as armor (stats apply).
+#                            Only items.yml ids are valid here.
 #   ability-damage-multiplier: damage multiplier for abilities this mob triggers
 #   ability-cast-interval:     ticks between ability casts while a target is in range (default 80)
 #   mini-boss:               only spawned at mini-boss spawn spots (ELITE rooms)
 #   boss-bar:                show a boss bar for this mob's health (default false)
+#   behavior:                optional id of a Java MobBehavior (registered in
+#                            MobBehaviorRegistry) driving this mob's custom logic
+#                            (e.g. "lost-adventurer"). The hybrid config+Java model:
+#                            stats/equipment stay in config, unique mechanics in Java.
 #   effects:                 optional potion effects applied on spawn
 #                            (type, amplifier, duration in ticks; -1 = infinite)
 
@@ -57,7 +62,6 @@ dungeon-mobs:
     weight: 6
     tiers: [ADVANCED]
     display-name: "&7Dungeon Husk"
-    weapon-material: IRON_SWORD
     stats:
       HEALTH_MAX: 30
       ATTACK_DAMAGE: 8
@@ -91,7 +95,6 @@ dungeon-mobs:
     weight: 3
     tiers: [ELITE]
     display-name: "&cElite Wither Skeleton"
-    weapon-material: STONE_SWORD
     stats:
       HEALTH_MAX: 50
       ATTACK_DAMAGE: 12
@@ -119,6 +122,7 @@ dungeon-mobs:
     display-name: "&5&lSkull King"
     mini-boss: true
     boss-bar: true
+    behavior: lost-adventurer
     main-hand-item: BONEMERANG
     ability-damage-multiplier: 0.7
     ability-cast-interval: 70

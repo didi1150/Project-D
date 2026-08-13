@@ -30,6 +30,8 @@ import dev.core.storage.config.ConfigSection;
  *     base-movement-speed: 0.23
  *     base-armor: 0
  *     main-hand-item: BONEMERANG
+ *     armor:
+ *       chest: SOME_CHESTPLATE
  *     ability-damage-multiplier: 0.5
  *     mini-boss: false
  *     effects:
@@ -57,17 +59,17 @@ public class MobDefinitionLoader {
         Set<SpawnTier> tiers = parseTiers(section.getStringList("tiers"));
         String displayName = section.getString("display-name", null);
         StatManager baseStats = new StatManager(StatLoader.loadStats(section.getSection("stats")));
-        String weaponMaterial = section.getString("weapon-material", null);
         String mainHandItemId = section.getString("main-hand-item", null);
         double abilityDamageMultiplier = section.getDouble("ability-damage-multiplier", 1.0);
         int abilityCastInterval = section.getInt("ability-cast-interval", 80);
         boolean miniBoss = section.getBoolean("mini-boss", false);
         boolean bossBar = section.getBoolean("boss-bar", false);
+        String behaviorId = section.getString("behavior", null);
         Map<EquipmentSlot, String> armor = loadArmor(section);
         List<MobEffect> effects = loadEffects(section.getSectionList("effects"));
 
-        return new MobDefinition(id, entityType, weight, tiers, displayName, baseStats, weaponMaterial,
-                mainHandItemId, abilityDamageMultiplier, abilityCastInterval, miniBoss, bossBar, armor, effects);
+        return new MobDefinition(id, entityType, weight, tiers, displayName, baseStats, mainHandItemId,
+                abilityDamageMultiplier, abilityCastInterval, miniBoss, bossBar, behaviorId, armor, effects);
     }
 
     private static Map<EquipmentSlot, String> loadArmor(ConfigSection section) {

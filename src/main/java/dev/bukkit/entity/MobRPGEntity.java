@@ -16,6 +16,8 @@ import dev.core.entity.rpgclass.RPGClassType;
 import dev.core.event.EventBusInterface;
 import dev.core.stat.StatManager;
 
+import java.util.Optional;
+
 /**
  * The RPG facade of a dungeon mob. Registered in {@link EntityManager} so all
  * damage routes through {@link #dealRPGDamage} against its config-driven
@@ -31,6 +33,7 @@ public class MobRPGEntity extends RPGEntity {
 
     private final LivingEntity vanilla;
     private final MobDefinition definition;
+    private final Optional<MobBehavior> behavior;
     private long nextCastAt = 0;
 
     public MobRPGEntity(LivingEntity vanilla, MobDefinition definition, StatManager baseStats,
@@ -39,6 +42,7 @@ public class MobRPGEntity extends RPGEntity {
                 RPGClassType.NONE);
         this.vanilla = vanilla;
         this.definition = definition;
+        this.behavior = MobBehaviorRegistry.getInstance().get(definition.getBehaviorId());
         setAbilityDamageMultiplier(definition.getAbilityDamageMultiplier());
     }
 
@@ -53,6 +57,7 @@ public class MobRPGEntity extends RPGEntity {
             DamageUtils.updateName(vanilla);
         }
         tryCastAbility(now);
+        behavior.ifPresent(b -> b.onTick(this, vanilla, now));
     }
 
     @Override
@@ -64,12 +69,18 @@ public class MobRPGEntity extends RPGEntity {
 
     @Override
     public void onDeath() {
+        behavior.ifPresent(b -> b.onDeath(this, vanilla));
         super.onDeath();
         // Natural death animation for the vanilla mob; remove the RPG facade.
         if (vanilla.isValid() && !vanilla.isDead()) {
             vanilla.setHealth(0);
         }
         EntityManager.getInstance().removeEntity(getUuid());
+    }
+
+    /** Invoked by the spawn factory once the mob is fully set up (stats, equipment, boss bar). */
+    public void triggerSpawnBehavior(LivingEntity vanilla) {
+        behavior.ifPresent(b -> b.onSpawn(this, vanilla));
     }
 
     /** Scale the vanilla entity's health to the RPG health ratio (mirrors BukkitBossStatManager). */

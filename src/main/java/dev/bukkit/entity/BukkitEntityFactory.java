@@ -5,7 +5,6 @@ import java.util.Map;
 import java.util.Optional;
 
 import org.bukkit.Location;
-import org.bukkit.Material;
 import org.bukkit.NamespacedKey;
 import org.bukkit.Registry;
 import org.bukkit.World;
@@ -175,6 +174,9 @@ public class BukkitEntityFactory {
                         : formatMobName(entityType, level, spawnLocation.isEliteSpawn());
                 MiniBossBar.track(title, livingEntity);
             }
+
+            // Run any Java-side miniboss behavior (hybrid config + Java model).
+            rpgMob.triggerSpawnBehavior(livingEntity);
         }
 
         return entity;
@@ -258,20 +260,6 @@ private static void setAttributeValue(LivingEntity entity, Attribute attribute, 
 
     private static void applyMainHandItem(LivingEntity entity, MobRPGEntity rpgMob, MobDefinition definition) {
         EntityEquipment equipment = entity.getEquipment();
-
-        // Vanilla weapon: purely cosmetic main hand.
-        String weaponMaterial = definition.getWeaponMaterial();
-        if (weaponMaterial != null && !weaponMaterial.isBlank()) {
-            try {
-                if (equipment != null) {
-                    equipment.setItemInMainHand(new ItemStack(Material.valueOf(weaponMaterial)));
-                    equipment.setItemInMainHandDropChance(0f);
-                }
-            } catch (IllegalArgumentException e) {
-                System.out.println("Mob definition '" + definition.getId() + "' has unknown weapon-material '"
-                        + weaponMaterial + "'.");
-            }
-        }
 
         // RPG item weapon: cosmetic main hand + equipped on the RPG entity, so its
         // active stats apply and its abilities can be cast by the mob.

@@ -41,7 +41,6 @@ class MobDefinitionLoaderTest {
         stats.set("ATTACK_DAMAGE", 6);
         stats.set("MOVE_SPEED", 100);
         stats.set("ARMOR", 1);
-        def.set("weapon-material", "IRON_SWORD");
         def.set("main-hand-item", "BONEMERANG");
         def.set("ability-damage-multiplier", 0.5);
         def.set("ability-cast-interval", 80);
@@ -65,7 +64,6 @@ class MobDefinitionLoaderTest {
         assertEquals(32.0, baseStats.getCurrentValue(StatType.HEALTH_RESOURCE, now), 0.001, "spawns at full health");
         assertEquals(6.0, baseStats.getCurrentValue(StatType.ATTACK_DAMAGE, now), 0.001);
         assertEquals(100.0, baseStats.getCurrentValue(StatType.MOVE_SPEED, now), 0.001);
-        assertEquals("IRON_SWORD", mob.getWeaponMaterial());
         assertEquals("BONEMERANG", mob.getMainHandItemId());
         assertEquals(0.5, mob.getAbilityDamageMultiplier(), 0.001);
         assertEquals(80, mob.getAbilityCastInterval());

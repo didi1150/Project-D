@@ -11,8 +11,8 @@ import dev.core.stat.StatManager;
 /**
  * Data-driven definition of a dungeon mob, loaded from {@code dungeon-mobs.yml}.
  * Every mob is a full RPG entity with its own {@link StatManager}, a display name,
- * and an optional main weapon (a vanilla material for looks, or an items.yml id
- * that equips stats + abilities).
+ * and an optional main-hand weapon and armor that must reference items.yml ids so
+ * the mob gains the item's stats + abilities.
  */
 public class MobDefinition {
 
@@ -22,31 +22,31 @@ public class MobDefinition {
     private final Set<SpawnTier> tiers;
     private final String displayName;
     private final StatManager baseStats;
-    private final String weaponMaterial;
     private final String mainHandItemId;
     private final double abilityDamageMultiplier;
     private final int abilityCastInterval;
     private final boolean miniBoss;
     private final boolean bossBar;
+    private final String behaviorId;
     private final Map<EquipmentSlot, String> armor;
     private final List<MobEffect> effects;
 
     public MobDefinition(String id, String entityType, int weight, Set<SpawnTier> tiers, String displayName,
-            StatManager baseStats, String weaponMaterial, String mainHandItemId, double abilityDamageMultiplier,
-            int abilityCastInterval, boolean miniBoss, boolean bossBar, Map<EquipmentSlot, String> armor,
-            List<MobEffect> effects) {
+            StatManager baseStats, String mainHandItemId, double abilityDamageMultiplier,
+            int abilityCastInterval, boolean miniBoss, boolean bossBar, String behaviorId,
+            Map<EquipmentSlot, String> armor, List<MobEffect> effects) {
         this.id = id;
         this.entityType = entityType;
         this.weight = weight;
         this.tiers = tiers == null || tiers.isEmpty() ? Set.of(SpawnTier.values()) : Set.copyOf(tiers);
         this.displayName = displayName;
         this.baseStats = baseStats != null ? baseStats : new StatManager(null);
-        this.weaponMaterial = weaponMaterial;
         this.mainHandItemId = mainHandItemId;
         this.abilityDamageMultiplier = abilityDamageMultiplier;
         this.abilityCastInterval = Math.max(1, abilityCastInterval);
         this.miniBoss = miniBoss;
         this.bossBar = bossBar;
+        this.behaviorId = behaviorId;
         this.armor = armor == null ? Map.of() : Map.copyOf(armor);
         this.effects = effects == null ? List.of() : List.copyOf(effects);
     }
@@ -76,11 +76,6 @@ public class MobDefinition {
         return baseStats;
     }
 
-    /** Vanilla main-hand material (cosmetic); {@code null} for none. */
-    public String getWeaponMaterial() {
-        return weaponMaterial;
-    }
-
     /** items.yml id for the mob's main-hand weapon (equips stats + abilities); {@code null} for none. */
     public String getMainHandItemId() {
         return mainHandItemId;
@@ -103,6 +98,15 @@ public class MobDefinition {
     /** Whether a boss bar should be shown for this mob's health. */
     public boolean isBossBar() {
         return bossBar;
+    }
+
+    /**
+     * Optional id of a Java {@code MobBehavior} (registered in
+     * {@code MobBehaviorRegistry}) that drives this mob's custom logic. {@code null}
+     * for the default RPG-mob behavior. Typically set on minibosses.
+     */
+    public String getBehaviorId() {
+        return behaviorId;
     }
 
     /** RPG item ids per armor slot ({@code HEAD}/{@code CHEST}/{@code LEGS}/{@code FEET}). */
