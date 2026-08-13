@@ -1282,8 +1282,8 @@ public class RoomFirstDungeonGenerator3D extends SimpleRandomWalkDungeonGenerato
 
     private boolean doesCorridorOverlapWithRooms(List<BoundingBox> rooms, BoundingBox room1, BoundingBox room2, Set<Vector3Int> corridor) {
         return rooms.stream()
-                .filter(room -> !room.equals(room1) && !room.equals(room2))
-                .anyMatch(room -> corridor.stream().anyMatch(vec -> isRoomInteriorOverlap(room, vec)));
+                .anyMatch(room -> corridor.stream().anyMatch(vec -> isRoomInteriorOverlap(room, vec))
+                        && (!room.equals(room1) || !room.equals(room2) || corridor.stream().anyMatch(vec -> isRoomInteriorOverlap(room, vec))));
     }
 
     private boolean doesCorridorOverlapWithRooms(List<BoundingBox> rooms, Set<Vector3Int> corridor, BoundingBox ... ignoredRooms) {

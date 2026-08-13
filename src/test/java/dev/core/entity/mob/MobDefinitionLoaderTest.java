@@ -78,18 +78,14 @@ class MobDefinitionLoaderTest {
         TestConfigProvider provider = new TestConfigProvider();
         ConfigSection def = provider.getRoot().getSection("dungeon-mobs").getSection("elite");
         def.set("entity-type", "WITHER_SKELETON");
-        List<Map<String, Object>> effects = List.of(Map.of("type", "FIRE_RESISTANCE", "amplifier", 0, "duration", -1),
-                Map.of("type", "STRENGTH", "amplifier", 1, "duration", 100));
-        def.set("effects", effects);
+        def.getSection("stats").set("HEALTH_MAX", 50);
+        def.set("effects", List.of("BONE_SWING", "PARTICLE_TEST_ABILITY"));
 
         MobDefinition mob = MobDefinitionLoader.loadAll(provider).get("elite");
 
         assertEquals(2, mob.getEffects().size());
-        MobEffect fireResistance = mob.getEffects().get(0);
-        assertEquals("FIRE_RESISTANCE", fireResistance.type());
-        assertEquals(-1, fireResistance.durationTicks());
-        assertEquals("STRENGTH", mob.getEffects().get(1).type());
-        assertEquals(1, mob.getEffects().get(1).amplifier());
+        assertEquals("BONE_SWING", mob.getEffects().get(0).effectId());
+        assertEquals("PARTICLE_TEST_ABILITY", mob.getEffects().get(1).effectId());
     }
 
     @Test
@@ -98,11 +94,26 @@ class MobDefinitionLoaderTest {
         ConfigSection def = provider.getRoot().getSection("dungeon-mobs").getSection("weird");
         def.set("entity-type", "ZOMBIE");
         def.set("tiers", List.of("BASIC", "NOT_A_TIER"));
+        def.getSection("stats").set("HEALTH_MAX", 20);
 
         MobDefinition mob = MobDefinitionLoader.loadAll(provider).get("weird");
 
         assertTrue(mob.getTiers().contains(SpawnTier.BASIC), "valid tier must be kept");
         assertFalse(mob.getTiers().containsAll(Set.of(SpawnTier.ELITE)), "only BASIC should remain");
+    }
+
+    @Test
+    void loadAll_skipsMobWithoutHealthMax() {
+        TestConfigProvider provider = new TestConfigProvider();
+        ConfigSection def = provider.getRoot().getSection("dungeon-mobs").getSection("broken");
+        def.set("entity-type", "ZOMBIE");
+        def.set("tiers", List.of("BASIC"));
+        def.getSection("stats").set("ATTACK_DAMAGE", 5);
+
+        Map<String, MobDefinition> loaded = MobDefinitionLoader.loadAll(provider);
+
+        assertFalse(loaded.containsKey("broken"),
+                "mob definition without HEALTH_MAX must be skipped, not spawned with 0 hp");
     }
 
     @Test
@@ -112,9 +123,11 @@ class MobDefinitionLoaderTest {
         ConfigSection basic = root.getSection("basic-zombie");
         basic.set("entity-type", "ZOMBIE");
         basic.set("tiers", List.of("BASIC"));
+        basic.getSection("stats").set("HEALTH_MAX", 20);
         ConfigSection elite = root.getSection("elite-blaze");
         elite.set("entity-type", "BLAZE");
         elite.set("tiers", List.of("ELITE"));
+        elite.getSection("stats").set("HEALTH_MAX", 40);
 
         MobDefinitionRegistry registry = MobDefinitionRegistry.getInstance();
         registry.registerAll(MobDefinitionLoader.loadAll(provider).values());

@@ -154,6 +154,7 @@ public class PostGameState extends GameState {
                 });
             }
         });
+        BukkitPlayerEntity.clearMobTargetsOf(player);
     }
 
 }

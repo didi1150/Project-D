@@ -37,9 +37,7 @@ import dev.core.entity.RPGEntity;
 import dev.core.entity.rpgclass.RPGClassType;
 import dev.core.event.EventAction;
 import dev.core.event.EventBusInterface;
-import dev.core.event.impl.TickEvent;
 import dev.core.game.GameState;
-import dev.core.game.ScheduledTask;
 import dev.core.game.coords.Point3D;
 import dev.core.game.dungeon.BoundingBox;
 import dev.core.game.dungeon.proceduralDungeon.RoomFirstDungeonGenerator3D;
@@ -54,10 +52,6 @@ import dev.core.utils.MessageSenderInterface;
 public class ClearState extends GameState {
 
     public final static String NAME = "CLEARSTATE";
-
-    private ScheduledTask scheduledTask;
-
-    private long lastMillis;
 
     private ClassProgressionService classProgressionService;
 
@@ -93,7 +87,6 @@ public class ClearState extends GameState {
         this.holeCenter = PointToLocation.blockToLoc(holeCenter);
         this.eventBus = eventBus;
         this.classProgressionService = classProgressionService;
-        lastMillis = System.currentTimeMillis();
     }
 
     @Override
@@ -149,14 +142,8 @@ public class ClearState extends GameState {
 //                });
 //            });
             triggerGroundCrumble(() -> {
-                // effect + entity ticking is owned by GameStateController (active
-                // in every state); this state keeps publishing the per-tick
-                // TickEvent for combat text-display animations.
-                scheduledTask = scheduler.runTaskTimer(() -> {
-                    float tickDelta = (System.currentTimeMillis() - lastMillis) / 1000f * 20f;
-                    lastMillis = System.currentTimeMillis();
-                    eventBus.sendEvent(new TickEvent(tickDelta));
-                }, 0, 1);
+                // Per-tick TickEvent is now published by the base GameState for every
+                // state, so nothing extra is needed here.
             });
 
         });
@@ -286,6 +273,7 @@ public class ClearState extends GameState {
             }
         });
 
+        BukkitPlayerEntity.clearMobTargetsOf(player);
         player.teleport(holeCenter);
     }
 

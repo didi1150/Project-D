@@ -276,7 +276,7 @@ public class BukkitSwingBoneEffect extends Effect {
             if (le.hasMetadata("BONEMERANG")) {
                 continue;
             }
-            if (EntityManager.getInstance().isSpectator(le.getUniqueId())) {
+            if (EntityManager.getInstance().isGhost(le.getUniqueId())) {
                 continue; // ghosts take no damage; don't track them as a hit
             }
 

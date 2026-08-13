@@ -146,6 +146,7 @@ public class BossState extends GameState {
                 });
             }
         });
+        BukkitPlayerEntity.clearMobTargetsOf(player);
     }
 
     private void handleBossDeath(RPGEntityDeathEvent event) {

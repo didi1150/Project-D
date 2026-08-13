@@ -29,9 +29,7 @@ import dev.core.entity.RPGEntity;
 import dev.core.entity.rpgclass.RPGClassType;
 import dev.core.event.EventAction;
 import dev.core.event.EventBusInterface;
-import dev.core.event.impl.TickEvent;
 import dev.core.game.GameState;
-import dev.core.game.ScheduledTask;
 import dev.core.item.RPGItem;
 import dev.core.item.loader.RPGItemRegistry;
 
@@ -43,10 +41,10 @@ public class SelectItemState extends GameState {
     private final static int minPlayers = 5;
     private static final String SHOP_TITLE = "Select an Item";
 
-    private long lastMillis;
-    private ScheduledTask scheduledTask;
-
-    /** Per-player running selection: item id -> how many of that template have been taken. */
+    /**
+     * Per-player running selection: item id -> how many of that template have been
+     * taken.
+     */
     private final Map<UUID, Map<String, Integer>> selections = new HashMap<>();
 
     public SelectItemState(EventBusInterface eventBus) {
@@ -55,24 +53,23 @@ public class SelectItemState extends GameState {
 
     @Override
     protected void onStart() {
-        scheduledTask = scheduler.runTaskTimer(() -> {
-            float tickDelta = (System.currentTimeMillis() - lastMillis) / 1000f * 20f;
-            lastMillis = System.currentTimeMillis();
-            eventBus.sendEvent(new TickEvent(tickDelta));
-        }, 0, 1);
-
+        // TickEvent is now sent by the base GameState for every state.
         // Open the class-filtered item shop for everyone, once the state settles.
         scheduler.runTaskLater(() -> Bukkit.getOnlinePlayers().forEach(this::openShop), 5L);
+
+        // Tell players they can reopen the shop with /d open during this state.
+        Bukkit.broadcastMessage("§eThe item draft is open! Use §6/d open§e to open the shop.");
     }
 
     /**
      * Opens the item draft chest for a player. Templates are the items usable by
-     * the player's class (never {@code mob-only}, filtered by {@code allowed-classes}
-     * — the class lock is used only here, to list a class's items). Each template's
-     * stack amount shows how many of that item the player has already taken, and
-     * taken templates glow in the menu (the inventory copy does not).
+     * the player's class (never {@code mob-only}, filtered by
+     * {@code allowed-classes} — the class lock is used only here, to list a class's
+     * items). Each template's stack amount shows how many of that item the player
+     * has already taken, and taken templates glow in the menu (the inventory copy
+     * does not).
      */
-    private void openShop(Player player) {
+    public void openShop(Player player) {
         Inventory shop = Bukkit.createInventory(null, 54, SHOP_TITLE);
         RPGClassType playerClass = activeClassOf(player);
         Map<String, Integer> owned = selections.computeIfAbsent(player.getUniqueId(), k -> new HashMap<>());
@@ -175,7 +172,8 @@ public class SelectItemState extends GameState {
             return; // not the item shop
         }
         if (event.getClickedInventory() != event.getInventory()) {
-            return; // clicks in the player's own inventory are ignored
+            handleReturnClick(event, player); // returning a selected item from the player's inventory
+            return;
         }
         event.setCancelled(true); // never let the menu item move to the cursor
         ItemStack stack = event.getCurrentItem();
@@ -228,6 +226,67 @@ public class SelectItemState extends GameState {
         meta.addEnchant(Enchantment.LURE, 1, true);
         meta.addItemFlags(ItemFlag.HIDE_ENCHANTS);
         stack.setItemMeta(meta);
+    }
+
+    /**
+     * Handles a click on an item in the player's own inventory (the bottom pane of
+     * the open shop): if it's a shop-bought item, one copy is removed from the
+     * inventory and the menu template is updated (count decremented, glow cleared
+     * once it reaches zero).
+     */
+    private void handleReturnClick(InventoryClickEvent event, Player player) {
+        ItemStack stack = event.getCurrentItem();
+        if (stack == null || stack.getType().isAir()) {
+            return;
+        }
+        String itemId = BukkitItemStackAdapter.getRpgItemId(stack);
+        if (itemId == null) {
+            return;
+        }
+        Map<String, Integer> owned = selections.get(player.getUniqueId());
+        if (owned == null || owned.getOrDefault(itemId, 0) <= 0) {
+            return; // not a shop-bought item; allow normal inventory interaction
+        }
+        // Cancel so we control the removal precisely (no accidental drag/swap).
+        event.setCancelled(true);
+        // Remove one copy from the clicked slot.
+        int newAmount = stack.getAmount() - 1;
+        if (newAmount <= 0) {
+            event.getClickedInventory().setItem(event.getSlot(), null);
+        } else {
+            stack.setAmount(newAmount);
+            event.getClickedInventory().setItem(event.getSlot(), stack);
+        }
+        // Decrement the tracked selection; drop the entry once it reaches zero.
+        int remaining = owned.merge(itemId, -1, Integer::sum);
+        if (remaining <= 0) {
+            owned.remove(itemId);
+        }
+        // Reflect the new count in the open shop menu (menu only).
+        Inventory shop = event.getInventory();
+        if (shop != null && SHOP_TITLE.equals(event.getView().getTitle())) {
+            updateShopTemplate(shop, itemId, Math.max(0, remaining));
+        }
+    }
+
+    /** Re-renders the menu template for itemId to reflect its selected count. */
+    private void updateShopTemplate(Inventory shop, String itemId, int remaining) {
+        for (int i = 0; i < shop.getSize(); i++) {
+            ItemStack slot = shop.getItem(i);
+            if (slot == null || !itemId.equals(BukkitItemStackAdapter.getRpgItemId(slot))) {
+                continue;
+            }
+            Optional<RPGItem> itemOpt = RPGItemRegistry.getInstance().getItem(itemId);
+            if (itemOpt.isPresent()) {
+                ItemStack rendered = BukkitItemStackAdapter.toItemStack(itemOpt.get());
+                if (remaining > 0) {
+                    rendered.setAmount(remaining);
+                    applyGlow(rendered);
+                }
+                shop.setItem(i, rendered);
+            }
+            return;
+        }
     }
 
     private void handleDamage(EntityDamageEvent event) {

@@ -5,8 +5,6 @@ import java.util.Map;
 import java.util.Optional;
 
 import org.bukkit.Location;
-import org.bukkit.NamespacedKey;
-import org.bukkit.Registry;
 import org.bukkit.World;
 import org.bukkit.attribute.Attribute;
 import org.bukkit.attribute.AttributeInstance;
@@ -27,6 +25,8 @@ import dev.bukkit.event.BukkitEventBus;
 import dev.bukkit.item.BukkitItemStackAdapter;
 import dev.bukkit.stat.BukkitStatManager;
 import dev.bukkit.utils.DamageUtils;
+import dev.core.ability.Ability;
+import dev.core.ability.AbilityRegistry;
 import dev.core.entity.EntityManager;
 import dev.core.entity.mob.MobDefinition;
 import dev.core.entity.mob.MobDefinitionRegistry;
@@ -149,8 +149,8 @@ public class BukkitEntityFactory {
                 applyEliteEffects(livingEntity);
             }
 
-            // Config-defined potion effects
-            applyDefinitionEffects(livingEntity, definition);
+            // Config-defined spawn effects cast on the mob's RPG facade
+            applyDefinitionEffects(rpgMob, definition);
 
             // Main-hand weapon: vanilla material (cosmetic) or RPG item (equipped → stats/abilities)
             applyMainHandItem(livingEntity, rpgMob, definition);
@@ -209,15 +209,14 @@ private static StatManager scaleStats(MobDefinition definition, int level, boole
     }
     scaleStat(stats, StatType.MOVE_SPEED, speedMult, now);
 
-    // The synthesized HEALTH_RESOURCE tracks HEALTH_MAX; top it up to the scaled
-    // max so the mob spawns at full health.
+    // The synthesized HEALTH_RESOURCE tracks HEALTH_MAX; always align it with the
+    // scaled max so the mob spawns at full health no matter where the copied
+    // resource drifted.
     Stat resource = stats.get(StatType.HEALTH_RESOURCE);
     Stat max = stats.get(StatType.HEALTH_MAX);
     if (resource != null && max != null) {
         double maxVal = max.getCurrent(now);
-        if (maxVal > resource.getCurrent(now)) {
-            resource.modify(maxVal - resource.getCurrent(now));
-        }
+        resource.modify(maxVal - resource.getCurrent(now));
     }
 
     return new StatManager(stats);
@@ -245,16 +244,23 @@ private static void setAttributeValue(LivingEntity entity, Attribute attribute, 
         entity.addPotionEffect(new PotionEffect(PotionEffectType.GLOWING, Integer.MAX_VALUE, 0, false, false));
     }
 
-    private static void applyDefinitionEffects(LivingEntity entity, MobDefinition definition) {
+    /**
+     * Casts the mob definition's spawn effects (ids of {@code Effect}
+     * implementations registered in {@code BukkitEffectRegistry}, e.g.
+     * {@code BONE_SWING}) on the mob's RPG facade, so they tick with the rest
+     * of the effect manager's active effects. Vanilla potion effects are not
+     * supported here.
+     */
+    private static void applyDefinitionEffects(MobRPGEntity rpgMob, MobDefinition definition) {
         for (MobEffect effect : definition.getEffects()) {
-            PotionEffectType type = Registry.EFFECT.get(NamespacedKey.minecraft(effect.type().toLowerCase()));
-            if (type == null) {
-                System.out.println("Unknown potion effect '" + effect.type() + "' in mob definition '"
-                        + definition.getId() + "'.");
+            Optional<Ability> ability = AbilityRegistry.get(effect.effectId());
+            if (ability.isEmpty()) {
+                System.out.println("Unknown effect id '" + effect.effectId() + "' in mob definition '"
+                        + definition.getId() + "'. Effect ids must be registered abilities ("
+                        + "see AbilityRegistry/BukkitEffectRegistry); vanilla potion effects are not supported.");
                 continue;
             }
-            int duration = effect.durationTicks() < 0 ? Integer.MAX_VALUE : effect.durationTicks();
-            entity.addPotionEffect(new PotionEffect(type, duration, effect.amplifier(), false, false));
+            rpgMob.getEffectManager().cast(rpgMob, ability.get());
         }
     }
 

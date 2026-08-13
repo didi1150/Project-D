@@ -32,8 +32,11 @@
 #                            MobBehaviorRegistry) driving this mob's custom logic
 #                            (e.g. "lost-adventurer"). The hybrid config+Java model:
 #                            stats/equipment stay in config, unique mechanics in Java.
-#   effects:                 optional potion effects applied on spawn
-#                            (type, amplifier, duration in ticks; -1 = infinite)
+#   effects:                 optional ids of dev.core.ability.Effect
+#                            implementations (registered in AbilityRegistry /
+#                            BukkitEffectRegistry, e.g. BONE_SWING), cast on the
+#                            mob at spawn. Vanilla potion effect names are NOT
+#                            valid here.
 
 dungeon-mobs:
   basic-zombie:
@@ -101,10 +104,6 @@ dungeon-mobs:
       MOVE_SPEED: 120
       ARMOR: 4
       ATTACK_SPEED: 1
-    effects:
-      - type: FIRE_RESISTANCE
-        amplifier: 0
-        duration: -1
   elite-blaze:
     entity-type: BLAZE
     weight: 2
@@ -133,9 +132,5 @@ dungeon-mobs:
       ARMOR: 6
       ATTACK_SPEED: 1
       CRIT_CHANCE: 0
-    effects:
-      - type: FIRE_RESISTANCE
-        amplifier: 0
-        duration: -1
     armor:
       head: BONEMERANG

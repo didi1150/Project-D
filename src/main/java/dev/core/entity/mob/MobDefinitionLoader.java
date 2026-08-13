@@ -11,6 +11,7 @@ import java.util.Set;
 import dev.core.game.dungeon.proceduralDungeon.util.SpawnTier;
 import dev.core.item.equipment.EquipmentSlot;
 import dev.core.stat.StatManager;
+import dev.core.stat.StatType;
 import dev.core.stat.loader.StatLoader;
 import dev.core.storage.config.ConfigProvider;
 import dev.core.storage.config.ConfigSection;
@@ -35,8 +36,7 @@ import dev.core.storage.config.ConfigSection;
  *     ability-damage-multiplier: 0.5
  *     mini-boss: false
  *     effects:
- *       - type: SPEED
- *         amplifier: 0
+ *       - BONE_SWING
  * </pre>
  */
 public class MobDefinitionLoader {
@@ -48,7 +48,10 @@ public class MobDefinitionLoader {
             return result;
         }
         for (String id : root.getKeys()) {
-            result.put(id, load(id, root.getSection(id)));
+            MobDefinition definition = load(id, root.getSection(id));
+            if (definition != null) {
+                result.put(id, definition);
+            }
         }
         return result;
     }
@@ -59,6 +62,12 @@ public class MobDefinitionLoader {
         Set<SpawnTier> tiers = parseTiers(section.getStringList("tiers"));
         String displayName = section.getString("display-name", null);
         StatManager baseStats = new StatManager(StatLoader.loadStats(section.getSection("stats")));
+        if (baseStats.getCurrentValue(StatType.HEALTH_MAX, System.currentTimeMillis()) <= 0) {
+            System.out.println("Mob definition '" + id + "' has no HEALTH_MAX in its stats block ("
+                    + section.getString("entity-type", "unknown entity-type") + "); skipping it. "
+                    + "Check the `stats` section of dungeon-mobs.yml.");
+            return null;
+        }
         String mainHandItemId = section.getString("main-hand-item", null);
         double abilityDamageMultiplier = section.getDouble("ability-damage-multiplier", 1.0);
         int abilityCastInterval = section.getInt("ability-cast-interval", 80);
@@ -66,7 +75,7 @@ public class MobDefinitionLoader {
         boolean bossBar = section.getBoolean("boss-bar", false);
         String behaviorId = section.getString("behavior", null);
         Map<EquipmentSlot, String> armor = loadArmor(section);
-        List<MobEffect> effects = loadEffects(section.getSectionList("effects"));
+        List<MobEffect> effects = loadEffects(section);
 
         return new MobDefinition(id, entityType, weight, tiers, displayName, baseStats, mainHandItemId,
                 abilityDamageMultiplier, abilityCastInterval, miniBoss, bossBar, behaviorId, armor, effects);
@@ -100,19 +109,13 @@ public class MobDefinitionLoader {
         return tiers.isEmpty() ? EnumSet.allOf(SpawnTier.class) : tiers;
     }
 
-    private static List<MobEffect> loadEffects(List<ConfigSection> effectSections) {
+    private static List<MobEffect> loadEffects(ConfigSection section) {
         List<MobEffect> effects = new ArrayList<>();
-        if (effectSections == null) {
-            return effects;
-        }
-        for (ConfigSection section : effectSections) {
-            String type = section.getString("type", "");
-            if (type.isBlank()) {
+        for (String effectId : section.getStringList("effects")) {
+            if (effectId == null || effectId.isBlank()) {
                 continue;
             }
-            int amplifier = section.getInt("amplifier", 0);
-            int durationTicks = section.getInt("duration", -1);
-            effects.add(new MobEffect(type, amplifier, durationTicks));
+            effects.add(new MobEffect(effectId.trim()));
         }
         return effects;
     }

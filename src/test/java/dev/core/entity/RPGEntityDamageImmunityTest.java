@@ -56,6 +56,22 @@ class RPGEntityDamageImmunityTest {
         assertEquals(healthBefore - result.getDamage(), target.getHealth(), 0.001);
     }
 
+    @Test
+    void deadTargetTakesNoDamageNoReactionNoIndicatorData() {
+        HitCountingEntity target = new HitCountingEntity(statsManager());
+        RPGEntity attacker = new HitCountingEntity(statsManager());
+
+        target.onDeath();
+        double healthAfterDeath = target.getHealth();
+
+        RPGDamageResult result = target.dealRPGDamage(attacker, target, 50, DamageType.PHYSICAL);
+
+        assertEquals(DamageResult.DENY, result.getResult(), "dead (ghost) targets must be denied damage");
+        assertEquals(0.0, result.getDamage(), 0.001);
+        assertEquals(healthAfterDeath, target.getHealth(), 0.001, "dead target health must not change");
+        assertEquals(0, target.hitReactions, "dead target must not get a hurt reaction");
+    }
+
     // ---------------------------------------------------------------- stubs
 
     private static StatManager statsManager() {

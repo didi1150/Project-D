@@ -34,6 +34,20 @@ public class EntityManager {
         return spectators.contains(uuid);
     }
 
+    /**
+     * Whether the given entity is a ghost player: either explicitly registered
+     * as a spectator (game-state ghosting, e.g. on join) or an RPG player
+     * entity that died mid-game (marked dead but kept registered). Ghosts must
+     * never be targeted or damaged.
+     */
+    public boolean isGhost(UUID uuid) {
+        if (spectators.contains(uuid)) {
+            return true;
+        }
+        RPGEntity entity = entities.get(uuid);
+        return entity != null && entity.getEntityType() == EntityType.PLAYER && deadEntities.contains(uuid);
+    }
+
     public void clearSpectators() {
         spectators.clear();
     }

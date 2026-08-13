@@ -25,12 +25,12 @@ import dev.core.stat.StatManager;
 /**
  * Smoke test for the effect dispatch registry. Replicates the sequence
  * DMain.onEnable performs (register abilities + wire effect factories), then
- * drives the REAL {@link BukkitEffectManager} through {@code cast()} with a fake
- * (non-Bukkit) entity.
+ * drives the REAL {@link BukkitEffectManager} through {@code cast()} with a
+ * fake (non-Bukkit) entity.
  *
  * The fake entity is intentionally NOT a BukkitPlayerEntity, so the swing-bone
- * single-instance branch is skipped; what this test verifies is the wiring:
- * a registered ability id resolves to a non-null Effect (never a silent null),
+ * single-instance branch is skipped; what this test verifies is the wiring: a
+ * registered ability id resolves to a non-null Effect (never a silent null),
  * and an unregistered id returns null with the warning path intact.
  */
 class BukkitEffectManagerCastSmokeTest {
@@ -39,14 +39,14 @@ class BukkitEffectManagerCastSmokeTest {
     void setUp() {
         AbilityRegistry.clear();
         AbilityRegistry.register(configured("BONE_SWING", AbilityAction.RIGHT_CLICK, CooldownScope.ITEM, 3000));
-        AbilityRegistry.register(
-                configured("PARTICLE_TEST_ABILITY", AbilityAction.RIGHT_CLICK, CooldownScope.PLAYER, 0));
+        AbilityRegistry
+                .register(configured("PARTICLE_TEST_ABILITY", AbilityAction.RIGHT_CLICK, CooldownScope.PLAYER, 0));
         BukkitEffectRegistry.register("BONE_SWING", BukkitSwingBoneEffect::new);
         BukkitEffectRegistry.register("PARTICLE_TEST_ABILITY", BukkitParticleTestEffect::new);
     }
 
     @Test
-    void cast_returnsEffectForEveryRegisteredAbility() {
+    void castReturnsEffectForEveryRegisteredAbility() {
         EffectManagerInterface manager = BukkitEffectManager.getInstance();
         RPGEntity entity = new TestRPGEntity();
 
@@ -58,7 +58,7 @@ class BukkitEffectManagerCastSmokeTest {
     }
 
     @Test
-    void cast_swingBoneDispatchProducesSwingBoneEffect() {
+    void castSwingBoneDispatchProducesSwingBoneEffect() {
         EffectManagerInterface manager = BukkitEffectManager.getInstance();
         RPGEntity entity = new TestRPGEntity();
         Ability ability = AbilityRegistry.get("BONE_SWING").orElseThrow();
@@ -67,7 +67,7 @@ class BukkitEffectManagerCastSmokeTest {
     }
 
     @Test
-    void cast_unknownAbilityReturnsNull() {
+    void castUnknownAbilityReturnsNull() {
         EffectManagerInterface manager = BukkitEffectManager.getInstance();
         RPGEntity entity = new TestRPGEntity();
 

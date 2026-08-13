@@ -3,6 +3,7 @@ package dev.core.game;
 import dev.core.event.EventAction;
 import dev.core.event.EventBusInterface;
 import dev.core.event.EventSubscriptionManager;
+import dev.core.event.impl.TickEvent;
 
 public abstract class GameState {
     protected final String name;
@@ -15,6 +16,8 @@ public abstract class GameState {
     protected long remainingTicks;
     protected EventBusInterface eventBus;
     protected EventSubscriptionManager subscriptionManager;
+    private long lastTickMillis;
+    private ScheduledTask tickEventTask;
 
     public GameState(String name, long duration, EventBusInterface eventBus) {
         this.name = name;
@@ -38,6 +41,20 @@ public abstract class GameState {
 
         onStart();
         registerSubscribers();
+
+        // Every state publishes a per-tick TickEvent (combat text, animations, etc.).
+        this.lastTickMillis = System.currentTimeMillis();
+        if (scheduler != null && eventBus != null) {
+            this.tickEventTask = scheduler.runTaskTimer(() -> {
+                if (!active) {
+                    return;
+                }
+                long now = System.currentTimeMillis();
+                float tickDelta = (now - lastTickMillis) / 1000f * 20f;
+                lastTickMillis = now;
+                eventBus.sendEvent(new TickEvent(tickDelta));
+            }, 0L, 1L);
+        }
 
         // Schedule tick-based countdown if not infinite
         if (duration > 0 && scheduler != null) {
@@ -71,6 +88,11 @@ public abstract class GameState {
         if (durationTask != null && !durationTask.isCancelled()) {
             durationTask.cancel();
             durationTask = null;
+        }
+
+        if (tickEventTask != null && !tickEventTask.isCancelled()) {
+            tickEventTask.cancel();
+            tickEventTask = null;
         }
 
         onStop();

@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <project xmlns="http://maven.apache.org/POM/4.0.0"
-         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
     <modelVersion>4.0.0</modelVersion>
 
     <groupId>dev.project-d</groupId>
@@ -22,10 +22,7 @@
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-surefire-plugin</artifactId>
-                <version>2.22.2</version>
-                <configuration>
-                    <skipTests>true</skipTests>
-                </configuration>
+                <version>3.2.5</version>
             </plugin>
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
@@ -42,31 +39,21 @@
                         </path>
                     </annotationProcessorPaths>
                 </configuration>
-                <executions>
-                    <execution>
-                        <id>default-testCompile</id>
-                        <phase>test-compile</phase>
-                        <goals>
-                            <goal>testCompile</goal>
-                        </goals>
-                        <configuration>
-                            <skip>true</skip>
-                        </configuration>
-                    </execution>
-                </executions>
             </plugin>
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-shade-plugin</artifactId>
                 <version>3.5.3</version>
                 <configuration>
-                    <dependencyReducedPomLocation>${project.build.directory}/dependency-reduced-pom.xml</dependencyReducedPomLocation>
+                    <dependencyReducedPomLocation>
+                        ${project.build.directory}/dependency-reduced-pom.xml</dependencyReducedPomLocation>
                     <relocations>
                         <relocation>
                             <pattern>co.aikar.taskchain</pattern>
-                            <shadedPattern>${project.name}.taskchain</shadedPattern> <!-- Replace this -->
-                         </relocation>
-                     </relocations>
+                            <shadedPattern>${project.name}.taskchain</shadedPattern> <!--
+                            Replace this -->
+                        </relocation>
+                    </relocations>
                 </configuration>
                 <executions>
                     <execution>
@@ -87,10 +74,10 @@
     </build>
 
     <repositories>
-    	<repository>
-        <id>jitpack.io</id>
-        <url>https://jitpack.io</url>
-	    </repository>
+        <repository>
+            <id>jitpack.io</id>
+            <url>https://jitpack.io</url>
+        </repository>
         <repository>
             <id>spigot-repo</id>
             <url>https://hub.spigotmc.org/nexus/content/repositories/snapshots/</url>
@@ -99,7 +86,7 @@
             <id>enginehub</id>
             <url>https://maven.enginehub.org/repo/</url>
         </repository>
-    
+
         <repository>
             <id>aikar</id>
             <url>https://repo.aikar.co/content/groups/aikar/</url>
@@ -110,7 +97,8 @@
         <dependencies>
             <dependency>
                 <groupId>com.intellectualsites.bom</groupId>
-                <artifactId>bom-newest</artifactId> <!--  Ref: https://github.com/IntellectualSites/bom -->
+                <artifactId>bom-newest</artifactId> <!--  Ref:
+                https://github.com/IntellectualSites/bom -->
                 <version>1.55</version>
                 <scope>import</scope>
                 <type>pom</type>
@@ -130,72 +118,51 @@
             <artifactId>SimpAPI</artifactId>
             <version>4.6.1</version>
         </dependency>
-     <!-- https://mvnrepository.com/artifact/com.github.dmulloy2/protocollib -->
+        <!-- https://mvnrepository.com/artifact/com.github.dmulloy2/protocollib -->
         <dependency>
             <groupId>net.dmulloy2</groupId>
             <artifactId>ProtocolLib</artifactId>
             <version>5.4.0</version>
             <scope>provided</scope>
         </dependency>
-	    <dependency>
-		    <groupId>org.mockbukkit.mockbukkit</groupId>
-		    <artifactId>mockbukkit-v1.21</artifactId>
-		    <version>4.72.8</version>
-		    <scope>test</scope>
-		  </dependency>
-    	<dependency>
+        <dependency>
+            <groupId>org.mockbukkit.mockbukkit</groupId>
+            <artifactId>mockbukkit-v1.21</artifactId>
+            <version>4.72.8</version>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
             <groupId>co.aikar</groupId>
             <artifactId>taskchain-bukkit</artifactId>
-            <version>3.7.2</version> <!-- Replace this with the version from TaskChain -->
+            <version>3.7.2</version> <!-- Replace this with the version from
+            TaskChain -->
         </dependency>
         <dependency>
-           <groupId>org.spigotmc</groupId>
-           <artifactId>spigot-api</artifactId>
-           <version>1.21.8-R0.1-SNAPSHOT</version>
-           <scope>provided</scope>
+            <groupId>org.spigotmc</groupId>
+            <artifactId>spigot-api</artifactId>
+            <version>1.21.8-R0.1-SNAPSHOT</version>
+            <scope>provided</scope>
         </dependency>
-        <!-- https://mvnrepository.com/artifact/org.junit.jupiter/junit-jupiter-api -->
-        <dependency>
-            <groupId>org.junit.jupiter</groupId>
-            <artifactId>junit-jupiter-api</artifactId>
-            <version>6.0.0-M2</version>
-            <scope>test</scope>
-        </dependency>
-        <!-- https://mvnrepository.com/artifact/org.junit.jupiter/junit-jupiter-engine -->
-        <dependency>
-            <groupId>org.junit.jupiter</groupId>
-            <artifactId>junit-jupiter-engine</artifactId>
-            <version>6.0.0-M2</version>
-            <scope>test</scope>
-        </dependency>
-        <!-- https://mvnrepository.com/artifact/org.junit.jupiter/junit-jupiter -->
         <dependency>
             <groupId>org.junit.jupiter</groupId>
             <artifactId>junit-jupiter</artifactId>
-            <version>6.0.0-M2</version>
+            <version>5.13.3</version>
             <scope>test</scope>
         </dependency>
-        
+        <!-- spigot-api 1.21.8's YamlConfiguration requires snakeyaml 2.x;
+             pinned so surefire's test classpath resolves the right version. -->
         <dependency>
-	        <groupId>org.junit.vintage</groupId>
-	        <artifactId>junit-vintage-engine</artifactId>
-	        <version>6.0.0-M2</version>
-	        <scope>test</scope>
-    	</dependency>
-
-        <!-- https://mvnrepository.com/artifact/org.junit.jupiter/junit-jupiter-params -->
-        <dependency>
-            <groupId>org.junit.jupiter</groupId>
-            <artifactId>junit-jupiter-params</artifactId>
-            <version>6.0.0-M2</version>
+            <groupId>org.yaml</groupId>
+            <artifactId>snakeyaml</artifactId>
+            <version>2.3</version>
             <scope>test</scope>
         </dependency>
 
-        <!-- https://mvnrepository.com/artifact/org.mockito/mockito-core -->
+        <!-- Source: https://mvnrepository.com/artifact/org.mockito/mockito-core -->
         <dependency>
             <groupId>org.mockito</groupId>
             <artifactId>mockito-core</artifactId>
-            <version>5.19.0</version>
+            <version>5.23.0</version>
             <scope>test</scope>
         </dependency>
 

@@ -1,7 +1,7 @@
 package dev.core.item.display;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.List;
 
@@ -26,7 +26,7 @@ public class StyleTagParserTest {
     void testPlainText() {
         String input = "Hello world";
         List<StyledSegment> result = parser.parse(input);
-
+        
         assertEquals(1, result.size());
         assertEquals("Hello world", result.get(0).text());
         assertEquals(TextStyle.defaultStyle(defaultColor), result.get(0).style());

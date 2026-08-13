@@ -178,6 +178,12 @@ public abstract class RPGEntity {
             return new RPGDamageResult(DamageResult.DENY, 0);
         }
 
+        // Ghosts (dead players kept registered) and other dead entities take no
+        // damage: no damage, no hurt animation, no damage indicator.
+        if (!target.isAlive()) {
+            return new RPGDamageResult(DamageResult.DENY, 0);
+        }
+
         boolean crit = false;
         double finalDamage = baseDamage;
 

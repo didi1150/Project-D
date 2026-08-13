@@ -4,9 +4,11 @@ import java.util.Optional;
 
 import org.bukkit.Bukkit;
 import org.bukkit.GameMode;
+import org.bukkit.World;
 import org.bukkit.attribute.Attribute;
 import org.bukkit.entity.Entity;
 import org.bukkit.entity.LivingEntity;
+import org.bukkit.entity.Mob;
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.potion.PotionEffect;
@@ -91,6 +93,22 @@ public class BukkitPlayerEntity extends RPGEntity {
                 });
             }
         });
+        clearMobTargetsOf(player);
+    }
+
+    /**
+     * Vanilla mobs keep chasing whatever player they targeted before he became
+     * a ghost. Clear their target so they stop attacking the invisible ghost.
+     */
+    public static void clearMobTargetsOf(Player player) {
+        for (World world : Bukkit.getWorlds()) {
+            for (Mob mob : world.getEntitiesByClass(Mob.class)) {
+                LivingEntity target = mob.getTarget();
+                if (target != null && target.getUniqueId().equals(player.getUniqueId())) {
+                    mob.setTarget(null);
+                }
+            }
+        }
     }
 
     public void toPlayingState() {

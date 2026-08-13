@@ -122,8 +122,8 @@ public class MobRPGEntity extends RPGEntity {
         double bestSq = range * range;
         for (Player player : vanilla.getWorld().getPlayers()) {
             if (player.isDead() || !player.isOnline()
-                    || EntityManager.getInstance().isSpectator(player.getUniqueId())) {
-                continue; // skip ghosts registered in the EntityManager
+                    || EntityManager.getInstance().isGhost(player.getUniqueId())) {
+                continue; // skip ghost players (dead mid-game or registered spectators)
             }
             double distSq = player.getLocation().distanceSquared(vanilla.getLocation());
             if (distSq < bestSq) {
