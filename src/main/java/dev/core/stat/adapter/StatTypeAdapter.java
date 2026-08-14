@@ -29,6 +29,7 @@ public class StatTypeAdapter {
         TYPE_TO_ID.put(StatType.LETHALITY, "core:lethality");
         TYPE_TO_ID.put(StatType.ARMOR_PENETRATION, "core:armor_penetration");
         TYPE_TO_ID.put(StatType.CRIT_CHANCE, "core:crit_chance");
+        TYPE_TO_ID.put(StatType.PROJECTILE_DAMAGE, "core:projectile_damage");
         TYPE_TO_ID.put(StatType.HEAL_AND_SHIELD_POWER, "core:heal_and_shield_power");
         TYPE_TO_ID.put(StatType.HEALTH_MAX, "core:health_max");
         TYPE_TO_ID.put(StatType.HEALTH_RESOURCE, "core:health");
@@ -62,6 +63,7 @@ public class StatTypeAdapter {
 
         // Critical and Support
         register(registry, StatType.CRIT_CHANCE);
+        register(registry, StatType.PROJECTILE_DAMAGE);
         register(registry, StatType.HEAL_AND_SHIELD_POWER);
 
         // Health Stats

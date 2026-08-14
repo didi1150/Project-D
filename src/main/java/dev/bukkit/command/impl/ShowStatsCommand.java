@@ -1,6 +1,5 @@
 package dev.bukkit.command.impl;
 
-import java.util.Map.Entry;
 import java.util.Optional;
 
 import org.bukkit.ChatColor;
@@ -13,7 +12,6 @@ import dev.bukkit.entity.BukkitPlayerEntity;
 import dev.bukkit.item.display.BukkitTextColorAdapter;
 import dev.core.entity.EntityManager;
 import dev.core.entity.RPGEntity;
-import dev.core.stat.Stat;
 import dev.core.stat.StatType;
 
 public class ShowStatsCommand implements CommandExecutor {
@@ -28,11 +26,12 @@ public class ShowStatsCommand implements CommandExecutor {
                 BukkitPlayerEntity playerEntity = (BukkitPlayerEntity) optional.get();
 
                 player.sendMessage(ChatColor.GOLD + "═══════════════════════════════════");
-                for (Entry<StatType, Stat> entry : playerEntity.getStatManager().getStats().entrySet()) {
-                    StatType type = entry.getKey();
-                    player.sendMessage(BukkitTextColorAdapter.colored(type.getColor(),
-                            type.formatValue(entry.getValue().getCurrent(System.currentTimeMillis()), false)));
-
+                long now = System.currentTimeMillis();
+                // Read through the StatEngine adapter so item-contributed stats
+                // (e.g. armor from equipped gear) are reflected, not just base stats.
+                for (StatType type : playerEntity.getStatManager().getStats().keySet()) {
+                    double value = playerEntity.getStatEngineAdapter().getCurrentValue(type, now);
+                    player.sendMessage(BukkitTextColorAdapter.colored(type.getColor(), type.formatValue(value, false)));
                 }
                 player.sendMessage(ChatColor.GOLD + "═══════════════════════════════════");
             }

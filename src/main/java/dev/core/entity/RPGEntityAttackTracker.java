@@ -22,7 +22,8 @@ public class RPGEntityAttackTracker {
 	public boolean canAttack() {
 		long now = System.currentTimeMillis();
 		long diff = now - lastValidAttack;
-		double attackDelay = 1.0 / rpgEntity.getStatManager().getCurrentValue(StatType.ATTACK_SPEED, now) * 1000;
+		double attackDelay = 1.0 / rpgEntity.getStatEngineAdapter().getCurrentValue(StatType.ATTACK_SPEED, now)
+				* 1000;
 		return diff > attackDelay;
 	}
 

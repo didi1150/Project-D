@@ -9,8 +9,10 @@ import java.util.Map.Entry;
 
 import org.bukkit.ChatColor;
 
+import dev.bukkit.utils.ManaDiscountUtils;
 import dev.core.ability.Ability;
 import dev.core.ability.AbilityTriggerType;
+import dev.core.entity.RPGEntity;
 import dev.core.item.RPGItem;
 import dev.core.item.display.RPGItemLoreRenderer;
 import dev.core.item.display.StyleTagParser;
@@ -22,6 +24,11 @@ public class BukkitLoreRenderer implements RPGItemLoreRenderer {
 
 	@Override
 	public List<String> render(RPGItem item) {
+		return render(item, null);
+	}
+
+	@Override
+	public List<String> render(RPGItem item, RPGEntity holder) {
 		List<String> lore = new ArrayList<>();
 
 		// Passive stats
@@ -82,9 +89,18 @@ public class BukkitLoreRenderer implements RPGItemLoreRenderer {
 
 				if (ability.getCost() != null && ability.getCost().hasCost()) {
 					lore.add(ChatColor.DARK_GRAY + "Cost: ");
+					boolean discounted = false;
 					for (Entry<String, Double> entry : ability.getCost().getResourceCosts().entrySet()) {
 						StatType type = StatType.valueOf(entry.getKey());
-						lore.add(colored(type.getColor(), type.formatValue(entry.getValue(), true)));
+						double cost = ManaDiscountUtils.discountedCost(holder, entry.getKey(), entry.getValue());
+						if (cost < entry.getValue()) {
+							discounted = true;
+						}
+						lore.add(colored(type.getColor(), type.formatValue(cost, true)));
+					}
+					if (discounted) {
+						lore.add(colored(TextColor.DARK_PURPLE,
+								"Mana costs reduced by 10% (Mage Set)"));
 					}
 				}
 				lore.add("");

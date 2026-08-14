@@ -17,6 +17,7 @@ public enum StatType {
 
     // Critical and Support
     CRIT_CHANCE("Critical Chance", "⚹", TextColor.GOLD),
+    PROJECTILE_DAMAGE("Projectile Damage", "➶", TextColor.GOLD),
     HEAL_AND_SHIELD_POWER("Heal & Shield Power", "♥", TextColor.GREEN),
 
     // Health Stats

@@ -27,6 +27,18 @@ public abstract class Stat {
 
 	public abstract double getCurrent(long now);
 
+	/**
+	 * The raw base value of this stat, WITHOUT any modifier bucket applied.
+	 * The StatEngine aggregates modifiers itself (via providers such as
+	 * {@code ModifierBucketProvider}), so callers feeding a value into the
+	 * engine must use this instead of {@link #getCurrent(long)} to avoid
+	 * applying bucket modifiers twice. Defaults to {@link #getCurrent(long)}
+	 * for stats that do not apply their bucket (e.g. resources).
+	 */
+	public double getBaseValue(long now) {
+		return getCurrent(now);
+	}
+
 	protected void setCurrent(double value) {
 		this.current = capped ? Math.max(0, Math.min(value, max)) : value;
 	}

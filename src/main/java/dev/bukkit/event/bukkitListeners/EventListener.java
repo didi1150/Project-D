@@ -30,6 +30,7 @@ import org.bukkit.plugin.Plugin;
 import org.spigotmc.event.player.PlayerSpawnLocationEvent;
 
 import dev.bukkit.event.BukkitEventBus;
+import dev.bukkit.item.BukkitItemStackAdapter;
 
 public class EventListener implements Listener {
 
@@ -57,6 +58,12 @@ public class EventListener implements Listener {
 
     @EventHandler
     public void onBlockPlace(BlockPlaceEvent event) {
+        // RPG items (e.g. the Spirit Sceptre's ALLIUM flower) are tools, never
+        // blocks: right-clicking with one in hand must not plant it.
+        if (BukkitItemStackAdapter.getRpgItemId(event.getPlayer().getInventory().getItemInMainHand()) != null) {
+            event.setCancelled(true);
+            return;
+        }
         BukkitEventBus.getInstance().sendEvent(event);
     }
 

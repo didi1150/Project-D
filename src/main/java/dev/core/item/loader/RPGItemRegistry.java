@@ -38,6 +38,16 @@ public class RPGItemRegistry {
         this.allItems.putAll(items);
     }
 
+    public void registerItemSet(RPGItemSet itemSet) {
+        this.allItemSets.put(itemSet.getId(), itemSet);
+    }
+
+    public void registerItemSets(java.util.Collection<RPGItemSet> itemSets) {
+        for (RPGItemSet itemSet : itemSets) {
+            registerItemSet(itemSet);
+        }
+    }
+
     public Optional<RPGItem> getItem(String id) {
         if (!allItems.containsKey(id)) {
             return Optional.empty();

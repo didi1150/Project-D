@@ -23,6 +23,7 @@ import org.bukkit.event.world.PortalCreateEvent.CreateReason;
 import org.bukkit.metadata.FixedMetadataValue;
 import org.bukkit.plugin.Plugin;
 
+import dev.bukkit.ability.BukkitSpiritSceptreBatEffect;
 import dev.bukkit.entity.BukkitEntityFactory;
 import dev.bukkit.entity.VanillaEntityMeta;
 import dev.bukkit.utils.DamageUtils;
@@ -122,8 +123,8 @@ public class CancelSubscriber {
                 event.setCancelled(true);
             else {
                 LivingEntity entity = event.getEntity();
-                if (entity.isInvisible()) {
-                    return;
+                if (entity.isInvisible() || entity.hasMetadata(BukkitSpiritSceptreBatEffect.METADATA)) {
+                    return; // summoned projectiles (e.g. the Spirit Sceptre bat) get no level/health nametag
                 }
                 VanillaEntityMeta meta = new VanillaEntityMeta(1, BukkitEntityFactory.getRelation(entity));
                 // Store metadata

@@ -20,9 +20,13 @@ public final class StatEngineAdapter {
     }
 
     public double getCurrentValue(StatType type, long now) {
-        // For resources (health/mana) rely on StatManager's current value
+        // Feed the RAW base into the engine: the legacy ModifierBucket is
+        // bridged into the engine via ModifierBucketProvider, so using the
+        // bucket-applied StatManager value here would apply bucket modifiers
+        // twice. Resources (health/mana) ignore their bucket by design, so for
+        // them getBaseValue == getCurrentValue.
         String id = StatTypeAdapter.toId(type);
-        double base = manager.getCurrentValue(type, now);
+        double base = manager.getBaseValue(type, now);
         return engine.computeValue(id, base);
     }
 

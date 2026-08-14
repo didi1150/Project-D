@@ -99,12 +99,15 @@ public class StatLoader {
 
         Stat manaMaxStat = stats.getOrDefault(StatType.MANA_MAX, new CombatStat("MANA_MAX", 0));
         Stat manaRegenStat = stats.getOrDefault(StatType.MANA_REGEN, new CombatStat("MANA_REGEN", 0));
+        // Raw (getBaseValue) bases: the StatEngine applies all modifiers — legacy
+        // buckets via ModifierBucketProvider and item stats via ItemStatProvider —
+        // so bucket-applied bases here would double-count.
         stats.put(StatType.HEALTH_RESOURCE,
-                new ResourceStat(StatType.HEALTH_RESOURCE.toString(), t -> healthMaxStat.getCurrent(t),
-                        t -> healthRegenStat.getCurrent(t) * (1 + healAndShieldPowerStat.getCurrent(t) / 100),
+                new ResourceStat(StatType.HEALTH_RESOURCE.toString(), t -> healthMaxStat.getBaseValue(t),
+                        t -> healthRegenStat.getBaseValue(t) * (1 + healAndShieldPowerStat.getBaseValue(t) / 100),
                         System.currentTimeMillis()));
         stats.put(StatType.MANA_RESOURCE, new ResourceStat(StatType.MANA_RESOURCE.toString(),
-                t -> manaMaxStat.getCurrent(t), t -> manaRegenStat.getCurrent(t), System.currentTimeMillis()));
+                t -> manaMaxStat.getBaseValue(t), t -> manaRegenStat.getBaseValue(t), System.currentTimeMillis()));
     }
 
 }

@@ -50,6 +50,7 @@ public class AbilityLoader {
 		ability.setScope(cooldownScope);
 		long cooldown = section.getInt("cooldown", 0);
 		ability.setCooldown(cooldown);
+		ability.setTargetsPlayer(section.getBoolean("targetsPlayer", true));
 		
 		return Optional.of(ability);
 	}

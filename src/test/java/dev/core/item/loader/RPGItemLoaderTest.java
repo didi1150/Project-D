@@ -1,6 +1,7 @@
 package dev.core.item.loader;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.io.ByteArrayOutputStream;
@@ -117,6 +118,150 @@ class RPGItemLoaderTest {
         AbilityRegistry.register(new TestAbility("TEST_ABILITY"));
 
         assertTrue(AbilityRegistry.get("TEST_ABILITY").isPresent());
+    }
+
+    @Test
+    void item_armorClassificationMatchesArmorSlots() {
+        assertTrue(RPGItem.builder("H", "Head", EquipmentSlot.HEAD).build().isArmor());
+        assertTrue(RPGItem.builder("C", "Chest", EquipmentSlot.CHEST).build().isArmor());
+        assertTrue(RPGItem.builder("L", "Legs", EquipmentSlot.LEGS).build().isArmor());
+        assertTrue(RPGItem.builder("F", "Feet", EquipmentSlot.FEET).build().isArmor());
+        assertFalse(RPGItem.builder("W", "Main", EquipmentSlot.MAIN_HAND).build().isArmor());
+        assertFalse(RPGItem.builder("O", "Off", EquipmentSlot.OFF_HAND).build().isArmor());
+    }
+
+    @Test
+    void item_levelGateUsesUnlockLevel() {
+        RPGItem gated = RPGItem.builder("GATED", "Gated", EquipmentSlot.MAIN_HAND).withUnlockLevel(5).build();
+
+        assertFalse(gated.isUsableAtLevel(0));
+        assertFalse(gated.isUsableAtLevel(4));
+        assertTrue(gated.isUsableAtLevel(5));
+        assertTrue(gated.isUsableAtLevel(10));
+    }
+
+    @Test
+    void item_levelGateDefaultsToUnlocked() {
+        RPGItem ungated = RPGItem.builder("FREE", "Free", EquipmentSlot.MAIN_HAND).build();
+
+        assertTrue(ungated.isUsableAtLevel(0));
+        assertTrue(ungated.isUsableAtLevel(1));
+    }
+
+    @Test
+    void load_readsUnlockLevelFromConfig() {
+        TestConfigProvider provider = new TestConfigProvider();
+        ConfigSection itemSection = provider.getRoot().getSection("items.GATED_SWORD");
+        itemSection.set("name", "Gated Sword");
+        itemSection.set("material", "IRON_SWORD");
+        itemSection.set("slot", "MAIN_HAND");
+        itemSection.set("unlockLevel", 7);
+
+        RPGItem item = RPGItemLoader.load("GATED_SWORD", itemSection);
+
+        assertEquals(7, item.getUnlockLevel());
+        assertTrue(item.isUsableAtLevel(7));
+        assertFalse(item.isUsableAtLevel(6));
+    }
+
+    @Test
+    void load_readsLeatherColorHexAndSkullCustomization() {
+        TestConfigProvider provider = new TestConfigProvider();
+        ConfigSection itemSection = provider.getRoot().getSection("items.HELMET");
+        itemSection.set("name", "Leather Helmet");
+        itemSection.set("material", "LEATHER_HELMET");
+        itemSection.set("slot", "HEAD");
+        itemSection.set("leather-color", "#FF8000");
+        itemSection.set("skull-owner", "Notch");
+
+        RPGItem item = RPGItemLoader.load("HELMET", itemSection);
+
+        assertEquals(0xFF8000, item.getLeatherColor().get().intValue());
+        assertEquals("Notch", item.getSkullOwner().get());
+        assertTrue(item.getSkullTexture().isEmpty());
+    }
+
+    @Test
+    void load_readsLeatherColorDecimal() {
+        TestConfigProvider provider = new TestConfigProvider();
+        ConfigSection itemSection = provider.getRoot().getSection("items.HELMET");
+        itemSection.set("name", "Leather Helmet");
+        itemSection.set("material", "LEATHER_HELMET");
+        itemSection.set("slot", "HEAD");
+        itemSection.set("leather-color", 16711680);
+
+        RPGItem item = RPGItemLoader.load("HELMET", itemSection);
+
+        assertEquals(0xFF0000, item.getLeatherColor().get().intValue());
+    }
+
+    @Test
+    void load_ignoresInvalidLeatherColor() {
+        TestConfigProvider provider = new TestConfigProvider();
+        ConfigSection itemSection = provider.getRoot().getSection("items.HELMET");
+        itemSection.set("name", "Leather Helmet");
+        itemSection.set("material", "LEATHER_HELMET");
+        itemSection.set("slot", "HEAD");
+        itemSection.set("leather-color", "not-a-color");
+
+        RPGItem item = RPGItemLoader.load("HELMET", itemSection);
+
+        assertTrue(item.getLeatherColor().isEmpty());
+    }
+
+    @Test
+    void load_readsSkullTexture() {
+        TestConfigProvider provider = new TestConfigProvider();
+        ConfigSection itemSection = provider.getRoot().getSection("items.SKULL");
+        itemSection.set("name", "Custom Skull");
+        itemSection.set("material", "PLAYER_HEAD");
+        itemSection.set("slot", "HEAD");
+        itemSection.set("skull-texture", "eyJ0ZXh0dXJlcyI6e319");
+
+        RPGItem item = RPGItemLoader.load("SKULL", itemSection);
+
+        assertEquals("eyJ0ZXh0dXJlcyI6e319", item.getSkullTexture().get());
+    }
+
+    @Test
+    void saveItem_writesVisualCustomization() {
+        TestConfigProvider provider = new TestConfigProvider();
+        RPGItem item = RPGItem.builder("SKULL", "Custom Skull", "PLAYER_HEAD", EquipmentSlot.HEAD)
+                .withLeatherColor(0x8B0000)
+                .withSkullOwner("Notch")
+                .withSkullTexture("eyJ0ZXh0dXJlcyI6e319")
+                .build();
+
+        RPGItemLoader.saveItem(provider, item);
+
+        ConfigSection saved = provider.getRoot().getSection("items").getSection("SKULL");
+        assertEquals(0x8B0000, saved.getInt("leather-color", -1));
+        assertEquals("Notch", saved.getString("skull-owner", null));
+        assertEquals("eyJ0ZXh0dXJlcyI6e319", saved.getString("skull-texture", null));
+    }
+
+    @Test
+    void deserialize_roundTripsVisualCustomization() {
+        RPGItem original = RPGItem.builder("HELMET", "Leather Helmet", "LEATHER_HELMET", EquipmentSlot.HEAD)
+                .withLeatherColor(0x3366FF)
+                .withSkullTexture("eyJ0ZXh0dXJlcyI6e319")
+                .build();
+
+        RPGItem restored = RPGItem.deserialize("HELMET", original.serialize());
+
+        assertEquals(original.getLeatherColor(), restored.getLeatherColor());
+        assertEquals(original.getSkullOwner(), restored.getSkullOwner());
+        assertEquals(original.getSkullTexture(), restored.getSkullTexture());
+    }
+
+    @Test
+    void parseRgbColor_acceptsHexDecimalAndNumber() {
+        assertEquals(0x3366FF, RPGItem.parseRgbColor("#3366FF"));
+        assertEquals(0x3366FF, RPGItem.parseRgbColor("0x3366FF"));
+        assertEquals(3368703, RPGItem.parseRgbColor("3368703"));
+        assertEquals(0xFF0000, RPGItem.parseRgbColor(16711680));
+        assertEquals(null, RPGItem.parseRgbColor("garbage"));
+        assertEquals(null, RPGItem.parseRgbColor(null));
     }
 
     /** Minimal ability impl for registry test. */

@@ -23,6 +23,13 @@ public abstract class Ability {
 	private CooldownScope scope;
 	private long cooldown;
 	private AbilityCost cost;
+	/**
+	 * Whether this ability, when cast by a mob, is aimed at players (e.g.
+	 * projectiles). {@code false} for self-buffs/heals that a mob may keep
+	 * casting even when no player is in sight. Only consulted for mob casting;
+	 * set via {@code targetsPlayer} in abilities.yml (defaults to {@code true}).
+	 */
+	private boolean targetsPlayer = true;
 
 	public Ability(String id, Event triggerEvent, AbilityCost abilityCost) {
 		this.id = id;

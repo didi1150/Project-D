@@ -1,11 +1,14 @@
 package dev.core.entity;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
 
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 
 import dev.bukkit.event.BukkitEventBus;
@@ -70,6 +73,35 @@ class RPGEntityDamageImmunityTest {
         assertEquals(0.0, result.getDamage(), 0.001);
         assertEquals(healthAfterDeath, target.getHealth(), 0.001, "dead target health must not change");
         assertEquals(0, target.hitReactions, "dead target must not get a hurt reaction");
+    }
+
+    @Test
+    void reviveMarksEntityAliveAndDamageableAgain() {
+        EntityManager manager = EntityManager.getInstance();
+        HitCountingEntity target = new HitCountingEntity(statsManager());
+        RPGEntity attacker = new HitCountingEntity(statsManager());
+        manager.registerEntity(target);
+
+        target.onDeath();
+        assertFalse(target.isAlive(), "dead entity must not be alive");
+        assertTrue(manager.isDead(target.getUuid()));
+
+        manager.revive(target.getUuid());
+
+        assertTrue(target.isAlive(), "revive must mark the entity alive again");
+        assertFalse(manager.isDead(target.getUuid()));
+        assertTrue(manager.getAliveEntities().contains(target),
+                "revived entity must be back in the alive list");
+
+        RPGDamageResult result = target.dealRPGDamage(attacker, target, 50, DamageType.PHYSICAL);
+
+        assertEquals(DamageResult.NORMAL, result.getResult(), "revived entity must take damage again");
+        assertEquals(1, target.hitReactions, "revived entity must get hurt reactions again");
+    }
+
+    @AfterEach
+    void clearEntityManager() {
+        EntityManager.getInstance().clear();
     }
 
     // ---------------------------------------------------------------- stubs

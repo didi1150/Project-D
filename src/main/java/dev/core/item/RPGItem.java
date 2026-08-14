@@ -27,11 +27,14 @@ public class RPGItem {
     private final List<StatModifier> activeStats;
     private final List<Ability> abilities;
     private final EquipmentSlot equipmentSlot;
-    private final Optional<RPGItemSet> itemSet;
+    private Optional<RPGItemSet> itemSet;
     private final RPGClassType rpgClassType;
     private final int unlockLevel;
     private final List<RPGClassType> allowedClasses;
     private final ItemUsage usage;
+    private final Optional<Integer> leatherColor;
+    private final Optional<String> skullOwner;
+    private final Optional<String> skullTexture;
 
     private RPGItem(Builder builder) {
         this.id = builder.id;
@@ -47,6 +50,9 @@ public class RPGItem {
         this.unlockLevel = builder.unlockLevel;
         this.allowedClasses = builder.allowedClasses == null ? new ArrayList<>() : new ArrayList<>(builder.allowedClasses);
         this.usage = builder.usage;
+        this.leatherColor = builder.leatherColor;
+        this.skullOwner = builder.skullOwner;
+        this.skullTexture = builder.skullTexture;
     }
 
     public RPGItem(String id, String name, String material, EquipmentSlot equipmentSlot,
@@ -171,6 +177,11 @@ public class RPGItem {
             data.put("itemSet", itemSet.get().getId());
         }
 
+        // Visual customization
+        leatherColor.ifPresent(color -> data.put("leather-color", color));
+        skullOwner.ifPresent(owner -> data.put("skull-owner", owner));
+        skullTexture.ifPresent(texture -> data.put("skull-texture", texture));
+
         return data;
     }
 
@@ -185,6 +196,20 @@ public class RPGItem {
         // Material
         if (data.containsKey("material")) {
             builder.withMaterial((String) data.get("material"));
+        }
+
+        // Visual customization
+        if (data.containsKey("leather-color")) {
+            Integer rgb = parseRgbColor(data.get("leather-color"));
+            if (rgb != null) {
+                builder.withLeatherColor(rgb);
+            }
+        }
+        if (data.containsKey("skull-owner")) {
+            builder.withSkullOwner(String.valueOf(data.get("skull-owner")));
+        }
+        if (data.containsKey("skull-texture")) {
+            builder.withSkullTexture(String.valueOf(data.get("skull-texture")));
         }
 
         // RPG Class Type
@@ -276,6 +301,35 @@ public class RPGItem {
         return builder.build();
     }
 
+    /**
+     * Parses an RGB color from a config value: a plain decimal/hex integer or
+     * a {@code "#RRGGBB"} / {@code "0xRRGGBB"} string. Returns null when the
+     * value cannot be parsed.
+     */
+    public static Integer parseRgbColor(Object raw) {
+        if (raw == null) {
+            return null;
+        }
+        if (raw instanceof Number number) {
+            return number.intValue();
+        }
+        String value = raw.toString().trim();
+        if (value.isEmpty()) {
+            return null;
+        }
+        try {
+            if (value.startsWith("#")) {
+                return Integer.parseInt(value.substring(1), 16);
+            }
+            if (value.startsWith("0x") || value.startsWith("0X")) {
+                return Integer.parseInt(value.substring(2), 16);
+            }
+            return Integer.parseInt(value);
+        } catch (NumberFormatException e) {
+            return null;
+        }
+    }
+
     private static StatModifier deserializeStatModifier(String sourceId, Map<String, Object> data) {
         double amount = ((Number) data.getOrDefault("amount", 0)).doubleValue();
         ModifierStackPolicy policy = ModifierStackPolicy.valueOf((String) data.getOrDefault("policy", "STACK"));
@@ -309,6 +363,30 @@ public class RPGItem {
         return material;
     }
 
+    /**
+     * RGB tint for leather armor pieces (see {@link #getLeatherColor()}). Empty
+     * when the item's material is not leather armor or no tint is configured.
+     */
+    public Optional<Integer> getLeatherColor() {
+        return leatherColor;
+    }
+
+    /**
+     * Player name/UUID whose head skin is shown on a {@code PLAYER_HEAD} item.
+     * Empty when the item is not a head or no owner is configured.
+     */
+    public Optional<String> getSkullOwner() {
+        return skullOwner;
+    }
+
+    /**
+     * Base64 {@code textures} value for a fully custom {@code PLAYER_HEAD} skin.
+     * Takes precedence over {@link #getSkullOwner()}. Empty when not configured.
+     */
+    public Optional<String> getSkullTexture() {
+        return skullTexture;
+    }
+
     public List<StatModifier> getPassiveStats() {
         return new ArrayList<>(passiveStats);
     }
@@ -339,6 +417,15 @@ public class RPGItem {
 
     public Optional<RPGItemSet> getItemSet() {
         return itemSet;
+    }
+
+    /**
+     * Attaches the item set this piece belongs to (loaded from the
+     * {@code item-sets} section). Once equipped alongside enough other pieces,
+     * the set's bonus applies.
+     */
+    public void setItemSet(RPGItemSet itemSet) {
+        this.itemSet = Optional.ofNullable(itemSet);
     }
 
     public List<String> getDescription() {
@@ -381,6 +468,20 @@ public class RPGItem {
         return usage != ItemUsage.MOB_ONLY && (allowedClasses.isEmpty() || allowedClasses.contains(classType));
     }
 
+    /** Whether this item occupies an armor slot (HEAD, CHEST, LEGS or FEET). */
+    public boolean isArmor() {
+        return equipmentSlot == EquipmentSlot.HEAD || equipmentSlot == EquipmentSlot.CHEST
+                || equipmentSlot == EquipmentSlot.LEGS || equipmentSlot == EquipmentSlot.FEET;
+    }
+
+    /**
+     * Whether a player at the given level may obtain this item. An {@code
+     * unlockLevel} of 0 (or an absent config value) means no level requirement.
+     */
+    public boolean isUsableAtLevel(int level) {
+        return unlockLevel <= 0 || level >= unlockLevel;
+    }
+
     @Override
     public boolean equals(Object obj) {
         if (this == obj) {
@@ -412,6 +513,9 @@ public class RPGItem {
         private int unlockLevel = 0;
         private List<RPGClassType> allowedClasses = new ArrayList<>();
         private ItemUsage usage = ItemUsage.BOTH;
+        private Optional<Integer> leatherColor = Optional.empty();
+        private Optional<String> skullOwner = Optional.empty();
+        private Optional<String> skullTexture = Optional.empty();
 
         public Builder(String id, String name, EquipmentSlot equipmentSlot) {
             this.id = id;
@@ -516,6 +620,31 @@ public class RPGItem {
 
         public Builder usage(ItemUsage usage) {
             this.usage = usage != null ? usage : ItemUsage.BOTH;
+            return this;
+        }
+
+        /** Tints a leather armor item (e.g. {@code 0x8B0000}) dark red. */
+        public Builder withLeatherColor(int rgb) {
+            this.leatherColor = Optional.of(rgb);
+            return this;
+        }
+
+        /** Clears the leather tint when passed null. */
+        public Builder withLeatherColor(Integer rgb) {
+            this.leatherColor = rgb == null ? Optional.empty() : Optional.of(rgb);
+            return this;
+        }
+
+        /** Shows a player's head skin on a {@code PLAYER_HEAD} item. */
+        public Builder withSkullOwner(String owner) {
+            this.skullOwner = owner == null || owner.isBlank() ? Optional.empty() : Optional.of(owner);
+            return this;
+        }
+
+        /** Applies a base64 {@code textures} value as the item's head skin. */
+        public Builder withSkullTexture(String base64Texture) {
+            this.skullTexture = base64Texture == null || base64Texture.isBlank() ? Optional.empty()
+                    : Optional.of(base64Texture);
             return this;
         }
 

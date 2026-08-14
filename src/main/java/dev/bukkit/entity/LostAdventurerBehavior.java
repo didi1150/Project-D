@@ -8,8 +8,6 @@ import org.bukkit.entity.LivingEntity;
 import org.bukkit.potion.PotionEffect;
 import org.bukkit.potion.PotionEffectType;
 
-import dev.core.ability.AbilityAction;
-
 /**
  * Example miniboss behavior for the hybrid config+Java model: the "Lost Adventurer"
  * (inspired by Hypixel Skyblock dungeon minibosses) keeps its stats/equipment in
@@ -53,7 +51,9 @@ public class LostAdventurerBehavior implements MobBehavior {
         long last = lastAbilityCast.getOrDefault(vanilla.getUniqueId(), 0L);
         if (now - last > ENRAGE_ABILITY_INTERVAL_MS) {
             lastAbilityCast.put(vanilla.getUniqueId(), now);
-            mob.triggerAbility(AbilityAction.RIGHT_CLICK);
+            // Player-targeting abilities only fire while a player is in line of sight;
+            // non-targeting abilities cast regardless (see MobRPGEntity.castAbility).
+            mob.castAbility();
         }
     }
 

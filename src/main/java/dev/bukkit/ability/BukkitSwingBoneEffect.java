@@ -26,6 +26,7 @@ import dev.bukkit.DMain;
 import dev.bukkit.entity.BukkitPlayerEntity;
 import dev.bukkit.event.bukkitListeners.CombatListener;
 import dev.bukkit.item.BukkitItemStackAdapter;
+import dev.bukkit.utils.BackstabUtils;
 import dev.bukkit.utils.DamageUtils;
 import dev.core.ability.Effect;
 import dev.core.entity.EntityManager;
@@ -216,8 +217,9 @@ public class BukkitSwingBoneEffect extends Effect {
             startCooldown.run();
             long baseCooldownTime = 3000;
             EntityManager.getInstance().getEntity(caster.getUuid()).ifPresent(entity -> {
-                long reducedCooldownTime = (long) (baseCooldownTime * 100 / (100
-                        + entity.getStatManager().getCurrentValue(StatType.ABILITY_HASTE, System.currentTimeMillis())));
+				long reducedCooldownTime = (long) (baseCooldownTime * 100 / (100
+						+ entity.getStatEngineAdapter().getCurrentValue(StatType.ABILITY_HASTE,
+								System.currentTimeMillis())));
                 if (caster instanceof BukkitPlayerEntity) {
                     scheduleItemRestore((Player) casterEntity, loc, reducedCooldownTime / 1000 * 20);
                 }
@@ -294,9 +296,12 @@ public class BukkitSwingBoneEffect extends Effect {
                 double multiplier = hitReturn ? 2 : 1;
                 // Damage comes from the caster's ATTACK_DAMAGE stat (players: their
                 // weapon's stat included; mobs: base stats + equipped weapon), then
-                // scaled by the caster's (config-driven) ability-damage-multiplier.
+                // scaled by the caster's (config-driven) ability-damage-multiplier
+                // and their projectile damage bonus (e.g. the Basic Archer Set).
                 double attackDamage = (caster.getStatEngineAdapter().getCurrentValue(StatType.ATTACK_DAMAGE, now)
-                        + BONE_DAMAGE) * multiplier * caster.getAbilityDamageMultiplier();
+                        + BONE_DAMAGE) * multiplier * caster.getAbilityDamageMultiplier()
+                        * caster.getProjectileDamageMultiplier()
+                        * BackstabUtils.backstabMultiplier(caster, le);
                 EntityManager.getInstance().getEntity(entity.getUniqueId()).ifPresentOrElse(target -> {
                     RPGDamageResult rpgDamage = target.dealRPGDamage(caster, target, attackDamage,
                             DamageType.PHYSICAL);
@@ -306,6 +311,7 @@ public class BukkitSwingBoneEffect extends Effect {
                     if (rpgDamage.getResult() != DamageResult.DENY) {
                         knockback(le);
                         showDamageIndicator(le, rpgDamage.getDamage(), rpgDamage.getResult());
+                        playHitSound(le, rpgDamage.getResult());
                     }
                 }, () -> {
                     // Vanilla mob: damageMob fires an EntityDamageByEntityEvent that
@@ -313,6 +319,7 @@ public class BukkitSwingBoneEffect extends Effect {
                     // render again here or the indicator doubles.
                     DamageUtils.damageMob(le, attackDamage, casterEntity);
                     knockback(le);
+                    playHitSound(le, DamageResult.NORMAL);
                 });
             }
         }
@@ -338,6 +345,19 @@ public class BukkitSwingBoneEffect extends Effect {
             return;
         }
         combatListener.showPhysicalDamage(le.getLocation(), damage, result);
+    }
+
+    /**
+     * Impact sound for a landed bone hit; reused from the central projectile
+     * hit-sound logic in {@link CombatListener}.
+     */
+    private void playHitSound(LivingEntity le, DamageResult result) {
+        DMain plugin = DMain.getInstance();
+        CombatListener combatListener = plugin == null ? null : plugin.getCombatListener();
+        if (combatListener == null) {
+            return;
+        }
+        combatListener.playProjectileHitSound(le, result);
     }
 
 }

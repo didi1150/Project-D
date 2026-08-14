@@ -26,6 +26,10 @@ public class StatManager {
 
     public void addAll(Map<StatType, Stat> stats) {
         this.stats.putAll(new HashMap<StatType, Stat>(stats));
+        // New stat sets (class selection, boss definitions) bring fresh
+        // ResourceStats; wire them to the engine so their cap/regen follow
+        // engine-boosted max values, not just the raw base.
+        wireResourceStats();
         if (statEngine != null) statEngine.invalidate();
     }
 
@@ -58,6 +62,14 @@ public class StatManager {
             return 0;
         }
         return stat.getCurrent(now);
+    }
+
+    public double getBaseValue(StatType type, long now) {
+        Stat stat = stats.get(type);
+        if (stat == null) {
+            return 0;
+        }
+        return stat.getBaseValue(now);
     }
 
     public double getMaxValue(StatType type, long now) {
@@ -97,6 +109,20 @@ public class StatManager {
 
     public void setStatEngine(StatEngine engine) {
         this.statEngine = engine;
+        // Resources cap against their max stat; hand them the engine so their
+        // cap/regen follow engine-boosted max values (e.g. item Health/Mana).
+        wireResourceStats();
+    }
+
+    private void wireResourceStats() {
+        if (statEngine == null) {
+            return;
+        }
+        for (Stat stat : stats.values()) {
+            if (stat instanceof ResourceStat rs) {
+                rs.setStatEngine(statEngine);
+            }
+        }
     }
 
 }

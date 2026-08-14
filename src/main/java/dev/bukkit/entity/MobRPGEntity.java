@@ -6,7 +6,9 @@ import org.bukkit.entity.LivingEntity;
 import org.bukkit.entity.Player;
 
 import dev.bukkit.utils.DamageUtils;
+import dev.core.ability.Ability;
 import dev.core.ability.AbilityAction;
+import dev.core.ability.AbilityTriggerType;
 import dev.core.ability.EffectManagerInterface;
 import dev.core.entity.EntityManager;
 import dev.core.entity.EntityType;
@@ -14,6 +16,8 @@ import dev.core.entity.RPGEntity;
 import dev.core.entity.mob.MobDefinition;
 import dev.core.entity.rpgclass.RPGClassType;
 import dev.core.event.EventBusInterface;
+import dev.core.item.RPGItem;
+import dev.core.item.equipment.EquipmentSlot;
 import dev.core.stat.StatManager;
 
 import java.util.Optional;
@@ -35,6 +39,8 @@ public class MobRPGEntity extends RPGEntity {
     private final MobDefinition definition;
     private final Optional<MobBehavior> behavior;
     private long nextCastAt = 0;
+
+    private static final double ABILITY_CAST_RANGE = 14;
 
     public MobRPGEntity(LivingEntity vanilla, MobDefinition definition, StatManager baseStats,
             EffectManagerInterface effectManager, EventBusInterface eventBus) {
@@ -105,25 +111,56 @@ public class MobRPGEntity extends RPGEntity {
             return;
         }
         nextCastAt = now + definition.getAbilityCastInterval() * 50L;
-
-        Player target = nearestNonGhostPlayer(14);
-        if (target == null || target.isDead() || !target.isOnline()) {
-            return;
-        }
-        // Face the target so the thrown projectile flies toward it.
-        Location loc = vanilla.getLocation();
-        loc.setDirection(target.getLocation().toVector().subtract(loc.toVector()));
-        vanilla.setRotation(loc.getYaw(), loc.getPitch());
-        triggerAbility(AbilityAction.RIGHT_CLICK);
+        castAbility();
     }
 
-    private Player nearestNonGhostPlayer(double range) {
+    /**
+     * Casts the equipped weapon's manual ({@code RIGHT_CLICK}) abilities.
+     * Player-targeting abilities are only cast at a live, in-line-of-sight
+     * non-ghost player (the mob faces the target first); abilities that do not
+     * target players (e.g. self-buffs) cast unconditionally, even with no
+     * player in sight. Returns {@code true} if a cast actually happened.
+     */
+    public boolean castAbility() {
+        if (getEquipmentManager().getEquippedItem(EquipmentSlot.MAIN_HAND) == null) {
+            return false; // nothing castable equipped
+        }
+        if (castsPlayerTargetedAbility()) {
+            Player target = nearestVisiblePlayer(ABILITY_CAST_RANGE);
+            if (target == null || target.isDead() || !target.isOnline()) {
+                return false; // no player in sight: stop casting, resume on the next interval tick
+            }
+            // Face the target so the thrown projectile flies toward it.
+            Location loc = vanilla.getLocation();
+            loc.setDirection(target.getLocation().toVector().subtract(loc.toVector()));
+            vanilla.setRotation(loc.getYaw(), loc.getPitch());
+        }
+        triggerAbility(AbilityAction.RIGHT_CLICK);
+        return true;
+    }
+
+    /** Whether any of the mob's castable manual abilities needs a player target. */
+    public boolean castsPlayerTargetedAbility() {
+        RPGItem mainHand = getEquipmentManager().getEquippedItem(EquipmentSlot.MAIN_HAND);
+        if (mainHand == null) {
+            return false;
+        }
+        return mainHand.getAbilities().stream()
+                .filter(ability -> ability.getTriggerType() == AbilityTriggerType.MANUAL
+                        && ability.getAction() == AbilityAction.RIGHT_CLICK)
+                .anyMatch(Ability::isTargetsPlayer);
+    }
+
+    private Player nearestVisiblePlayer(double range) {
         Player nearest = null;
         double bestSq = range * range;
         for (Player player : vanilla.getWorld().getPlayers()) {
             if (player.isDead() || !player.isOnline()
                     || EntityManager.getInstance().isGhost(player.getUniqueId())) {
                 continue; // skip ghost players (dead mid-game or registered spectators)
+            }
+            if (!vanilla.hasLineOfSight(player)) {
+                continue; // player must be in line of sight to be targeted
             }
             double distSq = player.getLocation().distanceSquared(vanilla.getLocation());
             if (distSq < bestSq) {

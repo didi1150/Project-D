@@ -5,6 +5,7 @@ import java.util.Optional;
 import dev.core.entity.RPGEntity;
 import dev.core.entity.RPGMobEntity;
 import dev.core.event.impl.RPGEntityDamageEvent.DamageType;
+import dev.core.stat.StatType;
 
 public class MeleeAttackPattern implements AttackPattern {
 
@@ -19,7 +20,7 @@ public class MeleeAttackPattern implements AttackPattern {
             return;
         }
 
-        double baseDamage = mob.getStatManager().getCurrentValue(dev.core.stat.StatType.ATTACK_DAMAGE, now);
+        double baseDamage = mob.getStatEngineAdapter().getCurrentValue(StatType.ATTACK_DAMAGE, now);
         mob.dealRPGDamage(mob, target, baseDamage, DamageType.PHYSICAL);
         mob.recordAttack();
     }

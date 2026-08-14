@@ -14,6 +14,13 @@ public class CombatStat extends Stat {
 	}
 
 	@Override
+	public double getBaseValue(long now) {
+		// Raw field: the bucket is bridged into the StatEngine separately, so
+		// engine-fed reads must start from the unmodified base.
+		return current;
+	}
+
+	@Override
 	public double getMax(long now) {
 		return 0;
 	}

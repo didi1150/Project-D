@@ -12,6 +12,7 @@ import org.bukkit.persistence.PersistentDataType;
 
 import dev.bukkit.entity.BukkitPlayerEntity;
 import dev.bukkit.item.BukkitItemStackAdapter;
+import dev.bukkit.utils.ManaDiscountUtils;
 import dev.core.ability.Ability;
 import dev.core.ability.CooldownScope;
 import dev.core.ability.Effect;
@@ -45,7 +46,8 @@ public class BukkitEffectManager implements EffectManagerInterface {
 			return null;
 		}
 		for (Entry<String, Double> entry : ability.getCost().getResourceCosts().entrySet()) {
-			entity.getStatManager().modifyStat(StatType.valueOf(entry.getKey()), -entry.getValue());
+			double cost = ManaDiscountUtils.discountedCost(entity, entry.getKey(), entry.getValue());
+			entity.getStatManager().modifyStat(StatType.valueOf(entry.getKey()), -cost);
 		}
 
 		String cooldownKey = getCooldownKey(entity, ability);
@@ -99,8 +101,9 @@ public class BukkitEffectManager implements EffectManagerInterface {
 		}
 
 		for (Entry<String, Double> entry : ability.getCost().getResourceCosts().entrySet()) {
+			double cost = ManaDiscountUtils.discountedCost(entity, entry.getKey(), entry.getValue());
 			if (entity.getStatManager().getCurrentValue(StatType.valueOf(entry.getKey()),
-					System.currentTimeMillis()) < entry.getValue()) {
+					System.currentTimeMillis()) < cost) {
 				return false;
 			}
 		}

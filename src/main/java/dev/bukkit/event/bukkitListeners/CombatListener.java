@@ -7,16 +7,17 @@ import java.util.UUID;
 
 import org.bukkit.Bukkit;
 import org.bukkit.Location;
+import org.bukkit.Sound;
 import org.bukkit.World;
 import org.bukkit.entity.Display;
 import org.bukkit.entity.Entity;
 import org.bukkit.entity.LivingEntity;
+import org.bukkit.entity.Player;
+import org.bukkit.entity.Projectile;
 import org.bukkit.entity.TextDisplay;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
-import org.bukkit.event.entity.CreatureSpawnEvent;
-import org.bukkit.event.entity.CreatureSpawnEvent.SpawnReason;
 import org.bukkit.event.entity.EntityDamageByEntityEvent;
 import org.bukkit.event.entity.EntityDamageEvent;
 import org.bukkit.event.entity.EntityDamageEvent.DamageCause;
@@ -25,6 +26,7 @@ import org.bukkit.scheduler.BukkitRunnable;
 import org.bukkit.util.Transformation;
 
 import dev.bukkit.event.BukkitEventBus;
+import dev.bukkit.utils.BackstabUtils;
 import dev.bukkit.utils.DamageUtils;
 import dev.core.entity.EntityManager;
 import dev.core.entity.RPGDamageResult;
@@ -291,9 +293,34 @@ public class CombatListener implements Listener {
         showDamageIndicator(location, damage, DamageType.TRUE, DamageResult.NORMAL);
     }
 
+    /**
+     * Impact sound for a landed projectile hit (arrows, tridents, fireballs, the
+     * Bonemerang). Normal hits play the classic {@code ENTITY_ARROW_HIT} thock at
+     * ~0.8 pitch; crits layer a deeper {@code ITEM_TRIDENT_HIT} thud with an
+     * experience-orb chime on top. Played at the victim's location so the impact
+     * feels spatial.
+     */
+    public void playProjectileHitSound(Entity victim, DamageResult result) {
+        Location loc = victim.getLocation();
+        if(victim instanceof Player) {
+            return;
+        }
+        loc.getWorld().playSound(loc, Sound.ENTITY_ARROW_HIT_PLAYER, 1.0f, 0.79f + random.nextFloat(0.1f));
+        if (result == DamageResult.CRIT) {
+            loc.getWorld().playSound(loc, Sound.ITEM_TRIDENT_HIT, 0.9f, 0.6f + random.nextFloat(0.1f));
+            loc.getWorld().playSound(loc, Sound.ENTITY_EXPERIENCE_ORB_PICKUP, 0.8f, 1.6f + random.nextFloat(0.2f));
+        }
+    }
+
     @EventHandler(priority = EventPriority.LOWEST)
     public void onDamage(EntityDamageEvent event) {
         if (event instanceof EntityDamageByEntityEvent) {
+            return;
+        }
+        // Ignore the negligible 0.001 "hit reaction" poke used by playHitReaction;
+        // otherwise that poke re-enters dealRPGDamage and recursively re-fires
+        // damage events until the stack overflows.
+        if (event.getDamage() <= 0.002) {
             return;
         }
         EntityManager.getInstance().getEntity(event.getEntity().getUniqueId()).ifPresentOrElse(entity -> {
@@ -314,6 +341,24 @@ public class CombatListener implements Listener {
         if (event.getDamage() <= 0.002) {
             return;
         }
+
+        // Projectile attacks (arrows, tridents, fireballs, ...) amplify their
+        // damage when the shooter carries projectile damage bonuses (e.g. the
+        // Basic Archer Set bonus). This happens before the RPG pipeline so both
+        // RPG entities and vanilla mobs take the boosted damage.
+        if (event.getDamager() instanceof Projectile projectile
+                && projectile.getShooter() instanceof LivingEntity shooter) {
+            EntityManager.getInstance().getEntity(shooter.getUniqueId()).ifPresent(attacker -> {
+                double multiplier = attacker.getProjectileDamageMultiplier();
+                if (multiplier != 1.0) {
+                    event.setDamage(event.getDamage() * multiplier);
+                }
+            });
+        }
+
+        // Only projectile strikes get the added impact/crit sound layers; melee
+        // hits keep the hurt reaction alone.
+        boolean projectileHit = event.getDamager() instanceof Projectile;
 
         // Check if the entity being damaged is an RPG-managed entity
         EntityManager.getInstance().getEntity(event.getEntity().getUniqueId()).ifPresentOrElse(entity -> {
@@ -343,12 +388,20 @@ public class CombatListener implements Listener {
 
                 event.setDamage(damager.getStatEngineAdapter().getCurrentValue(StatType.ATTACK_DAMAGE,
                         System.currentTimeMillis()));
+                // Assassin set passive: bonus damage on melee hits from behind.
+                if (event.getCause() == DamageCause.ENTITY_ATTACK
+                        || event.getCause() == DamageCause.ENTITY_SWEEP_ATTACK) {
+                    event.setDamage(event.getDamage() * BackstabUtils.backstabMultiplier(damager, event.getEntity()));
+                }
                 // Case 1: Both attacker and victim are RPG entities
                 // 'damager' is the RPG entity dealing damage
                 // 'entity' is the RPG entity receiving damage
                 RPGDamageResult rpgDamage = entity.dealRPGDamage(damager, entity, event.getDamage(),
                         DamageType.PHYSICAL);
                 showPhysicalDamage(event.getEntity().getLocation(), rpgDamage.getDamage(), rpgDamage.getResult());
+                if (projectileHit && rpgDamage.getResult() != DamageResult.DENY) {
+                    playProjectileHitSound(event.getEntity(), rpgDamage.getResult());
+                }
             }, () -> {
                 // Case 2: Victim is RPG entity, damager is NOT managed by RPG (e.g., vanilla
                 // mob or player)
@@ -356,6 +409,9 @@ public class CombatListener implements Listener {
                 // attacker is null
                 RPGDamageResult rpgDamage = entity.dealRPGDamage(null, entity, event.getDamage(), DamageType.PHYSICAL);
                 showPhysicalDamage(event.getEntity().getLocation(), rpgDamage.getDamage(), rpgDamage.getResult());
+                if (projectileHit && rpgDamage.getResult() != DamageResult.DENY) {
+                    playProjectileHitSound(event.getEntity(), rpgDamage.getResult());
+                }
             });
 
             // Prevent double damage; actual RPG system handles it
@@ -383,6 +439,8 @@ public class CombatListener implements Listener {
                     // ONLY SET ON AUTO ATTACKS
                     event.setDamage(damager.getStatEngineAdapter().getCurrentValue(StatType.ATTACK_DAMAGE,
                             System.currentTimeMillis()));
+                    // Assassin set passive: bonus damage on melee hits from behind.
+                    event.setDamage(event.getDamage() * BackstabUtils.backstabMultiplier(damager, event.getEntity()));
                 }
 
                 double critChance = damager.getStatEngineAdapter().getCurrentValue(StatType.CRIT_CHANCE,
@@ -393,8 +451,14 @@ public class CombatListener implements Listener {
 
                     event.setDamage(event.getDamage() * 1.75);
                     showPhysicalDamage(event.getEntity().getLocation(), event.getFinalDamage(), DamageResult.CRIT);
+                    if (projectileHit) {
+                        playProjectileHitSound(event.getEntity(), DamageResult.CRIT);
+                    }
                 } else {
                     showPhysicalDamage(event.getEntity().getLocation(), event.getFinalDamage(), DamageResult.NORMAL);
+                    if (projectileHit) {
+                        playProjectileHitSound(event.getEntity(), DamageResult.NORMAL);
+                    }
                 }
             }, () -> {
 

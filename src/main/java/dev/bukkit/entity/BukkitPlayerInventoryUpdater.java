@@ -9,6 +9,7 @@ import org.bukkit.entity.Player;
 import org.bukkit.inventory.ItemStack;
 
 import dev.bukkit.item.BukkitItemStackAdapter;
+import dev.core.entity.EntityManager;
 import dev.core.item.RPGItem;
 import dev.core.item.loader.RPGItemRegistry;
 
@@ -76,7 +77,8 @@ public class BukkitPlayerInventoryUpdater {
             return;
         }
 
-        ItemStack newStack = BukkitItemStackAdapter.toItemStack(item.get());
+        ItemStack newStack = BukkitItemStackAdapter.toItemStack(item.get(),
+                EntityManager.getInstance().getEntity(player.getUniqueId()).orElse(null));
         oldStack.getItemMeta().getPersistentDataContainer().copyTo(newStack.getItemMeta().getPersistentDataContainer(),
                 false);
 

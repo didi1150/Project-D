@@ -1,3 +1,54 @@
+# ============================================================================
+# ABILITIES CONFIGURATION
+# ============================================================================
+# Each entry under `abilities:` carries the game-facing metadata for an ability
+# that is REGISTERED IN JAVA first (AbilityRegistry.preregister in DMain, e.g.
+# dev.core.ability.impl.*). The yml only configures an already-registered id;
+# unknown ids are skipped with a warning.
+#
+# Full list of supported keys (all optional unless noted):
+#
+#   name            Display name of the ability (defaults to the id). Used on
+#                   item lore via BukkitLoreRenderer.
+#   description     Lore lines shown on the item holding the ability. Tagged
+#                   style is supported, e.g. <red>, <bold>, <aqua>, <blue>,
+#                   <yellow>.
+#   triggerType     MANUAL or AUTOMATIC (default MANUAL).
+#                     MANUAL   cast when the holder performs the configured
+#                              `action` (player clicks, mob casts).
+#                     AUTOMATIC cast when the holder's registered trigger event
+#                              fires (requires the Java Ability to define a
+#                              trigger Event).
+#   action          AbilityAction for MANUAL abilities: RIGHT_CLICK,
+#                   LEFT_CLICK, SHIFT_RIGHT_CLICK, SHIFT_LEFT_CLICK, SHIFT,
+#                   JUMP (default NONE). An item only casts when this matches
+#                   the performed action, e.g. mobs trigger RIGHT_CLICK.
+#   cooldownScope   PLAYER (per caster) or ITEM (per item instance) (default
+#                   PLAYER).
+#   cooldown        Cooldown in milliseconds (default 0).
+#   targetsPlayer   MOB-CASTING ONLY, true by default. Whether a mob casting
+#                   this ability needs a player target: true abilities only
+#                   fire while a player is in range AND in line of sight (the
+#                   mob faces the target); set false for self-targeted
+#                   abilities (heals, buffs) that a mob should keep casting
+#                   even with no player visible.
+#
+# The actual in-game behavior (projectiles, AoE, particles, ...) lives in the
+# matching Bukkit Effect, registered under the same id in BukkitEffectRegistry
+# (see DMain.onEnable); a yml entry without a registered effect id fires
+# nothing.
+#
+# Example:
+#   MY_ABILITY:
+#     name: My Ability
+#     description:
+#     - "A line of <red>lore</red>."
+#     triggerType: MANUAL
+#     action: RIGHT_CLICK
+#     cooldownScope: PLAYER
+#     cooldown: 5000
+#     targetsPlayer: true
+# ============================================================================
 abilities:
   BONE_SWING:
     name: Swing
@@ -15,6 +66,18 @@ abilities:
     name: Particle Test
     description:
     - "Tests Particles"
+    triggerType: MANUAL
+    action: RIGHT_CLICK
+    cooldownScope: PLAYER
+    cooldown: 0
+  GUIDED_BAT:
+    name: Guided Bat
+    description:
+      - "Shoots a guided bat in the direction"
+      - "you are looking that explodes on impact,"
+      - "dealing <aqua>Magic Damage</aqua> to all"
+      - "nearby enemies."
+      - ""
     triggerType: MANUAL
     action: RIGHT_CLICK
     cooldownScope: PLAYER

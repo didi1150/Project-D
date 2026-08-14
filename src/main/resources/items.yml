@@ -1,11 +1,608 @@
+# ============================================================================
+# ITEMS CONFIGURATION
+# ============================================================================
+# Each entry under `items:` is an RPG item usable in the item draft (the shop
+# opened during the SelectItemState). Mobs can also equip any item by id.
+#
+# Full list of supported keys (all optional unless noted):
+#
+#   name            Display name shown on the item stack (defaults to the id).
+#   material        Vanilla Bukkit Material of the item (e.g. DIAMOND_SWORD).
+#   leather-color   RGB tint for leather armor (LEATHER_HELMET/CHESTPLATE/
+#                   LEGGINGS/BOOTS). Accepts "#RRGGBB", "0xRRGGBB" or a decimal
+#                   integer (e.g. 16711680). Absent = default brown leather.
+#   skull-owner     Player name whose skin is shown on a PLAYER_HEAD item.
+#                   Ignored when skull-texture is set.
+#   skull-texture   Base64 "textures" value for a fully custom PLAYER_HEAD skin
+#                   (get one from a head database like mineskin.org). Takes
+#                   precedence over skull-owner. Requires a PLAYER_HEAD
+#                   material.
+#   slot            Equipment slot, one of: HEAD, CHEST, LEGS, FEET,
+#                   MAIN_HAND, OFF_HAND (defaults to MAIN_HAND).
+#                   HEAD/CHEST/LEGS/FEET slots are armor: players may take one
+#                   piece per slot for free and it never counts against their
+#                   item limit. MAIN_HAND/OFF_HAND picks cost the item limit.
+#   unlockLevel     Minimum player level (active class) needed to obtain the
+#                   item. 0 or absent = no requirement. Items a player has not
+#                   unlocked yet appear as locked barrier stacks in the shop.
+#   usage           "both" (default, players + mobs) or "mob_only" (mobs only;
+#                   never listed or obtainable by players).
+#   allowed-classes List of classes that may select this item, e.g. [TANK, MAGE].
+#                   Empty/absent = all classes.
+#   description     Lore lines shown on the item.
+#   passive-stats   Stats granted while the item is just owned (see stats.yml
+#                   for stat types).
+#   active-stats    Stats granted when the item is actively used/equipped.
+#   abilities       Ability ids from abilities.yml cast by the item (e.g. when
+#                   a mob swings it or a player uses it).
+#
+# Stat modifier keys (used inside passive-stats / active-stats):
+#   amount          Modifier value (flat or percent).
+#   statType        One of the stat types in stats.yml (e.g. ATTACK_DAMAGE,
+#                   ARMOR, CRIT_CHANCE, PROJECTILE_DAMAGE).
+#   modifierType    FLAT (adds the amount) or PERCENT_ADD (percent increase).
+#   statTarget      BOTH.
+#   policy          STACK (each source stacks) or one of the stack policies in
+#                   dev.core.stat.stackpolicy (e.g. MAX_ONLY, REPLACE).
+#   priority        Sort order for conflicting modifiers.
+#
+# ---- Item sets ----
+# The `item-sets:` section groups item ids into sets. A set's bonus kicks in
+# when at least `N` pieces of that set are equipped by the same entity at the
+# same time (armor slots count individually). Each bonus may carry stat
+# modifiers (same keys as item stats), passive abilities and/or abilities.
+#
+#   item-sets:
+#     MY_SET:
+#       name: My Set
+#       pieces: [MY_HELMET, MY_CHESTPLATE]   # item ids from `items:` above
+#       bonuses:
+#         "2":                                # piece count -> bonus
+#           description: 2/2 set bonus text
+#           stat-modifiers:
+#           - amount: 10.0
+#             statType: PROJECTILE_DAMAGE     # percent: 10 = +10% projectile damage
+#             modifierType: FLAT
+#             statTarget: BOTH
+#             policy: STACK
+#           passives: []                      # passive ability ids (see below)
+#           abilities: []
+#
+# Set passives are resolved through SetPassiveRegistry; unknown ids are logged
+# and skipped. Built-in passives:
+#   THREAT      (Tank)    monsters picked a target nearby switch to the wearer
+#                         with a chance (up to 10 blocks away)
+#   BACKSTAB    (Assassin) melee & ability-cast damage +50% when the wearer
+#                         strikes an enemy from behind
+#   HEAL_AURA   (Support) every second the wearer heals alive non-ghost
+#                         teammates within 6 blocks
+#   MANA_DISCOUNT (Mage) ability casts cost 10% less mana while the full set
+#                         is worn (applied to mana costs at cast time)
+# Cooldown reduction (Mage) is a plain stat bonus: ABILITY_HASTE.
+#
+# PROJECTILE_DAMAGE is a percent stat: it amplifies the damage of whatever
+# projectile the holder attacks with (arrows, tridents, fireballs, ... and the
+# Bonemerang's bone), so FLAT 10.0 = +10%.
+#
+# Example item:
+#   MY_SWORD:
+#     name: My Sword
+#     material: IRON_SWORD
+#     slot: MAIN_HAND
+#     unlockLevel: 3
+#     allowed-classes: [TANK]
+#     passive-stats:
+#     - amount: 5.0
+#       statType: ARMOR
+#       modifierType: FLAT
+#       statTarget: BOTH
+#       policy: STACK
+#     active-stats: []
+#     abilities: []
+#
+# Visual customization examples:
+#   MAGE_ROBE:
+#     name: Mage Robe
+#     material: LEATHER_CHESTPLATE
+#     slot: CHEST
+#     leather-color: "#3366FF"   # or 0x3366FF / 3368703
+#     active-stats: []
+#     abilities: []
+#   DRAGON_HEAD:
+#     name: Dragon Head
+#     material: PLAYER_HEAD
+#     slot: HEAD
+#     skull-texture: eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvY2ZmZWMzfX19
+#     abilities: []
+# ============================================================================
 items:
+  # ---- Basic Tank Set -------------------------------------------------------
+  # Survivability pieces: bonus health, armor and magic resist. Free at level 0,
+  # one piece per armor slot, Tank class only.
+  BASIC_TANK_HELMET:
+    name: Tank Helmet
+    material: LEATHER_HELMET
+    slot: HEAD
+    unlockLevel: 0
+    allowed-classes:
+    - TANK
+    description:
+    - Basic Tank armor piece
+    passive-stats: []
+    active-stats:
+    - amount: 10.0
+      statType: HEALTH_MAX
+      modifierType: FLAT
+      statTarget: BOTH
+      policy: STACK
+    - amount: 2.0
+      statType: ARMOR
+      modifierType: FLAT
+      statTarget: BOTH
+      policy: STACK
+    abilities: []
+  BASIC_TANK_CHESTPLATE:
+    name: Tank Chestplate
+    material: LEATHER_CHESTPLATE
+    slot: CHEST
+    unlockLevel: 0
+    allowed-classes:
+    - TANK
+    description:
+    - Basic Tank armor piece
+    passive-stats: []
+    active-stats:
+    - amount: 15.0
+      statType: HEALTH_MAX
+      modifierType: FLAT
+      statTarget: BOTH
+      policy: STACK
+    - amount: 3.0
+      statType: ARMOR
+      modifierType: FLAT
+      statTarget: BOTH
+      policy: STACK
+    abilities: []
+  BASIC_TANK_LEGGINGS:
+    name: Tank Leggings
+    material: LEATHER_LEGGINGS
+    slot: LEGS
+    unlockLevel: 0
+    allowed-classes:
+    - TANK
+    description:
+    - Basic Tank armor piece
+    passive-stats: []
+    active-stats:
+    - amount: 10.0
+      statType: HEALTH_MAX
+      modifierType: FLAT
+      statTarget: BOTH
+      policy: STACK
+    - amount: 2.0
+      statType: ARMOR
+      modifierType: FLAT
+      statTarget: BOTH
+      policy: STACK
+    abilities: []
+  BASIC_TANK_BOOTS:
+    name: Tank Boots
+    material: LEATHER_BOOTS
+    slot: FEET
+    unlockLevel: 0
+    allowed-classes:
+    - TANK
+    description:
+    - Basic Tank armor piece
+    passive-stats: []
+    active-stats:
+    - amount: 5.0
+      statType: HEALTH_MAX
+      modifierType: FLAT
+      statTarget: BOTH
+      policy: STACK
+    - amount: 2.0
+      statType: MAGIC_RESIST
+      modifierType: FLAT
+      statTarget: BOTH
+      policy: STACK
+    - amount: 0.5
+      statType: HEALTH_REGEN
+      modifierType: FLAT
+      statTarget: BOTH
+      policy: STACK
+    abilities: []
+  
+  # ---- Basic Assassin Set ---------------------------------------------------
+  # Offense pieces: flat damage, lethality, crit chance and move speed.
+  BASIC_ASSASSIN_HELMET:
+    name: Assassin Hood
+    material: LEATHER_HELMET
+    slot: HEAD
+    unlockLevel: 0
+    allowed-classes:
+    - ASSASSIN
+    description:
+    - Basic Assassin armor piece
+    passive-stats: []
+    active-stats:
+    - amount: 2.0
+      statType: ATTACK_DAMAGE
+      modifierType: FLAT
+      statTarget: BOTH
+      policy: STACK
+    - amount: 0.03
+      statType: CRIT_CHANCE
+      modifierType: FLAT
+      statTarget: BOTH
+      policy: STACK
+    abilities: []
+  BASIC_ASSASSIN_CHESTPLATE:
+    name: Assassin Tunic
+    material: LEATHER_CHESTPLATE
+    slot: CHEST
+    unlockLevel: 0
+    allowed-classes:
+    - ASSASSIN
+    description:
+    - Basic Assassin armor piece
+    passive-stats: []
+    active-stats:
+    - amount: 3.0
+      statType: ATTACK_DAMAGE
+      modifierType: FLAT
+      statTarget: BOTH
+      policy: STACK
+    - amount: 1.0
+      statType: LETHALITY
+      modifierType: FLAT
+      statTarget: BOTH
+      policy: STACK
+    abilities: []
+  BASIC_ASSASSIN_LEGGINGS:
+    name: Assassin Leggings
+    material: LEATHER_LEGGINGS
+    slot: LEGS
+    unlockLevel: 0
+    allowed-classes:
+    - ASSASSIN
+    description:
+    - Basic Assassin armor piece
+    passive-stats: []
+    active-stats:
+    - amount: 2.0
+      statType: ATTACK_DAMAGE
+      modifierType: FLAT
+      statTarget: BOTH
+      policy: STACK
+    - amount: 5.0
+      statType: MOVE_SPEED
+      modifierType: FLAT
+      statTarget: BOTH
+      policy: STACK
+    abilities: []
+  BASIC_ASSASSIN_BOOTS:
+    name: Assassin Boots
+    material: LEATHER_BOOTS
+    slot: FEET
+    unlockLevel: 0
+    allowed-classes:
+    - ASSASSIN
+    description:
+    - Basic Assassin armor piece
+    passive-stats: []
+    active-stats:
+    - amount: 5.0
+      statType: MOVE_SPEED
+      modifierType: FLAT
+      statTarget: BOTH
+      policy: STACK
+    - amount: 0.02
+      statType: CRIT_CHANCE
+      modifierType: FLAT
+      statTarget: BOTH
+      policy: STACK
+    abilities: []
+  
+  # ---- Basic Archer Set -----------------------------------------------------
+  # Ranged pieces: crit chance, attack damage, attack speed and move speed.
+  BASIC_ARCHER_HELMET:
+    name: Archer Hood
+    material: LEATHER_HELMET
+    leather-color: 0
+    slot: HEAD
+    unlockLevel: 0
+    allowed-classes:
+    - ARCHER
+    description:
+    - Basic Archer armor piece
+    passive-stats: []
+    active-stats:
+    - amount: 0.03
+      statType: CRIT_CHANCE
+      modifierType: FLAT
+      statTarget: BOTH
+      policy: STACK
+    - amount: 2.0
+      statType: ATTACK_DAMAGE
+      modifierType: FLAT
+      statTarget: BOTH
+      policy: STACK
+    abilities: []
+  BASIC_ARCHER_CHESTPLATE:
+    name: Archer Tunic
+    material: LEATHER_CHESTPLATE
+    leather-color: 15155516
+    slot: CHEST
+    unlockLevel: 0
+    allowed-classes:
+    - ARCHER
+    description:
+    - Basic Archer armor piece
+    passive-stats: []
+    active-stats:
+    - amount: 3.0
+      statType: ATTACK_DAMAGE
+      modifierType: FLAT
+      statTarget: BOTH
+      policy: STACK
+    - amount: 0.1
+      statType: ATTACK_SPEED
+      modifierType: FLAT
+      statTarget: BOTH
+      policy: STACK
+    abilities: []
+  BASIC_ARCHER_LEGGINGS:
+    name: Archer Leggings
+    material: LEATHER_LEGGINGS
+    leather-color: 15162428
+    slot: LEGS
+    unlockLevel: 0
+    allowed-classes:
+    - ARCHER
+    description:
+    - Basic Archer armor piece
+    passive-stats: []
+    active-stats:
+    - amount: 2.0
+      statType: ATTACK_DAMAGE
+      modifierType: FLAT
+      statTarget: BOTH
+      policy: STACK
+    - amount: 3.0
+      statType: MOVE_SPEED
+      modifierType: FLAT
+      statTarget: BOTH
+      policy: STACK
+    abilities: []
+  BASIC_ARCHER_BOOTS:
+    name: Archer Boots
+    leather-color: 15167036
+    material: LEATHER_BOOTS
+    slot: FEET
+    unlockLevel: 0
+    allowed-classes:
+    - ARCHER
+    description:
+    - Basic Archer armor piece
+    passive-stats: []
+    active-stats:
+    - amount: 5.0
+      statType: MOVE_SPEED
+      modifierType: FLAT
+      statTarget: BOTH
+      policy: STACK
+    - amount: 0.02
+      statType: CRIT_CHANCE
+      modifierType: FLAT
+      statTarget: BOTH
+      policy: STACK
+    abilities: []
+  
+  # ---- Basic Mage Set -------------------------------------------------------
+  # Caster pieces: ability power, max mana and mana regen.
+  BASIC_MAGE_HELMET:
+    name: Mage Hood
+    material: LEATHER_HELMET
+    leather-color: 0x000000
+    slot: HEAD
+    unlockLevel: 0
+    allowed-classes:
+    - MAGE
+    description:
+    - Basic Mage armor piece
+    passive-stats: []
+    active-stats:
+    - amount: 2.0
+      statType: ABILITY_POWER
+      modifierType: FLAT
+      statTarget: BOTH
+      policy: STACK
+    - amount: 20.0
+      statType: MANA_MAX
+      modifierType: FLAT
+      statTarget: BOTH
+      policy: STACK
+    abilities: []
+  BASIC_MAGE_CHESTPLATE:
+    leather-color: 0x1793C4
+    name: Mage Robe
+    material: LEATHER_CHESTPLATE
+    slot: CHEST
+    unlockLevel: 0
+    allowed-classes:
+    - MAGE
+    description:
+    - Basic Mage armor piece
+    passive-stats: []
+    active-stats:
+    - amount: 3.0
+      statType: ABILITY_POWER
+      modifierType: FLAT
+      statTarget: BOTH
+      policy: STACK
+    - amount: 2.0
+      statType: MANA_REGEN
+      modifierType: FLAT
+      statTarget: BOTH
+      policy: STACK
+    abilities: []
+  BASIC_MAGE_LEGGINGS:
+    leather-color: 0x17A8C4
+    name: Mage Leggings
+    material: LEATHER_LEGGINGS
+    slot: LEGS
+    unlockLevel: 0
+    allowed-classes:
+    - MAGE
+    description:
+    - Basic Mage armor piece
+    passive-stats: []
+    active-stats:
+    - amount: 2.0
+      statType: ABILITY_POWER
+      modifierType: FLAT
+      statTarget: BOTH
+      policy: STACK
+    - amount: 20.0
+      statType: MANA_MAX
+      modifierType: FLAT
+      statTarget: BOTH
+      policy: STACK
+    abilities: []
+  BASIC_MAGE_BOOTS:
+    leather-color: 0x1CD4E4
+    name: Mage Boots
+    material: LEATHER_BOOTS
+    slot: FEET
+    unlockLevel: 0
+    allowed-classes:
+    - MAGE
+    description:
+    - Basic Mage armor piece
+    passive-stats: []
+    active-stats:
+    - amount: 2.0
+      statType: MANA_REGEN
+      modifierType: FLAT
+      statTarget: BOTH
+      policy: STACK
+    - amount: 15.0
+      statType: MANA_MAX
+      modifierType: FLAT
+      statTarget: BOTH
+      policy: STACK
+    - amount: 3.0
+      statType: MOVE_SPEED
+      modifierType: FLAT
+      statTarget: BOTH
+      policy: STACK
+    abilities: []
+  
+  # ---- Basic Support Set ----------------------------------------------------
+  # Healer pieces: heal & shield power, mana and mana regen.
+  BASIC_SUPPORT_HELMET:
+    name: Support Hood
+    material: LEATHER_HELMET
+    slot: HEAD
+    unlockLevel: 0
+    allowed-classes:
+    - SUPPORT
+    description:
+    - Basic Support armor piece
+    passive-stats: []
+    active-stats:
+    - amount: 2.0
+      statType: HEAL_AND_SHIELD_POWER
+      modifierType: FLAT
+      statTarget: BOTH
+      policy: STACK
+    - amount: 10.0
+      statType: MANA_MAX
+      modifierType: FLAT
+      statTarget: BOTH
+      policy: STACK
+    abilities: []
+  BASIC_SUPPORT_CHESTPLATE:
+    name: Support Tunic
+    material: LEATHER_CHESTPLATE
+    slot: CHEST
+    unlockLevel: 0
+    allowed-classes:
+    - SUPPORT
+    description:
+    - Basic Support armor piece
+    passive-stats: []
+    active-stats:
+    - amount: 3.0
+      statType: HEAL_AND_SHIELD_POWER
+      modifierType: FLAT
+      statTarget: BOTH
+      policy: STACK
+    - amount: 10.0
+      statType: HEALTH_MAX
+      modifierType: FLAT
+      statTarget: BOTH
+      policy: STACK
+    abilities: []
+  BASIC_SUPPORT_LEGGINGS:
+    name: Support Leggings
+    material: LEATHER_LEGGINGS
+    slot: LEGS
+    unlockLevel: 0
+    allowed-classes:
+    - SUPPORT
+    description:
+    - Basic Support armor piece
+    passive-stats: []
+    active-stats:
+    - amount: 2.0
+      statType: HEAL_AND_SHIELD_POWER
+      modifierType: FLAT
+      statTarget: BOTH
+      policy: STACK
+    - amount: 0.5
+      statType: MANA_REGEN
+      modifierType: FLAT
+      statTarget: BOTH
+      policy: STACK
+    abilities: []
+  BASIC_SUPPORT_BOOTS:
+    name: Support Boots
+    material: LEATHER_BOOTS
+    slot: FEET
+    unlockLevel: 0
+    allowed-classes:
+    - SUPPORT
+    description:
+    - Basic Support armor piece
+    passive-stats: []
+    active-stats:
+    - amount: 0.5
+      statType: MANA_REGEN
+      modifierType: FLAT
+      statTarget: BOTH
+      policy: STACK
+    - amount: 3.0
+      statType: MOVE_SPEED
+      modifierType: FLAT
+      statTarget: BOTH
+      policy: STACK
+    abilities: []
+  
+  # ---- Weapons & misc ----------------------------------------------------------
   BONEMERANG:
+    # Plain main-hand weapon: unlockLevel 1 means players need level 1+ to
+    # buy it; below that it shows as a locked barrier in the shop.
+    unlockLevel: 0
     name: Bonemerang
     material: BONE
     slot: MAIN_HAND
     passive-stats: []
+    allowed-classes:
+    - ARCHER
     active-stats:
-    - amount: 20.0
+    - amount: 150.0
       statType: ATTACK_DAMAGE
       modifierType: FLAT
       statTarget: BOTH
@@ -13,6 +610,7 @@ items:
     abilities:
     - BONE_SWING
   ASPECT_OF_THE_DRAGON:
+    unlockLevel: 5
     name: Aspect of the Dragon
     material: DIAMOND_SWORD
     slot: MAIN_HAND
@@ -24,7 +622,10 @@ items:
       statTarget: BOTH
       policy: STACK
     abilities: []
+    allowed-classes: []
   ADMIN_CHESTPLATE:
+    # Chest armor, gated behind level 10.
+    unlockLevel: 10
     name: Admin Chestplate
     material: DIAMOND_CHESTPLATE
     slot: CHEST
@@ -36,7 +637,9 @@ items:
       statTarget: BOTH
       policy: STACK
     abilities: []
+    allowed-classes: []
   MONSTER_BONE:
+    # mob_only: mobs equip this by id, players never see it in the shop.
     name: Monster Bone
     material: BONE
     slot: MAIN_HAND
@@ -45,3 +648,178 @@ items:
     passive-stats: []
     active-stats: []
     abilities: []
+  SPIRIT_SCEPTRE:
+    # Mage staff cut from an allium flower. RIGHT CLICK fires a Guided Bat
+    # (250 mana, no cooldown) that tracks the crosshair and explodes into magic
+    # damage. The flower itself can never be placed as a block (see
+    # EventListener.onBlockPlace).
+    unlockLevel: 0
+    name: Spirit Sceptre
+    material: ALLIUM
+    slot: MAIN_HAND
+    passive-stats: []
+    allowed-classes:
+    - MAGE
+    active-stats:
+    - amount: 150.0
+      statType: MANA_MAX
+      modifierType: FLAT
+      statTarget: BOTH
+      policy: STACK
+    - amount: 50.0
+      statType: ABILITY_POWER
+      modifierType: FLAT
+      statTarget: BOTH
+      policy: STACK
+    abilities:
+    - GUIDED_BAT
+
+# ---- Basic Archer Set (item set bonus: full 4/4 set) -----------------------
+# Full set passive: +10% projectile damage dealt (arrows, projectiles and the
+# Bonemerang) plus extra attack damage. While wearing all four pieces, the
+# player's projectile damage is amplified; breaking the set removes the bonus.
+item-sets:
+  BASIC_ARCHER:
+    name: Basic Archer Set
+    pieces:
+    - BASIC_ARCHER_HELMET
+    - BASIC_ARCHER_CHESTPLATE
+    - BASIC_ARCHER_LEGGINGS
+    - BASIC_ARCHER_BOOTS
+    bonuses:
+      '4':
+        description: 'Full Archer Set (4/4): +10% Projectile Damage, +10 Attack Damage'
+        stat-modifiers:
+        - amount: 10.0
+          statType: PROJECTILE_DAMAGE
+          modifierType: FLAT
+          statTarget: BOTH
+          policy: STACK
+        - amount: 10.0
+          statType: ATTACK_DAMAGE
+          modifierType: FLAT
+          statTarget: BOTH
+          policy: STACK
+        passives: []
+        abilities: []
+  
+  # ---- Basic Tank Set (item set bonus: full 4/4 set) --------------------------
+  # Full set passive THREAT: mobs that pick a target near the wearer switch to
+  # the wearer with a chance. Plus defensive stats.
+  BASIC_TANK:
+    name: Basic Tank Set
+    pieces:
+    - BASIC_TANK_HELMET
+    - BASIC_TANK_CHESTPLATE
+    - BASIC_TANK_LEGGINGS
+    - BASIC_TANK_BOOTS
+    bonuses:
+      '4':
+        description: 'Full Tank Set (4/4): +100 Max Health, +20 Armor, +10 Magic Resist,
+          draws monster aggression'
+        stat-modifiers:
+        - amount: 100.0
+          statType: HEALTH_MAX
+          modifierType: FLAT
+          statTarget: BOTH
+          policy: STACK
+        - amount: 20.0
+          statType: ARMOR
+          modifierType: FLAT
+          statTarget: BOTH
+          policy: STACK
+        - amount: 10.0
+          statType: MAGIC_RESIST
+          modifierType: FLAT
+          statTarget: BOTH
+          policy: STACK
+        passives:
+        - THREAT
+        abilities: []
+  
+  # ---- Basic Assassin Set (item set bonus: full 4/4 set) ----------------------
+  # Full set passive BACKSTAB: melee & ability-cast damage +50% when striking an
+  # enemy from behind. Plus offensive stats.
+  BASIC_ASSASSIN:
+    name: Basic Assassin Set
+    pieces:
+    - BASIC_ASSASSIN_HELMET
+    - BASIC_ASSASSIN_CHESTPLATE
+    - BASIC_ASSASSIN_LEGGINGS
+    - BASIC_ASSASSIN_BOOTS
+    bonuses:
+      '4':
+        description: 'Full Assassin Set (4/4): +10 Attack Damage, +10 Move Speed,
+          +50% damage from behind'
+        stat-modifiers:
+        - amount: 10.0
+          statType: ATTACK_DAMAGE
+          modifierType: FLAT
+          statTarget: BOTH
+          policy: STACK
+        - amount: 10.0
+          statType: MOVE_SPEED
+          modifierType: FLAT
+          statTarget: BOTH
+          policy: STACK
+        passives:
+        - BACKSTAB
+        abilities: []
+  
+  # ---- Basic Mage Set (item set bonus: full 4/4 set) --------------------------
+  # Full set bonus: +50 mana, +10 Ability Haste (cooldown reduction) and the
+  # MANA_DISCOUNT passive: all mana costs on cast are reduced by 10%.
+  BASIC_MAGE:
+    name: Basic Mage Set
+    pieces:
+    - BASIC_MAGE_HELMET
+    - BASIC_MAGE_CHESTPLATE
+    - BASIC_MAGE_LEGGINGS
+    - BASIC_MAGE_BOOTS
+    bonuses:
+      '4':
+        description: 'Full Mage Set (4/4): +50 Mana, +10 Ability Haste (cooldown
+          reduction), 10% cheaper mana costs'
+        stat-modifiers:
+        - amount: 50.0
+          statType: MANA_MAX
+          modifierType: FLAT
+          statTarget: BOTH
+          policy: STACK
+        - amount: 10.0
+          statType: ABILITY_HASTE
+          modifierType: FLAT
+          statTarget: BOTH
+          policy: STACK
+        passives:
+        - MANA_DISCOUNT
+        abilities: []
+  
+  # ---- Basic Support Set (item set bonus: full 4/4 set) -----------------------
+  # Full set passive HEAL_AURA: every second the wearer heals nearby non-ghost
+  # teammates. Plus support stats.
+  BASIC_SUPPORT:
+    name: Basic Support Set
+    pieces:
+    - BASIC_SUPPORT_HELMET
+    - BASIC_SUPPORT_CHESTPLATE
+    - BASIC_SUPPORT_LEGGINGS
+    - BASIC_SUPPORT_BOOTS
+    bonuses:
+      '4':
+        description: 'Full Support Set (4/4): +10 Heal & Shield Power, +50 Mana, healing
+          aura around the wearer'
+        stat-modifiers:
+        - amount: 10.0
+          statType: HEAL_AND_SHIELD_POWER
+          modifierType: FLAT
+          statTarget: BOTH
+          policy: STACK
+        - amount: 50.0
+          statType: MANA_MAX
+          modifierType: FLAT
+          statTarget: BOTH
+          policy: STACK
+        passives:
+        - HEAL_AURA
+        abilities: []

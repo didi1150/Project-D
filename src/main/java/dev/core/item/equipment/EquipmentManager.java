@@ -246,6 +246,20 @@ public class EquipmentManager {
 		return equippedActiveItems.size() + inventoryPassiveItems.size();
 	}
 
+	/**
+	 * Whether any currently applied set bonus grants the given passive (e.g.
+	 * "THREAT", "BACKSTAB", "HEAL_AURA"). Used by the Bukkit layer to apply the
+	 * passive's effect at runtime.
+	 */
+	public boolean hasSetPassive(String passiveId) {
+		for (SetBonus bonus : appliedBonuses.values()) {
+			if (bonus.getPassives().stream().anyMatch(passive -> passive.getId().equals(passiveId))) {
+				return true;
+			}
+		}
+		return false;
+	}
+
 	// ========================================================= PRIVATE HELPER
 	// METHODS ======================================
 
@@ -450,32 +464,12 @@ public class EquipmentManager {
 	// =========================================================================
 
 	/**
-	 * Get total stat value including all bonuses from equipped and inventory items
+	 * Get total stat value including all bonuses from equipped and inventory items.
+	 * Reads through the StatEngine adapter so item/set-bonus modifiers are
+	 * included with the correct stacking semantics.
 	 */
 	public double getTotalStatValue(String statName) {
-		double baseValue = holder.getStatManager().getCurrentValue(StatType.valueOf(statName),
-				System.currentTimeMillis());
-		double totalModifiers = 0;
-
-		// Add active stat bonuses from equipped items
-		for (List<StatModifier> activeStats : appliedActiveStats.values()) {
-			for (StatModifier statModifier : activeStats) {
-				if (statModifier.statType == StatType.valueOf(statName)) {
-					totalModifiers += statModifier.amount;
-				}
-			}
-		}
-
-		// Add passive stat bonuses from inventory items
-		for (List<StatModifier> activeStats : appliedPassiveStats.values()) {
-			for (StatModifier statModifier : activeStats) {
-				if (statModifier.statType == StatType.valueOf(statName)) {
-					totalModifiers += statModifier.amount;
-				}
-			}
-		}
-
-		return baseValue + totalModifiers;
+		return holder.getStatEngineAdapter().getCurrentValue(StatType.valueOf(statName), System.currentTimeMillis());
 	}
 
 	/**

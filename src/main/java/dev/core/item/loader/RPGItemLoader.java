@@ -7,9 +7,13 @@ import java.util.Map;
 
 import dev.core.ability.Ability;
 import dev.core.ability.AbilityRegistry;
+import dev.core.ability.SetBonus;
+import dev.core.ability.passive.SetPassive;
+import dev.core.ability.passive.SetPassiveRegistry;
 import dev.core.entity.rpgclass.RPGClassType;
 import dev.core.item.ItemUsage;
 import dev.core.item.RPGItem;
+import dev.core.item.RPGItemSet;
 import dev.core.item.equipment.EquipmentSlot;
 import dev.core.stat.StatTarget;
 import dev.core.stat.StatType;
@@ -22,15 +26,74 @@ import dev.core.storage.config.ConfigSection;
 public class RPGItemLoader {
 
     public static Map<String, RPGItem> loadAll(ConfigProvider provider) {
+        Map<String, RPGItemSet> sets = loadSets(provider);
         Map<String, RPGItem> items = new HashMap<>();
         ConfigSection root = provider.getRoot().getSection("items");
 
         for (String id : root.getKeys()) {
             RPGItem item = load(id, root.getSection(id));
+            sets.values().stream().filter(set -> set.containsPiece(id)).findFirst().ifPresent(item::setItemSet);
             items.put(id, item);
         }
 
         return items;
+    }
+
+    /**
+     * Loads the {@code item-sets} section of items.yml. A set groups piece ids
+     * and grants a {@code SetBonus} (stat modifiers and/or abilities) once a
+     * given number of pieces are equipped at the same time.
+     */
+    public static Map<String, RPGItemSet> loadSets(ConfigProvider provider) {
+        Map<String, RPGItemSet> sets = new HashMap<>();
+        ConfigSection root = provider.getRoot().getSection("item-sets");
+        if (root == null || root.getKeys().isEmpty()) {
+            return sets;
+        }
+
+        for (String id : root.getKeys()) {
+            ConfigSection section = root.getSection(id);
+            String name = section.getString("name", id);
+            List<String> pieces = section.getStringList("pieces");
+
+            RPGItemSet.Builder builder = RPGItemSet.builder(id, name).withPieceIds(pieces);
+
+            ConfigSection bonusesSection = section.getSection("bonuses");
+            if (bonusesSection != null) {
+                for (String pieceCountKey : bonusesSection.getKeys()) {
+                    try {
+                        int pieceCount = Integer.parseInt(pieceCountKey);
+                        builder.addBonus(pieceCount, loadSetBonus(id, pieceCount, bonusesSection.getSection(pieceCountKey)));
+                    } catch (NumberFormatException e) {
+                        System.out.println("Item set " + id + ": bonus key '" + pieceCountKey + "' is not a piece count; ignored.");
+                    }
+                }
+            }
+
+            sets.put(id, builder.build());
+        }
+
+        return sets;
+    }
+
+    private static SetBonus loadSetBonus(String setId, int pieceCount, ConfigSection section) {
+        String description = section.getString("description", "");
+        List<StatModifier> statModifiers = new ArrayList<>();
+        for (ConfigSection s : section.getSectionList("stat-modifiers")) {
+            statModifiers.add(parseStatModifier(s, "set:" + setId + ":" + pieceCount));
+        }
+
+        List<Ability> abilities = new ArrayList<>();
+        for (String abilityId : section.getStringList("abilities")) {
+            AbilityRegistry.getOrWarn(abilityId, "item set " + setId).ifPresent(abilities::add);
+        }
+
+        List<SetPassive> passives = new ArrayList<>();
+        for (String passiveId : section.getStringList("passives")) {
+            SetPassiveRegistry.getOrWarn(passiveId, "item set " + setId).ifPresent(passives::add);
+        }
+
+        return new SetBonus(description, statModifiers, abilities, passives);
     }
 
     public static RPGItem load(String id, ConfigSection section) {
@@ -40,36 +103,12 @@ public class RPGItemLoader {
 
         List<StatModifier> passive = new ArrayList<>();
         for (ConfigSection s : section.getSectionList("passive-stats")) {
-            double amount = s.getDouble("amount", 0);
-            ModifierStackPolicy policy = ModifierStackPolicy.valueOf(s.getString("policy", "STACK"));
-            StatModifierType statModifierType = StatModifierType
-                    .valueOf(s.getString("statModifierType", s.getString("modifierType", "FLAT")));
-            StatType statType = StatType.valueOf(s.getString("statType", StatType.ATTACK_DAMAGE.name()));
-            StatTarget statTarget = StatTarget.valueOf(s.getString("statTarget", "BOTH"));
-            int priority = s.getInt("priority", 0);
-
-            passive.add(StatModifier.builder(amount, statModifierType, statType, id)
-                .stackPolicy(policy)
-                .statTarget(statTarget)
-                .priority(priority)
-                .build());
+            passive.add(parseStatModifier(s, id));
         }
 
         List<StatModifier> active = new ArrayList<>();
         for (ConfigSection s : section.getSectionList("active-stats")) {
-            double amount = s.getDouble("amount", 0);
-            ModifierStackPolicy policy = ModifierStackPolicy.valueOf(s.getString("policy", "STACK"));
-            StatModifierType statModifierType = StatModifierType
-                    .valueOf(s.getString("statModifierType", s.getString("modifierType", "FLAT")));
-            StatType statType = StatType.valueOf(s.getString("statType", StatType.ATTACK_DAMAGE.name()));
-            StatTarget statTarget = StatTarget.valueOf(s.getString("statTarget", "BOTH"));
-            int priority = s.getInt("priority", 0);
-
-            active.add(StatModifier.builder(amount, statModifierType, statType, id)
-                .stackPolicy(policy)
-                .statTarget(statTarget)
-                .priority(priority)
-                .build());
+            active.add(parseStatModifier(s, id));
         }
 
         List<Ability> abilities = new ArrayList<>();
@@ -103,7 +142,32 @@ public class RPGItemLoader {
 
         return RPGItem.builder(id, name, slot).withMaterial(material).withPassiveStats(passive).withActiveStats(active)
                 .withAbilities(abilities).withRpgClassType(classType).withUnlockLevel(unlockLevel)
-                .withAllowedClasses(allowedClasses).usage(usage).build();
+                .withAllowedClasses(allowedClasses).usage(usage)
+                .withLeatherColor(RPGItem.parseRgbColor(section.getString("leather-color", null)))
+                .withSkullOwner(section.getString("skull-owner", null))
+                .withSkullTexture(section.getString("skull-texture", null))
+                .build();
+    }
+
+    /**
+     * Parses a single stat modifier entry shared by item stats
+     * ({@code passive-stats}/{@code active-stats}) and set bonus
+     * ({@code stat-modifiers}) config blocks.
+     */
+    private static StatModifier parseStatModifier(ConfigSection s, String sourceId) {
+        double amount = s.getDouble("amount", 0);
+        ModifierStackPolicy policy = ModifierStackPolicy.valueOf(s.getString("policy", "STACK"));
+        StatModifierType statModifierType = StatModifierType
+                .valueOf(s.getString("statModifierType", s.getString("modifierType", "FLAT")));
+        StatType statType = StatType.valueOf(s.getString("statType", StatType.ATTACK_DAMAGE.name()));
+        StatTarget statTarget = StatTarget.valueOf(s.getString("statTarget", "BOTH"));
+        int priority = s.getInt("priority", 0);
+
+        return StatModifier.builder(amount, statModifierType, statType, sourceId)
+            .stackPolicy(policy)
+            .statTarget(statTarget)
+            .priority(priority)
+            .build();
     }
 
     public static void saveAll(ConfigProvider provider, Map<String, RPGItem> items) {
@@ -114,6 +178,10 @@ public class RPGItemLoader {
             section.set("name", item.getName());
             section.set("material", item.getMaterial());
             section.set("slot", item.getEquipmentSlot().name());
+
+            item.getLeatherColor().ifPresent(color -> section.set("leather-color", color));
+            item.getSkullOwner().ifPresent(owner -> section.set("skull-owner", owner));
+            item.getSkullTexture().ifPresent(texture -> section.set("skull-texture", texture));
 
             List<Map<String, Object>> passive = new ArrayList<>();
             for (StatModifier sm : item.getPassiveStats()) {
@@ -162,6 +230,10 @@ public class RPGItemLoader {
         section.set("name", item.getName());
         section.set("material", item.getMaterial());
         section.set("slot", item.getEquipmentSlot().name());
+
+        item.getLeatherColor().ifPresent(color -> section.set("leather-color", color));
+        item.getSkullOwner().ifPresent(owner -> section.set("skull-owner", owner));
+        item.getSkullTexture().ifPresent(texture -> section.set("skull-texture", texture));
 
         List<Map<String, Object>> passive = new ArrayList<>();
         for (StatModifier sm : item.getPassiveStats()) {

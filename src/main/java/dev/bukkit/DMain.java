@@ -5,13 +5,13 @@ import java.io.IOException;
 import java.util.Map;
 
 import org.bukkit.Bukkit;
-import org.bukkit.World;
 import org.bukkit.WorldCreator;
 import org.bukkit.plugin.java.JavaPlugin;
 
 import dev.bukkit.ability.BukkitEffectManager;
 import dev.bukkit.ability.BukkitEffectRegistry;
 import dev.bukkit.ability.BukkitParticleTestEffect;
+import dev.bukkit.ability.BukkitSpiritSceptreBatEffect;
 import dev.bukkit.ability.BukkitSwingBoneEffect;
 import dev.bukkit.command.CommandManager;
 import dev.bukkit.event.BukkitEventBus;
@@ -20,6 +20,7 @@ import dev.bukkit.event.bukkitListeners.EventBusRegistry;
 import dev.bukkit.event.bukkitListeners.EventListener;
 import dev.bukkit.event.subscribers.CancelSubscriber;
 import dev.bukkit.event.subscribers.PlayerSubscriber;
+import dev.bukkit.event.subscribers.ThreatPassiveSubscriber;
 import dev.bukkit.entity.boss.BukkitBossStageTypeRegistry;
 import dev.bukkit.entity.boss.BukkitBossStrategyRegistry;
 import dev.bukkit.game.dungeon.proceduralDungeon.BukkitVoidWorldGenerator;
@@ -36,10 +37,14 @@ import dev.bukkit.storage.BukkitConfigManager;
 import dev.bukkit.storage.progression.BukkitConfigProgressionDatabase;
 import dev.bukkit.storage.progression.ClassProgressionService;
 import dev.bukkit.storage.progression.HashMapProgressionCache;
+import dev.bukkit.utils.BackstabUtils;
 import dev.bukkit.utils.BukkitMessageSender;
+import dev.bukkit.utils.HealAuraUtils;
+import dev.bukkit.utils.ManaDiscountUtils;
 import dev.core.ability.Ability;
 import dev.core.ability.AbilityRegistry;
 import dev.core.ability.EffectManagerInterface;
+import dev.core.ability.passive.SetPassiveRegistry;
 import dev.core.ability.storage.AbilityLoader;
 import dev.core.entity.EntityManager;
 import dev.core.entity.boss.BossDefinitionLoader;
@@ -52,6 +57,7 @@ import dev.core.game.GameStateController;
 import dev.core.game.settings.GameSettings;
 import dev.core.game.settings.GameSettingsLoader;
 import dev.core.item.RPGItem;
+import dev.core.item.RPGItemSet;
 import dev.core.item.loader.RPGItemLoader;
 import dev.core.item.loader.RPGItemRegistry;
 import dev.core.stat.DefaultStats;
@@ -94,6 +100,14 @@ public final class DMain extends JavaPlugin {
         //  abilities.yml loads below so the config metadata is applied to them.)
         BukkitEffectRegistry.register("PARTICLE_TEST_ABILITY", BukkitParticleTestEffect::new);
         BukkitEffectRegistry.register("BONE_SWING", BukkitSwingBoneEffect::new);
+        BukkitEffectRegistry.register("GUIDED_BAT", BukkitSpiritSceptreBatEffect::new);
+
+        // Item set passives: registered before items.yml loads so the loader can
+        // resolve the "passives:" lists of set bonuses.
+        SetPassiveRegistry.register(ThreatPassiveSubscriber.MARKER);
+        SetPassiveRegistry.register(BackstabUtils.MARKER);
+        SetPassiveRegistry.register(HealAuraUtils.MARKER);
+        SetPassiveRegistry.register(ManaDiscountUtils.MARKER);
 
         configManager = new BukkitConfigManager(this);
         // ==============================================[ Load Default Stats
@@ -115,6 +129,12 @@ public final class DMain extends JavaPlugin {
         Map<String, RPGItem> items = RPGItemLoader.loadAll(itemsConfig);
         Bukkit.getConsoleSender().sendMessage("Loaded " + items.size() + " item(s).");
         itemRegistry.addAll(items);
+
+        // Load & register item sets: their bonuses apply when enough pieces are
+        // equipped at once (see EquipmentManager.recalcSets).
+        Map<String, RPGItemSet> itemSets = RPGItemLoader.loadSets(itemsConfig);
+        itemSets.values().forEach(itemRegistry::registerItemSet);
+        Bukkit.getConsoleSender().sendMessage("Loaded " + itemSets.size() + " item set(s).");
 
         // ==============================================[ Load bosses.yml
         // ]=====================================================
@@ -138,6 +158,15 @@ public final class DMain extends JavaPlugin {
         gameSettingsLoader.load();
         // Initialize boss arena manager from setup config
         this.bossArenaManager = dev.bukkit.game.boss.BossArenaManager.createDefault(this);
+        if (!gameSettings.isSetupMode() && gameSettings.getDungeonWorld() != null
+                && !gameSettings.getDungeonWorld().isBlank()) {
+            File dungeonWorldFolder = new File(Bukkit.getWorldContainer(), gameSettings.getDungeonWorld());
+            if (dungeonWorldFolder.exists()) {
+                Bukkit.getLogger().info("Resetting dungeon world '" + gameSettings.getDungeonWorld()
+                        + "' for a new run.");
+                deleteWorld(dungeonWorldFolder);
+            }
+        }
         if (gameSettings.getDungeonWorld() != null && Bukkit.getWorld(gameSettings.getDungeonWorld()) == null) {
             Bukkit.createWorld(
                     new WorldCreator(gameSettings.getDungeonWorld()).generator(new BukkitVoidWorldGenerator()));
@@ -179,6 +208,7 @@ public final class DMain extends JavaPlugin {
         Bukkit.getPluginManager().registerEvents(new EventListener(this), this);
 //        new CancelledListener(instance);
         new CancelSubscriber(eventBusInterface, instance);
+        new ThreatPassiveSubscriber(eventBusInterface);
 //        Bukkit.getPluginManager().registerEvents(new CancelledListener(this, protocolManager), this);
         combatListener = new CombatListener(this);
         Bukkit.getPluginManager().registerEvents(combatListener, this);
@@ -192,23 +222,6 @@ public final class DMain extends JavaPlugin {
         combatListener.cleanup();
         configManager.saveAll();
         eventBusInterface.getSubscribed().clear();
-
-        World dungeonWorld = Bukkit.getWorld(GameSettings.getCurrentSettings().getDungeonWorld());
-        if (dungeonWorld == null) {
-            Bukkit.getLogger().info("No dungeon world found during shutdown; skipping unload/delete.");
-            return;
-        }
-        if (!isDisposableDungeonWorld(dungeonWorld)) {
-            Bukkit.getLogger().warning("Refusing to delete world '" + dungeonWorld.getName()
-                    + "' during shutdown: it is not the configured disposable dungeon world.");
-            return;
-        }
-        try {
-            unloadWorld(dungeonWorld);
-            deleteWorld(dungeonWorld.getWorldFolder());
-        } catch (Exception e) {
-            Bukkit.getLogger().warning("Failed to clean up dungeon world during shutdown: " + e.getMessage());
-        }
     }
 
     public static DMain getInstance() {
@@ -221,17 +234,6 @@ public final class DMain extends JavaPlugin {
 
     public CombatListener getCombatListener() {
         return combatListener;
-    }
-
-    public void unloadWorld(World world) {
-        try {
-            if (world != null) {
-                Bukkit.getServer().unloadWorld(world, true);
-            }
-        } catch (Exception e) {
-            Bukkit.getLogger().warning("Failed to unload world "
-                    + (world == null ? "null" : world.getName()) + ": " + e.getMessage());
-        }
     }
 
     /**
@@ -253,25 +255,6 @@ public final class DMain extends JavaPlugin {
             return false;
         }
         return deleteWorldTree(path, path);
-    }
-
-    /**
-     * True only if the world is exactly the configured disposable dungeon world:
-     * it must be loaded under a sane configured name, must not be the server's
-     * main world, and its folder must be a direct child of the server's world
-     * container with a matching name.
-     */
-    private boolean isDisposableDungeonWorld(World world) {
-        String configuredWorld = GameSettings.getCurrentSettings().getDungeonWorld();
-        if (configuredWorld == null || configuredWorld.isBlank() || configuredWorld.equals(".")
-                || configuredWorld.equals("..") || configuredWorld.contains("\\")
-                || configuredWorld.contains("/") || !world.getName().equals(configuredWorld)) {
-            return false;
-        }
-        if (!Bukkit.getWorlds().isEmpty() && Bukkit.getWorlds().get(0).equals(world)) {
-            return false;
-        }
-        return isDirectChildOfWorldContainer(world.getWorldFolder(), configuredWorld);
     }
 
     private boolean isDirectChildOfWorldContainer(File folder, String expectedName) {

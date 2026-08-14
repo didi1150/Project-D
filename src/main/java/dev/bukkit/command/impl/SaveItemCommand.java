@@ -40,7 +40,7 @@ public class SaveItemCommand implements CommandExecutor {
 				if (args.length == 1) {
 					String id = args[0];
 					RPGItemRegistry.getInstance().getItem(id).ifPresentOrElse(item -> {
-						player.getInventory().addItem(BukkitItemStackAdapter.toItemStack(item));
+						player.getInventory().addItem(BukkitItemStackAdapter.toItemStack(item, p));
 					}, () -> {
 						player.sendMessage("This item does not exist");
 					});

@@ -1,6 +1,7 @@
 package dev.core.item.loader;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.ArrayList;
@@ -80,6 +81,34 @@ class ItemAbilityPipelineTest {
         assertTrue(ability.getTriggerType() == AbilityTriggerType.MANUAL
                 && ability.getAction() == AbilityAction.RIGHT_CLICK,
                 "EquipmentManager would trigger BONE_SWING on a RIGHT_CLICK");
+    }
+
+    @Test
+    void targetsPlayerFlagDefaultsTrueAndHonorsConfigOverride() {
+        TestConfigProvider provider = new TestConfigProvider();
+
+        // ---- abilities.yml ----
+        ConfigSection abilitiesRoot = provider.getRoot().getSection("abilities");
+        ConfigSection bone = abilitiesRoot.getSection("BONE_SWING");
+        bone.set("name", "Swing");
+        bone.set("triggerType", "MANUAL");
+        bone.set("action", "RIGHT_CLICK");
+        bone.set("cooldownScope", "ITEM");
+        bone.set("cooldown", 3000);
+        ConfigSection particle = abilitiesRoot.getSection("PARTICLE_TEST_ABILITY");
+        particle.set("name", "Particle Test");
+        particle.set("triggerType", "MANUAL");
+        particle.set("action", "RIGHT_CLICK");
+        particle.set("cooldownScope", "PLAYER");
+        particle.set("cooldown", 0);
+        particle.set("targetsPlayer", false);
+
+        Map<String, Ability> loaded = AbilityLoader.loadAll(provider);
+        assertEquals(2, loaded.size(), "both abilities.yml entries must load");
+        assertTrue(loaded.get("BONE_SWING").isTargetsPlayer(),
+                "player-targeting abilities default to targetsPlayer: true");
+        assertFalse(loaded.get("PARTICLE_TEST_ABILITY").isTargetsPlayer(),
+                "self-targeted abilities honor targetsPlayer: false");
     }
 
     // ---------------------------------------------------------------- test config

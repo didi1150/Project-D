@@ -19,6 +19,7 @@ import dev.bukkit.ability.BukkitEffectManager;
 import dev.bukkit.entity.boss.BukkitBossEntity;
 import dev.bukkit.event.BukkitEventBus;
 import dev.bukkit.stat.BukkitStatManager;
+import dev.bukkit.utils.HealAuraUtils;
 import dev.core.entity.EntityManager;
 import dev.core.entity.EntityType;
 import dev.core.entity.RPGEntity;
@@ -31,6 +32,9 @@ public class BukkitPlayerEntity extends RPGEntity {
     private PlayerProgression playerProgression;
     private BukkitStatManager bukkitStatManager;
     private ItemStack[] inventoryContents;
+    // Support set passive ("HEAL_AURA"): next tick at which the aura heals
+    // nearby teammates.
+    private long nextAuraHealAt = 0;
 
     public BukkitPlayerEntity(Player player) {
         super(player.getUniqueId(), player.getName(), EntityType.PLAYER, BukkitEffectManager.getInstance(),
@@ -51,6 +55,10 @@ public class BukkitPlayerEntity extends RPGEntity {
             bukkitStatManager.tick(now, this::onDeath);
 //            BukkitInventorySync.syncInventoryDiff(this, player);
             this.inventoryContents = getPlayer().get().getInventory().getContents();
+            if (getEquipmentManager().hasSetPassive(HealAuraUtils.PASSIVE_ID) && now >= nextAuraHealAt) {
+                nextAuraHealAt = now + HealAuraUtils.HEAL_INTERVAL_MS;
+                HealAuraUtils.tick(this);
+            }
         }
     }
 
@@ -158,10 +166,9 @@ public class BukkitPlayerEntity extends RPGEntity {
             return false;
         }
 
-        setAlive(true);
-//      TODO: Remove GHOST
+        super.onRevive();
         syncState();
-        return super.onRevive();
+        return true;
     }
 
     @Override

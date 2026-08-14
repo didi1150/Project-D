@@ -62,7 +62,7 @@ public class GiveItemCommand implements TabExecutor {
         EntityManager.getInstance().getEntity(recipient.getUniqueId()).ifPresent(entity -> {
             RPGItemRegistry.getInstance().getItem(itemId).ifPresentOrElse(
                 item -> {
-                    recipient.getInventory().addItem(BukkitItemStackAdapter.toItemStack(item));
+                    recipient.getInventory().addItem(BukkitItemStackAdapter.toItemStack(item, entity));
                     sender.sendMessage("Success! Player " + recipient.getName() + " received " + item.getName());
                     BukkitInventorySync.syncInventory(entity, recipient);
                 },

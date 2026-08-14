@@ -293,7 +293,7 @@ public class CommandManager {
                             EntityManager.getInstance().getEntity(player.getUniqueId()).ifPresent(p -> {
                                 String id = args[0];
                                 RPGItemRegistry.getInstance().getItem(id).ifPresentOrElse(item -> {
-                                    player.getInventory().addItem(BukkitItemStackAdapter.toItemStack(item));
+                                    player.getInventory().addItem(BukkitItemStackAdapter.toItemStack(item, p));
                                     player.sendMessage("Success! You received " + item.getName());
                                 }, () -> {
                                     player.sendMessage("This item does not exist");
@@ -319,7 +319,7 @@ public class CommandManager {
                             EntityManager.getInstance().getEntity(player.getUniqueId()).ifPresent(p -> {
                                 String id = args[0];
                                 RPGItemRegistry.getInstance().getItem(id).ifPresentOrElse(item -> {
-                                    player.getInventory().addItem(BukkitItemStackAdapter.toItemStack(item));
+                                    player.getInventory().addItem(BukkitItemStackAdapter.toItemStack(item, p));
                                 }, () -> {
                                     player.sendMessage("This item does not exist");
                                 });
@@ -413,8 +413,8 @@ public class CommandManager {
                         // (e.g. armor from equipped gear) are reflected, not just base stats.
                         for (StatType type : playerEntity.getStatManager().getStats().keySet()) {
                             double value = playerEntity.getStatEngineAdapter().getCurrentValue(type, now);
-                            player.sendMessage(BukkitTextColorAdapter.colored(type.getColor(),
-                                    type.formatValue(value, false)));
+                            player.sendMessage(
+                                    BukkitTextColorAdapter.colored(type.getColor(), type.formatValue(value, false)));
 
                         }
                         player.sendMessage(ChatColor.GOLD + "═══════════════════════════════════");
@@ -436,6 +436,38 @@ public class CommandManager {
                     }
                 }).setCommandArgumentsList(0, Arrays.stream(RPGClassType.values())
                         .filter(classType -> classType != RPGClassType.NONE).map(Enum::name).toList(), "className"));
+
+        addSubCommand("project-d", SubCommandBuilder.startBuilding("revive").setDescription("to select a class")
+                .setPlayerCommandAction(0, (player, args) -> {
+                    Optional<RPGEntity> optional = EntityManager.getInstance().getEntity(player.getUniqueId());
+                    if (optional.isEmpty()) {
+                        player.sendMessage(ChatColor.RED + "Could not find profile");
+                    } else {
+                        BukkitPlayerEntity playerEntity = (BukkitPlayerEntity) optional.get();
+
+                        if (playerEntity.isAlive()) {
+                            return;
+                        }
+
+                        EntityManager.getInstance().revive(playerEntity.getUuid());
+                    }
+                }).setPlayerCommandAction(1, (player, args) -> {
+                    String name = args[0];
+                    Player target = Bukkit.getPlayer(name);
+                    if (target == null) {
+                        player.sendMessage(ChatColor.RED + "This player is not online.");
+                    }
+                    Optional<RPGEntity> optional = EntityManager.getInstance().getEntity(target.getUniqueId());
+                    if (optional.isEmpty()) {
+                        player.sendMessage(ChatColor.RED + "Could not find profile");
+                    } else {
+                        EntityManager.getInstance().revive(target.getUniqueId());
+                    }
+                }).setCommandArgumentsList(0,
+                        Bukkit.getOnlinePlayers().stream()
+                                .filter(p -> EntityManager.getInstance().isDead(p.getUniqueId())).map(p -> p.getName())
+                                .toList()));
+
 //        addSubCommand("project-d", SubCommandBuilder.startBuilding("dungeon").setDescription("Main dungeon command")
 ////                        .setSyntax("/dungeon <generate|tp> [world_name]")
 //                .setPlayerCommandAction(2, (player, args) -> {

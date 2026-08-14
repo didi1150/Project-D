@@ -74,10 +74,24 @@ public class EntityManager {
     }
 
     /**
-     * Revive an entity (remove from dead list).
+     * Revive an entity: mark it alive again and remove it from the dead list,
+     * so its stat manager mirroring, event subscriptions, effects and targeting
+     * resume from the entity's own {@code alive} flag.
+     *
+     * <p>Only a revival from the dead state triggers the entity's
+     * implementation-specific {@link RPGEntity#onRevive()} hook. Players that
+     * are merely ghosted (e.g. registered spectators that never died) are not
+     * revived from death, so their spectator state is left untouched.
      */
     public void revive(UUID entityId) {
-        deadEntities.remove(entityId);
+        final boolean wasDead = deadEntities.remove(entityId);
+        RPGEntity entity = entities.get(entityId);
+        if (entity != null) {
+            entity.setAlive(true);
+            if (wasDead) {
+                entity.onRevive();
+            }
+        }
     }
 
     /**

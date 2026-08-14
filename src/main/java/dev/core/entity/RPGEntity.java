@@ -43,8 +43,8 @@ public abstract class RPGEntity {
 
     public RPGEntity(UUID uuid, String name, EntityType entityType, EffectManagerInterface effectManagerInterface,
             EventBusInterface eventBusInterface) {
-        this(new StatManager(DefaultStats.getDefaultStats()), uuid, name, entityType,
-                effectManagerInterface, eventBusInterface, RPGClassType.NONE);
+        this(new StatManager(DefaultStats.getDefaultStats()), uuid, name, entityType, effectManagerInterface,
+                eventBusInterface, RPGClassType.NONE);
     }
 
     public RPGEntity(StatManager statManager, UUID uuid, String name, EntityType entityType,
@@ -62,7 +62,8 @@ public abstract class RPGEntity {
         this.statEngine = new StatEngine(this);
         // register provider that bridges the legacy StatManager modifier buckets
         this.statEngine.registerProvider(new ModifierBucketProvider(this));
-        // let StatManager know about the new engine so it can invalidate caches on change
+        // let StatManager know about the new engine so it can invalidate caches on
+        // change
         this.statManager.setStatEngine(this.statEngine);
         // create adapter for migrating combat methods
         this.statEngineAdapter = new StatEngineAdapter(this.statEngine, this.statManager);
@@ -73,8 +74,8 @@ public abstract class RPGEntity {
     }
 
     /**
-     * Create a builder for constructing RPGEntity instances.
-     * Provides fluent API for flexible entity configuration.
+     * Create a builder for constructing RPGEntity instances. Provides fluent API
+     * for flexible entity configuration.
      */
     public static RPGEntityBuilder builder(UUID uuid, String name, EntityType entityType) {
         return new RPGEntityBuilder(uuid, name, entityType);
@@ -103,8 +104,14 @@ public abstract class RPGEntity {
         EntityManager.getInstance().markDead(uuid);
     }
 
+    /**
+     * Implementation hook invoked by {@link EntityManager#revive(UUID)} when an
+     * entity is revived from the dead state (it was marked dead, as opposed to
+     * merely being a ghosted player such as a spectator). The manager has already
+     * marked the entity alive again; implementations restore whatever state was
+     * lost on death (e.g. a player's saved inventory).
+     */
     public boolean onRevive() {
-        EntityManager.getInstance().revive(uuid);
         return true;
     }
 
@@ -273,7 +280,8 @@ public abstract class RPGEntity {
     }
 
     private double applyMagicDefense(double damage, RPGEntity attacker, RPGEntity target) {
-        double targetMR = target.getStatEngineAdapter().getCurrentValue(StatType.MAGIC_RESIST, System.currentTimeMillis());
+        double targetMR = target.getStatEngineAdapter().getCurrentValue(StatType.MAGIC_RESIST,
+                System.currentTimeMillis());
         double effectiveMR = targetMR;
 
         // Calculate damage reduction without penetration
@@ -360,19 +368,30 @@ public abstract class RPGEntity {
     // =========================- Convenience ==========================
 
     public double getHealth() {
-        return statManager.getCurrentValue(StatType.HEALTH_RESOURCE, System.currentTimeMillis());
+        return getStatEngineAdapter().getCurrentValue(StatType.HEALTH_RESOURCE, System.currentTimeMillis());
     }
 
     public double getMaxHealth() {
-        return statManager.getCurrentValue(StatType.HEALTH_MAX, System.currentTimeMillis());
+        return getStatEngineAdapter().getCurrentValue(StatType.HEALTH_MAX, System.currentTimeMillis());
+    }
+
+    /**
+     * Multiplier applied to projectile damage this entity deals (arrows, other
+     * thrown projectiles and the bonemerang). Derived from the
+     * {@link StatType#PROJECTILE_DAMAGE} stat (a percent: 10 = +10%). Set bonuses
+     * such as the Basic Archer Set raise it; 1.0 = no bonus.
+     */
+    public double getProjectileDamageMultiplier() {
+        return 1.0 + getStatEngineAdapter().getCurrentValue(StatType.PROJECTILE_DAMAGE, System.currentTimeMillis())
+                / 100.0;
     }
 
     public double getMana() {
-        return statManager.getCurrentValue(StatType.MANA_RESOURCE, System.currentTimeMillis());
+        return getStatEngineAdapter().getCurrentValue(StatType.MANA_RESOURCE, System.currentTimeMillis());
     }
 
     public double getMaxMana() {
-        return statManager.getCurrentValue(StatType.MANA_MAX, System.currentTimeMillis());
+        return getStatEngineAdapter().getCurrentValue(StatType.MANA_MAX, System.currentTimeMillis());
     }
 
     public void setHealth(double value) {
@@ -380,9 +399,9 @@ public abstract class RPGEntity {
     }
 
     /**
-     * Whether this entity currently ignores all {@link #dealRPGDamage}. Boss
-     * stages can toggle this to make the boss invulnerable to damage (and to the
-     * hurt reaction) during a phase.
+     * Whether this entity currently ignores all {@link #dealRPGDamage}. Boss stages
+     * can toggle this to make the boss invulnerable to damage (and to the hurt
+     * reaction) during a phase.
      */
     public boolean isDamageImmune() {
         return damageImmune;
