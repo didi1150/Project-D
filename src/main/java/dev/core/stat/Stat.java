@@ -56,6 +56,13 @@ public abstract class Stat {
 	}
 
 	/**
+	 * Remove all modifiers originating from the given source id.
+	 */
+	public void removeModifiersBySource(String sourceId) {
+		modifierBucket.removeIf(mod -> sourceId.equals(mod.sourceId));
+	}
+
+	/**
 	 * Return active (non-expired) modifiers for this stat at time 'now'.
 	 * Migration helper for the new StatEngine.
 	 */

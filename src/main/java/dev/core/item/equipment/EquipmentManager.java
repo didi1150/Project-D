@@ -310,7 +310,7 @@ public class EquipmentManager {
 
         // Register provider with StatEngine (new way - single source of truth)
         try {
-            ItemStatProvider provider = new ItemStatProvider(item, true);
+            ItemStatProvider provider = new ItemStatProvider(item, slot, true);
             holder.getStatEngine().registerProvider(provider);
             appliedActiveProviders.put(slot, provider);
         } catch (Exception e) {

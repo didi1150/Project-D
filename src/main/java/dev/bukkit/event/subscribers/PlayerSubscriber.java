@@ -19,6 +19,7 @@ import org.bukkit.event.player.PlayerMoveEvent;
 import org.bukkit.event.player.PlayerRespawnEvent;
 import org.bukkit.event.player.PlayerSwapHandItemsEvent;
 import org.bukkit.event.player.PlayerToggleSneakEvent;
+import org.bukkit.inventory.ItemStack;
 import org.bukkit.plugin.Plugin;
 import org.spigotmc.event.player.PlayerSpawnLocationEvent;
 
@@ -30,6 +31,7 @@ import com.comphenix.protocol.events.PacketEvent;
 
 import dev.bukkit.entity.BukkitPlayerEntity;
 import dev.bukkit.item.BukkitInventorySync;
+import dev.bukkit.item.BukkitItemStackAdapter;
 import dev.bukkit.utils.BukkitMessageSender;
 import dev.core.ability.AbilityAction;
 import dev.core.entity.EntityManager;
@@ -111,6 +113,7 @@ public class PlayerSubscriber {
             optional.ifPresent(rpgEntity -> {
                 BukkitInventorySync.syncInventory(rpgEntity, event.getPlayer());
             });
+            refreshLore(event.getPlayer());
         }, PlayerSpawnLocationEvent.class));
     }
 
@@ -130,6 +133,7 @@ public class PlayerSubscriber {
             optional.ifPresent(rpgEntity -> {
                 BukkitInventorySync.updateMainHand(rpgEntity, event.getPlayer(), event.getNewSlot());
             });
+            refreshLore(event.getPlayer());
         }, PlayerItemHeldEvent.class));
     }
 
@@ -140,6 +144,7 @@ public class PlayerSubscriber {
                 BukkitInventorySync.updateMainAndOffHand(rpgEntity, event.getPlayer(), event.getOffHandItem(),
                         event.getMainHandItem());
             });
+            refreshLore(event.getPlayer());
         }, PlayerSwapHandItemsEvent.class));
     }
 
@@ -155,6 +160,17 @@ public class PlayerSubscriber {
                             optional.get().triggerAbility(AbilityAction.RIGHT_CLICK);
                         } else {
                             optional.get().triggerAbility(AbilityAction.RIGHT_CLICK);
+                        }
+
+                        // Right-click quick-equip (e.g. armor held in the hand) is
+                        // applied by the server's item-use handling AFTER
+                        // PlayerInteractEvent fires, so a deferred diff picks up the
+                        // new armor slot.
+                        if (holdsRpgItem(event.getPlayer())) {
+                            Bukkit.getScheduler().runTask(plugin, () -> {
+                                BukkitInventorySync.syncInventoryDiff(optional.get(), event.getPlayer());
+                            });
+                            refreshLore(event.getPlayer());
                         }
                     }
 
@@ -237,6 +253,7 @@ public class PlayerSubscriber {
                     BukkitInventorySync.syncInventory(optional.get(), event.getPlayer());
                 });
             }
+            refreshLore(event.getPlayer());
         }, PlayerRespawnEvent.class));
     }
 
@@ -245,8 +262,14 @@ public class PlayerSubscriber {
             if (event.getWhoClicked() instanceof Player player) {
                 Optional<RPGEntity> optional = EntityManager.getInstance().getEntity(player.getUniqueId());
                 if (optional.isPresent()) {
-                    BukkitInventorySync.syncInventoryDiff(optional.get(), player);
+                    // Deferred: InventoryClickEvent fires BEFORE the click is applied
+                    // to the inventory, so a synchronous diff would read the stale
+                    // pre-click state and miss shift-click / drag equips.
+                    Bukkit.getScheduler().runTask(plugin, () -> {
+                        BukkitInventorySync.syncInventoryDiff(optional.get(), player);
+                    });
                 }
+                refreshLore(player);
             }
         }, InventoryClickEvent.class));
     }
@@ -256,8 +279,13 @@ public class PlayerSubscriber {
             if (event.getWhoClicked() instanceof Player player) {
                 Optional<RPGEntity> optional = EntityManager.getInstance().getEntity(player.getUniqueId());
                 if (optional.isPresent()) {
-                    BukkitInventorySync.syncInventoryDiff(optional.get(), player);
+                    // See subscribeInventoryClick: drags also fire before the
+                    // inventory is mutated.
+                    Bukkit.getScheduler().runTask(plugin, () -> {
+                        BukkitInventorySync.syncInventoryDiff(optional.get(), player);
+                    });
                 }
+                refreshLore(player);
             }
         }, InventoryDragEvent.class));
     }
@@ -267,6 +295,7 @@ public class PlayerSubscriber {
             if (event.getPlayer() instanceof Player player) {
                 EntityManager.getInstance().getEntity(player.getUniqueId())
                         .ifPresent(rpg -> BukkitInventorySync.syncInventoryDiff(rpg, player));
+                refreshLore(player);
             }
         }, InventoryCloseEvent.class));
     }
@@ -279,6 +308,7 @@ public class PlayerSubscriber {
                         BukkitInventorySync.syncInventoryDiff(rpg, player);
                     });
                 });
+                refreshLore(player);
             }
         }, EntityPickupItemEvent.class));
     }
@@ -292,7 +322,33 @@ public class PlayerSubscriber {
                         BukkitInventorySync.syncInventoryDiff(rpg, player);
                     });
                 });
+                refreshLore(player);
             }
         }, PlayerDropItemEvent.class));
+    }
+
+    /**
+     * True if the player holds an RPG item in either hand. Right-clicking with
+     * such an item can quick-equip it (armor), which the server applies after
+     * PlayerInteractEvent; a deferred inventory diff keeps the equipment
+     * manager in sync.
+     */
+    private static boolean holdsRpgItem(Player player) {
+        ItemStack mainHand = player.getInventory().getItemInMainHand();
+        ItemStack offHand = player.getInventory().getItemInOffHand();
+        return BukkitItemStackAdapter.getRpgItemId(mainHand) != null
+                || BukkitItemStackAdapter.getRpgItemId(offHand) != null;
+    }
+
+    /**
+     * Re-renders the player's item lore holder-aware on the next tick, so the
+     * inventory has settled after the triggering event. Keeps holder-dependent
+     * lore (e.g. the Mage Set's mana discount on ability costs) accurate when
+     * the player's equipment changes.
+     */
+    private void refreshLore(Player player) {
+        EntityManager.getInstance().getEntity(player.getUniqueId())
+                .ifPresent(rpg -> Bukkit.getScheduler().runTask(plugin,
+                        () -> BukkitInventorySync.refreshLore(rpg, player)));
     }
 }

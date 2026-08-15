@@ -91,6 +91,10 @@ public class ClearState extends GameState {
 
     @Override
     protected void onStart() {
+        // Fill every player's resource stats to their max so nobody carries a
+        // depleted health/mana pool into the next round.
+        refillPlayerResources();
+
         // Handle ground opening
         int minRoomWidth = new Random().nextInt(10, 20);
         int minRoomHeight = new Random().nextInt(5, 8);
@@ -151,6 +155,20 @@ public class ClearState extends GameState {
 
     @Override
     protected void onStop() {
+    }
+
+    /**
+     * Sets all resource stats (health and mana) of every registered player to
+     * their current max value, as derived through the StatEngine (so item/set
+     * bonuses are included).
+     */
+    private void refillPlayerResources() {
+        Bukkit.getOnlinePlayers().forEach(player -> {
+            EntityManager.getInstance().getEntity(player.getUniqueId()).ifPresent(rpg -> {
+                rpg.setHealth(rpg.getMaxHealth());
+                rpg.setMana(rpg.getMaxMana());
+            });
+        });
     }
 
     @Override

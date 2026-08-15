@@ -342,6 +342,22 @@ public class CombatListener implements Listener {
             return;
         }
 
+        // No PvP: players can never damage each other through any vanilla
+        // damage source - melee, sweep attacks, or projectiles fired by a
+        // player (shift-clicked arrows, tridents, ...). The victim guard runs
+        // first so no indicator, knockback or hit reaction ever leaks through.
+        if (event.getEntity() instanceof Player) {
+            if (event.getDamager() instanceof Player) {
+                event.setCancelled(true);
+                return;
+            }
+            if (event.getDamager() instanceof Projectile projectile
+                    && projectile.getShooter() instanceof Player) {
+                event.setCancelled(true);
+                return;
+            }
+        }
+
         // Projectile attacks (arrows, tridents, fireballs, ...) amplify their
         // damage when the shooter carries projectile damage bonuses (e.g. the
         // Basic Archer Set bonus). This happens before the RPG pipeline so both

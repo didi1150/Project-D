@@ -58,7 +58,7 @@ public class BukkitBossEntity extends RPGBossEntity {
     public void tick(long now) {
         super.tick(now);
         if (isAlive() && !isDefeatSequenceActive()) {
-            bukkitStatManager.tick(now, this::onDeath);
+            bukkitStatManager.tick(now, this::onDeath, getHealth(), getMaxHealth());
             updateBossBar();
             updateName();
         }

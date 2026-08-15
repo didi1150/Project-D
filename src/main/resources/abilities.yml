@@ -26,6 +26,9 @@
 #   cooldownScope   PLAYER (per caster) or ITEM (per item instance) (default
 #                   PLAYER).
 #   cooldown        Cooldown in milliseconds (default 0).
+#   cooldownScaling HASTE (default) or NONE. HASTE shortens the cooldown by the
+#                   caster's ABILITY_HASTE stat; NONE applies the configured
+#                   cooldown as-is.
 #   targetsPlayer   MOB-CASTING ONLY, true by default. Whether a mob casting
 #                   this ability needs a player target: true abilities only
 #                   fire while a player is in range AND in line of sight (the
@@ -82,3 +85,16 @@ abilities:
     action: RIGHT_CLICK
     cooldownScope: PLAYER
     cooldown: 0
+  SPINJITZU:
+    name: Spinjitzu
+    description:
+      - "Summon a cyclone of spinning rings"
+      - "around you that pulls nearby enemies"
+      - "into you for <yellow>10</yellow> seconds."
+      - ""
+      - "Re-activating while a cyclone is up"
+      - "does nothing until it collapses."
+    triggerType: MANUAL
+    action: RIGHT_CLICK
+    cooldownScope: ITEM
+    cooldown: 3000

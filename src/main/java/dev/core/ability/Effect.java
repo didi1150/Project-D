@@ -20,11 +20,12 @@ public abstract class Effect {
 	}
 
 	/**
-	 * Called once when the effect is applied to the caster. startCooldown.run()
-	 * should be invoked when the effect decides it's appropriate to trigger
-	 * cooldown.
+	 * Called once when the effect is applied to the caster. The provided
+	 * {@link CooldownSink} is how the effect triggers or clears its cooldown;
+	 * the effect decides WHEN (cast, hit, return, ...) and the manager decides
+	 * HOW LONG (config value, haste scaling, ...).
 	 */
-	public abstract void cast(RPGEntity caster, Runnable startCooldown, Runnable resetCooldown);
+	public abstract void cast(RPGEntity caster, CooldownSink cooldownSink);
 
 	/**
 	 * Called when the effect is forcefully ended (dispelled, interrupted, etc).

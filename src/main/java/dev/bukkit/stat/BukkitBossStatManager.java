@@ -9,7 +9,6 @@ import org.bukkit.entity.Entity;
 import org.bukkit.entity.LivingEntity;
 
 import dev.core.stat.StatManager;
-import dev.core.stat.StatType;
 
 /**
  * Bridges the core boss health stats to the vanilla entity's health, without
@@ -29,13 +28,11 @@ public class BukkitBossStatManager {
         this.statManager = statManager;
     }
 
-    public void tick(long now, Runnable onDeath) {
+    public void tick(long now, Runnable onDeath, double currentHealth, double maxHealth) {
         LivingEntity entity = (LivingEntity) Bukkit.getEntity(uuid);
         if (entity == null || entity.isDead()) {
             return;
         }
-        double currentHealth = statManager.getCurrentValue(StatType.HEALTH_RESOURCE, now);
-        double maxHealth = statManager.getCurrentValue(StatType.HEALTH_MAX, now);
         if (maxHealth <= 0) {
             return;
         }
@@ -43,7 +40,7 @@ public class BukkitBossStatManager {
         AttributeInstance healthAttr = entity.getAttribute(Attribute.MAX_HEALTH);
         double maxBukkitHealth = healthAttr.getValue();
 
-        double calculatedHealth = (currentHealth / maxHealth) * maxBukkitHealth;
+        double calculatedHealth = (Math.min(1.0, currentHealth / maxHealth)) * maxBukkitHealth;
 
         if (currentHealth <= 0) {
             onDeath.run();

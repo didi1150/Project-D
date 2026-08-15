@@ -23,6 +23,7 @@ import dev.bukkit.DMain;
 import dev.bukkit.entity.BukkitPlayerEntity;
 import dev.bukkit.event.bukkitListeners.CombatListener;
 import dev.bukkit.utils.DamageUtils;
+import dev.core.ability.CooldownSink;
 import dev.core.ability.Effect;
 import dev.core.entity.EntityManager;
 import dev.core.entity.RPGDamageResult;
@@ -32,13 +33,13 @@ import dev.core.event.impl.RPGEntityDamageEvent.DamageType;
 import dev.core.stat.StatType;
 
 /**
- * Spirit Sceptre bat. Spawns a red bat that flies in a straight line toward
- * the block the caster was aiming at when casting (locked at cast time, NOT
+ * Spirit Sceptre bat. Spawns a red bat that flies in a straight line toward the
+ * block the caster was aiming at when casting (locked at cast time, NOT
  * re-aimed while in flight); on contact with a mob or a solid block it
- * explodes, dealing magic damage to every enemy within {@link #EXPLOSION_RADIUS}
- * blocks. No cooldown: each successful cast is its own effect instance, so bats
- * can be chained as long as the caster's mana (250 per cast, see
- * {@link dev.core.ability.impl.SpiritSceptreAbility}) holds out.
+ * explodes, dealing magic damage to every enemy within
+ * {@link #EXPLOSION_RADIUS} blocks. No cooldown: each successful cast is its
+ * own effect instance, so bats can be chained as long as the caster's mana (250
+ * per cast, see {@link dev.core.ability.impl.SpiritSceptreAbility}) holds out.
  */
 public class BukkitSpiritSceptreBatEffect extends Effect {
 
@@ -46,13 +47,13 @@ public class BukkitSpiritSceptreBatEffect extends Effect {
     private static final double BAT_SPEED = 1.2; // blocks per tick
     private static final int MAX_TICKS = 40; // ~48 block range cap
     private static final double HIT_RADIUS = 1.0; // contact radius that triggers the explosion
-    private static final double EXPLOSION_RADIUS = 10.0;
+    private static final double EXPLOSION_RADIUS = 6.0;
     public static final String METADATA = "SPIRIT_BAT";
 
     private Bat bat;
     private int ticks;
     private boolean exploded;
-    private Runnable startCooldown;
+    private CooldownSink cooldownSink;
     // Flight path, locked at cast time: direction per tick plus the exact
     // destination the caster was aiming at, so the bat is unaffected by the
     // player turning while it is in flight.
@@ -84,8 +85,8 @@ public class BukkitSpiritSceptreBatEffect extends Effect {
     }
 
     @Override
-    public void cast(RPGEntity caster, Runnable startCooldown, Runnable resetCooldown) {
-        this.startCooldown = startCooldown;
+    public void cast(RPGEntity caster, CooldownSink cooldownSink) {
+        this.cooldownSink = cooldownSink;
         LivingEntity casterEntity = resolveEntity(caster);
         if (casterEntity == null) {
             return;
@@ -119,8 +120,7 @@ public class BukkitSpiritSceptreBatEffect extends Effect {
         // block the crosshair was on. The bat is NOT re-aimed while in flight.
         double maxRange = BAT_SPEED * MAX_TICKS;
         RayTraceResult trace = spawnLoc.getWorld().rayTraceBlocks(spawnLoc, spawnLoc.getDirection(), maxRange);
-        Vector dest = trace != null && trace.getHitPosition() != null
-                ? trace.getHitPosition()
+        Vector dest = trace != null && trace.getHitPosition() != null ? trace.getHitPosition()
                 : spawnLoc.toVector().add(spawnLoc.getDirection().multiply(maxRange));
         targetPosition = dest;
         Vector delta = dest.clone().subtract(spawnLoc.toVector());
@@ -184,7 +184,6 @@ public class BukkitSpiritSceptreBatEffect extends Effect {
 
         ticks++;
         bat.teleport(loc);
-        loc.getWorld().spawnParticle(Particle.DUST, loc, 1, new DustOptions(Color.RED, 1.0f));
 
         if (ticks >= MAX_TICKS) {
             explode(caster, casterEntity);
@@ -224,10 +223,10 @@ public class BukkitSpiritSceptreBatEffect extends Effect {
         exploded = true;
         Location loc = bat != null && bat.isValid() ? bat.getLocation() : casterEntity.getLocation();
 
-        loc.getWorld().playSound(loc, Sound.ENTITY_GENERIC_EXPLODE, 1.0f, new Random().nextFloat(0.7f, 0.9f));
-        loc.getWorld().spawnParticle(Particle.EXPLOSION, loc, 1);
-        loc.getWorld().spawnParticle(Particle.DUST, loc, 20, 1.5, 1.5, 1.5, new DustOptions(Color.RED, 2.0f));
-
+        loc.getWorld().spawnParticle(Particle.EXPLOSION_EMITTER, loc, 1, 0.0, 0.0, 0.0, // Offsets (X, Y, Z)
+                0.0);
+        loc.getWorld().playSound(loc, Sound.ENTITY_GENERIC_EXPLODE, 1.0f, 1.0f);
+        
         long now = System.currentTimeMillis();
 //        double mana = caster.getStatEngineAdapter().getCurrentValue(StatType.MANA_MAX, now);
         double abilityPower = caster.getStatEngineAdapter().getCurrentValue(StatType.ABILITY_POWER, now);
@@ -260,8 +259,8 @@ public class BukkitSpiritSceptreBatEffect extends Effect {
         }
 
         cancel();
-        if (startCooldown != null) {
-            startCooldown.run();
+        if (cooldownSink != null) {
+            cooldownSink.startCooldown();
         }
     }
 

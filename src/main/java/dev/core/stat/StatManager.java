@@ -43,6 +43,13 @@ public class StatManager {
         if (statEngine != null) statEngine.invalidate();
     }
 
+    public void removeModifiersBySource(String sourceId) {
+        for (Stat stat : stats.values()) {
+            stat.removeModifiersBySource(sourceId);
+        }
+        if (statEngine != null) statEngine.invalidate();
+    }
+
     public void tick(long now) {
         for (Stat stat : stats.values()) {
             // removeExpired may alter modifier buckets; always invalidate engine for now

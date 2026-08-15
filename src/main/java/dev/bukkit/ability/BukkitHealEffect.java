@@ -1,6 +1,7 @@
 package dev.bukkit.ability;
 
 import dev.bukkit.entity.BukkitPlayerEntity;
+import dev.core.ability.CooldownSink;
 import dev.core.ability.Effect;
 import dev.core.entity.RPGEntity;
 
@@ -20,7 +21,7 @@ public class BukkitHealEffect extends Effect {
 	}
 
 	@Override
-	public void cast(RPGEntity caster, Runnable startCooldown, Runnable resetCooldown) {
+	public void cast(RPGEntity caster, CooldownSink cooldownSink) {
 		displayParticles(caster);
 	}
 

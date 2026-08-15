@@ -10,6 +10,7 @@ import dev.core.ability.AbilityAction;
 import dev.core.ability.AbilityRegistry;
 import dev.core.ability.AbilityTriggerType;
 import dev.core.ability.CooldownScope;
+import dev.core.ability.CooldownScaling;
 import dev.core.storage.config.ConfigProvider;
 import dev.core.storage.config.ConfigSection;
 
@@ -50,6 +51,9 @@ public class AbilityLoader {
 		ability.setScope(cooldownScope);
 		long cooldown = section.getInt("cooldown", 0);
 		ability.setCooldown(cooldown);
+		CooldownScaling cooldownScaling = CooldownScaling
+				.valueOf(section.getString("cooldownScaling", CooldownScaling.HASTE.name()));
+		ability.setCooldownScaling(cooldownScaling);
 		ability.setTargetsPlayer(section.getBoolean("targetsPlayer", true));
 		
 		return Optional.of(ability);

@@ -191,6 +191,13 @@ public abstract class RPGEntity {
             return new RPGDamageResult(DamageResult.DENY, 0);
         }
 
+        // No PvP: players must never damage each other through the RPG pipeline
+        // (ability AoE, bonemerang, spirit sceptre, melee translation, ...).
+        if (attacker != null && attacker.getEntityType() == EntityType.PLAYER
+                && target.getEntityType() == EntityType.PLAYER) {
+            return new RPGDamageResult(DamageResult.DENY, 0);
+        }
+
         boolean crit = false;
         double finalDamage = baseDamage;
 

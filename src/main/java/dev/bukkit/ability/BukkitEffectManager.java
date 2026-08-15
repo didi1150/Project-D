@@ -15,6 +15,8 @@ import dev.bukkit.item.BukkitItemStackAdapter;
 import dev.bukkit.utils.ManaDiscountUtils;
 import dev.core.ability.Ability;
 import dev.core.ability.CooldownScope;
+import dev.core.ability.CooldownScaling;
+import dev.core.ability.CooldownSink;
 import dev.core.ability.Effect;
 import dev.core.ability.EffectManagerInterface;
 import dev.core.entity.RPGEntity;
@@ -57,6 +59,8 @@ public class BukkitEffectManager implements EffectManagerInterface {
 			return null; // registry already logged the warning
 		}
 
+		CooldownSink cooldownSink = new BukkitCooldownSink(this, entity, ability, cooldownKey);
+
 		if (effect.isSingleInstance() && entity instanceof BukkitPlayerEntity) {
 			String effectKey = getEffectKey(entity, ability);
 			Map<String, List<Effect>> effectsByKey = activeEffects.computeIfAbsent(entity, k -> new HashMap<>());
@@ -72,17 +76,24 @@ public class BukkitEffectManager implements EffectManagerInterface {
 				effectsByKey.remove(effectKey);
 			}
 
-			boolean alreadyActive = effects.stream().anyMatch(e -> e.getClass() == effect.getClass());
+			// Single-instance effects are locked per EFFECT KEY (for ITEM-scoped
+			// abilities that is the item instance's UUID), so a second cast is
+			// refused only while the SAME key already has a live effect. Each
+			// bonemerang instance therefore holds its own single-instance slot:
+			// two different bonemerangs can be in flight at the same time, while
+			// re-casting the same item mid-flight is still refused. PLAYER-scoped
+			// abilities key by ability id, so their single-instance behavior is
+			// unchanged.
+			boolean alreadyActive = effects.stream()
+					.anyMatch(e -> e.getClass() == effect.getClass() && !e.hasExpired(now));
 
 			if (!alreadyActive) {
-				effect.cast(entity, () -> setCooldown(entity, ability, cooldownKey),
-						() -> reduceCooldown(entity, ability, ability.getCooldown(), cooldownKey));
+				effect.cast(entity, cooldownSink);
 			} else {
 				return effect;
 			}
 		} else {
-			effect.cast(entity, () -> setCooldown(entity, ability, cooldownKey), () -> {
-			});
+			effect.cast(entity, cooldownSink);
 		}
 
 		String effectKey = getEffectKey(entity, ability);
@@ -142,13 +153,21 @@ public class BukkitEffectManager implements EffectManagerInterface {
 	}
 
 	public long remainingCooldown(RPGEntity entity, Ability ability) {
+		return remainingCooldown(entity, getCooldownKey(entity, ability));
+	}
+
+	/**
+	 * Keyed lookup used by {@link BukkitCooldownSink}: the key was cached at
+	 * cast time, so it stays correct even if the caster swaps items while an
+	 * effect is active.
+	 */
+	public long remainingCooldown(RPGEntity entity, String key) {
 		Map<String, Long> entityCooldowns = cooldowns.get(entity);
 		if (entityCooldowns == null) {
 			return 0; // No cooldowns for this entity
 		}
 
-		String cooldownKey = getCooldownKey(entity, ability);
-		Long cooldownEnd = entityCooldowns.get(cooldownKey);
+		Long cooldownEnd = entityCooldowns.get(key);
 		if (cooldownEnd == null) {
 			return 0; // No cooldown for this specific ability
 		}
@@ -157,7 +176,10 @@ public class BukkitEffectManager implements EffectManagerInterface {
 		long remaining = Math.max(0, cooldownEnd - currentTime); // Return 0 if cooldown has expired
 		if (remaining == 0) {
 			// Remove from cooldown list if cooldowns expire
-			cooldowns.get(entity).remove(cooldownKey);
+			entityCooldowns.remove(key);
+			if (entityCooldowns.isEmpty()) {
+				cooldowns.remove(entity);
+			}
 		}
 		return remaining;
 	}
@@ -170,10 +192,34 @@ public class BukkitEffectManager implements EffectManagerInterface {
 	/**
 	 * Set the cooldown for an ability after it has been used
 	 */
-	private void setCooldown(RPGEntity entity, Ability ability, String key) {
+	void setCooldown(RPGEntity entity, Ability ability, String key) {
+		setCooldown(entity, ability, key, scaledCooldownMillis(entity, ability));
+	}
+
+	/**
+	 * Set a raw custom cooldown duration. No scaling is applied; the caller
+	 * owns any stat interaction (e.g. a shatter penalty).
+	 */
+	void setCooldown(RPGEntity entity, Ability ability, String key, long millis) {
 		Map<String, Long> entityCooldowns = cooldowns.computeIfAbsent(entity, k -> new HashMap<>());
-		long cooldownEnd = System.currentTimeMillis() + ability.getCooldown();
+		long cooldownEnd = System.currentTimeMillis() + millis;
 		entityCooldowns.put(key, cooldownEnd);
+	}
+
+	/**
+	 * Derive the actual cooldown duration from the configured value: abilities
+	 * with {@link CooldownScaling#HASTE} are shortened by the caster's
+	 * ABILITY_HASTE stat (base * 100 / (100 + haste)); {@code NONE} abilities
+	 * keep the configured duration as-is.
+	 */
+	private long scaledCooldownMillis(RPGEntity entity, Ability ability) {
+		long base = ability.getCooldown();
+		if (ability.getCooldownScaling() != CooldownScaling.HASTE) {
+			return base;
+		}
+		double haste = Math.max(0, entity.getStatEngineAdapter()
+				.getCurrentValue(StatType.ABILITY_HASTE, System.currentTimeMillis()));
+		return (long) (base * 100L / (100 + haste));
 	}
 
 	/**
@@ -205,9 +251,16 @@ public class BukkitEffectManager implements EffectManagerInterface {
 	 * Clear a specific ability cooldown for an entity
 	 */
 	public void clearCooldown(RPGEntity entity, Ability ability) {
+		clearCooldown(entity, getCooldownKey(entity, ability));
+	}
+
+	/**
+	 * Keyed variant used by {@link BukkitCooldownSink} so the cached cast-time
+	 * key is honored even if the caster's current item differs.
+	 */
+	public void clearCooldown(RPGEntity entity, String key) {
 		Map<String, Long> entityCooldowns = cooldowns.get(entity);
 		if (entityCooldowns != null) {
-			String key = getCooldownKey(entity, ability);
 			entityCooldowns.remove(key);
 			if (entityCooldowns.isEmpty()) {
 				cooldowns.remove(entity);

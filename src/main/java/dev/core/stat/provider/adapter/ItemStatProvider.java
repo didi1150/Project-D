@@ -7,6 +7,7 @@ import java.util.Map;
 import org.jetbrains.annotations.NotNull;
 import dev.core.entity.RPGEntity;
 import dev.core.item.RPGItem;
+import dev.core.item.equipment.EquipmentSlot;
 import dev.core.stat.adapter.StatTypeAdapter;
 import dev.core.stat.modifier.StatModifier;
 import dev.core.stat.provider.StatProvider;
@@ -22,8 +23,23 @@ public class ItemStatProvider implements StatProvider {
     private boolean isActive; // true if item is equipped
 
     public ItemStatProvider(@NotNull RPGItem item, boolean isActive) {
+        this(item, "item:" + item.getId(), isActive);
+    }
+
+    /**
+     * Slot-qualified variant: the provider id includes the slot, so the SAME
+     * item id equipped in two different slots (e.g. a weapon in main hand and
+     * off hand) registers two independent providers instead of colliding in the
+     * StatEngine (which throws on duplicate ids), and unequipping one slot
+     * removes only that slot's contribution.
+     */
+    public ItemStatProvider(@NotNull RPGItem item, @NotNull EquipmentSlot slot, boolean isActive) {
+        this(item, "item:" + slot.name() + ":" + item.getId(), isActive);
+    }
+
+    private ItemStatProvider(@NotNull RPGItem item, String providerId, boolean isActive) {
         this.item = item;
-        this.providerId = "item:" + item.getId();
+        this.providerId = providerId;
         this.isActive = isActive;
     }
 

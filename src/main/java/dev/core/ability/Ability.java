@@ -22,6 +22,12 @@ public abstract class Ability {
 	private AbilityAction action;
 	private CooldownScope scope;
 	private long cooldown;
+	/**
+	 * Whether the caster's ABILITY_HASTE stat shortens this ability's cooldown
+	 * ({@link CooldownScaling#HASTE}) or the configured cooldown is applied
+	 * as-is ({@link CooldownScaling#NONE}).
+	 */
+	private CooldownScaling cooldownScaling = CooldownScaling.HASTE;
 	private AbilityCost cost;
 	/**
 	 * Whether this ability, when cast by a mob, is aimed at players (e.g.

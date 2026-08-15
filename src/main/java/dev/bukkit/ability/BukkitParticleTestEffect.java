@@ -3,6 +3,7 @@ package dev.bukkit.ability;
 import org.bukkit.entity.Fireball;
 
 import dev.bukkit.entity.BukkitPlayerEntity;
+import dev.core.ability.CooldownSink;
 import dev.core.ability.Effect;
 import dev.core.entity.RPGEntity;
 
@@ -13,9 +14,9 @@ public class BukkitParticleTestEffect extends Effect {
     }
 
     @Override
-    public void cast(RPGEntity caster, Runnable startCooldown, Runnable resetCooldown) {
+    public void cast(RPGEntity caster, CooldownSink cooldownSink) {
         if (caster instanceof BukkitPlayerEntity playerEntity) {
-            startCooldown.run();
+            cooldownSink.startCooldown();
             playerEntity.getPlayer().get().playEffect(playerEntity.getPlayer().get().getLocation(),
                     org.bukkit.Effect.BLAZE_SHOOT, null);
             playerEntity.getPlayer().get().launchProjectile(Fireball.class);

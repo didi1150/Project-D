@@ -7,6 +7,7 @@ import java.util.UUID;
 
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.ItemStack;
+import org.bukkit.inventory.meta.ItemMeta;
 
 import dev.bukkit.item.BukkitItemStackAdapter;
 import dev.core.entity.EntityManager;
@@ -79,8 +80,12 @@ public class BukkitPlayerInventoryUpdater {
 
         ItemStack newStack = BukkitItemStackAdapter.toItemStack(item.get(),
                 EntityManager.getInstance().getEntity(player.getUniqueId()).orElse(null));
-        oldStack.getItemMeta().getPersistentDataContainer().copyTo(newStack.getItemMeta().getPersistentDataContainer(),
-                false);
+        // getItemMeta() returns a fresh copy per call: mutate ONE meta and write
+        // it back once, or the uuid copy targets a discarded copy and the fresh
+        // random uuid from toItemStack() sticks (re-keying ITEM-scoped effects).
+        ItemMeta newMeta = newStack.getItemMeta();
+        oldStack.getItemMeta().getPersistentDataContainer().copyTo(newMeta.getPersistentDataContainer(), true);
+        newStack.setItemMeta(newMeta);
 
         player.getInventory().setItem(slot, newStack);
     }

@@ -29,7 +29,7 @@ public class BukkitStatManager {
         this.statManager = statManager;
     }
 
-    public void tick(long now, Runnable onDeath) {
+    public void tick(long now, Runnable onDeath, double currentHealth, double maxHealth) {
         LivingEntity entity = (LivingEntity) Bukkit.getEntity(uuid);
         for (Entry<StatType, Stat> entry : statManager.getStats().entrySet()) {
             StatType type = entry.getKey();
@@ -52,8 +52,7 @@ public class BukkitStatManager {
             }
         }
 
-        updatePlayerVanillaHealth(statManager.getCurrentValue(StatType.HEALTH_RESOURCE, now),
-                statManager.getCurrentValue(StatType.HEALTH_MAX, now), onDeath);
+        updatePlayerVanillaHealth(currentHealth, maxHealth, onDeath);
     }
 
     private void stripVanillaItemModifiers(LivingEntity entity) {
@@ -99,9 +98,11 @@ public class BukkitStatManager {
             healthAttr.setBaseValue(vanillaHP);
         }
 
-        // Update current health proportionally
-        double healthPercentage = currentHealth / maxHealth;
-        double health = vanillaHP * healthPercentage;
+        // Update current health proportionally. current/max must come from the
+        // SAME source (the engine-aware values), otherwise a heal that used the
+        // engine max (e.g. +item health) is divided by the raw max and pushes
+        // the vanilla hp above its mapped maximum.
+        double health = vanillaHP * Math.min(1.0, currentHealth / maxHealth);
         if (health <= 0 || currentHealth <= 0) {
             onDeath.run();
         } else {

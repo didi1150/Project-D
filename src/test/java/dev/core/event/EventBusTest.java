@@ -84,7 +84,7 @@ public class EventBusTest {
 		// Reset counter
 		countInteger = 0;
 		// Send a PlayerJoinEvent → subscribed action decrements once
-		eventBus.sendEvent(new PlayerJoinEvent(null, Component.empty()));
+		eventBus.sendEvent(new PlayerJoinEvent(null, "join"));
 		assertEquals(-1, countInteger);
 
 		// Send a BlockBreakEvent → subscribed action adds 2

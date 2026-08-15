@@ -53,4 +53,12 @@ public final class StatEngineAdapter {
         manager.removeStatModifier(mod);
         engine.invalidate();
     }
+
+    /**
+     * Remove every modifier whose source id matches, across all stats.
+     */
+    public void removeModifiersBySource(String sourceId) {
+        manager.removeModifiersBySource(sourceId);
+        engine.invalidate();
+    }
 }

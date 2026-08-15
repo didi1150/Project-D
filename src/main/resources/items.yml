@@ -673,6 +673,18 @@ items:
       policy: STACK
     abilities:
     - GUIDED_BAT
+  SPINJITZU:
+    # The Iron Hopper: RIGHT CLICK summons a cyclone of spinning rings that
+    # pulls enemies into the wielder. The hopper itself can never be placed as
+    # a block (see EventListener.onBlockPlace).
+    unlockLevel: 0
+    name: Iron Hopper
+    material: HOPPER
+    slot: MAIN_HAND
+    passive-stats: []
+    active-stats: []
+    abilities:
+    - SPINJITZU
 
 # ---- Basic Archer Set (item set bonus: full 4/4 set) -----------------------
 # Full set passive: +10% projectile damage dealt (arrows, projectiles and the

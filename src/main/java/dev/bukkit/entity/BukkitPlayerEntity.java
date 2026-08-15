@@ -52,12 +52,17 @@ public class BukkitPlayerEntity extends RPGEntity {
         super.tick(now);
         if (isAlive()) {
             updateDisplay();
-            bukkitStatManager.tick(now, this::onDeath);
+            bukkitStatManager.tick(now, this::onDeath, getHealth(), getMaxHealth());
 //            BukkitInventorySync.syncInventoryDiff(this, player);
             this.inventoryContents = getPlayer().get().getInventory().getContents();
-            if (getEquipmentManager().hasSetPassive(HealAuraUtils.PASSIVE_ID) && now >= nextAuraHealAt) {
-                nextAuraHealAt = now + HealAuraUtils.HEAL_INTERVAL_MS;
-                HealAuraUtils.tick(this);
+            if (getEquipmentManager().hasSetPassive(HealAuraUtils.PASSIVE_ID)) {
+                // Ring is rendered every tick so the aura radius is always
+                // visible; the heal itself only fires on the 1s interval.
+                HealAuraUtils.renderRing(this);
+                if (now >= nextAuraHealAt) {
+                    nextAuraHealAt = now + HealAuraUtils.HEAL_INTERVAL_MS;
+                    HealAuraUtils.tick(this);
+                }
             }
         }
     }
