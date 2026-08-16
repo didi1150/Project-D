@@ -22,6 +22,17 @@
 #                   HEAD/CHEST/LEGS/FEET slots are armor: players may take one
 #                   piece per slot for free and it never counts against their
 #                   item limit. MAIN_HAND/OFF_HAND picks cost the item limit.
+#   itemType        Broad item category used by gameplay systems (e.g. bows
+#                   arm the unlimited-arrow mechanic). One of: SWORD, AXE, BOW,
+#                   STAFF, MISC, ORB, THROWABLE, SHIELD, HELMET, CHESTPLATE,
+#                   LEGGINGS, BOOTS (defaults to MISC). Future types will be
+#                   added here.
+#   requiresArrows  Whether holding this item arms the unlimited-arrows
+#                   mechanic (a hidden arrow stack is kept in the inventory
+#                   while it is held so vanilla shooting never runs dry).
+#                   Defaults to TRUE for itemType: BOW, false otherwise;
+#                   special bows that fire without arrows (e.g. the Bonemerang)
+#                   explicitly set it to false.
 #   unlockLevel     Minimum player level (active class) needed to obtain the
 #                   item. 0 or absent = no requirement. Items a player has not
 #                   unlocked yet appear as locked barrier stacks in the shop.
@@ -89,6 +100,7 @@
 #     name: My Sword
 #     material: IRON_SWORD
 #     slot: MAIN_HAND
+#     itemType: SWORD
 #     unlockLevel: 3
 #     allowed-classes: [TANK]
 #     passive-stats:
@@ -123,6 +135,7 @@ items:
     name: Tank Helmet
     material: LEATHER_HELMET
     slot: HEAD
+    itemType: HELMET
     unlockLevel: 0
     allowed-classes:
     - TANK
@@ -145,6 +158,7 @@ items:
     name: Tank Chestplate
     material: LEATHER_CHESTPLATE
     slot: CHEST
+    itemType: CHESTPLATE
     unlockLevel: 0
     allowed-classes:
     - TANK
@@ -167,6 +181,7 @@ items:
     name: Tank Leggings
     material: LEATHER_LEGGINGS
     slot: LEGS
+    itemType: LEGGINGS
     unlockLevel: 0
     allowed-classes:
     - TANK
@@ -189,6 +204,7 @@ items:
     name: Tank Boots
     material: LEATHER_BOOTS
     slot: FEET
+    itemType: BOOTS
     unlockLevel: 0
     allowed-classes:
     - TANK
@@ -219,6 +235,7 @@ items:
     name: Assassin Hood
     material: LEATHER_HELMET
     slot: HEAD
+    itemType: HELMET
     unlockLevel: 0
     allowed-classes:
     - ASSASSIN
@@ -241,6 +258,7 @@ items:
     name: Assassin Tunic
     material: LEATHER_CHESTPLATE
     slot: CHEST
+    itemType: CHESTPLATE
     unlockLevel: 0
     allowed-classes:
     - ASSASSIN
@@ -263,6 +281,7 @@ items:
     name: Assassin Leggings
     material: LEATHER_LEGGINGS
     slot: LEGS
+    itemType: LEGGINGS
     unlockLevel: 0
     allowed-classes:
     - ASSASSIN
@@ -285,6 +304,7 @@ items:
     name: Assassin Boots
     material: LEATHER_BOOTS
     slot: FEET
+    itemType: BOOTS
     unlockLevel: 0
     allowed-classes:
     - ASSASSIN
@@ -311,6 +331,7 @@ items:
     material: LEATHER_HELMET
     leather-color: 0
     slot: HEAD
+    itemType: HELMET
     unlockLevel: 0
     allowed-classes:
     - ARCHER
@@ -334,6 +355,7 @@ items:
     material: LEATHER_CHESTPLATE
     leather-color: 15155516
     slot: CHEST
+    itemType: CHESTPLATE
     unlockLevel: 0
     allowed-classes:
     - ARCHER
@@ -357,6 +379,7 @@ items:
     material: LEATHER_LEGGINGS
     leather-color: 15162428
     slot: LEGS
+    itemType: LEGGINGS
     unlockLevel: 0
     allowed-classes:
     - ARCHER
@@ -380,6 +403,7 @@ items:
     leather-color: 15167036
     material: LEATHER_BOOTS
     slot: FEET
+    itemType: BOOTS
     unlockLevel: 0
     allowed-classes:
     - ARCHER
@@ -406,6 +430,7 @@ items:
     material: LEATHER_HELMET
     leather-color: 0x000000
     slot: HEAD
+    itemType: HELMET
     unlockLevel: 0
     allowed-classes:
     - MAGE
@@ -429,6 +454,7 @@ items:
     name: Mage Robe
     material: LEATHER_CHESTPLATE
     slot: CHEST
+    itemType: CHESTPLATE
     unlockLevel: 0
     allowed-classes:
     - MAGE
@@ -452,6 +478,7 @@ items:
     name: Mage Leggings
     material: LEATHER_LEGGINGS
     slot: LEGS
+    itemType: LEGGINGS
     unlockLevel: 0
     allowed-classes:
     - MAGE
@@ -475,6 +502,7 @@ items:
     name: Mage Boots
     material: LEATHER_BOOTS
     slot: FEET
+    itemType: BOOTS
     unlockLevel: 0
     allowed-classes:
     - MAGE
@@ -505,6 +533,7 @@ items:
     name: Support Hood
     material: LEATHER_HELMET
     slot: HEAD
+    itemType: HELMET
     unlockLevel: 0
     allowed-classes:
     - SUPPORT
@@ -527,6 +556,7 @@ items:
     name: Support Tunic
     material: LEATHER_CHESTPLATE
     slot: CHEST
+    itemType: CHESTPLATE
     unlockLevel: 0
     allowed-classes:
     - SUPPORT
@@ -549,6 +579,7 @@ items:
     name: Support Leggings
     material: LEATHER_LEGGINGS
     slot: LEGS
+    itemType: LEGGINGS
     unlockLevel: 0
     allowed-classes:
     - SUPPORT
@@ -571,6 +602,7 @@ items:
     name: Support Boots
     material: LEATHER_BOOTS
     slot: FEET
+    itemType: BOOTS
     unlockLevel: 0
     allowed-classes:
     - SUPPORT
@@ -591,13 +623,40 @@ items:
     abilities: []
   
   # ---- Weapons & misc ----------------------------------------------------------
+  BASIC_BOW:
+    # Plain Bow
+    unlockLevel: 0
+    name: Basic Bow
+    material: BOW
+    slot: MAIN_HAND
+    itemType: BOW
+    requiresArrows: true
+    passive-stats: []
+    allowed-classes:
+    - ARCHER
+    active-stats:
+    - amount: 10.0
+      statType: ATTACK_DAMAGE
+      modifierType: FLAT
+      statTarget: BOTH
+      policy: STACK
+    - amount: 10.0
+      statType: CRIT_CHANCE
+      modifierType: FLAT
+      statTarget: BOTH
+      policy: STACK
+    abilities: []
   BONEMERANG:
     # Plain main-hand weapon: unlockLevel 1 means players need level 1+ to
-    # buy it; below that it shows as a locked barrier in the shop.
+    # buy it; below that it shows as a locked barrier in the shop. A BOW-typed
+    # item, but a special bow: it fires its own bone projectile, so it never
+    # arms the hidden arrow stack (requiresArrows: false).
     unlockLevel: 0
     name: Bonemerang
     material: BONE
     slot: MAIN_HAND
+    itemType: BOW
+    requiresArrows: false
     passive-stats: []
     allowed-classes:
     - ARCHER
@@ -614,6 +673,7 @@ items:
     name: Aspect of the Dragon
     material: DIAMOND_SWORD
     slot: MAIN_HAND
+    itemType: SWORD
     passive-stats: []
     active-stats:
     - amount: 69.0
@@ -629,6 +689,7 @@ items:
     name: Admin Chestplate
     material: DIAMOND_CHESTPLATE
     slot: CHEST
+    itemType: CHESTPLATE
     passive-stats: []
     active-stats:
     - amount: 1000.0
@@ -643,6 +704,7 @@ items:
     name: Monster Bone
     material: BONE
     slot: MAIN_HAND
+    itemType: MISC
     usage: mob_only
     allowed-classes: []
     passive-stats: []
@@ -657,6 +719,7 @@ items:
     name: Spirit Sceptre
     material: ALLIUM
     slot: MAIN_HAND
+    itemType: STAFF
     passive-stats: []
     allowed-classes:
     - MAGE
@@ -681,6 +744,7 @@ items:
     name: Iron Hopper
     material: HOPPER
     slot: MAIN_HAND
+    itemType: MISC
     passive-stats: []
     active-stats: []
     abilities:

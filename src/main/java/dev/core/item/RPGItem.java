@@ -35,6 +35,8 @@ public class RPGItem {
     private final Optional<Integer> leatherColor;
     private final Optional<String> skullOwner;
     private final Optional<String> skullTexture;
+    private final ItemType itemType;
+    private final boolean requiresArrows;
 
     private RPGItem(Builder builder) {
         this.id = builder.id;
@@ -53,6 +55,8 @@ public class RPGItem {
         this.leatherColor = builder.leatherColor;
         this.skullOwner = builder.skullOwner;
         this.skullTexture = builder.skullTexture;
+        this.itemType = builder.itemType;
+        this.requiresArrows = builder.requiresArrows;
     }
 
     public RPGItem(String id, String name, String material, EquipmentSlot equipmentSlot,
@@ -182,6 +186,10 @@ public class RPGItem {
         skullOwner.ifPresent(owner -> data.put("skull-owner", owner));
         skullTexture.ifPresent(texture -> data.put("skull-texture", texture));
 
+        // Classification
+        data.put("itemType", itemType.name());
+        data.put("requiresArrows", requiresArrows);
+
         return data;
     }
 
@@ -251,6 +259,25 @@ public class RPGItem {
             usage = ItemUsage.MOB_ONLY;
         }
         builder.usage(usage);
+
+        // Item type with BOW automatically requiring arrows unless overridden
+        // (e.g. the Bonemerang is a bow that fires without arrows).
+        ItemType itemType = ItemType.MISC;
+        if (data.get("itemType") instanceof String typeRaw) {
+            try {
+                itemType = ItemType.valueOf(typeRaw.trim().toUpperCase());
+            } catch (IllegalArgumentException ignored) {
+                // fall through to MISC
+            }
+        }
+        builder.withItemType(itemType);
+        boolean requiresArrows = itemType == ItemType.BOW;
+        if (data.get("requiresArrows") instanceof Boolean raw) {
+            requiresArrows = raw;
+        } else if (data.get("requiresArrows") instanceof String s) {
+            requiresArrows = Boolean.parseBoolean(s.trim());
+        }
+        builder.requiresArrows(requiresArrows);
 
         // Description
         if (data.containsKey("description")) {
@@ -361,6 +388,23 @@ public class RPGItem {
 
     public String getMaterial() {
         return material;
+    }
+
+    /**
+     * Broad item category (SWORD, AXE, BOW, ...). Defaults to {@code MISC}.
+     */
+    public ItemType getItemType() {
+        return itemType;
+    }
+
+    /**
+     * Whether holding this item arms the unlimited-arrows mechanic: a BOW-typed
+     * item normally requires an arrow stack in the player's inventory to fire.
+     * Special bows (e.g. the Bonemerang, which fires its own bone projectile)
+     * set this to false.
+     */
+    public boolean requiresArrows() {
+        return requiresArrows;
     }
 
     /**
@@ -516,6 +560,8 @@ public class RPGItem {
         private Optional<Integer> leatherColor = Optional.empty();
         private Optional<String> skullOwner = Optional.empty();
         private Optional<String> skullTexture = Optional.empty();
+        private ItemType itemType = ItemType.MISC;
+        private boolean requiresArrows = false;
 
         public Builder(String id, String name, EquipmentSlot equipmentSlot) {
             this.id = id;
@@ -620,6 +666,23 @@ public class RPGItem {
 
         public Builder usage(ItemUsage usage) {
             this.usage = usage != null ? usage : ItemUsage.BOTH;
+            return this;
+        }
+
+        /** Sets the broad item category (defaults to {@link ItemType#MISC}). */
+        public Builder withItemType(ItemType itemType) {
+            this.itemType = itemType != null ? itemType : ItemType.MISC;
+            return this;
+        }
+
+        /**
+         * Whether holding this item should arm the unlimited-arrows mechanic.
+         * The loader defaults this to {@code true} for BOW-typed items; the
+         * builder default is {@code false} so programmatically created items
+         * never unexpectedly gain the mechanic.
+         */
+        public Builder requiresArrows(boolean requiresArrows) {
+            this.requiresArrows = requiresArrows;
             return this;
         }
 

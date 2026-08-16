@@ -17,6 +17,7 @@ import org.bukkit.event.entity.EntityExplodeEvent;
 import org.bukkit.event.entity.EntityPickupItemEvent;
 import org.bukkit.event.entity.EntityPortalEvent;
 import org.bukkit.event.entity.EntityRegainHealthEvent;
+import org.bukkit.event.entity.EntityShootBowEvent;
 import org.bukkit.event.entity.EntityTargetLivingEntityEvent;
 import org.bukkit.event.entity.FoodLevelChangeEvent;
 import org.bukkit.event.entity.PlayerDeathEvent;
@@ -79,6 +80,7 @@ public class EventBusRegistry {
             new Reg(CreatureSpawnEvent.class, EventPriority.NORMAL, false),
             new Reg(PortalCreateEvent.class, EventPriority.NORMAL, false),
             new Reg(EntityPortalEvent.class, EventPriority.NORMAL, false),
+            new Reg(EntityShootBowEvent.class, EventPriority.NORMAL, false),
             new Reg(AsyncPlayerChatEvent.class, EventPriority.NORMAL, false));
 
     public static void registerAll(Plugin plugin) {

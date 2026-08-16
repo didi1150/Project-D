@@ -121,6 +121,10 @@ public class BukkitLoreRenderer implements RPGItemLoreRenderer {
 			});
 		});
 
+		// --- Level / type ---
+		lore.add(ChatColor.GOLD.toString() + ChatColor.BOLD + "LEVEL " + item.getUnlockLevel() + ": "
+				+ item.getItemType().name() + " ITEM");
+
 		return lore;
 	}
 

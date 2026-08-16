@@ -18,6 +18,7 @@ import org.junit.jupiter.api.Test;
 
 import dev.core.ability.Ability;
 import dev.core.ability.AbilityRegistry;
+import dev.core.item.ItemType;
 import dev.core.item.RPGItem;
 import dev.core.item.equipment.EquipmentSlot;
 import dev.core.stat.StatType;
@@ -262,6 +263,125 @@ class RPGItemLoaderTest {
         assertEquals(0xFF0000, RPGItem.parseRgbColor(16711680));
         assertEquals(null, RPGItem.parseRgbColor("garbage"));
         assertEquals(null, RPGItem.parseRgbColor(null));
+    }
+
+    @Test
+    void load_readsItemType() {
+        TestConfigProvider provider = new TestConfigProvider();
+        ConfigSection itemSection = provider.getRoot().getSection("items.TEST_BOW");
+        itemSection.set("name", "Test Bow");
+        itemSection.set("material", "BOW");
+        itemSection.set("slot", "MAIN_HAND");
+        itemSection.set("itemType", "BOW");
+
+        RPGItem item = RPGItemLoader.load("TEST_BOW", itemSection);
+
+        assertEquals(ItemType.BOW, item.getItemType());
+    }
+
+    @Test
+    void load_itemTypeDefaultsToMisc() {
+        TestConfigProvider provider = new TestConfigProvider();
+        ConfigSection itemSection = provider.getRoot().getSection("items.TEST_ITEM");
+        itemSection.set("name", "Test Item");
+        itemSection.set("material", "STICK");
+        itemSection.set("slot", "MAIN_HAND");
+
+        RPGItem item = RPGItemLoader.load("TEST_ITEM", itemSection);
+
+        assertEquals(ItemType.MISC, item.getItemType());
+        assertFalse(item.requiresArrows());
+    }
+
+    @Test
+    void load_invalidItemTypeFallsBackToMiscWithWarning() {
+        TestConfigProvider provider = new TestConfigProvider();
+        ConfigSection itemSection = provider.getRoot().getSection("items.TEST_ITEM");
+        itemSection.set("name", "Test Item");
+        itemSection.set("material", "STICK");
+        itemSection.set("slot", "MAIN_HAND");
+        itemSection.set("itemType", "BLASTER");
+
+        ByteArrayOutputStream buffer = new ByteArrayOutputStream();
+        System.setOut(new PrintStream(buffer));
+        RPGItem item = RPGItemLoader.load("TEST_ITEM", itemSection);
+
+        assertEquals(ItemType.MISC, item.getItemType());
+        assertTrue(buffer.toString().contains("BLASTER"),
+                "expected a warning naming the unknown item type, got: " + buffer);
+    }
+
+    @Test
+    void load_bowRequiresArrowsByDefaultAndCanOptOut() {
+        TestConfigProvider provider = new TestConfigProvider();
+        ConfigSection bowSection = provider.getRoot().getSection("items.NORMAL_BOW");
+        bowSection.set("name", "Normal Bow");
+        bowSection.set("material", "BOW");
+        bowSection.set("slot", "MAIN_HAND");
+        bowSection.set("itemType", "BOW");
+
+        RPGItem bow = RPGItemLoader.load("NORMAL_BOW", bowSection);
+        assertTrue(bow.requiresArrows(), "a BOW item defaults to requiring arrows");
+
+        ConfigSection specialSection = provider.getRoot().getSection("items.SPECIAL_BOW");
+        specialSection.set("name", "Special Bow");
+        specialSection.set("material", "BONE");
+        specialSection.set("slot", "MAIN_HAND");
+        specialSection.set("itemType", "BOW");
+        specialSection.set("requiresArrows", false);
+
+        RPGItem special = RPGItemLoader.load("SPECIAL_BOW", specialSection);
+        assertEquals(ItemType.BOW, special.getItemType());
+        assertFalse(special.requiresArrows(), "explicit requiresArrows: false must be honoured");
+    }
+
+    @Test
+    void saveItem_writesItemTypeAndRequiresArrows() {
+        TestConfigProvider provider = new TestConfigProvider();
+        RPGItem item = RPGItem.builder("TEST_SWORD", "Test Sword", EquipmentSlot.MAIN_HAND)
+                .withMaterial("IRON_SWORD")
+                .withItemType(ItemType.SWORD)
+                .withUnlockLevel(5)
+                .build();
+
+        RPGItemLoader.saveItem(provider, item);
+
+        ConfigSection saved = provider.getRoot().getSection("items").getSection("TEST_SWORD");
+        assertEquals("SWORD", saved.getString("itemType", null));
+        assertEquals("false", saved.getString("requiresArrows", null));
+    }
+
+    @Test
+    void deserialize_roundTripsItemTypeAndRequiresArrows() {
+        RPGItem bow = RPGItem.builder("BONEMERANG", "Bonemerang", "BONE", EquipmentSlot.MAIN_HAND)
+                .withItemType(ItemType.BOW)
+                .requiresArrows(false)
+                .build();
+
+        RPGItem restored = RPGItem.deserialize("BONEMERANG", bow.serialize());
+
+        assertEquals(ItemType.BOW, restored.getItemType());
+        assertFalse(restored.requiresArrows());
+    }
+
+    @Test
+    void deserialize_bowDefaultsToRequiringArrowsWhenKeyAbsent() {
+        RPGItem plainBow = RPGItem.builder("NORMAL_BOW", "Normal Bow", "BOW", EquipmentSlot.MAIN_HAND)
+                .withItemType(ItemType.BOW)
+                .build();
+        Map<String, Object> data = plainBow.serialize();
+        data.remove("requiresArrows");
+
+        RPGItem restored = RPGItem.deserialize("NORMAL_BOW", data);
+
+        assertEquals(ItemType.BOW, restored.getItemType());
+        assertTrue(restored.requiresArrows(), "a BOW item without the key defaults to requiring arrows");
+
+        RPGItem misc = RPGItem.builder("MISC_ITEM", "Misc Item", "STICK", EquipmentSlot.MAIN_HAND).build();
+        Map<String, Object> miscData = misc.serialize();
+        miscData.remove("requiresArrows");
+        assertFalse(RPGItem.deserialize("MISC_ITEM", miscData).requiresArrows(),
+                "non-bow items without the key default to not requiring arrows");
     }
 
     /** Minimal ability impl for registry test. */

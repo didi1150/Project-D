@@ -7,6 +7,8 @@ import org.bukkit.ChatColor;
 import org.bukkit.GameMode;
 import org.bukkit.entity.Player;
 import org.bukkit.event.entity.EntityPickupItemEvent;
+import org.bukkit.event.entity.EntityShootBowEvent;
+import org.bukkit.event.entity.PlayerDeathEvent;
 import org.bukkit.event.inventory.InventoryClickEvent;
 import org.bukkit.event.inventory.InventoryCloseEvent;
 import org.bukkit.event.inventory.InventoryDragEvent;
@@ -16,6 +18,7 @@ import org.bukkit.event.player.PlayerInteractEvent;
 import org.bukkit.event.player.PlayerItemHeldEvent;
 import org.bukkit.event.player.PlayerJoinEvent;
 import org.bukkit.event.player.PlayerMoveEvent;
+import org.bukkit.event.player.PlayerQuitEvent;
 import org.bukkit.event.player.PlayerRespawnEvent;
 import org.bukkit.event.player.PlayerSwapHandItemsEvent;
 import org.bukkit.event.player.PlayerToggleSneakEvent;
@@ -30,6 +33,7 @@ import com.comphenix.protocol.events.PacketAdapter;
 import com.comphenix.protocol.events.PacketEvent;
 
 import dev.bukkit.entity.BukkitPlayerEntity;
+import dev.bukkit.item.BowArrowManager;
 import dev.bukkit.item.BukkitInventorySync;
 import dev.bukkit.item.BukkitItemStackAdapter;
 import dev.bukkit.utils.BukkitMessageSender;
@@ -68,6 +72,7 @@ public class PlayerSubscriber {
         subscribePickup();
         subscribeDropItem();
         subscribeSpectator();
+        subscribeBow();
     }
 
     public void subscribeJoin() {
@@ -325,6 +330,43 @@ public class PlayerSubscriber {
                 refreshLore(player);
             }
         }, PlayerDropItemEvent.class));
+    }
+
+    /**
+     * Unlimited-arrows groundwork: keeps a hidden arrow stack in the player's
+     * main inventory while they hold a bow that requires arrows, refreshes it
+     * after each shot, and restores any overridden slot once the bow is put
+     * away, on death, or on quit.
+     */
+    public void subscribeBow() {
+        eventBus.subscribe(new EventAction<>(event -> {
+            BowArrowManager.onSlotSwap(event.getPlayer(), event.getNewSlot());
+        }, PlayerItemHeldEvent.class));
+
+        eventBus.subscribe(new EventAction<>(event -> {
+            if (event.getEntity() instanceof Player player) {
+                // Vanilla consumes the arrow after the event; defer the refresh
+                // so the stack is topped back up once the shot completes.
+                Bukkit.getScheduler().runTask(plugin, () -> BowArrowManager.onShoot(player));
+            }
+        }, EntityShootBowEvent.class));
+
+        eventBus.subscribe(new EventAction<>(event -> {
+            if (event.getPlayer() instanceof Player player) {
+                // PlayerSwapHandItemsEvent fires before the swap is applied.
+                Bukkit.getScheduler().runTask(plugin, () -> BowArrowManager.onSwapHands(player));
+            }
+        }, PlayerSwapHandItemsEvent.class));
+
+        eventBus.subscribe(new EventAction<>(event -> {
+            BowArrowManager.onCleanup(event.getPlayer());
+        }, PlayerQuitEvent.class));
+
+        eventBus.subscribe(new EventAction<>(event -> {
+            if (event.getEntity() instanceof Player player) {
+                BowArrowManager.onCleanup(player);
+            }
+        }, PlayerDeathEvent.class));
     }
 
     /**

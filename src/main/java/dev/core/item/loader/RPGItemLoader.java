@@ -11,6 +11,7 @@ import dev.core.ability.SetBonus;
 import dev.core.ability.passive.SetPassive;
 import dev.core.ability.passive.SetPassiveRegistry;
 import dev.core.entity.rpgclass.RPGClassType;
+import dev.core.item.ItemType;
 import dev.core.item.ItemUsage;
 import dev.core.item.RPGItem;
 import dev.core.item.RPGItemSet;
@@ -140,13 +141,38 @@ public class RPGItemLoader {
             usage = mobOnly ? ItemUsage.MOB_ONLY : ItemUsage.BOTH;
         }
 
+        ItemType itemType = parseItemType(id, section.getString("itemType", null));
+        // A bow normally needs arrows; itemType is parsed first so the default
+        // below can key off it. Special bows (e.g. the Bonemerang) opt out.
+        boolean requiresArrows = itemType == ItemType.BOW;
+        if (section.getString("requiresArrows", null) != null) {
+            requiresArrows = section.getBoolean("requiresArrows", requiresArrows);
+        }
+
         return RPGItem.builder(id, name, slot).withMaterial(material).withPassiveStats(passive).withActiveStats(active)
                 .withAbilities(abilities).withRpgClassType(classType).withUnlockLevel(unlockLevel)
                 .withAllowedClasses(allowedClasses).usage(usage)
+                .withItemType(itemType).requiresArrows(requiresArrows)
                 .withLeatherColor(RPGItem.parseRgbColor(section.getString("leather-color", null)))
                 .withSkullOwner(section.getString("skull-owner", null))
                 .withSkullTexture(section.getString("skull-texture", null))
                 .build();
+    }
+
+    /**
+     * Parses the {@code itemType} config key; unknown values fall back to
+     * {@link ItemType#MISC} with a warning.
+     */
+    private static ItemType parseItemType(String itemId, String raw) {
+        if (raw == null) {
+            return ItemType.MISC;
+        }
+        try {
+            return ItemType.valueOf(raw.trim().toUpperCase());
+        } catch (IllegalArgumentException e) {
+            System.out.println("Unknown item type '" + raw + "' for item " + itemId + "; defaulting to MISC.");
+            return ItemType.MISC;
+        }
     }
 
     /**
@@ -212,6 +238,8 @@ public class RPGItemLoader {
 
             section.set("classType", item.getRpgClassType().name());
             section.set("unlockLevel", item.getUnlockLevel());
+            section.set("itemType", item.getItemType().name());
+            section.set("requiresArrows", item.requiresArrows());
             if (!item.getAllowedClasses().isEmpty()) {
                 section.set("allowed-classes", item.getAllowedClasses().stream().map(Enum::name).toList());
             }
@@ -264,6 +292,8 @@ public class RPGItemLoader {
         
         section.set("classType", item.getRpgClassType().name());
         section.set("unlockLevel", item.getUnlockLevel());
+        section.set("itemType", item.getItemType().name());
+        section.set("requiresArrows", item.requiresArrows());
         if (!item.getAllowedClasses().isEmpty()) {
             section.set("allowed-classes", item.getAllowedClasses().stream().map(Enum::name).toList());
         }
