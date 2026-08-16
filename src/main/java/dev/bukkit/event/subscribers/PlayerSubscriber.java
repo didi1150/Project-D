@@ -6,6 +6,7 @@ import org.bukkit.Bukkit;
 import org.bukkit.ChatColor;
 import org.bukkit.GameMode;
 import org.bukkit.entity.Player;
+import org.bukkit.entity.Projectile;
 import org.bukkit.event.entity.EntityPickupItemEvent;
 import org.bukkit.event.entity.EntityShootBowEvent;
 import org.bukkit.event.entity.PlayerDeathEvent;
@@ -18,6 +19,7 @@ import org.bukkit.event.player.PlayerInteractEvent;
 import org.bukkit.event.player.PlayerItemHeldEvent;
 import org.bukkit.event.player.PlayerJoinEvent;
 import org.bukkit.event.player.PlayerMoveEvent;
+import org.bukkit.event.player.PlayerPickupArrowEvent;
 import org.bukkit.event.player.PlayerQuitEvent;
 import org.bukkit.event.player.PlayerRespawnEvent;
 import org.bukkit.event.player.PlayerSwapHandItemsEvent;
@@ -336,7 +338,11 @@ public class PlayerSubscriber {
      * Unlimited-arrows groundwork: keeps a hidden arrow stack in the player's
      * main inventory while they hold a bow that requires arrows, refreshes it
      * after each shot, and restores any overridden slot once the bow is put
-     * away, on death, or on quit.
+     * away, on death, or on quit. The planted stack is locked down: it cannot
+     * be dropped or moved in the inventory, and ground arrows (item entities
+     * and stuck arrow entities) can never be picked back up — the mechanic is
+     * the only arrow source. Bounce-marked arrows ({@code BOUNCE_KEY}) stay
+     * recoverable for a future bounce ability.
      */
     public void subscribeBow() {
         eventBus.subscribe(new EventAction<>(event -> {
@@ -344,10 +350,12 @@ public class PlayerSubscriber {
         }, PlayerItemHeldEvent.class));
 
         eventBus.subscribe(new EventAction<>(event -> {
-            if (event.getEntity() instanceof Player player) {
+            if (event.getEntity() instanceof Player player
+                    && event.getProjectile() instanceof Projectile projectile) {
                 // Vanilla consumes the arrow after the event; defer the refresh
                 // so the stack is topped back up once the shot completes.
-                Bukkit.getScheduler().runTask(plugin, () -> BowArrowManager.onShoot(player));
+                Bukkit.getScheduler().runTask(plugin,
+                        () -> BowArrowManager.onShoot(player, projectile));
             }
         }, EntityShootBowEvent.class));
 
@@ -367,6 +375,55 @@ public class PlayerSubscriber {
                 BowArrowManager.onCleanup(player);
             }
         }, PlayerDeathEvent.class));
+
+        // Bow-mode inventory lockdown: the temporary arrow stack planted while
+        // holding a bow cannot be dropped or moved, and ground arrows can never
+        // be picked up by anyone (the mechanic is the only arrow source) —
+        // except bounce-marked arrows, which a future bounce ability recovers.
+        eventBus.subscribe(new EventAction<>(event -> {
+            if (event.getWhoClicked() instanceof Player player
+                    && ((event.getClickedInventory() == player.getInventory()
+                            && BowArrowManager.isPlantedArrowSlot(player, event.getSlot()))
+                            || BowArrowManager.isPlantedArrows(player, event.getCursor()))) {
+                event.setCancelled(true);
+            }
+        }, InventoryClickEvent.class));
+
+        eventBus.subscribe(new EventAction<>(event -> {
+            if (event.getWhoClicked() instanceof Player player) {
+                for (int slot : event.getInventorySlots()) {
+                    if (BowArrowManager.isPlantedArrowSlot(player, slot)) {
+                        event.setCancelled(true);
+                        break;
+                    }
+                }
+            }
+        }, InventoryDragEvent.class));
+
+        eventBus.subscribe(new EventAction<>(event -> {
+            Player player = event.getPlayer();
+            if (player != null && BowArrowManager.isPlantedArrows(player, event.getItemDrop().getItemStack())) {
+                event.setCancelled(true);
+            }
+        }, PlayerDropItemEvent.class));
+
+        eventBus.subscribe(new EventAction<>(event -> {
+            if (event.getEntity() instanceof Player player) {
+                ItemStack stack = event.getItem().getItemStack();
+                if (BowArrowManager.isArrowMaterial(stack.getType())
+                        && !BowArrowManager.isBounceArrow(stack)) {
+                    event.setCancelled(true);
+                }
+            }
+        }, EntityPickupItemEvent.class));
+
+        eventBus.subscribe(new EventAction<>(event -> {
+            if (event.getItem() != null
+                    && BowArrowManager.isArrowMaterial(event.getItem().getItemStack().getType())
+                    && !BowArrowManager.isBounceArrow(event.getArrow())) {
+                event.setCancelled(true);
+            }
+        }, PlayerPickupArrowEvent.class));
     }
 
     /**

@@ -33,6 +33,7 @@ import org.bukkit.event.player.PlayerInteractEvent;
 import org.bukkit.event.player.PlayerItemHeldEvent;
 import org.bukkit.event.player.PlayerJoinEvent;
 import org.bukkit.event.player.PlayerMoveEvent;
+import org.bukkit.event.player.PlayerPickupArrowEvent;
 import org.bukkit.event.player.PlayerPortalEvent;
 import org.bukkit.event.player.PlayerQuitEvent;
 import org.bukkit.event.player.PlayerSwapHandItemsEvent;
@@ -81,6 +82,7 @@ public class EventBusRegistry {
             new Reg(PortalCreateEvent.class, EventPriority.NORMAL, false),
             new Reg(EntityPortalEvent.class, EventPriority.NORMAL, false),
             new Reg(EntityShootBowEvent.class, EventPriority.NORMAL, false),
+            new Reg(PlayerPickupArrowEvent.class, EventPriority.NORMAL, false),
             new Reg(AsyncPlayerChatEvent.class, EventPriority.NORMAL, false));
 
     public static void registerAll(Plugin plugin) {

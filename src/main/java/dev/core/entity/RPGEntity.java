@@ -241,10 +241,13 @@ public abstract class RPGEntity {
     }
 
     /**
-     * Hook for the vanilla hurt reaction after a landed RPG hit. Overridden by
-     * Bukkit subclasses to {@code damage()} the backing entity with a negligible
-     * amount so Minecraft plays the full hit reaction (hurt flash + sound + slight
-     * knockback). Only called when the target is not immune.
+     * Hook for extra effect on a landed RPG hit (particles, sounds, ...).
+     * Overridden by Bukkit subclasses. IMPORTANT: implementations must NOT
+     * apply vanilla damage to the backing entity — a reentrant hurt re-seeds
+     * Minecraft's damage-immunity window (invulnerableTime/lastHurt) while the
+     * outer hit is still resolving, so the outer hit's own denial check then
+     * fails and projectiles bounce off the target. Only called when the target
+     * is not immune.
      */
     protected void playHitReaction(RPGEntity attacker) {
     }

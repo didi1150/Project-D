@@ -124,11 +124,13 @@ public class CancelSubscriber {
             else {
                 LivingEntity entity = event.getEntity();
                 if (entity.isInvisible() || entity.hasMetadata(BukkitSpiritSceptreBatEffect.METADATA)) {
-                    return; // summoned projectiles (e.g. the Spirit Sceptre bat) get no level/health nametag
+                    return; // summoned projectiles (e.g. the Spirit Sceptre bat) get no level/health
+                            // nametag
                 }
                 VanillaEntityMeta meta = new VanillaEntityMeta(1, BukkitEntityFactory.getRelation(entity));
                 // Store metadata
                 entity.setMetadata("VANILLA_META", new FixedMetadataValue(plugin, meta));
+                entity.setNoDamageTicks(0);
                 // Set initial custom name
                 DamageUtils.updateName(entity);
             }

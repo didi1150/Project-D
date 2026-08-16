@@ -21,11 +21,13 @@ import org.bukkit.event.Listener;
 import org.bukkit.event.entity.EntityDamageByEntityEvent;
 import org.bukkit.event.entity.EntityDamageEvent;
 import org.bukkit.event.entity.EntityDamageEvent.DamageCause;
+import org.bukkit.persistence.PersistentDataType;
 import org.bukkit.plugin.Plugin;
 import org.bukkit.scheduler.BukkitRunnable;
 import org.bukkit.util.Transformation;
 
 import dev.bukkit.event.BukkitEventBus;
+import dev.bukkit.item.BowArrowManager;
 import dev.bukkit.utils.BackstabUtils;
 import dev.bukkit.utils.DamageUtils;
 import dev.core.entity.EntityManager;
@@ -312,14 +314,31 @@ public class CombatListener implements Listener {
         }
     }
 
+    public static void applyProjectileDamageScaling(EntityDamageByEntityEvent event, Projectile projectile,
+            LivingEntity shooter) {
+        Double stored = projectile.getPersistentDataContainer().get(BowArrowManager.ARROW_DAMAGE_KEY,
+                PersistentDataType.DOUBLE);
+        if (stored != null && stored > 0) {
+            event.setDamage(stored);
+            return;
+        }
+        EntityManager.getInstance().getEntity(shooter.getUniqueId()).ifPresent(attacker -> {
+            double multiplier = attacker.getProjectileDamageMultiplier();
+            if (multiplier != 1.0) {
+                event.setDamage(event.getDamage() * multiplier);
+            }
+        });
+    }
+
     @EventHandler(priority = EventPriority.LOWEST)
     public void onDamage(EntityDamageEvent event) {
         if (event instanceof EntityDamageByEntityEvent) {
             return;
         }
-        // Ignore the negligible 0.001 "hit reaction" poke used by playHitReaction;
-        // otherwise that poke re-enters dealRPGDamage and recursively re-fires
-        // damage events until the stack overflows.
+        // Ignore negligible (~0.001) vanilla damage pokes: BukkitPlayerEntity
+        // still uses this for the player hurt reaction, and it must never
+        // re-enter dealRPGDamage (which would recurse until the stack
+        // overflows). Mob/boss playHitReaction no longer pokes at all.
         if (event.getDamage() <= 0.002) {
             return;
         }
@@ -361,15 +380,13 @@ public class CombatListener implements Listener {
         // Projectile attacks (arrows, tridents, fireballs, ...) amplify their
         // damage when the shooter carries projectile damage bonuses (e.g. the
         // Basic Archer Set bonus). This happens before the RPG pipeline so both
-        // RPG entities and vanilla mobs take the boosted damage.
+        // RPG entities and vanilla mobs take the boosted damage. Player-fired
+        // projectiles carry their full RPG-scaled damage (shooter ATTACK_DAMAGE
+        // x projectile multiplier, stamped by BowArrowManager at release) in
+        // their PDC; that overrides the vanilla projectile damage entirely.
         if (event.getDamager() instanceof Projectile projectile
                 && projectile.getShooter() instanceof LivingEntity shooter) {
-            EntityManager.getInstance().getEntity(shooter.getUniqueId()).ifPresent(attacker -> {
-                double multiplier = attacker.getProjectileDamageMultiplier();
-                if (multiplier != 1.0) {
-                    event.setDamage(event.getDamage() * multiplier);
-                }
-            });
+            applyProjectileDamageScaling(event, projectile, shooter);
         }
 
         // Only projectile strikes get the added impact/crit sound layers; melee

@@ -58,6 +58,19 @@ public class MobRPGEntity extends RPGEntity {
         if (!isAlive()) {
             return;
         }
+        // Clear the vanilla damage-immunity window (20 ticks after each hit):
+        // while it is active, hits are denied BEFORE any Bukkit damage event
+        // fires, so rapid arrows "bounce off" and deal no RPG damage. With the
+        // unlimited-arrow bow every shot must land.
+        //
+        // 1.21.8 (noDamageTicks was removed): the denial is
+        //    `invulnerableTime > 10 && amount <= lastHurt` inside
+        //    LivingEntity.hurtServer; setNoDamageTicks maps to
+        //    invulnerableTime, and setLastDamage to lastHurt. Clearing both
+        //    every tick guarantees the next hit always lands (a hit in the
+        //    carry-over branch applies even while the window is open).
+        vanilla.setNoDamageTicks(0);
+        vanilla.setLastDamage(0);
         syncVanillaHealth();
         if (definition.getDisplayName() != null) {
             DamageUtils.updateName(vanilla);
@@ -66,11 +79,18 @@ public class MobRPGEntity extends RPGEntity {
         behavior.ifPresent(b -> b.onTick(this, vanilla, now));
     }
 
+    /**
+     * Intentionally empty. The old implementation poked the vanilla entity with
+     * {@code damage(0.001, ...)} so Minecraft played the hurt reaction, but that
+     * reentrant hurt re-seeded {@code invulnerableTime=20} and {@code lastHurt}
+     * MID-event: the outer hit's own denial check
+     * ({@code invulnerableTime > 10 && amount <= lastHurt}) then always denied
+     * the hit, making every projectile bounce off the mob. The outer hit's
+     * allowed path already plays the hurt flash, sound and knockback on its own.
+     * Never apply vanilla damage from this hook.
+     */
     @Override
     protected void playHitReaction(RPGEntity attacker) {
-        if (vanilla.isValid()) {
-            vanilla.damage(0.001, BukkitPlayerEntity.bukkitSourceOf(attacker));
-        }
     }
 
     @Override

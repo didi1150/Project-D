@@ -133,14 +133,17 @@ public class BukkitEntityFactory {
 
             // Fresh RPG StatManager per spawn (stats block scaled by level + elite bonus)
             StatManager stats = scaleStats(definition, level, spawnLocation.isEliteSpawn());
-            MobRPGEntity rpgMob = new MobRPGEntity(livingEntity, definition, stats,
-                    BukkitEffectManager.getInstance(), BukkitEventBus.getInstance());
+            MobRPGEntity rpgMob = new MobRPGEntity(livingEntity, definition, stats, BukkitEffectManager.getInstance(),
+                    BukkitEventBus.getInstance());
             EntityManager.getInstance().registerEntity(rpgMob);
 
-            // Vanilla MOVEMENT_SPEED derived from the (level-scaled) MOVE_SPEED stat (default base 100)
+            // Vanilla MOVEMENT_SPEED derived from the (level-scaled) MOVE_SPEED stat
+            // (default base 100)
             Stat moveSpeedStat = stats.getStats().get(StatType.MOVE_SPEED);
-            double moveSpeedValue = moveSpeedStat == null ? 100.0 : moveSpeedStat.getCurrent(System.currentTimeMillis());
-            setAttributeValue(livingEntity, Attribute.MOVEMENT_SPEED, BukkitStatManager.computeMoveSpeed(moveSpeedValue));
+            double moveSpeedValue = moveSpeedStat == null ? 100.0
+                    : moveSpeedStat.getCurrent(System.currentTimeMillis());
+            setAttributeValue(livingEntity, Attribute.MOVEMENT_SPEED,
+                    BukkitStatManager.computeMoveSpeed(moveSpeedValue));
             setAttributeValue(livingEntity, Attribute.KNOCKBACK_RESISTANCE,
                     Math.min(1.0, (level - 1) * 0.02 + (spawnLocation.isEliteSpawn() ? 0.05 : 0.0)));
 
@@ -152,7 +155,8 @@ public class BukkitEntityFactory {
             // Config-defined spawn effects cast on the mob's RPG facade
             applyDefinitionEffects(rpgMob, definition);
 
-            // Main-hand weapon: vanilla material (cosmetic) or RPG item (equipped → stats/abilities)
+            // Main-hand weapon: vanilla material (cosmetic) or RPG item (equipped →
+            // stats/abilities)
             applyMainHandItem(livingEntity, rpgMob, definition);
 
             // Armor slots equipped from RPG items
@@ -177,61 +181,63 @@ public class BukkitEntityFactory {
 
             // Run any Java-side miniboss behavior (hybrid config + Java model).
             rpgMob.triggerSpawnBehavior(livingEntity);
+            livingEntity.setNoDamageTicks(0);
         }
 
         return entity;
     }
 
     /**
- * A fresh {@link StatManager} per spawn: the definition's stats, with the
- * combat stats (HEALTH_MAX / ATTACK_DAMAGE / ARMOR) scaled by floor level and
- * elite bonus — exactly like the old per-level attribute scaling.
- */
-private static StatManager scaleStats(MobDefinition definition, int level, boolean isElite) {
-    Map<StatType, Stat> stats = StatLoader.copyStats(definition.getBaseStats().getStats());
-    long now = System.currentTimeMillis();
+     * A fresh {@link StatManager} per spawn: the definition's stats, with the
+     * combat stats (HEALTH_MAX / ATTACK_DAMAGE / ARMOR) scaled by floor level and
+     * elite bonus — exactly like the old per-level attribute scaling.
+     */
+    private static StatManager scaleStats(MobDefinition definition, int level, boolean isElite) {
+        Map<StatType, Stat> stats = StatLoader.copyStats(definition.getBaseStats().getStats());
+        long now = System.currentTimeMillis();
 
-    double healthMult = (BASE_HEALTH_MULTIPLIER + ((level - 1) * HEALTH_SCALING_PER_LEVEL))
-            * (1.0 + (isElite ? ELITE_HEALTH_BONUS : 0.0));
-    double damageMult = (BASE_DAMAGE_MULTIPLIER + ((level - 1) * DAMAGE_SCALING_PER_LEVEL))
-            * (1.0 + (isElite ? ELITE_DAMAGE_BONUS : 0.0));
-    double armorMult = (1.0 + ((level - 1) * 0.05)) * (1.0 + (isElite ? 0.1 : 0.0));
+        double healthMult = (BASE_HEALTH_MULTIPLIER + ((level - 1) * HEALTH_SCALING_PER_LEVEL))
+                * (1.0 + (isElite ? ELITE_HEALTH_BONUS : 0.0));
+        double damageMult = (BASE_DAMAGE_MULTIPLIER + ((level - 1) * DAMAGE_SCALING_PER_LEVEL))
+                * (1.0 + (isElite ? ELITE_DAMAGE_BONUS : 0.0));
+        double armorMult = (1.0 + ((level - 1) * 0.05)) * (1.0 + (isElite ? 0.1 : 0.0));
 
-    scaleStat(stats, StatType.HEALTH_MAX, healthMult, now);
-    scaleStat(stats, StatType.ATTACK_DAMAGE, damageMult, now);
-    scaleStat(stats, StatType.ARMOR, armorMult, now);
+        scaleStat(stats, StatType.HEALTH_MAX, healthMult, now);
+        scaleStat(stats, StatType.ATTACK_DAMAGE, damageMult, now);
+        scaleStat(stats, StatType.ARMOR, armorMult, now);
 
-    // MOVE_SPEED defaults to the base custom value (100); scale per level.
-    double speedMult = Math.min(MAX_SPEED_MULTIPLIER, BASE_SPEED_MULTIPLIER + ((level - 1) * SPEED_SCALING_PER_LEVEL))
-            * (1.0 + (isElite ? ELITE_SPEED_BONUS : 0.0));
-    if (!stats.containsKey(StatType.MOVE_SPEED)) {
-        stats.put(StatType.MOVE_SPEED, new CombatStat("MOVE_SPEED", 100));
+        // MOVE_SPEED defaults to the base custom value (100); scale per level.
+        double speedMult = Math.min(MAX_SPEED_MULTIPLIER,
+                BASE_SPEED_MULTIPLIER + ((level - 1) * SPEED_SCALING_PER_LEVEL))
+                * (1.0 + (isElite ? ELITE_SPEED_BONUS : 0.0));
+        if (!stats.containsKey(StatType.MOVE_SPEED)) {
+            stats.put(StatType.MOVE_SPEED, new CombatStat("MOVE_SPEED", 100));
+        }
+        scaleStat(stats, StatType.MOVE_SPEED, speedMult, now);
+
+        // The synthesized HEALTH_RESOURCE tracks HEALTH_MAX; always align it with the
+        // scaled max so the mob spawns at full health no matter where the copied
+        // resource drifted.
+        Stat resource = stats.get(StatType.HEALTH_RESOURCE);
+        Stat max = stats.get(StatType.HEALTH_MAX);
+        if (resource != null && max != null) {
+            double maxVal = max.getCurrent(now);
+            resource.modify(maxVal - resource.getCurrent(now));
+        }
+
+        return new StatManager(stats);
     }
-    scaleStat(stats, StatType.MOVE_SPEED, speedMult, now);
 
-    // The synthesized HEALTH_RESOURCE tracks HEALTH_MAX; always align it with the
-    // scaled max so the mob spawns at full health no matter where the copied
-    // resource drifted.
-    Stat resource = stats.get(StatType.HEALTH_RESOURCE);
-    Stat max = stats.get(StatType.HEALTH_MAX);
-    if (resource != null && max != null) {
-        double maxVal = max.getCurrent(now);
-        resource.modify(maxVal - resource.getCurrent(now));
+    private static void scaleStat(Map<StatType, Stat> stats, StatType type, double multiplier, long now) {
+        Stat stat = stats.get(type);
+        if (stat == null || multiplier == 1.0) {
+            return;
+        }
+        double current = stat.getCurrent(now);
+        stat.modify(current * multiplier - current);
     }
 
-    return new StatManager(stats);
-}
-
-private static void scaleStat(Map<StatType, Stat> stats, StatType type, double multiplier, long now) {
-    Stat stat = stats.get(type);
-    if (stat == null || multiplier == 1.0) {
-        return;
-    }
-    double current = stat.getCurrent(now);
-    stat.modify(current * multiplier - current);
-}
-
-private static void setAttributeValue(LivingEntity entity, Attribute attribute, double value) {
+    private static void setAttributeValue(LivingEntity entity, Attribute attribute, double value) {
         AttributeInstance attributeInstance = entity.getAttribute(attribute);
         if (attributeInstance != null) {
             attributeInstance.setBaseValue(value);
@@ -247,9 +253,9 @@ private static void setAttributeValue(LivingEntity entity, Attribute attribute, 
     /**
      * Casts the mob definition's spawn effects (ids of {@code Effect}
      * implementations registered in {@code BukkitEffectRegistry}, e.g.
-     * {@code BONE_SWING}) on the mob's RPG facade, so they tick with the rest
-     * of the effect manager's active effects. Vanilla potion effects are not
-     * supported here.
+     * {@code BONE_SWING}) on the mob's RPG facade, so they tick with the rest of
+     * the effect manager's active effects. Vanilla potion effects are not supported
+     * here.
      */
     private static void applyDefinitionEffects(MobRPGEntity rpgMob, MobDefinition definition) {
         for (MobEffect effect : definition.getEffects()) {
@@ -289,8 +295,8 @@ private static void setAttributeValue(LivingEntity entity, Attribute attribute, 
         for (Map.Entry<EquipmentSlot, String> entry : definition.getArmor().entrySet()) {
             Optional<RPGItem> item = RPGItemRegistry.getInstance().getItem(entry.getValue());
             if (item.isEmpty()) {
-                System.out.println("Mob definition references unknown armor item '" + entry.getValue()
-                        + "' for slot " + entry.getKey() + ".");
+                System.out.println("Mob definition references unknown armor item '" + entry.getValue() + "' for slot "
+                        + entry.getKey() + ".");
                 continue;
             }
             ItemStack stack = BukkitItemStackAdapter.toItemStack(item.get());

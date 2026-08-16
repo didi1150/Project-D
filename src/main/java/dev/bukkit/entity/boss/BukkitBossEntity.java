@@ -58,6 +58,16 @@ public class BukkitBossEntity extends RPGBossEntity {
     public void tick(long now) {
         super.tick(now);
         if (isAlive() && !isDefeatSequenceActive()) {
+            // Same vanilla damage-immunity window as dungeon mobs (see
+            // MobRPGEntity.tick): clear it so rapid projectile hits always
+            // land instead of bouncing off the boss. setNoDamageTicks maps to
+            // Entity.invulnerableTime and setLastDamage to LivingEntity.lastHurt
+            // on 1.21.8; the hurtServer denial is `invulnerableTime > 10 &&
+            // amount <= lastHurt`, so both must be cleared.
+            getLivingEntity().ifPresent(living -> {
+                living.setNoDamageTicks(0);
+                living.setLastDamage(0);
+            });
             bukkitStatManager.tick(now, this::onDeath, getHealth(), getMaxHealth());
             updateBossBar();
             updateName();
@@ -95,9 +105,15 @@ public class BukkitBossEntity extends RPGBossEntity {
         return Optional.ofNullable(Bukkit.getEntity(getUuid()));
     }
 
+    /**
+     * Intentionally empty — see {@link MobRPGEntity#playHitReaction}: a
+     * reentrant vanilla damage poke re-seeds the damage-immunity window
+     * mid-event and makes the outer hit bounce (1.21.8
+     * {@code invulnerableTime > 10 && amount <= lastHurt} denial). The outer
+     * hit already plays the hurt flash, sound and knockback.
+     */
     @Override
     protected void playHitReaction(RPGEntity attacker) {
-        getLivingEntity().ifPresent(living -> living.damage(0.001, BukkitPlayerEntity.bukkitSourceOf(attacker)));
     }
 
     private void handleDamage(EntityDamageByEntityEvent event) {
