@@ -19,6 +19,9 @@ public abstract class AbstractDungeonGenerator {
 
     protected long lastUsedSeed;
 
+    private boolean inDebugMode = false;
+    private boolean showInfoOnLog = true;
+
     public AbstractDungeonGenerator(Vector3Int startPosition) {
         this.startPosition = startPosition;
     }
@@ -42,6 +45,16 @@ public abstract class AbstractDungeonGenerator {
         return lastUsedSeed;
     }
 
+    public void setInDebugMode(boolean inDebugMode) {
+        this.inDebugMode = inDebugMode;
+        if (inDebugMode) showInfoOnLog = true;
+    }
+
+    public void setShowInfoOnLog(boolean showInfoOnLog) {
+        this.showInfoOnLog = showInfoOnLog;
+        if (!showInfoOnLog) inDebugMode = false;
+    }
+
     public abstract BoundingBox getMaxBounds();
 
     public void generateDungeon()
@@ -52,12 +65,32 @@ public abstract class AbstractDungeonGenerator {
     public void generateDungeon(long seed)
     {
         lastUsedSeed = seed;
-        System.out.println("Generating Dungeon with seed: " + seed);
+        printInfo("Generating Dungeon with seed: " + seed);
         long time = System.currentTimeMillis();
         runProceduralGeneration(new Random(seed));
-        System.out.println("Dungeon Generation took " + ((System.currentTimeMillis() - time) / 1000d) + " secs");
+        printInfo("Dungeon Generation took " + ((System.currentTimeMillis() - time) / 1000d) + " secs");
     }
 
     protected abstract void runProceduralGeneration(Random random);
+
+    protected void printDebugInfo(String msg) {
+        if (inDebugMode) System.out.println("Dungeon Generator - Info: \t " + msg);
+    }
+
+    protected void printDebugWarning(String msg) {
+        if (inDebugMode) System.err.println("Dungeon Generator - Warning: \t " + msg);
+    }
+
+    protected void printError(String msg) {
+        if (showInfoOnLog) System.err.println("Dungeon Generator - Error: \t " + msg);
+    }
+
+    protected void printInfo(String msg) {
+        if (showInfoOnLog) System.out.println("Dungeon Generator: \t " + msg);
+    }
+
+    protected void printWarning(String msg) {
+        if (showInfoOnLog) System.out.println("Dungeon Generator - Warning: \t " + msg);
+    }
 
 }

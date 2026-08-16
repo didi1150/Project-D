@@ -10,8 +10,13 @@ import java.util.stream.Collectors;
 
 public class DecorationGenerator {
 
+    private AbstractDungeonGenerator dg;
 
-    public static List<Set<DungeonDecorationBlock>> generateVines(Set<DungeonWallBlock> wallBlocks, Set<Vector3Int> allPositions, int numberVines, int vineLength, Random random) {
+    public DecorationGenerator(AbstractDungeonGenerator dg) {
+        this.dg = dg;
+    }
+
+    public List<Set<DungeonDecorationBlock>> generateVines(Set<DungeonWallBlock> wallBlocks, Set<Vector3Int> allPositions, int numberVines, int vineLength, Random random) {
         List<Set<DungeonDecorationBlock>> vines = new LinkedList<>();
 
         List<DungeonWallBlock> validWallBlocks = wallBlocks.stream().filter(wall -> wall.canAttachDecorationOnSide(allPositions)).collect(Collectors.toList());
@@ -19,7 +24,7 @@ public class DecorationGenerator {
         List<BoundingBox> vineBoxes = new LinkedList<>();
         double minDistanceApart = vineLength;
 
-        System.out.println("Generating " + numberVines + " Vines with a maxLength of " + vineLength);
+        dg.printInfo("Generating " + numberVines + " Vines with a maxLength of " + vineLength);
 
         for (var i = 0; i < numberVines; i++) {
             DungeonWallBlock startBlock;
@@ -51,7 +56,7 @@ public class DecorationGenerator {
         return vines;
     }
 
-    public static List<Set<DungeonDecorationBlock>> generateIndividualFloorVegetation(Set<DungeonFloorBlock> floorBlocks, Set<Vector3Int> allPositions, float spawnChance, Random random) {
+    public List<Set<DungeonDecorationBlock>> generateIndividualFloorVegetation(Set<DungeonFloorBlock> floorBlocks, Set<Vector3Int> allPositions, float spawnChance, Random random) {
 
         List<Set<DungeonDecorationBlock>> vegetation = new LinkedList<>();
 
@@ -72,13 +77,13 @@ public class DecorationGenerator {
             }
         }
 
-        System.out.println("Generated " + vegetation.size() + " individual floor vegetation");
+        dg.printInfo("Generated " + vegetation.size() + " individual floor vegetation");
 
         Set<DungeonDecorationBlock> set = vegetation.stream().flatMap(Collection::stream).collect(Collectors.toCollection(LinkedHashSet::new));
         float maxBundleSize = set.size() * 0.1F;
         List<Set<DungeonDecorationBlock>> vegetationBundles = new LinkedList<>();
         for (var block : new LinkedHashSet<>(set)) {
-            int maxSize = (int) (maxBundleSize * random.nextFloat(0.2F, 0.4F));
+            int maxSize = Math.max(1, (int) (maxBundleSize * random.nextFloat(0.2F, 0.4F)));
             Set<DungeonDecorationBlock> blocks = set.stream().filter(b -> b.getPos().distance(block.getPos()) < (minDistanceApart*2)).limit(maxSize).collect(Collectors.toCollection(LinkedHashSet::new));
             if (!blocks.isEmpty()) {
                 vegetationBundles.add(blocks);
@@ -86,12 +91,12 @@ public class DecorationGenerator {
             }
         }
 
-        System.out.println("Generated " + vegetationBundles.size() + " different individual floor vegetation bundles -> sizes: " + vegetationBundles.stream().mapToInt(Set::size).min().orElse(0) + " - " + vegetationBundles.stream().mapToInt(Set::size).max().orElse(0));
+        dg.printInfo("Generated " + vegetationBundles.size() + " different individual floor vegetation bundles -> sizes: " + vegetationBundles.stream().mapToInt(Set::size).min().orElse(0) + " - " + vegetationBundles.stream().mapToInt(Set::size).max().orElse(0));
 
         return vegetationBundles;
     }
 
-    public static List<Set<DungeonDecorationBlock>> generateHangingCeilingVegetation(Set<DungeonCeilingBlock> ceilingBlocks, Set<Vector3Int> allPositions, float spawnChance, int dungeonHeight, Random random) {
+    public List<Set<DungeonDecorationBlock>> generateHangingCeilingVegetation(Set<DungeonCeilingBlock> ceilingBlocks, Set<Vector3Int> allPositions, float spawnChance, int dungeonHeight, Random random) {
 
         List<Set<DungeonDecorationBlock>> vegetation = new LinkedList<>();
 
@@ -120,17 +125,17 @@ public class DecorationGenerator {
             }
         }
 
-        System.out.println("Generated " + vegetation.size() + " hanging ceiling vegetation");
+        dg.printInfo("Generated " + vegetation.size() + " hanging ceiling vegetation");
 
         return vegetation;
     }
 
-    public static List<Set<DungeonDecorationBlock>> generateCornerVegetation(Set<DungeonFloorBlock> floorBlocks, Set<DungeonWallBlock> wallBlocks, Set<Vector3Int> allPositions, float spawnChance, Random random) {
+    public List<Set<DungeonDecorationBlock>> generateCornerVegetation(Set<DungeonFloorBlock> floorBlocks, Set<DungeonFloorBlock> allFloorBlocks, Set<DungeonWallBlock> wallBlocks, Set<Vector3Int> allPositions, float spawnChance, Random random) {
         List<Set<DungeonDecorationBlock>> vegetation = new LinkedList<>();
 
         List<DungeonFloorBlock> validBlocks = floorBlocks.stream().filter(block -> block.canAttachDecorationOnSide(allPositions)).collect(Collectors.toList());
 
-        Set<Vector3Int> floorPositions = floorBlocks.stream().map(DungeonBlock::getPos).collect(Collectors.toSet());
+        Set<Vector3Int> floorPositions = allFloorBlocks.stream().map(DungeonBlock::getPos).collect(Collectors.toSet());
 
         Set<Vector3Int> wallPositions = wallBlocks.stream().map(DungeonBlock::getPos).collect(Collectors.toSet());
 
@@ -163,7 +168,7 @@ public class DecorationGenerator {
             }
         }
 
-        System.out.println("Generated " + vegetation.size() + " corner vegetation");
+        dg.printInfo("Generated " + vegetation.size() + " corner vegetation");
 
         return vegetation;
     }

@@ -3,8 +3,6 @@ package dev.core.game.dungeon.proceduralDungeon;
 import dev.core.game.dungeon.BoundingBox;
 import dev.core.game.dungeon.proceduralDungeon.util.Direction3D;
 import dev.core.game.dungeon.proceduralDungeon.util.Vector3Int;
-import dev.core.game.dungeon.proceduralDungeon.util.dungeonBlocks.DungeonBlock;
-import dev.core.game.dungeon.proceduralDungeon.util.dungeonBlocks.DungeonWallBlock;
 
 import java.util.*;
 
@@ -161,7 +159,7 @@ public class ProceduralGenerationAlgorithms {
 //        System.out.println("Generated " + rooms.size() + " rooms in " + s + " sec and " + ms + " ms");
 //    }
     
-    public static List<BoundingBox> binarySpacePartitioning3D(BoundingBox spaceToSplit, int minWidth, int minHeight, int minLength, Random random) {
+    public static List<BoundingBox> binarySpacePartitioning3D(BoundingBox spaceToSplit, int minWidth, int minHeight, int minLength, Random random, AbstractDungeonGenerator dg) {
         int multiplier = 4;
         int maxWidth = minWidth * multiplier;
         int maxHeight = minHeight + minHeight/2;
@@ -179,7 +177,7 @@ public class ProceduralGenerationAlgorithms {
 
         int maxRoomCount = (spaceToSplit.getDimensions().getX() / minWidth) * (spaceToSplit.getDimensions().getY()/minHeight);
 
-        System.out.println("RoomLimit = " + maxRoomCount);
+        dg.printDebugInfo("RoomLimit = " + maxRoomCount);
 
         while (!roomsQueue.isEmpty()) {
             var room = roomsQueue.poll();
@@ -187,56 +185,56 @@ public class ProceduralGenerationAlgorithms {
                 if ((roomsList.size() + roomsQueue.size() + 1) >= maxRoomCount) {
                     roomsList.add(room);
 //                    System.out.println("RoomLimit reached, adding room: " + room.getDimensions());
-                    System.out.println("RoomLimit(" + roomsList.size() + ") reached with " + roomsQueue.size() + " Rooms left.");
+                    dg.printDebugInfo("RoomLimit(" + roomsList.size() + ") reached with " + roomsQueue.size() + " Rooms left.");
                     break;
                 }
 
-                if (checkForWeirdSizedRoom(roomsQueue, room, random)) {
+                if (checkForWeirdSizedRoom(roomsQueue, room, random, dg)) {
                     extraSplits++;
                     continue;
                 }
 
                 if (room.getDimensions().getX() <= maxWidth && room.getDimensions().getY() <= maxHeight && room.getDimensions().getZ() <= maxLength && random.nextFloat(0, 1) < 0.1) {
                     roomsList.add(room);
-                    System.out.println("skipped room splitting with room size of " + room.getDimensions());
+                    dg.printDebugInfo("skipped room splitting with room size of " + room.getDimensions());
                     continue;
                 }
 
                 if (random.nextFloat(0,1) < 1/3f) {
                     if (room.getDimensions().getX() >= minWidth*2) {
-                        splitOnXAxis(roomsQueue, room, random);
+                        splitOnXAxis(roomsQueue, room, random, dg);
                         xSplit++;
                     } else if (room.getDimensions().getY() >= minHeight*2) {
-                        splitOnYAxis(roomsQueue, room, random);
+                        splitOnYAxis(roomsQueue, room, random, dg);
                         ySplit++;
                     } else if (room.getDimensions().getZ() >= minLength*2) {
-                        splitOnZAxis(roomsQueue, room, random);
+                        splitOnZAxis(roomsQueue, room, random, dg);
                         zSplit++;
                     } else {
                         roomsList.add(room);
                     }
                 } else if (random.nextFloat(0,1) >= 2/3f) {
                     if (room.getDimensions().getY() >= minHeight*2) {
-                        splitOnYAxis(roomsQueue, room, random);
+                        splitOnYAxis(roomsQueue, room, random, dg);
                         ySplit++;
                     } else if (room.getDimensions().getZ() >= minLength*2) {
-                        splitOnZAxis(roomsQueue, room, random);
+                        splitOnZAxis(roomsQueue, room, random, dg);
                         zSplit++;
                     } else if (room.getDimensions().getX() >= minWidth*2) {
-                        splitOnXAxis(roomsQueue, room, random);
+                        splitOnXAxis(roomsQueue, room, random, dg);
                         xSplit++;
                     } else {
                         roomsList.add(room);
                     }
                 } else {
                     if (room.getDimensions().getZ() >= minLength*2) {
-                        splitOnZAxis(roomsQueue, room, random);
+                        splitOnZAxis(roomsQueue, room, random, dg);
                         zSplit++;
                     } else if (room.getDimensions().getX() >= minWidth*2) {
-                        splitOnXAxis(roomsQueue, room, random);
+                        splitOnXAxis(roomsQueue, room, random, dg);
                         xSplit++;
                     } else if (room.getDimensions().getY() >= minHeight*2) {
-                        splitOnYAxis(roomsQueue, room, random);
+                        splitOnYAxis(roomsQueue, room, random, dg);
                         ySplit++;
                     } else {
                         roomsList.add(room);
@@ -248,32 +246,32 @@ public class ProceduralGenerationAlgorithms {
         while (!roomsQueue.isEmpty()) {
             var room = roomsQueue.poll();
             if (room.getDimensions().getX() >= minWidth && room.getDimensions().getY() >= minHeight && room.getDimensions().getZ() >= minLength) {
-                if (checkForWeirdSizedRoom(roomsQueue, room, random)) {
+                if (checkForWeirdSizedRoom(roomsQueue, room, random, dg)) {
                     extraSplits++;
                     continue;
                 }
 
                 roomsList.add(room);
-                System.out.println("RoomLimit(" + roomsList.size() + ") reached with " + roomsQueue.size() + " Rooms left.");
+                dg.printDebugInfo("RoomLimit(" + roomsList.size() + ") reached with " + roomsQueue.size() + " Rooms left.");
             }
         }
 
-        System.out.println("Split space " + xSplit + " times on the x-axis");
-        System.out.println("Split space " + ySplit + " times on the y-axis");
-        System.out.println("Split space " + zSplit + " times on the z-axis");
+        dg.printDebugInfo("Split space " + xSplit + " times on the x-axis");
+        dg.printDebugInfo("Split space " + ySplit + " times on the y-axis");
+        dg.printDebugInfo("Split space " + zSplit + " times on the z-axis");
 
         return roomsList;
     }
 
-    private static boolean checkForWeirdSizedRoom(Queue<BoundingBox> roomsQueue, BoundingBox room, Random random) {
+    private static boolean checkForWeirdSizedRoom(Queue<BoundingBox> roomsQueue, BoundingBox room, Random random, AbstractDungeonGenerator dg) {
         if (room.getDimensions().getX() >= (room.getDimensions().getZ() * 3)) {
-            splitOnXAxis(roomsQueue, room, random);
+            splitOnXAxis(roomsQueue, room, random, dg);
 //            xSplit++;
         } else if (room.getDimensions().getZ() >= (room.getDimensions().getX() * 3)) {
-            splitOnZAxis(roomsQueue, room, random);
+            splitOnZAxis(roomsQueue, room, random, dg);
 //            zSplit++;
         } else if (room.getDimensions().getY() > (Math.min(room.getDimensions().getX(), room.getDimensions().getZ()) * 2)) {
-            splitOnYAxis(roomsQueue, room, random);
+            splitOnYAxis(roomsQueue, room, random, dg);
 //            ySplit++;
         } else {
             return false;
@@ -281,29 +279,29 @@ public class ProceduralGenerationAlgorithms {
         return true;
     }
 
-    private static void splitOnXAxis(Queue<BoundingBox> roomsQueue, BoundingBox room, Random random) {
+    private static void splitOnXAxis(Queue<BoundingBox> roomsQueue, BoundingBox room, Random random, AbstractDungeonGenerator dg) {
         int[] values = getRandomValuePair(room.getDimensions().getX(), random);
         int xSplit1 = values[0];
         int xSplit2 = values[1];
-        System.out.println("Splitting-X (" + room.getDimensions().getX() + ") with: " + xSplit1 +  " - " + xSplit2 + " -> " + (xSplit2 - xSplit1) + " & " + (xSplit1 + room.minX) +  " - " + (xSplit2 + room.minX));
+        dg.printDebugInfo("Splitting-X (" + room.getDimensions().getX() + ") with: " + xSplit1 +  " - " + xSplit2 + " -> " + (xSplit2 - xSplit1) + " & " + (xSplit1 + room.minX) +  " - " + (xSplit2 + room.minX));
         Vector3Int size = room.getDimensions();
         splitSpace(roomsQueue, room, new Vector3Int(xSplit1, size.getY(), size.getZ()), new Vector3Int(xSplit2 + 1, 0, 0));
     }
 
-    private static void splitOnYAxis(Queue<BoundingBox> roomsQueue, BoundingBox room, Random random) {
+    private static void splitOnYAxis(Queue<BoundingBox> roomsQueue, BoundingBox room, Random random, AbstractDungeonGenerator dg) {
         int[] values = getRandomValuePair(room.getDimensions().getY(), random);
         int ySplit1 = values[0];
         int ySplit2 = values[1];
-        System.out.println("Splitting-Y (" + room.getDimensions().getY() + ") with: " + ySplit1 +  " - " + ySplit2 + " -> " + (ySplit2 - ySplit1) + " & " + (ySplit1 + room.minY) +  " - " + (ySplit2 + room.minY));
+        dg.printDebugInfo("Splitting-Y (" + room.getDimensions().getY() + ") with: " + ySplit1 +  " - " + ySplit2 + " -> " + (ySplit2 - ySplit1) + " & " + (ySplit1 + room.minY) +  " - " + (ySplit2 + room.minY));
         Vector3Int size = room.getDimensions();
         splitSpace(roomsQueue, room, new Vector3Int(size.getX(), ySplit1, size.getZ()), new Vector3Int(0, ySplit2 + 1, 0)); //TODO maybe adjust value
     }
 
-    private static void splitOnZAxis(Queue<BoundingBox> roomsQueue, BoundingBox room, Random random) {
+    private static void splitOnZAxis(Queue<BoundingBox> roomsQueue, BoundingBox room, Random random, AbstractDungeonGenerator dg) {
         int[] values = getRandomValuePair(room.getDimensions().getZ(), random);
         int zSplit1 = values[0];
         int zSplit2 = values[1];
-        System.out.println("Splitting-Z (" + room.getDimensions().getZ() + ") with: " + zSplit1 +  " - " + zSplit2 + " -> " + (zSplit2 - zSplit1) + " & " + (zSplit1 + room.minZ) +  " - " + (zSplit2 + room.minZ));
+        dg.printDebugInfo("Splitting-Z (" + room.getDimensions().getZ() + ") with: " + zSplit1 +  " - " + zSplit2 + " -> " + (zSplit2 - zSplit1) + " & " + (zSplit1 + room.minZ) +  " - " + (zSplit2 + room.minZ));
         Vector3Int size = room.getDimensions();
         splitSpace(roomsQueue, room, new Vector3Int(size.getX(), size.getY(), zSplit1), new Vector3Int(0, 0, zSplit2 + 1));
     }

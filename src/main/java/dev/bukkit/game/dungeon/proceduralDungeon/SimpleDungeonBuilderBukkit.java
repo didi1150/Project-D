@@ -10,13 +10,17 @@ import java.util.Queue;
 import java.util.Set;
 import java.util.stream.Collectors;
 
+import dev.core.game.coords.Point3D;
+import dev.core.game.dungeon.proceduralDungeon.util.DungeonRoom;
+import dev.core.game.dungeon.proceduralDungeon.util.DungeonSpawnManager;
+import dev.core.game.dungeon.proceduralDungeon.util.SpawnLocation;
 import org.bukkit.Bukkit;
 import org.bukkit.Location;
 import org.bukkit.Material;
 import org.bukkit.World;
 import org.bukkit.WorldCreator;
 import org.bukkit.block.Block;
-import org.bukkit.entity.Player;
+import org.bukkit.entity.*;
 import org.bukkit.plugin.Plugin;
 import org.bukkit.scheduler.BukkitRunnable;
 
@@ -36,6 +40,8 @@ import dev.core.game.dungeon.proceduralDungeon.util.dungeonBlocks.DungeonDecorat
 import dev.core.game.dungeon.proceduralDungeon.util.dungeonBlocks.DungeonFloorBlock;
 import dev.core.game.dungeon.proceduralDungeon.util.dungeonBlocks.DungeonStairBlock;
 import dev.core.game.dungeon.proceduralDungeon.util.dungeonBlocks.DungeonWallBlock;
+import org.bukkit.util.Transformation;
+import org.joml.Vector3f;
 
 public class SimpleDungeonBuilderBukkit {
 
@@ -162,7 +168,7 @@ public class SimpleDungeonBuilderBukkit {
         }.runTaskTimer(plugin, 0L, 1L);
     }
 
-    public void buildDungeon(RoomFirstDungeonGenerator3D dungeonGenerator, Runnable onComplete) {
+    public void buildDungeon(RoomFirstDungeonGenerator3D dungeonGenerator, Runnable onComplete, boolean debugMode) {
 //        Queue<Vector3Int> floorPositions = new LinkedList<>(dungeonGenerator.getFloorPositions());
         Queue<DungeonFloorBlock> floorBlocks = new LinkedList<>(dungeonGenerator.getFloorBlocks());
 //        Queue<Vector3Int> wallPositions = new LinkedList<>(dungeonGenerator.getWallPositions());
@@ -223,6 +229,28 @@ public class SimpleDungeonBuilderBukkit {
 
         Queue<Pair<Vector3Int, Material>> currentRoomBox = new LinkedList<>();
 
+        if (debugMode) {
+            for (DungeonRoom dungeonRoom : dungeonGenerator.getDungeonRooms()) {
+                for (SpawnLocation spawnPosition : dungeonRoom.getSpawnPositions()) {
+                    Point3D p = spawnPosition.getPosition();
+                    Location loc = new Location(world, p.getX() + 0.5, p.getY() + 2.25, p.getZ() + 0.5);
+                    if (spawnPosition.isMiniBossSpawn()) {
+                        spawnBlockDisplay(world, Vector3Int.fromPoint3D(p), Vector3Int.fromPoint3D(p).add(0,1,0), Material.PINK_STAINED_GLASS);
+                        TextDisplay name = (TextDisplay) world.spawnEntity(loc, EntityType.TEXT_DISPLAY);
+                        name.setText("MiniBoss");
+                        name.setBillboard(Display.Billboard.CENTER);
+                    } else if (spawnPosition.isEliteSpawn()) {
+                        spawnBlockDisplay(world, Vector3Int.fromPoint3D(p), Vector3Int.fromPoint3D(p).add(0,1,0), Material.MAGENTA_STAINED_GLASS);
+                        TextDisplay name = (TextDisplay) world.spawnEntity(loc, EntityType.TEXT_DISPLAY);
+                        name.setText("Elite");
+                        name.setBillboard(Display.Billboard.CENTER);
+                    } else {
+                        spawnBlockDisplay(world, Vector3Int.fromPoint3D(p), Vector3Int.fromPoint3D(p).add(0,1,0), Material.PURPLE_STAINED_GLASS);
+                    }
+                }
+            }
+        }
+
         long time = System.currentTimeMillis();
         new BukkitRunnable() {
             int blocksPerTick = 200; // Adjust based on performance needs
@@ -240,9 +268,14 @@ public class SimpleDungeonBuilderBukkit {
                 }
                 for (int i = 0; i < blocksPerTick; i++) {
                     DungeonBlock block = null;
-                    if (!rooms.isEmpty()) {
-//                        if (currentRoomBox.isEmpty()) {
-//                            BoundingBox box = rooms.poll();
+                    if (!rooms.isEmpty() || !currentRoomBox.isEmpty()) {
+                        if (!debugMode) {
+                            rooms.clear();
+                            currentRoomBox.clear();
+                            break;
+                        }
+                        if (currentRoomBox.isEmpty()) {
+                            BoundingBox box = rooms.poll();
 //                            for (var position : box.getHollowBoxPositions()) {
 //                                if (notConnectedRooms.contains(box))
 //                                    currentRoomBox.add(new Pair<>(position, Material.PINK_STAINED_GLASS));
@@ -251,28 +284,38 @@ public class SimpleDungeonBuilderBukkit {
 //                                if (dungeonGenerator.getStartRoom().equals(box))
 //                                    currentRoomBox.add(new Pair<>(position, Material.LIME_STAINED_GLASS));
 //                            }
+                            if (notConnectedRooms.contains(box))
+                                spawnBlockDisplay(world, box.getMinPoint(), box.getMaxPoint(), Material.PINK_STAINED_GLASS);
+                            if (dungeonGenerator.getBossRoom().equals(box))
+                                spawnBlockDisplay(world, box.getMinPoint(), box.getMaxPoint(), Material.RED_STAINED_GLASS);
+                            if (dungeonGenerator.getStartRoom().equals(box))
+                                spawnBlockDisplay(world, box.getMinPoint(), box.getMaxPoint(), Material.LIME_STAINED_GLASS);
+
+                            spawnBlockDisplay(world, box.getMinPoint().sub(0,1,0), new Vector3Int(box.maxX, box.minY, box.maxZ).sub(0,1,0), Material.WHITE_STAINED_GLASS);
+
 //                            for (var position : box.expand(0).get2DFilledBoxPositions()) {
 //                                currentRoomBox.add(new Pair<>(position.add(0, -1, 0), Material.WHITE_WOOL));
 //                            }
-//                            currentRoomBox.add(new Pair<>(box.getMinPoint().add(0, 0, 0), Material.GREEN_WOOL));
-//                            currentRoomBox.add(new Pair<>(box.getMinPoint().add(box.getDimensions().getX(), -1, 0),
-//                                    Material.YELLOW_WOOL));
-//                            currentRoomBox.add(new Pair<>(box.getMinPoint().add(0, -1, box.getDimensions().getZ()),
-//                                    Material.YELLOW_WOOL));
-//                            currentRoomBox.add(new Pair<>(box.getMaxPoint().add(0, 0, 0), Material.RED_WOOL));
-//                            currentRoomBox.add(new Pair<>(box.get2DCenter().add(0, -1, 0), Material.BLUE_WOOL));
-//                            break;
-//                        }
-//                        var pair = currentRoomBox.poll();
-//                        setBlock(pair.first, pair.second);
-//                        if (currentRoomBox.isEmpty())
-//                            break;
-//                        continue;
-                        rooms.clear();
+
+                            currentRoomBox.add(new Pair<>(box.getMinPoint().add(0, 0, 0), Material.GREEN_WOOL));
+                            currentRoomBox.add(new Pair<>(box.getMinPoint().add(box.getDimensions().getX(), -1, 0),
+                                    Material.YELLOW_WOOL));
+                            currentRoomBox.add(new Pair<>(box.getMinPoint().add(0, -1, box.getDimensions().getZ()),
+                                    Material.YELLOW_WOOL));
+                            currentRoomBox.add(new Pair<>(box.getMaxPoint().add(0, 0, 0), Material.RED_WOOL));
+                            currentRoomBox.add(new Pair<>(box.get2DCenter().add(0, -1, 0), Material.BLUE_WOOL));
+                            break;
+                        }
+                        var pair = currentRoomBox.poll();
+                        //setBlock(pair.first, pair.second);
+                        spawnBlockDisplay(world, pair.first, pair.second);
+                        if (currentRoomBox.isEmpty())
+                            break;
+                        continue;
                     } else if (!floorBlocks.isEmpty()) {
                         block = floorBlocks.poll();
-                        if (world.getBlockAt(block.getPos().x, block.getPos().y - 1, block.getPos().z)
-                                .getType() != Material.BLUE_WOOL)
+                        //if (world.getBlockAt(block.getPos().x, block.getPos().y - 1, block.getPos().z).getType() != Material.BLUE_WOOL)
+                        if (debugMode)
                             setBlock(block.getPos().add(0, -1, 0), Material.STONE); // testing
                     }
 //                    else if (!corridorFloors.isEmpty()) {
@@ -291,8 +334,7 @@ public class SimpleDungeonBuilderBukkit {
                         block = ceilingBlocksFiltered.poll();
 //                        ceilingBlocks.clear(); // for testing
                     } else if (!decorationBlocksFiltered.isEmpty()) {
-                        LinkedHashSet<DungeonDecorationBlock> dungeonBlocks = new LinkedHashSet<>(
-                                decorationBlocksFiltered.poll());
+                        LinkedHashSet<DungeonDecorationBlock> dungeonBlocks = new LinkedHashSet<>(decorationBlocksFiltered.poll());
                         matManager.placeBlocksWithSameMaterial(dungeonBlocks);
                     } else {
                         cancel();
@@ -302,7 +344,8 @@ public class SimpleDungeonBuilderBukkit {
                         long timePassed = System.currentTimeMillis() - time;
                         double sec = timePassed / 1000d;
                         Bukkit.broadcastMessage("§aDungeon construction completed! (in " + sec + " secs)");
-                        matManager.printStatistic();
+                        if (debugMode)
+                            matManager.printStatistic();
                         // teleport online players to a safe floor location within the start room
                         BoundingBox startRoom = dungeonGenerator.getStartRoom();
                         if (startRoom != null) {
@@ -310,8 +353,12 @@ public class SimpleDungeonBuilderBukkit {
                             for (Player p : Bukkit.getOnlinePlayers()) {
                                 p.teleport(spawnLoc);
                             }
-                            Bukkit.broadcastMessage("§aPlayers teleported to safe spot in start room: " + startRoom);
+                            Bukkit.broadcastMessage("§aPlayers teleported to safe spot in start room: " + startRoom + " at " + spawnLoc.toVector());
                         }
+
+                        // /d cdw dungeon1
+                        //test command /d dungeonTest create 8 8 8 35 35 35 1 true 3 50 15 true 1786367046024
+
                         return;
                     }
                     if (block != null)
@@ -373,6 +420,14 @@ public class SimpleDungeonBuilderBukkit {
             allPositions.addAll(extraBlocks[i]);
         }
         Queue<Vector3Int> allSpace = new LinkedList<>(allPositions);
+
+        //for removing debug block displays
+        org.bukkit.util.BoundingBox b = new org.bukkit.util.BoundingBox(space.minX, space.minY, space.minZ, space.maxX, space.maxY, space.maxZ).expand(1);
+        var entities = world.getNearbyEntities(b, e -> e.getType() == EntityType.BLOCK_DISPLAY || e.getType() == EntityType.TEXT_DISPLAY);
+        for (Entity entity : entities) {
+            entity.remove();
+        }
+
         new BukkitRunnable() {
             @Override
             public void run() {
@@ -396,6 +451,27 @@ public class SimpleDungeonBuilderBukkit {
                 }
             }
         }.runTaskTimer(plugin, 0L, 1L);
+    }
+
+    private void spawnBlockDisplay(World world, Vector3Int point, Material material) {
+        Location loc = new Location(world, point.x, point.y, point.z);
+        BlockDisplay blockDisplay = (BlockDisplay) world.spawnEntity(loc, EntityType.BLOCK_DISPLAY);
+        blockDisplay.setBlock(Bukkit.createBlockData(material));
+        blockDisplay.setBrightness(new Display.Brightness(15,15));
+        }
+
+    private void spawnBlockDisplay(World world, Vector3Int minPoint, Vector3Int maxPoint, Material material) {
+        Vector3f scaleVec = maxPoint.sub(minPoint).add(1,1,1).toVector3f().mul(1);
+//        Vector3f middlePoint = minPoint.toVector3f().add(scaleVec.mul(0.25f));
+        Vector3f spawnPoint = minPoint.toVector3f().sub(0.05f,0.05f,0.05f);
+        Location loc = new Location(world, spawnPoint.x, spawnPoint.y, spawnPoint.z);
+        BlockDisplay blockDisplay = (BlockDisplay) world.spawnEntity(loc, EntityType.BLOCK_DISPLAY);
+        blockDisplay.setBlock(Bukkit.createBlockData(material));
+        blockDisplay.setBrightness(new Display.Brightness(15,15));
+
+        Transformation transformation = blockDisplay.getTransformation();
+        transformation.getScale().set(scaleVec.add(0.1f,0.1f,0.1f));
+        blockDisplay.setTransformation(transformation);
     }
 
     private void setBlock(Vector3Int point, Material material) {
@@ -622,8 +698,7 @@ public class SimpleDungeonBuilderBukkit {
                                 : Long.parseLong(args[13]);
 
                         Vector3Int startPoint = new Vector3Int(0, 64, 0);
-                        BoundingBox space = new BoundingBox(startPoint,
-                                startPoint.add(dungeonWidth, dungeonHeight, dungeonLength));
+                        BoundingBox space = new BoundingBox(startPoint, startPoint.add(dungeonWidth, dungeonHeight, dungeonLength));
 
                         // Generate dungeon in async task
                         Bukkit.getScheduler().runTaskAsynchronously(plugin, () -> {
@@ -636,8 +711,7 @@ public class SimpleDungeonBuilderBukkit {
 
                             dungeonGenerator.generateDungeon(seed);
 
-                            lastGeneratedSpace = new BoundingBox(space.getMinPoint().add(0, -1, 0),
-                                    space.getMaxPoint()); // -1 for testing
+                            lastGeneratedSpace = new BoundingBox(space.getMinPoint().add(0, -1, 0), space.getMaxPoint()); // -1 for testing
                             last3DDungeonGenerator = dungeonGenerator;
 
                             // Build dungeon on main thread
@@ -645,8 +719,7 @@ public class SimpleDungeonBuilderBukkit {
                                 player.sendMessage("§aBuilding ...");
                                 SimpleDungeonBuilderBukkit dungeonBuilder = new SimpleDungeonBuilderBukkit(plugin,
                                         player.getWorld());
-                                dungeonBuilder.buildDungeon(dungeonGenerator, () -> {
-                                });
+                                dungeonBuilder.buildDungeon(dungeonGenerator, () -> {}, true);
 //                                dungeonBuilder.buildSpace(rooms, () -> {
 //                                });
                             });
