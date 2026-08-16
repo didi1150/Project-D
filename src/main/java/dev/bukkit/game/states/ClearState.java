@@ -150,7 +150,7 @@ public class ClearState extends GameState {
                 // state, so nothing extra is needed here.
             });
 
-        });
+        }, false);
     }
 
     @Override

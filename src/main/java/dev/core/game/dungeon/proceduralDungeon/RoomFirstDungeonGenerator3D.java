@@ -74,22 +74,12 @@ public class RoomFirstDungeonGenerator3D extends SimpleRandomWalkDungeonGenerato
         this.roomOffset = roomOffset;
         this.randomWalkRooms = randomWalkRooms;
         this.corridorWidth = corridorWidth;
+
+//        this.setInDebugMode(true); //TODO for testing
     }
 
     public RoomFirstDungeonGenerator3D(SimpleRandomWalkParameters randomWalkParameters, int minRoomWidth, int minRoomHeight, int minRoomLength, int dungeonWidth, int dungeonHeight, int dungeonLength, int roomOffset, boolean randomWalkRooms, int corridorWidth) {
         super(randomWalkParameters);
-        this.minRoomWidth = minRoomWidth;
-        this.minRoomHeight = minRoomHeight;
-        this.minRoomLength = minRoomLength;
-        this.dungeonWidth = dungeonWidth;
-        this.dungeonHeight = dungeonHeight;
-        this.dungeonLength = dungeonLength;
-        this.roomOffset = roomOffset;
-        this.randomWalkRooms = randomWalkRooms;
-        this.corridorWidth = corridorWidth;
-    }
-
-    public RoomFirstDungeonGenerator3D(int minRoomWidth, int minRoomHeight, int minRoomLength, int dungeonWidth, int dungeonHeight, int dungeonLength, int roomOffset, boolean randomWalkRooms, int corridorWidth) {
         this.minRoomWidth = minRoomWidth;
         this.minRoomHeight = minRoomHeight;
         this.minRoomLength = minRoomLength;
@@ -196,16 +186,16 @@ public class RoomFirstDungeonGenerator3D extends SimpleRandomWalkDungeonGenerato
             int roomCreatingAttempts = 0;
 
             do {
-                rooms = ProceduralGenerationAlgorithms.binarySpacePartitioning3D(new BoundingBox(startPosition, startPosition.add(dungeonWidth, dungeonHeight, dungeonLength)), minRoomWidth, minRoomHeight, minRoomLength, random);
+                rooms = ProceduralGenerationAlgorithms.binarySpacePartitioning3D(new BoundingBox(startPosition, startPosition.add(dungeonWidth, dungeonHeight, dungeonLength)), minRoomWidth, minRoomHeight, minRoomLength, random, this);
                 roomCreatingAttempts++;
             } while (rooms.isEmpty() && roomCreatingAttempts < 10);
 
             if (rooms.isEmpty()) {
-                System.err.println("Failed to generate valid rooms in " + roomCreatingAttempts + " attempts!");
+                printError("Failed to generate valid rooms in " + roomCreatingAttempts + " attempts!");
                 continue;
             }
 
-            System.out.println("Generated " + rooms.size() + " valid rooms (in " + roomCreatingAttempts + " attempt(s))");
+            printInfo("Generated " + rooms.size() + " valid rooms (in " + roomCreatingAttempts + " attempt(s))");
 
             Map<Vector3Int, BoundingBox> roomCenterToRoomMap = rooms.stream().collect(Collectors.toMap(BoundingBox::get2DCenter, b -> b));
 
@@ -256,8 +246,6 @@ public class RoomFirstDungeonGenerator3D extends SimpleRandomWalkDungeonGenerato
 
             corridorFloor.addAll(stairFloor);
 
-            possibleSpawnLocations = createPossibleSpawnLocations(floorPositions, corridorFloor, stairFloor);
-
 //        for (var room : rooms) {
 //            if (room.get2DFilledBoxPositions().stream().noneMatch(corridorFloor::contains)) {
 //                notConnectedRooms.add(room);
@@ -268,10 +256,10 @@ public class RoomFirstDungeonGenerator3D extends SimpleRandomWalkDungeonGenerato
             List<DungeonRoom> notConnectedDungeonRooms = dungeonRooms.stream().filter(d -> d.getConnectedRoomsCount() == 0).toList();
 
             notConnectedRooms = notConnectedDungeonRooms.stream().map(DungeonRoom::getRoom).collect(Collectors.toList());
-            System.out.println("Not connected Rooms: " + notConnectedRooms.size());
+            printWarning("Not connected Rooms: " + notConnectedRooms.size());
 
-            System.out.println("Most connections to one room: " + dungeonRooms.stream().max(Comparator.comparing(DungeonRoom::getConnectedRoomsCount)).get());
-            System.out.println("Least connections to one room: " + dungeonRooms.stream().min(Comparator.comparing(DungeonRoom::getConnectedRoomsCount)).get());
+            printInfo("Most connections to one room: " + dungeonRooms.stream().max(Comparator.comparing(DungeonRoom::getConnectedRoomsCount)).get());
+            printInfo("Least connections to one room: " + dungeonRooms.stream().min(Comparator.comparing(DungeonRoom::getConnectedRoomsCount)).get());
 
             List<BoundingBox> connectedRooms = new LinkedList<>(rooms);
             connectedRooms.removeAll(notConnectedRooms);
@@ -283,26 +271,27 @@ public class RoomFirstDungeonGenerator3D extends SimpleRandomWalkDungeonGenerato
             int minConnectionCount = connectedDungeonRooms.stream().filter(d -> d.getRoomCenter2D().y == maxCenterHeight).mapToInt(DungeonRoom::getConnectedRoomsCount).min().getAsInt();
             var startRoom2 = connectedDungeonRooms.stream().filter(d -> d.getRoomCenter2D().y == maxCenterHeight).filter(d -> d.getConnectedRoomsCount() == minConnectionCount).min(Comparator.comparing(DungeonRoom::getRealSize)).map(DungeonRoom::getRoom).get();
             if (!startRoom.equals(startRoom2)) {
-                System.out.println("Replaced startRoom -> diff: " + roomCenterToDungeonRoomMap.get(startRoom.get2DCenter()) + " to " + roomCenterToDungeonRoomMap.get(startRoom2.get2DCenter()));
+                printInfo("Replaced startRoom -> diff: " + roomCenterToDungeonRoomMap.get(startRoom.get2DCenter()) + " to " + roomCenterToDungeonRoomMap.get(startRoom2.get2DCenter()));
                 startRoom = startRoom2;
             }
 
             bossRoom = connectedRooms.stream().filter(room -> room.get2DCenter().y == minCenterHeight).max(Comparator.comparing(BoundingBox::getVolume)).get();
             var bossRoom2 = connectedRooms.stream().filter(room -> room.get2DCenter().y == minCenterHeight).max(Comparator.comparing(room -> roomCenterToRoomFloorMap.get(room.get2DCenter()).size())).get();
             if (!bossRoom.equals(bossRoom2)) {
-                System.out.println("Replaced bossRoom -> diff: " + roomCenterToRoomFloorMap.get(bossRoom.get2DCenter()).size() + " to " + roomCenterToRoomFloorMap.get(bossRoom2.get2DCenter()).size());
+                printInfo("Replaced bossRoom -> diff: " + roomCenterToRoomFloorMap.get(bossRoom.get2DCenter()).size() + " to " + roomCenterToRoomFloorMap.get(bossRoom2.get2DCenter()).size());
                 bossRoom = bossRoom2;
             }
 
             Set<DungeonRoom> reachableRoomsFromStart = roomCenterToDungeonRoomMap.get(startRoom.get2DCenter()).getReachableRooms();
             if (!reachableRoomsFromStart.contains(roomCenterToDungeonRoomMap.get(bossRoom.get2DCenter()))) {
-                System.err.println("Dungeon Generation Failure: Bossroom isn't reachable from Start Room. -> retrying ...");
-                System.out.println(reachableRoomsFromStart.size() + " reachable rooms -> " + reachableRoomsFromStart);
+                printError("Dungeon Generation Failure: Bossroom isn't reachable from Start Room. -> retrying ...");
+                printDebugInfo(reachableRoomsFromStart.size() + " reachable rooms -> " + reachableRoomsFromStart);
                 continue;
             } else {
 
                 createDecoration(dungeonRooms, random);
 
+                possibleSpawnLocations = createPossibleSpawnLocations(floorPositions, corridorFloor, stairFloor);
                 safeSpawnLocations = createSafeSpawnLocations(possibleSpawnLocations, getAllOccupiedPositions());
                 randomizedSpawnLocations = createRandomizedSpawnLocations(safeSpawnLocations, random);
                 for (DungeonRoom dungeonRoom : dungeonRooms) {
@@ -315,13 +304,13 @@ public class RoomFirstDungeonGenerator3D extends SimpleRandomWalkDungeonGenerato
                         .forEach(DungeonSpawnManager.getInstance()::registerSpawnLocation);
 
                 if (generationAttempts > 1) {
-                    System.out.println("Generated Dungeon (in " + generationAttempts + " attempt(s))");
+                    printInfo("Generated Dungeon (in " + generationAttempts + " attempt(s))");
                 }
                 break;
             }
         }
         if (generationAttempts == 10) {
-            System.err.println("Dungeon Generation Failure: Didn't manage to create a valid Dungeon in " + generationAttempts + " attempt(s)");
+            printError("Dungeon Generation Failure: Didn't manage to create a valid Dungeon in " + generationAttempts + " attempt(s)");
         }
     }
 
@@ -454,22 +443,24 @@ public class RoomFirstDungeonGenerator3D extends SimpleRandomWalkDungeonGenerato
         allBlocks.addAll(ceilingBlocks);
         Set<Vector3Int> allPositions = allBlocks.stream().map(DungeonBlock::getPos).collect(Collectors.toSet());
 
+        DecorationGenerator decorationGenerator = new DecorationGenerator(this);
+
         int numberVines = dungeonRooms.size() * 3;
         int vineLength = (minRoomLength + minRoomHeight + minRoomWidth) / 3 - roomOffset;
-        decorationBlocks.addAll(DecorationGenerator.generateVines(wallBlocks, allPositions, numberVines, vineLength, random));
+        decorationBlocks.addAll(decorationGenerator.generateVines(wallBlocks, allPositions, numberVines, vineLength, random));
 
         float individualFloorVegetationChance = 0.05F;
         Set<DungeonFloorBlock> floor = new LinkedHashSet<>(floorBlocks);
         floor.addAll(corridorBlocks);
-        decorationBlocks.addAll(DecorationGenerator.generateIndividualFloorVegetation(floor, allPositions, individualFloorVegetationChance, random));
+        decorationBlocks.addAll(decorationGenerator.generateIndividualFloorVegetation(floor, allPositions, individualFloorVegetationChance, random));
 
         float hangingCeilingVegetationChance = 0.05F;
 //        int hangingVegetationMaxLength = ((minRoomHeight - roomOffset)*2)/3;
-        decorationBlocks.addAll(DecorationGenerator.generateHangingCeilingVegetation(ceilingBlocks, allPositions, hangingCeilingVegetationChance, dungeonHeight, random));
+        decorationBlocks.addAll(decorationGenerator.generateHangingCeilingVegetation(ceilingBlocks, allPositions, hangingCeilingVegetationChance, dungeonHeight, random));
 
 
         float cornerVegetationChance = 0.2F;
-        decorationBlocks.addAll(DecorationGenerator.generateCornerVegetation(floorBlocks, wallBlocks, allPositions, cornerVegetationChance, random));
+        decorationBlocks.addAll(decorationGenerator.generateCornerVegetation(floorBlocks, floor, wallBlocks, allPositions, cornerVegetationChance, random));
 
 
     }
@@ -564,17 +555,17 @@ public class RoomFirstDungeonGenerator3D extends SimpleRandomWalkDungeonGenerato
                 }
                 if (doesCorridorOverlapWithAnything(newCorridor, corridors, rooms, roomCenterToRoomMap.get(currentRoomCenter),roomCenterToRoomMap.get(closest))) {
                     Vector3Int newCenter = findClosestPointTo(closest, connectedRoomCenters);
-                    System.out.println("    Changed room for overlap (" + currentRoomCenter + " to " + closest + ") -> newStartCenter: " + newCenter);
+                    printDebugInfo("    Changed room for overlap (" + currentRoomCenter + " to " + closest + ") -> newStartCenter: " + newCenter);
                     if (newCenter == null) {
                         newCenter = currentRoomCenter;
-                        System.out.println("        Couldn't find closer already connected room");
+                        printDebugInfo("        Couldn't find closer already connected room");
                     }
                     newCorridor = create2DCorridor(newCenter, closest, roomCenterToRoomMap, roomCenterToRoomFloorMap);
                     if (doesCorridorOverlapWithAnything(newCorridor, corridors, rooms, roomCenterToRoomMap.get(newCenter),roomCenterToRoomMap.get(closest))) {
                         newCorridor = create2DCorridor(closest, newCenter, roomCenterToRoomMap, roomCenterToRoomFloorMap); // test both directions/startPoints
                     }
                     if (doesCorridorOverlapWithAnything(newCorridor, corridors, rooms, roomCenterToRoomMap.get(newCenter),roomCenterToRoomMap.get(closest))) {
-                        System.err.println("Failed to compute perfect path between " + newCenter + " and " + closest + " , corridor still overlaps with some room -> Trying to create a complex path");
+                        printDebugWarning("Failed to compute perfect path between " + newCenter + " and " + closest + " , corridor still overlaps with some room -> Trying to create a complex path");
                         Set<Vector3Int> failedCorridor = new LinkedHashSet<>(newCorridor);
                         newCorridor = createComplex2DCorridor(newCenter, closest, failedCorridor, corridors, rooms, roomCenterToRoomFloorMap, roomCenterToRoomMap);
 
@@ -589,7 +580,7 @@ public class RoomFirstDungeonGenerator3D extends SimpleRandomWalkDungeonGenerato
                                 connectedRoomCenters.add(currentRoomCenter);
                                 roomCenters.remove(closest);
                                 currentRoomCenter = closest;
-                                System.out.println("            Couldn't create a valid path for center: " + currentRoomCenter);
+                                printDebugWarning("            Couldn't create a valid path for center: " + currentRoomCenter);
                                 failedPaths++;
                                 break;
                             }
@@ -606,7 +597,7 @@ public class RoomFirstDungeonGenerator3D extends SimpleRandomWalkDungeonGenerato
                         connectedRoomCenters.add(currentRoomCenter);
                         roomCenters.remove(closest);
                         currentRoomCenter = closest;
-                        System.out.println("            Couldn't create a valid path for center: " + currentRoomCenter);
+                        printDebugWarning("            Couldn't create a valid path for center: " + currentRoomCenter);
                         failedPaths++;
                         break;
                     }
@@ -644,17 +635,17 @@ public class RoomFirstDungeonGenerator3D extends SimpleRandomWalkDungeonGenerato
 //            if (doesCorridorOverlapWithAnything(newCorridor, corridors, rooms, roomCenterToRoomMap.get(currentRoomCenter),roomCenterToRoomMap.get(closest))) {
 //
 //                Vector3Int newCenter = findClosestPointTo(closest, connectedRoomCenters);
-//                System.out.println("    Changed room for overlap (" + currentRoomCenter + " to " + closest + ") -> newStartCenter: " + newCenter);
+//                printDebugInfo("    Changed room for overlap (" + currentRoomCenter + " to " + closest + ") -> newStartCenter: " + newCenter);
 //                if (newCenter == null) {
 //                    newCenter = currentRoomCenter;
-//                    System.out.println("        Couldn't find closer already connected room");
+//                    printDebugInfo("        Couldn't find closer already connected room");
 //                }
 //                newCorridor = create2DCorridor(newCenter, closest, roomCenterToRoomMap, roomCenterToRoomFloorMap);
 //                if (doesCorridorOverlapWithAnything(newCorridor, corridors, rooms, roomCenterToRoomMap.get(newCenter),roomCenterToRoomMap.get(closest))) {
 //                    newCorridor = create2DCorridor(closest, newCenter, roomCenterToRoomMap, roomCenterToRoomFloorMap); // test both directions/startPoints
 //                }
 //                if (doesCorridorOverlapWithAnything(newCorridor, corridors, rooms, roomCenterToRoomMap.get(newCenter),roomCenterToRoomMap.get(closest))) {
-//                    System.err.println("Failed to compute perfect path between " + newCenter + " and " + closest + " , corridor still overlaps with some room -> Trying to create a complex path");
+//                    printDebugError("Failed to compute perfect path between " + newCenter + " and " + closest + " , corridor still overlaps with some room -> Trying to create a complex path");
 //                    Set<Vector3Int> failedCorridor = new LinkedHashSet<>(newCorridor);
 //                    newCorridor = createComplex2DCorridor(newCenter, closest, failedCorridor, corridors, rooms, roomCenterToRoomFloorMap, roomCenterToRoomMap);
 //
@@ -681,7 +672,7 @@ public class RoomFirstDungeonGenerator3D extends SimpleRandomWalkDungeonGenerato
 //        }
 
 
-        System.out.println("        Added " + complexPaths + " complexPaths (failed " + failedPaths + ") and overall " + allPaths + " paths");
+        printInfo("        Added " + complexPaths + " complexPaths (failed " + failedPaths + ") and overall " + allPaths + " paths");
 
         return corridors;
     }
@@ -707,8 +698,8 @@ public class RoomFirstDungeonGenerator3D extends SimpleRandomWalkDungeonGenerato
                 Vector3Int otherCenter = otherCenters.get(random.nextInt(0, otherCenters.size()));
                 Vector3Int currentCenter = findClosestAndOptimalPointTo(otherCenter, roomCenterToRoomMap.get(otherCenter), centers);
 
-                System.out.println("fromCenter: " + currentCenter);
-                System.out.println("toCenter: " + otherCenter);
+                printDebugInfo("fromCenter: " + currentCenter);
+                printDebugInfo("toCenter: " + otherCenter);
 
                 Set<Vector3Int> allCorridorFloor = new LinkedHashSet<>(corridorFloor);
                 allCorridorFloor.addAll(stairs);
@@ -716,16 +707,16 @@ public class RoomFirstDungeonGenerator3D extends SimpleRandomWalkDungeonGenerato
                 Triplet<Set<Vector3Int>, Set<Vector3Int>, Direction3D> triplet = create3DCorridor(currentCenter, roomCenterToRoomMap.get(currentCenter), roomCenterToRoomFloorMap.get(currentCenter), otherCenter, roomCenterToRoomMap.get(otherCenter), allCorridorFloor);
 
                 if (triplet == null || doesCorridorOverlapWithRooms(rooms, roomCenterToRoomMap.get(currentCenter), roomCenterToRoomMap.get(otherCenter), triplet.first())) {
-                    System.out.println("    Changed stair-room for overlap");
+                    printDebugInfo("    Changed stair-room for overlap");
                     Vector3Int newCenter = findClosestAndOptimalPointTo(currentCenter, roomCenterToRoomMap.get(currentCenter), otherCenters);
                     if (newCenter.equals(otherCenter)) {
-                        System.out.println("Failed to compute better stair-room, already best");
+                        printDebugInfo("Failed to compute better stair-room, already best");
                     } else {
                         otherCenter = newCenter;
                     }
                     triplet = create3DCorridor(currentCenter, roomCenterToRoomMap.get(currentCenter), roomCenterToRoomFloorMap.get(currentCenter), otherCenter, roomCenterToRoomMap.get(otherCenter), allCorridorFloor);
                     if (triplet == null) {
-                        System.out.println("                    Failed to create Stairs for room -> Staircase can't be placed from this room!");
+                        printDebugWarning("                    Failed to create Stairs for room -> Staircase can't be placed from this room!");
                         if (otherCentersList.isEmpty()) {
                             stairsFailed++;
                         }
@@ -774,22 +765,22 @@ public class RoomFirstDungeonGenerator3D extends SimpleRandomWalkDungeonGenerato
 //            Vector3Int otherCenter = otherCenters.get(random.nextInt(0, otherCenters.size()));
 //            Vector3Int currentCenter = findClosestAndOptimalPointTo(otherCenter, roomCenterToRoomMap.get(otherCenter), centers);
 //
-//            System.out.println("fromCenter: " + currentCenter);
-//            System.out.println("toCenter: " + otherCenter);
+//            printDebugInfo("fromCenter: " + currentCenter);
+//            printDebugInfo("toCenter: " + otherCenter);
 //
 //            Set<Vector3Int> newCorridor = create3DCorridor(currentCenter, roomCenterToRoomMap.get(currentCenter), roomCenterToRoomFloorMap.get(currentCenter), otherCenter, roomCenterToRoomMap.get(otherCenter), stairs);
 //
 //            if (newCorridor == null || doesCorridorOverlapWithRooms(rooms, roomCenterToRoomMap.get(currentCenter), roomCenterToRoomMap.get(otherCenter), newCorridor)) {
-//                System.out.println("    Changed stair-room for overlap");
+//                printDebugInfo("    Changed stair-room for overlap");
 //                Vector3Int newCenter = findClosestAndOptimalPointTo(currentCenter, roomCenterToRoomMap.get(currentCenter), otherCenters);
 //                if (newCenter.equals(otherCenter)) {
-//                    System.out.println("Failed to compute better stair-room, already best");
+//                    printDebugInfo("Failed to compute better stair-room, already best");
 //                } else {
 //                    otherCenter = newCenter;
 //                }
 //                newCorridor = create3DCorridor(currentCenter, roomCenterToRoomMap.get(currentCenter), roomCenterToRoomFloorMap.get(currentCenter), otherCenter, roomCenterToRoomMap.get(otherCenter), stairs);
 //                if (newCorridor == null) {
-//                    System.out.println("                    Failed to create Stairs for room -> Staircase can't be placed from this room!");
+//                    printDebugWarning("                    Failed to create Stairs for room -> Staircase can't be placed from this room!");
 //                    stairsFailed++;
 //                    continue;
 //                }
@@ -798,7 +789,7 @@ public class RoomFirstDungeonGenerator3D extends SimpleRandomWalkDungeonGenerato
 //            stairs.addAll(newCorridor);
 //            stairsAdded++;
         }
-        System.out.println("        Added " + stairsAdded + " stairs (failed " + stairsFailed + ")");
+        printInfo("        Added " + stairsAdded + " stairs (failed " + stairsFailed + ")");
         return stairBlocks;
     }
 
@@ -809,7 +800,7 @@ public class RoomFirstDungeonGenerator3D extends SimpleRandomWalkDungeonGenerato
         List<BoundingBox> overlappingRooms = getOverlappingRoomsWithCorridor(rooms, failedCorridor, currentRoom, targetRoom);
 
         if (overlappingRooms.isEmpty()) {
-            System.err.println("    Path only overlaps with other corridors -> failed to compute complex path");
+            printError("    Path only overlaps with other corridors -> failed to compute complex path");
             return new LinkedHashSet<>();
         }
 
@@ -823,9 +814,9 @@ public class RoomFirstDungeonGenerator3D extends SimpleRandomWalkDungeonGenerato
             Vector3Int currentPos;
             Direction3D lastDirection = currentDirection;
             corridor.clear();
-            System.out.println("Testing direction: " + currentDirection);
+            printDebugInfo("Testing direction: " + currentDirection);
             currentPos = getVecOnRoomEdgeFromCenter(currentCenter, currentRoom, roomCenterToRoomFloorMap.get(currentCenter), currentDirection);
-            System.out.println("    currentPos: " + currentPos);
+            printDebugInfo("    currentPos: " + currentPos);
             // add offset to dont intersect with owm room
             int startDirectionOffset = offset.mul(currentDirection.toVector3Int()).sum();
             int roomEdgeOffset = getDistanceToRoomEdgeFromCenter(currentCenter, currentRoom, roomCenterToRoomFloorMap.get(currentCenter), currentDirection) * currentDirection.toVector3Int().sum();
@@ -839,8 +830,8 @@ public class RoomFirstDungeonGenerator3D extends SimpleRandomWalkDungeonGenerato
                 addStairCorridorAroundPoint(corridor, currentPos, currentDirection, corridorWidth);
             }
             addCorridorAroundPoint(corridor, currentPos, corridorWidth);
-//            System.out.println("    startDirectionDistance: " + (startDirectionDistance));
-//            System.out.println("    currentPos: " + currentPos);
+//            printDebugInfo("    startDirectionDistance: " + (startDirectionDistance));
+//            printDebugInfo("    currentPos: " + currentPos);
 
             Direction3D secondDir = Direction3D.getDirectionForVec(currentDirection.getInverseVec().mul(offset));
             if (secondDir != null) {
@@ -850,10 +841,10 @@ public class RoomFirstDungeonGenerator3D extends SimpleRandomWalkDungeonGenerato
                     currentPos = secondDir.apply(currentPos);
                     addCorridorAroundPoint(corridor, currentPos, corridorWidth);
                 }
-//                System.out.println("    secondDir: " + secondDir);
-//                System.out.println("    offsetForCorridorSpace: " + (offsetForCorridorSpace));
-//                System.out.println("    secondDirectionOffset: " + (secondDirectionOffset));
-//                System.out.println("    currentPos: " + currentPos);
+//                printDebugInfo("    secondDir: " + secondDir);
+//                printDebugInfo("    offsetForCorridorSpace: " + (offsetForCorridorSpace));
+//                printDebugInfo("    secondDirectionOffset: " + (secondDirectionOffset));
+//                printDebugInfo("    currentPos: " + currentPos);
                 lastDirection = secondDir;
             }
 
@@ -866,34 +857,34 @@ public class RoomFirstDungeonGenerator3D extends SimpleRandomWalkDungeonGenerato
                     currentPos = thirdDir.apply(currentPos);
                     addCorridorAroundPoint(corridor, currentPos, corridorWidth);
                 }
-//                System.out.println("            thirdDir: " + thirdDir);
-//                System.out.println("            distance: " + (distance));
-//                System.out.println("            startDirectionOffset: " + (startDirectionOffset*-1));
-//                System.out.println("            centerOffset: " + (centerOffset));
-//                System.out.println("            roomEdgeOffset: " + (roomEdgeOffset));
-//                System.out.println("            offsetForCorridorSpace: " + (offsetForCorridorSpace));
-//                System.out.println("            currentPos: " + currentPos);
+//                printDebugInfo("            thirdDir: " + thirdDir);
+//                printDebugInfo("            distance: " + (distance));
+//                printDebugInfo("            startDirectionOffset: " + (startDirectionOffset*-1));
+//                printDebugInfo("            centerOffset: " + (centerOffset));
+//                printDebugInfo("            roomEdgeOffset: " + (roomEdgeOffset));
+//                printDebugInfo("            offsetForCorridorSpace: " + (offsetForCorridorSpace));
+//                printDebugInfo("            currentPos: " + currentPos);
                 lastDirection = thirdDir;
             }
 
 //            if (!doesCorridorOverlapWithAnything(corridor, corridors, rooms, currentRoom, targetRoom)) {
-                System.out.println("    Calculating corridor extension to target room");
+                printDebugInfo("    Calculating corridor extension to target room");
                 Set<Vector3Int> endCorridor = createCorridorFromStair(currentPos, targetCenter, lastDirection);
                 corridor.addAll(endCorridor);
                 if (doesCorridorOverlapWithAnything(corridor, corridors, rooms, currentRoom, targetRoom)) {
-                    System.out.println("        Failed corridor extension to target room, adding new overlapping rooms to offset and trying again");
+                    printDebugWarning("        Failed corridor extension to target room, adding new overlapping rooms to offset and trying again");
                     overlappingRooms.addAll(getOverlappingRoomsWithCorridor(rooms, corridor, currentRoom, targetRoom));
                     Vector3Int newOffset = getOverlappingRoomsOffsetVec(currentCenter, currentRoom, overlappingRooms);
 
-//                        System.out.println("    oldOffset: " + offset + " -> " + "newOffset: " + newOffset);
+//                        printDebugInfo("    oldOffset: " + offset + " -> " + "newOffset: " + newOffset);
                     if (newOffset.equals(offset)) {
-                        System.out.println("        Failed corridor extension to target room -> something went wrong");
+                        printDebugWarning("        Failed corridor extension to target room -> something went wrong");
                     } else {
                         offset = newOffset;
                         continue;
                     }
                 } else {
-                    System.out.println(" -> Success for direction: " + currentDirection);
+                    printDebugInfo(" -> Success for direction: " + currentDirection);
                     return corridor;
                 }
 //            }
@@ -905,8 +896,8 @@ public class RoomFirstDungeonGenerator3D extends SimpleRandomWalkDungeonGenerato
 //                    currentPos = currentDirection.apply(currentPos);
 //                    addStairCorridorAroundPoint(corridor, currentPos, currentDirection, corridorWidth);
 //                }
-//                System.out.println("    startDirectionOffset: " + (corridorWidth + startDirectionOffset));
-//                System.out.println("    currentPos: " + currentPos);
+//                printDebugInfo("    startDirectionOffset: " + (corridorWidth + startDirectionOffset));
+//                printDebugInfo("    currentPos: " + currentPos);
 //
 //                Direction3D secondDir = Direction3D.getDirectionForVec(currentDirection.getInverseVec().mul(offset));
 //                if (secondDir != null) {
@@ -915,29 +906,29 @@ public class RoomFirstDungeonGenerator3D extends SimpleRandomWalkDungeonGenerato
 //                        currentPos = secondDir.apply(currentPos);
 //                        addCorridorAroundPoint(corridor, currentPos, corridorWidth);
 //                    }
-//                    System.out.println("    secondDir: " + secondDir);
-//                    System.out.println("    secondDirectionOffset: " + (corridorWidth + secondDirectionOffset));
-//                    System.out.println("    currentPos: " + currentPos);
+//                    printDebugInfo("    secondDir: " + secondDir);
+//                    printDebugInfo("    secondDirectionOffset: " + (corridorWidth + secondDirectionOffset));
+//                    printDebugInfo("    currentPos: " + currentPos);
 //                }
 //                if (!doesCorridorOverlapWithAnything(corridor, corridors, rooms, currentRoom, targetRoom)) {
-//                    System.out.println("    Calculating corridor extension to target room");
+//                    printDebugInfo("    Calculating corridor extension to target room");
 //                    lastDirection = secondDir == null ? currentDirection : secondDir;
 //                    Set<Vector3Int> endCorridor = createCorridorFromStair(currentPos, targetCenter, lastDirection);
 //                    corridor.addAll(endCorridor);
 //                    if (doesCorridorOverlapWithAnything(corridor, corridors, rooms, currentRoom, targetRoom)) {
-//                        System.out.println("        Failed corridor extension to target room, adding new overlapping rooms to offset and trying again");
+//                        printDebugWarning("        Failed corridor extension to target room, adding new overlapping rooms to offset and trying again");
 //                        overlappingRooms.addAll(getOverlappingRoomsWithCorridor(rooms, corridor, currentRoom, targetRoom));
 //                        Vector3Int newOffset = getOverlappingRoomsOffsetVec(currentCenter, currentRoom, overlappingRooms);
 ////
-//                        System.out.println("    oldOffset: " + offset + " -> " + "newOffset: " + newOffset);
+//                        printDebugInfo("    oldOffset: " + offset + " -> " + "newOffset: " + newOffset);
 //                        if (newOffset.equals(offset)) {
-//                            System.out.println("        Failed corridor extension to target room -> something went wrong");
+//                            printDebugWarning("        Failed corridor extension to target room -> something went wrong");
 //                            break;
 //                        }
 //                        offset = newOffset;
 //                        continue;
 //                    }
-//                    System.out.println(" -> Success for direction: " + currentDirection);
+//                    printDebugInfo(" -> Success for direction: " + currentDirection);
 //                    return corridor;
 //                }
 //            } else {
@@ -946,26 +937,26 @@ public class RoomFirstDungeonGenerator3D extends SimpleRandomWalkDungeonGenerato
 //                    currentPos = currentDirection.apply(currentPos);
 //                    addStairCorridorAroundPoint(corridor, currentPos, currentDirection, corridorWidth);
 //                }
-//                System.out.println("    Calculating (simple) corridor extension to target room");
+//                printDebugInfo("    Calculating (simple) corridor extension to target room");
 //                Set<Vector3Int> endCorridor = createCorridorFromStair(currentPos, targetCenter, currentDirection);
 //                corridor.addAll(endCorridor);
 //                if (doesCorridorOverlapWithAnything(corridor, corridors, rooms, currentRoom, targetRoom)) {
-//                    System.out.println("        Failed corridor extension to target room, adding new overlapping rooms to offset and trying again");
+//                    printDebugWarning("        Failed corridor extension to target room, adding new overlapping rooms to offset and trying again");
 //                    overlappingRooms.addAll(getOverlappingRoomsWithCorridor(rooms, corridor, currentRoom, targetRoom));
 //                    Vector3Int newOffset = getOverlappingRoomsOffsetVec(currentCenter, currentRoom, overlappingRooms);
-////                        System.out.println("    oldOffset: " + offset + " -> " + "newOffset: " + newOffset);
+////                        printDebugInfo("    oldOffset: " + offset + " -> " + "newOffset: " + newOffset);
 //                    if (newOffset.equals(offset)) {
-//                        System.out.println("        Failed corridor extension to target room -> something went wrong");
+//                        printDebugWarning("        Failed corridor extension to target room -> something went wrong");
 //                        break;
 //                    }
 //                    offset = newOffset;
 //                    continue;
 //                }
-//                System.out.println(" -> Success for direction: " + currentDirection);
+//                printDebugInfo(" -> Success for direction: " + currentDirection);
 //                return corridor;
 //            }
 
-            System.out.println(" -> Failed for direction: " + currentDirection);
+            printDebugInfo(" -> Failed for direction: " + currentDirection);
 
             overlappingRooms = getOverlappingRoomsWithCorridor(rooms, failedCorridor, currentRoom, targetRoom);
             offset = getOverlappingRoomsOffsetVec(currentCenter, currentRoom, overlappingRooms);
@@ -979,9 +970,9 @@ public class RoomFirstDungeonGenerator3D extends SimpleRandomWalkDungeonGenerato
         return corridor;
 
 //        for (var direction : Direction3D.get2DCardinalDirections()) {
-//            System.out.println("Testing direction: " + direction);
+//            printDebugInfo("Testing direction: " + direction);
 //            currentPos = getVecOnRoomEdgeFromCenter(currentCenter, currentRoom, direction);
-//            System.out.println("currentPos: " + currentPos);
+//            printDebugInfo("currentPos: " + currentPos);
 //            // add offset to dont intersect with owm room
 //            int startDirectionOffset = offset.mul(direction.toVector3Int()).sum();
 //            if (startDirectionOffset < 0) continue;
@@ -990,8 +981,8 @@ public class RoomFirstDungeonGenerator3D extends SimpleRandomWalkDungeonGenerato
 //                currentPos = direction.apply(currentPos);
 //                addStairCorridorAroundPoint(corridor, currentPos, direction, corridorWidth);
 //            }
-//            System.out.println("startDirectionOffset: " + (corridorWidth + startDirectionOffset));
-//            System.out.println("currentPos: " + currentPos);
+//            printDebugInfo("startDirectionOffset: " + (corridorWidth + startDirectionOffset));
+//            printDebugInfo("currentPos: " + currentPos);
 //
 //            Direction3D secondDir = Direction3D.getDirectionForVec(direction.getInverseVec().mul(offset));
 //            if (secondDir != null) {
@@ -1000,9 +991,9 @@ public class RoomFirstDungeonGenerator3D extends SimpleRandomWalkDungeonGenerato
 //                    currentPos = secondDir.apply(currentPos);
 //                    addCorridorAroundPoint(corridor, currentPos, corridorWidth);
 //                }
-//                System.out.println("secondDir: " + secondDir);
-//                System.out.println("secondDirectionOffset: " + (corridorWidth + secondDirectionOffset));
-//                System.out.println("currentPos: " + currentPos);
+//                printDebugInfo("secondDir: " + secondDir);
+//                printDebugInfo("secondDirectionOffset: " + (corridorWidth + secondDirectionOffset));
+//                printDebugInfo("currentPos: " + currentPos);
 //            }
 //
 //            if (!doesCorridorOverlapWithRooms(rooms, corridor, currentRoom, targetRoom)) {
@@ -1010,7 +1001,7 @@ public class RoomFirstDungeonGenerator3D extends SimpleRandomWalkDungeonGenerato
 //                break;
 //            }
 //
-//            System.out.println("Failed for direction: " + direction);
+//            printDebugInfo("Failed for direction: " + direction);
 //
 //            corridor.clear();
 //        }
@@ -1021,14 +1012,14 @@ public class RoomFirstDungeonGenerator3D extends SimpleRandomWalkDungeonGenerato
     }
 
     private Vector3Int getOverlappingRoomsOffsetVec(Vector3Int currentCenter, BoundingBox currentRoom, List<BoundingBox> overlappingRooms) {
-        System.out.println("overlappingRooms: " + overlappingRooms);
+        printDebugInfo("overlappingRooms: " + overlappingRooms);
 
         Vector3Int offset = Vector3Int.ZERO;
         Vector3Int ignoreHeightVec = new Vector3Int(1,0,1);
 
         BoundingBox mergedOverlappingRoom = BoundingBox.merge(overlappingRooms.toArray(BoundingBox[]::new));
 
-        System.out.println("mergedOverlappingRoom: " + mergedOverlappingRoom + " -> center: " + mergedOverlappingRoom.get2DCenter() + " dim: " + mergedOverlappingRoom.getDimensions());
+        printDebugInfo("mergedOverlappingRoom: " + mergedOverlappingRoom + " -> center: " + mergedOverlappingRoom.get2DCenter() + " dim: " + mergedOverlappingRoom.getDimensions());
 
         Vector3Int centerDiff = mergedOverlappingRoom.get2DCenter().sub(currentCenter).mul(ignoreHeightVec);
         Vector3Int dimensionDiff = mergedOverlappingRoom.getDimensions().sub(currentRoom.getDimensions()).mul(ignoreHeightVec);
@@ -1049,8 +1040,8 @@ public class RoomFirstDungeonGenerator3D extends SimpleRandomWalkDungeonGenerato
         dimensionXOffest = getDimensionOffsetValue(mergedOverlappingRoom.getDimensions().x, centerDiff.x);
         dimensionZOffest = getDimensionOffsetValue(mergedOverlappingRoom.getDimensions().z, centerDiff.z);
 
-//        System.out.println("centerDiff: " + centerDiff);
-//        System.out.println("dimensionDiff: " + dimensionDiff + " -> " + mergedOverlappingRoom.getDimensions().mul(0.5) + " => x: " + dimensionXOffest + " z: " + dimensionZOffest);
+//        printDebugInfo("centerDiff: " + centerDiff);
+//        printDebugInfo("dimensionDiff: " + dimensionDiff + " -> " + mergedOverlappingRoom.getDimensions().mul(0.5) + " => x: " + dimensionXOffest + " z: " + dimensionZOffest);
         offset = offset.add(centerDiff);
         offset = offset.add(new Vector3Int(dimensionXOffest, 0, dimensionZOffest));
 
@@ -1070,13 +1061,13 @@ public class RoomFirstDungeonGenerator3D extends SimpleRandomWalkDungeonGenerato
 //            dimensionXOffest = (Math.max(room.getDimensions().x, currentRoom.getDimensions().x) / 2) * ((int) Math.signum(centerDiff.x));
 //            dimensionZOffest = (Math.max(room.getDimensions().z, currentRoom.getDimensions().z) / 2) * ((int) Math.signum(centerDiff.z));
 //
-//            System.out.println("centerDiff: " + centerDiff);
-//            System.out.println("dimensionDiff: " + dimensionDiff + " -> " + room.getDimensions().mul(0.5) + " => x: " + dimensionXOffest + " z: " + dimensionZOffest);
+//            printDebugInfo("centerDiff: " + centerDiff);
+//            printDebugInfo("dimensionDiff: " + dimensionDiff + " -> " + room.getDimensions().mul(0.5) + " => x: " + dimensionXOffest + " z: " + dimensionZOffest);
 //            offset = offset.add(centerDiff);
 //            offset = offset.add(new Vector3Int(dimensionXOffest, 0, dimensionZOffest));
 //        }
 
-        System.out.println("offset: " + offset);
+        printDebugInfo("offset: " + offset);
         return offset;
     }
 
@@ -1109,8 +1100,14 @@ public class RoomFirstDungeonGenerator3D extends SimpleRandomWalkDungeonGenerato
 
             Set<Vector3Int> stairCorridor = createStairCorridor(currentCenter, currentRoom, currentRoomFloor, targetCenter, direction);
 
-            if (doesCorridorOverlapWithRooms(rooms, stairCorridor, currentRoom, targetRoom)) continue; // TODO maybe not allow targetRoom to be overlapped with stair ?
-            if (doesStairOverlapWithCorridors(corridors, stairCorridor)) continue;
+            if (doesCorridorOverlapWithRooms(rooms, stairCorridor, currentRoom)) {
+                printDebugInfo("\tnext dir(" + direction + "): stair overlaps with another room");
+                continue; // TODO maybe not allow targetRoom to be overlapped with stair ?
+            }
+            if (doesStairOverlapWithCorridors(corridors, stairCorridor)) {
+                printDebugInfo("\tnext dir(" + direction + "): stair overlaps with another corridor");
+                continue;
+            }
 
             Set<Vector3Int> restCorridor = new LinkedHashSet<>();
 
@@ -1127,8 +1124,22 @@ public class RoomFirstDungeonGenerator3D extends SimpleRandomWalkDungeonGenerato
 
             restCorridor.addAll(createCorridorFromStair(endVec, targetCenter, direction));
 
-            if (doesCorridorOverlapWithRooms(rooms, restCorridor, currentRoom, targetRoom)) continue; //TODO check if corridor overlaps with the currentRoom, goes through it
-            if (doesCorridorOverlapWithCorridors(corridors, restCorridor)) continue;
+            if (doesCorridorOverlapWithRooms(rooms, restCorridor,currentRoom, targetRoom)) {
+                printDebugInfo("\tnext dir(" + direction + "): stair-corridor overlaps with another room");
+                continue; //TODO check if corridor overlaps with the currentRoom, goes through it
+            }
+
+            if (doesCorridorOverlapWithRooms(rooms, restCorridor, targetRoom)) {
+                if (doesCorridorOverlapWithRoomFloor(currentRoom, currentRoomFloor, restCorridor)) {
+                    printDebugInfo("\tnext dir(" + direction + "): stair-corridor overlaps with current room");
+                    continue;
+                }
+            }
+
+            if (doesCorridorOverlapWithCorridors(corridors, restCorridor)) {
+                printDebugInfo("\tnext dir(" + direction + "): stair-corridor overlaps with another corridor");
+                continue;
+            }
 
 //            if (targetRoom.contains(endVec)) continue;
             double distance = endVec.distance(targetCenter);
@@ -1150,9 +1161,9 @@ public class RoomFirstDungeonGenerator3D extends SimpleRandomWalkDungeonGenerato
 
         Vector3Int newDistanceVec = targetCenter.sub(currentPos);
 
-//        System.out.println("    currentPos: " + currentPos);
-//        System.out.println("    targetCenter: " + targetCenter);
-//        System.out.println("    NewDistance: " + newDistanceVec);
+//        printDebugInfo("    currentPos: " + currentPos);
+//        printDebugInfo("    targetCenter: " + targetCenter);
+//        printDebugInfo("    NewDistance: " + newDistanceVec);
 
         int distanceValue = newDistanceVec.mul(direction.getAbsoluteVec()).sum();
         int directionValue = direction.toVector3Int().sum();
@@ -1178,24 +1189,24 @@ public class RoomFirstDungeonGenerator3D extends SimpleRandomWalkDungeonGenerato
             firstDirectionCount = Math.max(corridorWidth + 1, firstDirectionCount);
         }
 
-//        System.out.println("        firstDirection: " + firstDirection + " -> " + firstDirectionCount);
-//        System.out.println("        secondDirection: " + secondDirection + " -> " + secondDirectionCount);
+//        printDebugInfo("        firstDirection: " + firstDirection + " -> " + firstDirectionCount);
+//        printDebugInfo("        secondDirection: " + secondDirection + " -> " + secondDirectionCount);
 //
-//        System.out.println("        currentPos: " + currentPos);
+//        printDebugInfo("        currentPos: " + currentPos);
 
         for (int i = 0; i < firstDirectionCount; i++) {
             currentPos = firstDirection.apply(currentPos);
             addCorridorAroundPoint(corridor, currentPos, corridorWidth);
         }
 
-//        System.out.println("        currentPos: " + currentPos);
+//        printDebugInfo("        currentPos: " + currentPos);
 
         for (int i = 0; i < secondDirectionCount; i++) {
             currentPos = secondDirection.apply(currentPos);
             addCorridorAroundPoint(corridor, currentPos, corridorWidth);
         }
 
-//        System.out.println("        currentPos: " + currentPos);
+//        printDebugInfo("        currentPos: " + currentPos);
 
         return corridor;
     }
@@ -1291,6 +1302,16 @@ public class RoomFirstDungeonGenerator3D extends SimpleRandomWalkDungeonGenerato
         List<BoundingBox> updatedRooms = new LinkedList<>(rooms);
         updatedRooms.removeAll(Arrays.asList(ignoredRooms));
         return updatedRooms.stream().anyMatch(room -> finalCorridor.stream().anyMatch(vec -> isRoomInteriorOverlap(room, vec)));
+    }
+
+    private boolean doesCorridorOverlapWithRoomFloor(BoundingBox room, Set<Vector3Int> roomFloor, Set<Vector3Int> corridor) {
+        for (Vector3Int pos : roomFloor) {
+            for (int i = 0; i < room.getDimensions().y; i++) {
+                if (corridor.contains(pos.add(0,i,0)))
+                    return true;
+            }
+        }
+        return false;
     }
 
     private boolean isRoomInteriorOverlap(BoundingBox room, Vector3Int vec) {
@@ -1666,7 +1687,7 @@ public class RoomFirstDungeonGenerator3D extends SimpleRandomWalkDungeonGenerato
             position = direction.apply(position);
             dungeonGenerator.addCorridorAroundPoint(corridor, position, 1);
         }
-        System.out.println("    position: " + position);
+        printDebugInfo("    position: " + position);
         while (position.getX() != destination.getX()) {
             if (destination.getX() > position.getX()) {
                 direction = Direction3D.EAST;

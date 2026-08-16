@@ -14,6 +14,7 @@ import org.bukkit.block.Block;
 import org.bukkit.block.BlockFace;
 import org.bukkit.block.data.MultipleFacing;
 import org.bukkit.block.data.Waterlogged;
+import org.bukkit.block.data.type.Leaves;
 import org.bukkit.block.data.type.Slab;
 import org.bukkit.block.data.type.Stairs;
 
@@ -199,6 +200,9 @@ public class DungeonMaterialsManagerBukkit extends DungeonMaterialsManager<Mater
                 }
             }
             block.setBlockData(slab);
+        } else if (blockData instanceof Leaves leave) {
+            leave.setPersistent(true);
+            block.setBlockData(leave);
         }
 
         // update usage counters for actually placed blocks
@@ -215,27 +219,27 @@ public class DungeonMaterialsManagerBukkit extends DungeonMaterialsManager<Mater
 
         if (dungeonBlock instanceof DungeonDecorationBlock decorationBlock) {
             switch (decorationBlock.getPlacementType()) {
-            case FLOOR -> {
-                floorDecorationMaterialUsedMap.compute(material, (mat, used) -> used == null ? 1 : used + 1);
-                if (block.getBlockData() instanceof Waterlogged waterlogged) {
-                    waterlogged.setWaterlogged(false);
-                    block.setBlockData(waterlogged);
+                case FLOOR -> {
+                    floorDecorationMaterialUsedMap.compute(material, (mat, used) -> used == null ? 1 : used + 1);
+                    if (block.getBlockData() instanceof Waterlogged waterlogged) {
+                        waterlogged.setWaterlogged(false);
+                        block.setBlockData(waterlogged);
+                    }
                 }
-            }
-            case WALL -> {
-                wallDecorationMaterialUsedMap.compute(material, (mat, used) -> used == null ? 1 : used + 1);
-                if (block.getBlockData() instanceof MultipleFacing multipleFacing) {
-                    multipleFacing.setFace(
-                            BlockFace.valueOf(decorationBlock.getFacingDirectionAsString()).getOppositeFace(), true);
-                    block.setBlockData(multipleFacing);
+                case WALL -> {
+                    wallDecorationMaterialUsedMap.compute(material, (mat, used) -> used == null ? 1 : used + 1);
+                    if (block.getBlockData() instanceof MultipleFacing multipleFacing) {
+                        multipleFacing.setFace(
+                                BlockFace.valueOf(decorationBlock.getFacingDirectionAsString()).getOppositeFace(), true);
+                        block.setBlockData(multipleFacing);
+                    }
                 }
-            }
-            case CEILING -> {
-                ceilingDecorationMaterialUsedMap.compute(material, (mat, used) -> used == null ? 1 : used + 1);
-            }
-            case CORNER -> {
-                cornerDecorationMaterialUsedMap.compute(material, (mat, used) -> used == null ? 1 : used + 1);
-            }
+                case CEILING -> {
+                    ceilingDecorationMaterialUsedMap.compute(material, (mat, used) -> used == null ? 1 : used + 1);
+                }
+                case CORNER -> {
+                    cornerDecorationMaterialUsedMap.compute(material, (mat, used) -> used == null ? 1 : used + 1);
+                }
             }
         }
     }

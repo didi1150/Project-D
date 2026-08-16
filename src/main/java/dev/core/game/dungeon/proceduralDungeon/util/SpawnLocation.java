@@ -27,7 +27,7 @@ public class SpawnLocation {
     }
 
     public Point3D getPosition() {
-        return position;
+        return position.add(new Point3D(0,1,0)); // position is in floor, so return pos above
     }
 
     public SpawnTier getTier() {

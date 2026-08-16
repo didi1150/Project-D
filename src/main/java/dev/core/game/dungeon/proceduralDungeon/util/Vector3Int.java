@@ -2,6 +2,7 @@ package dev.core.game.dungeon.proceduralDungeon.util;
 
 import dev.core.game.coords.Point3D;
 import lombok.Getter;
+import org.joml.Vector3f;
 
 @Getter
 public class Vector3Int {
@@ -79,6 +80,10 @@ public class Vector3Int {
 
     public double distanceSqrd(Vector3Int other) {
         return (Math.pow((other.x - this.x), 2)) + Math.pow(other.y - this.y, 2) + Math.pow(other.z - this.z, 2);
+    }
+
+    public Vector3f toVector3f() {
+        return new Vector3f(x, y, z);
     }
 
     @Override
