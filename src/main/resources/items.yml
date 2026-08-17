@@ -749,6 +749,31 @@ items:
     active-stats: []
     abilities:
     - SPINJITZU
+  WAR_MACE:
+    # The War Mace: RIGHT CLICK slams the ground and sends a shockwave cone in
+    # the look direction. Enemies in the cone are knocked back and take damage
+    # scaling with the wielder's Armor and Magic Resist (see the SMASH ability).
+    unlockLevel: 0
+    name: War Mace
+    material: MACE
+    slot: MAIN_HAND
+    itemType: SWORD
+    passive-stats: []
+    allowed-classes:
+    - TANK
+    active-stats:
+    - amount: 20.0
+      statType: ARMOR
+      modifierType: FLAT
+      statTarget: BOTH
+      policy: STACK
+    - amount: 20.0
+      statType: MAGIC_RESIST
+      modifierType: FLAT
+      statTarget: BOTH
+      policy: STACK
+    abilities:
+    - SMASH
 
 # ---- Basic Archer Set (item set bonus: full 4/4 set) -----------------------
 # Full set passive: +10% projectile damage dealt (arrows, projectiles and the

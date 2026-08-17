@@ -5,6 +5,7 @@ import java.util.Map;
 import java.util.Optional;
 
 import dev.core.ability.impl.ParticleTestAbility;
+import dev.core.ability.impl.SmashAbility;
 import dev.core.ability.impl.SpinjitzuAbility;
 import dev.core.ability.impl.SpiritSceptreAbility;
 import dev.core.ability.impl.SwingBoneAbility;
@@ -18,6 +19,7 @@ public class AbilityRegistry {
 		register(new SwingBoneAbility());
 		register(new SpiritSceptreAbility());
 		register(new SpinjitzuAbility());
+		register(new SmashAbility());
 	}
 
 	public static void register(Ability ability) {

@@ -11,6 +11,7 @@ import org.bukkit.plugin.java.JavaPlugin;
 import dev.bukkit.ability.BukkitEffectManager;
 import dev.bukkit.ability.BukkitEffectRegistry;
 import dev.bukkit.ability.BukkitParticleTestEffect;
+import dev.bukkit.ability.BukkitSmashEffect;
 import dev.bukkit.ability.BukkitSpiritSceptreBatEffect;
 import dev.bukkit.ability.BukkitSpinjitzuEffect;
 import dev.bukkit.ability.BukkitSwingBoneEffect;
@@ -103,6 +104,7 @@ public final class DMain extends JavaPlugin {
         BukkitEffectRegistry.register("BONE_SWING", BukkitSwingBoneEffect::new);
         BukkitEffectRegistry.register("GUIDED_BAT", BukkitSpiritSceptreBatEffect::new);
         BukkitEffectRegistry.register("SPINJITZU", BukkitSpinjitzuEffect::new);
+        BukkitEffectRegistry.register("SMASH", BukkitSmashEffect::new);
 
         // Item set passives: registered before items.yml loads so the loader can
         // resolve the "passives:" lists of set bonuses.

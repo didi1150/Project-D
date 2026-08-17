@@ -41,8 +41,10 @@ class BukkitEffectManagerCastSmokeTest {
         AbilityRegistry.register(configured("BONE_SWING", AbilityAction.RIGHT_CLICK, CooldownScope.ITEM, 3000));
         AbilityRegistry
                 .register(configured("PARTICLE_TEST_ABILITY", AbilityAction.RIGHT_CLICK, CooldownScope.PLAYER, 0));
+        AbilityRegistry.register(configured("SMASH", AbilityAction.RIGHT_CLICK, CooldownScope.ITEM, 5000));
         BukkitEffectRegistry.register("BONE_SWING", BukkitSwingBoneEffect::new);
         BukkitEffectRegistry.register("PARTICLE_TEST_ABILITY", BukkitParticleTestEffect::new);
+        BukkitEffectRegistry.register("SMASH", BukkitSmashEffect::new);
     }
 
     @Test
@@ -50,7 +52,7 @@ class BukkitEffectManagerCastSmokeTest {
         EffectManagerInterface manager = BukkitEffectManager.getInstance();
         RPGEntity entity = new TestRPGEntity();
 
-        for (String id : new String[] { "BONE_SWING", "PARTICLE_TEST_ABILITY" }) {
+        for (String id : new String[] { "BONE_SWING", "PARTICLE_TEST_ABILITY", "SMASH" }) {
             Ability ability = AbilityRegistry.get(id).orElseThrow();
             Effect effect = manager.cast(entity, ability);
             assertNotNull(effect, "cast() silently returned null for registered ability " + id);
@@ -64,6 +66,15 @@ class BukkitEffectManagerCastSmokeTest {
         Ability ability = AbilityRegistry.get("BONE_SWING").orElseThrow();
 
         assertTrue(manager.cast(entity, ability) instanceof BukkitSwingBoneEffect);
+    }
+
+    @Test
+    void castSmashDispatchProducesSmashEffect() {
+        EffectManagerInterface manager = BukkitEffectManager.getInstance();
+        RPGEntity entity = new TestRPGEntity();
+        Ability ability = AbilityRegistry.get("SMASH").orElseThrow();
+
+        assertTrue(manager.cast(entity, ability) instanceof BukkitSmashEffect);
     }
 
     @Test

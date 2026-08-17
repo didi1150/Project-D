@@ -98,3 +98,16 @@ abilities:
     action: RIGHT_CLICK
     cooldownScope: ITEM
     cooldown: 3000
+  SMASH:
+    name: Smash
+    description:
+      - "Slam into the ground, sending out a"
+      - "shockwave in a cone in front of you."
+      - ""
+      - "Enemies inside the cone are knocked"
+      - "back and take damage scaling with"
+      - "your <gray>Armor</gray> and <dark_purple>Magic Resist</dark_purple>."
+    triggerType: MANUAL
+    action: RIGHT_CLICK
+    cooldownScope: ITEM
+    cooldown: 5000
