@@ -4,20 +4,23 @@ import java.util.ArrayList;
 import java.util.List;
 
 import org.bukkit.Bukkit;
-import org.bukkit.Color;
+import org.bukkit.HeightMap;
 import org.bukkit.Location;
+import org.bukkit.Material;
 import org.bukkit.Particle;
-import org.bukkit.Particle.DustOptions;
 import org.bukkit.Sound;
 import org.bukkit.World;
 import org.bukkit.block.Block;
 import org.bukkit.block.BlockFace;
+import org.bukkit.block.data.BlockData;
 import org.bukkit.entity.ArmorStand;
 import org.bukkit.entity.BlockDisplay;
 import org.bukkit.entity.Entity;
 import org.bukkit.entity.EntityType;
 import org.bukkit.entity.LivingEntity;
+import org.bukkit.util.Transformation;
 import org.bukkit.util.Vector;
+import org.joml.Vector3f;
 
 import dev.bukkit.DMain;
 import dev.bukkit.entity.BukkitPlayerEntity;
@@ -32,137 +35,131 @@ import dev.core.event.impl.RPGEntityDamageEvent.DamageResult;
 import dev.core.event.impl.RPGEntityDamageEvent.DamageType;
 import dev.core.stat.StatType;
 
-/**
- * Smash: the caster slams the ground, sending a shockwave out in a
- * {@value #CONE_FULL_ANGLE_DEG}-degree cone aligned with the direction they
- * are looking. Every enemy standing inside the cone — including exactly on the
- * edge — is knocked back away from the impact and takes damage that scales
- * with the caster's ARMOR and MAGIC_RESIST stats.
- * <p>
- * Geometry: the cone is a section of a circle (a wedge) on the ground plane in
- * front of the caster: a horizontal angular sector of
- * {@value #CONE_FULL_ANGLE_DEG} degrees, {@value #CONE_RANGE} blocks deep. A
- * target is inside the wedge when its horizontal distance to the impact is at
- * most {@value #CONE_RANGE} and its horizontal offset is within the half-angle
- * of the look direction (the >= edge comparison keeps exactly-on-the-boundary
- * targets hittable).
- * <p>
- * Damage formula: {@code (BASE_DAMAGE + ARMOR * ARMOR_SCALE + MAGIC_RESIST *
- * MAGIC_RESIST_SCALE) * abilityDamageMultiplier}, dealt as TRUE damage so the
- * caster's defensive stats translate into raw damage instead of being filtered
- * through the target's defenses.
- * <p>
- * The shockwave is visualized two ways: dust particles burst at the impact and
- * billow at the expanding wavefront while it travels, and the ground itself
- * ripples — each ground block inside the wedge gets exactly one BlockDisplay
- * (identity transformation, so it is indistinguishable from the block it
- * mirrors). The wave travels through the ground only ONCE: a block rests until
- * the wavefront reaches it, climbs to its sine peak (a chirp wave whose short
- * period near the impact widens with distance) over a few ticks, then falls
- * back with gravity and is removed once it has landed. The ripple is anchored
- * to the impact spot, so it does not follow the caster.
- * <p>
- * The effect is single-instance per (caster, item instance) via the effect
- * manager and starts the ability's configured cooldown at cast.
- */
 public class BukkitSmashEffect extends Effect {
 
-    // ---- Cone geometry ------------------------------------------------------
-    /** Full width of the shockwave cone, in degrees. */
-    public static final double CONE_FULL_ANGLE_DEG = 45.0;
-    /** Half-angle of the cone, in degrees (the wedge spans +/- this around the look). */
+    // ---- Cone geometry --------------------------------------------------------
+    public static final double CONE_FULL_ANGLE_DEG = 60.0;
     public static final double CONE_HALF_ANGLE_DEG = CONE_FULL_ANGLE_DEG / 2.0;
-    /** How far out the cone reaches, in blocks. */
     public static final double CONE_RANGE = 8.0;
-    /** Vertical band above the impact that a target must stand in to be hit. */
+    /**
+     * Vertical band above the ground a target must be standing in to be hit.
+     * The band is measured against the ground under the TARGET, not the impact
+     * point, so enemies up or down a staircase stay hittable as long as they
+     * are standing on a surface.
+     */
     private static final double CONE_HEIGHT = 3.0;
 
-    // ---- Damage --------------------------------------------------------------
+    // ---- Terrain sampling (stairs/hills) --------------------------------------
+    /**
+     * Half-height of the nearby-entity search box around the impact. Terrain
+     * can deviate far above or below the impact on staircases and hills; the
+     * per-target ground check narrows the candidates down.
+     */
+    private static final double SEARCH_Y_HALF_EXTENT = CONE_HEIGHT + CONE_RANGE;
+    /**
+     * A column surface this far above the caster's feet is treated as a
+     * roof/overhang instead of a climbable slope: stairs in play gain roughly
+     * one block per two blocks of run, so the cone's far edge normally stays
+     * within this band. Surfaces within it (ascending stairs) are ridden,
+     * surfaces above it fall back to the nearest floor.
+     */
+    private static final int MAX_SLOPE_RISE = (int) CONE_HEIGHT + 1;
+    /** When a column's only surface is a roof, scan down for the nearest floor. */
+    private static final int MAX_FLOOR_SCAN_DOWN = 4;
+
+    // ---- Eruption grid --------------------------------------------------------
+    private static final double MIN_DISTANCE = 2.0;
+    private static final double MAX_DISTANCE = 8.0;
+    private static final double DISTANCE_STEP = 1.5;
+    private static final double ANGLE_STEP_DEGREES = 8.0;
+
+    // ---- Animation & timing (ticks) -------------------------------------------
+    private static final int ROW_DELAY_TICKS = 1;
+    private static final int PILLAR_RISE_TICKS = 3;
+    private static final int HOLD_TICKS = 15;
+    private static final int DISSOLVE_TICKS = 15;
+
+    // ---- Pillar properties -----------------------------------------------------
+    private static final float MIN_PILLAR_HEIGHT = 0.5f;
+    private static final float MAX_PILLAR_HEIGHT = 1.4f;
+
+    // ---- Audio & particles -----------------------------------------------------
+    private static final float SOUND_VOLUME = 1.5f;
+    private static final float SOUND_PITCH = 0.6f;
+    private static final int DEBRIS_PARTICLES = 20;
+
+    // ---- Damage ---------------------------------------------------------------
     private static final double BASE_DAMAGE = 15.0;
-    /** Damage per point of the caster's ARMOR stat. */
     private static final double ARMOR_SCALE = 1.5;
-    /** Damage per point of the caster's MAGIC_RESIST stat. */
     private static final double MAGIC_RESIST_SCALE = 1.5;
 
     // ---- Knockback ------------------------------------------------------------
-    /** Knockback strength at the impact (0 blocks away), blocks/tick. */
     private static final double KNOCKBACK_BASE = 0.85;
-    /** Knockback falls off to this fraction at the far edge of the cone. */
     private static final double KNOCKBACK_FALLOFF = 0.45;
-    /** Vertical hop applied with the knockback. */
     private static final double KNOCKBACK_UP = 0.32;
 
-    // ---- Ripple visuals -------------------------------------------------------
-    /** How long the wavefront takes to reach the far edge of the cone, in ticks. */
-    private static final int RIPPLE_TICKS = 24;
-    /** Ticks a lifted block takes to climb to its sine peak. */
-    private static final int RISE_TICKS = 4;
-    /** Downward acceleration of a falling block, in blocks/tick^2. */
-    private static final double FALL_GRAVITY = 0.12;
-    /** Peak height of the ground wave, in blocks. */
-    private static final double RIPPLE_AMPLITUDE = 3.0;
-    /** Wavelength of the ripple right at the impact, in blocks (short period). */
-    private static final double RIPPLE_WAVELENGTH_MIN = 1.4;
-    /**
-     * How much the wavelength grows per block of distance from the impact, in
-     * blocks: the ripple's period starts short next to the player and widens
-     * toward the far edge of the cone.
-     */
-    private static final double RIPPLE_WAVELENGTH_GROWTH = 0.55;
-    /**
-     * Safety cap on concurrent ripple displays. The wedge is sampled per
-     * ground block (at most one display per block), so the real count is the
-     * number of floor blocks inside the cone (~25 at the configured range);
-     * the cap only guards against pathological geometry.
-     */
-    private static final int MAX_RIPPLE_DISPLAYS = 80;
+    // ---- Derived timeline ------------------------------------------------------
+    private static final int ROW_COUNT = (int) ((MAX_DISTANCE - MIN_DISTANCE) / DISTANCE_STEP) + 1;
+    private static final int LAST_ROW_TICK = (ROW_COUNT - 1) * ROW_DELAY_TICKS;
+    private static final int RISE_END_TICK = LAST_ROW_TICK + 1 + PILLAR_RISE_TICKS;
+    private static final int DISSOLVE_START_TICK = RISE_END_TICK + HOLD_TICKS;
+    private static final int LAST_REMOVE_TICK = DISSOLVE_START_TICK + DISSOLVE_TICKS + 1;
+    private static final int MAX_PILLAR_DISPLAYS = 96;
 
-    /**
-     * Resting center height above the floor, in blocks: just under the surface
-     * (top at 0.95), so a resting display never coplanar-fights the ground
-     * block it mirrors and stays hidden until the wave lifts it.
-     */
-    private static final double REST_OFFSET = 0.45;
-
-    /**
-     * One ground block in the wedge: the display riding on it plus its own
-     * one-pass timeline. The wavefront reaches the block at
-     * {@code arrivalTick}, the block then climbs to its sine peak
-     * ({@code peak}) over {@link #RISE_TICKS} ticks and falls back with
-     * {@link #FALL_GRAVITY} gravity, landing at {@code endTick}.
-     */
-    private static final class Ripple {
+    private static final class PillarSpec {
         final double x;
         final double z;
-        final BlockDisplay display;
-        final double arrivalTick;
-        final double peak;
-        final double endTick;
+        final double groundY;
+        final BlockData block;
+        final int spawnTick;
 
-        Ripple(double x, double z, BlockDisplay display, double arrivalTick, double peak, double endTick) {
+        PillarSpec(double x, double z, double groundY, BlockData block, int spawnTick) {
             this.x = x;
             this.z = z;
-            this.display = display;
-            this.arrivalTick = arrivalTick;
-            this.peak = peak;
-            this.endTick = endTick;
+            this.groundY = groundY;
+            this.block = block;
+            this.spawnTick = spawnTick;
         }
     }
 
-    private final List<Ripple> ripples = new ArrayList<>();
+    private static final class Pillar {
+        final BlockDisplay display;
+        final BlockData block;
+        final double x;
+        final double z;
+        final double groundY;
+        final float targetHeight;
+        final int riseTick;
+        final int dissolveTick;
+        final int removeTick;
+        boolean risen;
+        boolean dissolving;
+
+        Pillar(BlockDisplay display, BlockData block, double x, double z, double groundY, float targetHeight,
+                int riseTick, int dissolveTick, int removeTick) {
+            this.display = display;
+            this.block = block;
+            this.x = x;
+            this.z = z;
+            this.groundY = groundY;
+            this.targetHeight = targetHeight;
+            this.riseTick = riseTick;
+            this.dissolveTick = dissolveTick;
+            this.removeTick = removeTick;
+        }
+    }
+
+    private final List<PillarSpec> pendingPillars = new ArrayList<>();
+    private final List<Pillar> pillars = new ArrayList<>();
     private boolean cleanedUp;
     private World world;
     private Vector coneForward;
     private double impactX;
     private double impactZ;
-    private double groundY;
     private int ticks;
 
     public BukkitSmashEffect(String cooldownKey) {
-        // The configured duration only caps a wave that never settles (the
-        // manager's emergency despawn); normally the effect ends on its own as
-        // soon as the last block has landed and been removed.
-        super(null, (RIPPLE_TICKS + RISE_TICKS + 10) * 50L + 100, true, cooldownKey);
+        super(null, (LAST_REMOVE_TICK + 10) * 50L + 100, true, cooldownKey);
     }
 
     @Override
@@ -178,34 +175,30 @@ public class BukkitSmashEffect extends Effect {
         }
         this.cleanedUp = false;
         this.ticks = 0;
+        this.pendingPillars.clear();
+        this.pillars.clear();
         this.world = casterEntity.getWorld();
         Location impact = casterEntity.getLocation();
         this.impactX = impact.getX();
         this.impactZ = impact.getZ();
 
-        // The cone is aligned with the direction the caster is looking, but
-        // flattened to the ground plane: looking down still slams in front.
         Vector forward = casterEntity.getEyeLocation().getDirection();
         forward.setY(0);
         if (forward.lengthSquared() == 0) {
             forward = new Vector(0, 0, -1);
         }
         this.coneForward = forward.normalize();
+        Vector right = new Vector(-coneForward.getZ(), 0, coneForward.getX());
 
-        // Damage + knockback resolve at the moment of impact.
         smashEnemies(caster, casterEntity, coneForward, impact);
 
-        // The ground ripple rides on the floor under the impact point. A slam
-        // with no ground beneath it (mid-air) still shows the dust shockwave.
-        this.groundY = groundYAt(impact);
-        if (!Double.isNaN(this.groundY)) {
-            spawnRipple(impact, coneForward);
-        }
-
-        impact.getWorld().playSound(impact, Sound.ENTITY_GENERIC_EXPLODE, 1.0f, 0.6f);
+        impact.getWorld().playSound(impact, Sound.ENTITY_GENERIC_EXPLODE, SOUND_VOLUME, SOUND_PITCH);
         impact.getWorld().playSound(impact, Sound.BLOCK_STONE_BREAK, 1.0f, 0.9f);
         impact.getWorld().spawnParticle(Particle.FALLING_DUST, impact.clone().add(0, 0.2, 0), 60, 1.5, 0.4, 1.5, 0.4,
                 floorBlock(impact).getBlockData());
+        spawnDirectionalShockwave(impact, coneForward, right);
+
+        schedulePillars(impact, coneForward, right);
 
         cooldownSink.startCooldown();
     }
@@ -216,11 +209,10 @@ public class BukkitSmashEffect extends Effect {
             return;
         }
         ticks++;
-        animateRipple();
-        spawnWavefrontDust();
-        if (ripples.isEmpty()) {
-            // Every block has risen, fallen back and been removed: the wave
-            // has travelled through the ground exactly once.
+        spawnPendingPillars();
+        animatePillars();
+        spawnHoldSmoke();
+        if (pendingPillars.isEmpty() && pillars.isEmpty() && ticks >= LAST_REMOVE_TICK) {
             cleanup();
         }
     }
@@ -235,23 +227,15 @@ public class BukkitSmashEffect extends Effect {
             return;
         }
         cleanedUp = true;
-        for (Ripple ripple : ripples) {
-            if (ripple.display.isValid()) {
-                ripple.display.remove();
+        for (Pillar pillar : pillars) {
+            if (pillar.display.isValid()) {
+                pillar.display.remove();
             }
         }
-        ripples.clear();
+        pillars.clear();
+        pendingPillars.clear();
     }
 
-    // ---- Cone geometry --------------------------------------------------------
-
-    /**
-     * True when the horizontal offset (impact point -> target) lies inside or
-     * exactly on the edge of the wedge: no farther than {@code range} blocks
-     * and within {@code cosHalfAngle} of the (horizontal) forward direction.
-     * The >= comparison keeps targets standing exactly on the boundary hittable.
-     * Both vectors are treated as horizontal (their Y components are ignored).
-     */
     public static boolean inConeWedge(Vector forward, Vector offset, double range, double cosHalfAngle) {
         double dx = offset.getX();
         double dz = offset.getZ();
@@ -260,32 +244,23 @@ public class BukkitSmashEffect extends Effect {
             return false;
         }
         if (distSq == 0) {
-            return true; // standing on the impact point itself
+            return true;
         }
         double invDist = 1.0 / Math.sqrt(distSq);
         double dot = (dx * forward.getX() + dz * forward.getZ()) * invDist;
         return dot >= cosHalfAngle;
     }
 
-    /**
-     * Resolves the Bukkit living entity backing a caster, so the slam works for
-     * players AND mobs. Mobs keep their vanilla AI but cast abilities through an
-     * {@code RPGMobEntity} wrapper that shares the vanilla entity's uuid, so
-     * {@link Bukkit#getEntity(uuid)} resolves the living mob.
-     */
     private static LivingEntity resolveEntity(RPGEntity caster) {
         if (caster instanceof BukkitPlayerEntity playerEntity) {
             return playerEntity.getPlayer().orElse(null);
         }
-        // Off-server (tests/headless): there is no entity registry, so no-op.
         if (Bukkit.getServer() == null) {
             return null;
         }
         Entity entity = Bukkit.getEntity(caster.getUuid());
         return entity instanceof LivingEntity living ? living : null;
     }
-
-    // ---- Damage & knockback ---------------------------------------------------
 
     private void smashEnemies(RPGEntity caster, LivingEntity casterEntity, Vector forward, Location impact) {
         boolean casterIsPlayer = caster instanceof BukkitPlayerEntity;
@@ -295,7 +270,7 @@ public class BukkitSmashEffect extends Effect {
         double magicResist = caster.getStatEngineAdapter().getCurrentValue(StatType.MAGIC_RESIST, now);
         double damage = smashDamage(armor, magicResist, caster.getAbilityDamageMultiplier());
 
-        for (Entity entity : impact.getWorld().getNearbyEntities(impact, CONE_RANGE, CONE_HEIGHT, CONE_RANGE)) {
+        for (Entity entity : impact.getWorld().getNearbyEntities(impact, CONE_RANGE, SEARCH_Y_HALF_EXTENT, CONE_RANGE)) {
             if (!(entity instanceof LivingEntity living) || living.getUniqueId().equals(caster.getUuid())) {
                 continue;
             }
@@ -305,16 +280,23 @@ public class BukkitSmashEffect extends Effect {
             if (EntityManager.getInstance().isGhost(living.getUniqueId())) {
                 continue;
             }
-            // Players slam mobs; mobs slam players (mirrors Spinjitzu/Bonemerang).
             if (casterIsPlayer && entity.getType() == EntityType.PLAYER) {
                 continue;
             }
             if (!casterIsPlayer && entity.getType() != EntityType.PLAYER) {
                 continue;
             }
-            double dy = living.getLocation().getY() - impact.getY();
-            if (dy < -0.5 || dy > CONE_HEIGHT) {
-                continue; // standing target: within a band above the impact
+            // The shockwave rides the ground, not the caster's own altitude: a
+            // target is hittable when it stands on a surface within the band,
+            // no matter how much higher or lower that surface is (stairs up
+            // and down stay in the cone's reach).
+            double groundTop = groundTopBelow(living.getLocation());
+            if (Double.isNaN(groundTop)) {
+                continue; // flying over a void column
+            }
+            double standHeight = living.getLocation().getY() - groundTop;
+            if (standHeight < -0.5 || standHeight > CONE_HEIGHT) {
+                continue; // not standing on the ground (mid-air / deep below ground)
             }
             Vector offset = living.getLocation().toVector().subtract(impact.toVector());
             offset.setY(0);
@@ -336,20 +318,12 @@ public class BukkitSmashEffect extends Effect {
                     playHitSound(living, rpgDamage.getResult());
                 }
             }, () -> {
-                // Vanilla mob: damageMob fires an EntityDamageByEntityEvent that
-                // CombatListener already renders an indicator for, so we must NOT
-                // render again here or the indicator doubles.
                 DamageUtils.damageMob(living, damage, casterEntity);
                 playHitSound(living, DamageResult.NORMAL);
             });
         }
     }
 
-    /**
-     * The shockwave's raw damage: a flat base plus the caster's defensive
-     * stats (ARMOR and MAGIC_RESIST) fed through their per-point scales, then
-     * multiplied by the caster's ability-damage multiplier.
-     */
     static double smashDamage(double armor, double magicResist, double abilityMultiplier) {
         return (BASE_DAMAGE + armor * ARMOR_SCALE + magicResist * MAGIC_RESIST_SCALE) * abilityMultiplier;
     }
@@ -375,146 +349,181 @@ public class BukkitSmashEffect extends Effect {
         combatListener.playProjectileHitSound(le, result);
     }
 
-    // ---- Ground ripple visuals -------------------------------------------------
+    private void schedulePillars(Location impact, Vector forward, Vector right) {
+        double halfAngle = Math.toRadians(CONE_HALF_ANGLE_DEG);
+        double angleStep = Math.toRadians(ANGLE_STEP_DEGREES);
+        double impactY = impact.getY(); // Floor reference level
+        int rowIndex = 0;
 
-    /**
-     * Samples the floor block-by-block: every ground block whose center lies
-     * inside the wedge gets exactly ONE display, cloned from that block's own
-     * blockdata. The display uses the identity transformation (no scale, no
-     * rotation) and rests buried just under the surface, so before the wave
-     * reaches it — and after it lands — it is visually indistinguishable from
-     * the ground block it mirrors. The number of displays therefore never
-     * exceeds the number of ground blocks in the cone.
-     */
-    private void spawnRipple(Location impact, Vector forward) {
-        double cosHalfAngle = Math.cos(Math.toRadians(CONE_HALF_ANGLE_DEG));
-        double kFactor = 2 * Math.PI / RIPPLE_WAVELENGTH_GROWTH;
-        int minX = (int) Math.floor(impactX - CONE_RANGE);
-        int maxX = (int) Math.floor(impactX + CONE_RANGE);
-        int minZ = (int) Math.floor(impactZ - CONE_RANGE);
-        int maxZ = (int) Math.floor(impactZ + CONE_RANGE);
-        for (int bx = minX; bx <= maxX && ripples.size() < MAX_RIPPLE_DISPLAYS; bx++) {
-            for (int bz = minZ; bz <= maxZ && ripples.size() < MAX_RIPPLE_DISPLAYS; bz++) {
-                double x = bx + 0.5;
-                double z = bz + 0.5;
-                Vector offset = new Vector(x - impactX, 0, z - impactZ);
-                if (!inConeWedge(forward, offset, CONE_RANGE, cosHalfAngle)) {
+        for (double d = MIN_DISTANCE; d <= MAX_DISTANCE + 1e-9; d += DISTANCE_STEP) {
+            int spawnTick = rowIndex * ROW_DELAY_TICKS;
+            for (double theta = -halfAngle; theta <= halfAngle + 1e-9; theta += angleStep) {
+                if (pendingPillars.size() >= MAX_PILLAR_DISPLAYS) {
+                    return;
+                }
+
+                double dirX = forward.getX() * Math.cos(theta) + right.getX() * Math.sin(theta);
+                double dirZ = forward.getZ() * Math.cos(theta) + right.getZ() * Math.sin(theta);
+                double x = impactX + dirX * d;
+                double z = impactZ + dirZ * d;
+
+                Block ground = pillarColumnGround(world, (int) Math.floor(x), (int) Math.floor(z), impactY);
+                if (ground == null) {
                     continue;
                 }
-                double distance = Math.sqrt(offset.getX() * offset.getX() + offset.getZ() * offset.getZ());
-                // The block's sine peak: crests of the chirp wave (short period
-                // near the impact, widening with distance) decide how high it
-                // jumps; blocks on a trough barely move.
-                double phase = kFactor * Math.log(1 + distance * RIPPLE_WAVELENGTH_GROWTH / RIPPLE_WAVELENGTH_MIN);
-                double peak = RIPPLE_AMPLITUDE * Math.abs(Math.sin(phase));
-                double arrivalTick = distance * RIPPLE_TICKS / CONE_RANGE;
-                double fallTicks = peak > 0 ? Math.sqrt(2 * peak / FALL_GRAVITY) : 0;
-                double endTick = arrivalTick + (peak > 0 ? RISE_TICKS + fallTicks : 0);
 
-                Location loc = new Location(world, x, groundY + REST_OFFSET, z);
-                Block floor = world.getBlockAt(bx, (int) groundY, bz);
-                BlockDisplay display = world.spawn(loc, BlockDisplay.class, d -> {
-                    d.setBlock(floor.getBlockData());
-                    d.setTeleportDuration(1);
-                    // Identity transformation on purpose: the display IS the
-                    // ground block, only its vertical motion is animated.
-                });
-                ripples.add(new Ripple(x, z, display, arrivalTick, peak, endTick));
+                BlockData block = ground.getType().isAir() ? Material.STONE.createBlockData() : ground.getBlockData();
+                pendingPillars.add(new PillarSpec(x, z, ground.getY(), block, spawnTick));
             }
+            rowIndex++;
         }
     }
 
-    /**
-     * Advances the one-pass wave. Each block has its own timeline: it rests,
-     * visually indistinguishable from the ground, until the wavefront reaches
-     * it ({@code arrivalTick}); it then climbs to its sine peak over
-     * {@link #RISE_TICKS} ticks (eased by a sine, so the pop is smooth) and
-     * falls back with {@link #FALL_GRAVITY} gravity. Once it has fallen back
-     * to the ground ({@code endTick}) the display is removed — the shockwave
-     * has travelled through that block exactly once.
-     */
-    private void animateRipple() {
-        ripples.removeIf(ripple -> {
-            if (!ripple.display.isValid() || ticks >= ripple.endTick) {
-                if (ripple.display.isValid()) {
-                    ripple.display.remove();
+    private void spawnPendingPillars() {
+        pendingPillars.removeIf(spec -> {
+            if (spec.spawnTick > ticks) {
+                return false;
+            }
+            spawnPillar(spec);
+            return true;
+        });
+    }
+
+    private void spawnPillar(PillarSpec spec) {
+        // Center alignment offset (-0.5 on X/Z) keeps block display centered on column
+        Location loc = new Location(world, spec.x - 0.5, spec.groundY + 1.0, spec.z - 0.5);
+        BlockDisplay display = world.spawn(loc, BlockDisplay.class, d -> {
+            d.setBlock(spec.block);
+        });
+
+        Transformation initial = display.getTransformation();
+        Transformation flatTransform = new Transformation(initial.getTranslation(), initial.getLeftRotation(),
+                new Vector3f(1.0f, 0.01f, 1.0f), initial.getRightRotation());
+        display.setTransformation(flatTransform);
+        display.setInterpolationDuration(PILLAR_RISE_TICKS);
+        display.setInterpolationDelay(0);
+
+        float targetHeight = MIN_PILLAR_HEIGHT + (float) (Math.random() * (MAX_PILLAR_HEIGHT - MIN_PILLAR_HEIGHT));
+
+        pillars.add(new Pillar(display, spec.block, spec.x, spec.z, spec.groundY, targetHeight, ticks + 1,
+                ticks + HOLD_TICKS + PILLAR_RISE_TICKS, ticks + HOLD_TICKS + PILLAR_RISE_TICKS + DISSOLVE_TICKS + 1));
+
+        world.spawnParticle(Particle.BLOCK_CRUMBLE, new Location(world, spec.x, spec.groundY + 1.0, spec.z),
+                DEBRIS_PARTICLES, 0.3, 0.2, 0.3, spec.block);
+    }
+
+    private void animatePillars() {
+        pillars.removeIf(pillar -> {
+            if (ticks >= pillar.removeTick) {
+                if (pillar.display.isValid()) {
+                    pillar.display.remove();
                 }
                 return true;
             }
-            double y = groundY + REST_OFFSET;
-            if (ticks >= ripple.arrivalTick) {
-                if (ticks < ripple.arrivalTick + RISE_TICKS) {
-                    double u = (ticks - ripple.arrivalTick) / RISE_TICKS;
-                    y += ripple.peak * Math.sin(Math.PI / 2 * u);
-                } else {
-                    double falling = ticks - ripple.arrivalTick - RISE_TICKS;
-                    y += ripple.peak - 0.5 * FALL_GRAVITY * falling * falling;
-                }
+            if (!pillar.risen && ticks >= pillar.riseTick) {
+                Transformation current = pillar.display.getTransformation();
+                Transformation riseTransform = new Transformation(current.getTranslation(), current.getLeftRotation(),
+                        new Vector3f(1.0f, pillar.targetHeight, 1.0f), current.getRightRotation());
+                pillar.display.setTransformation(riseTransform);
+                pillar.risen = true;
             }
-            ripple.display.teleport(new Location(world, ripple.x, y, ripple.z));
+            if (pillar.dissolving) {
+                Location loc = new Location(world, pillar.x, pillar.groundY + 1.3, pillar.z);
+                world.spawnParticle(Particle.BLOCK_CRUMBLE, loc, 8, 0.2, 0.3, 0.2, pillar.block);
+                world.spawnParticle(Particle.SMOKE, new Location(world, pillar.x, pillar.groundY + 1.1, pillar.z), 2,
+                        0.1, 0.1, 0.1, 0.02);
+            } else if (ticks >= pillar.dissolveTick) {
+                pillar.display.setInterpolationDuration(DISSOLVE_TICKS);
+                pillar.display.setInterpolationDelay(0);
+
+                Transformation current = pillar.display.getTransformation();
+                Transformation shrinkTransform = new Transformation(new Vector3f(0.5f, 0.0f, 0.5f),
+                        current.getLeftRotation(), new Vector3f(0.01f, 0.01f, 0.01f), current.getRightRotation());
+                pillar.display.setTransformation(shrinkTransform);
+                pillar.dissolving = true;
+            }
             return false;
         });
     }
 
-    /**
-     * Billows dust at the leading edge of the wavefront while it is still
-     * travelling: the arc radius equals how far the shockwave has travelled so
-     * far, so the dust ring expands outward across the wedge alongside the
-     * lifted ground blocks. Once the front has reached the far edge the dust
-     * stops — the wave passes through the ground only once.
-     */
-    private void spawnWavefrontDust() {
-        if (ticks > RIPPLE_TICKS) {
+    private void spawnHoldSmoke() {
+        if (ticks < RISE_END_TICK || ticks >= DISSOLVE_START_TICK || (ticks - RISE_END_TICK) % 5 != 0) {
             return;
         }
-        double radius = CONE_RANGE * (double) ticks / RIPPLE_TICKS;
-        if (radius <= 0) {
+        for (Pillar pillar : pillars) {
+            if (pillar.dissolving || !pillar.display.isValid()) {
+                continue;
+            }
+            world.spawnParticle(Particle.CAMPFIRE_COSY_SMOKE,
+                    new Location(world, pillar.x, pillar.groundY + 1.8, pillar.z), 1, 0.1, 0.1, 0.1, 0.01);
+        }
+    }
+
+    private void spawnDirectionalShockwave(Location center, Vector forward, Vector right) {
+        World world = center.getWorld();
+        if (world == null) {
             return;
         }
         double halfAngle = Math.toRadians(CONE_HALF_ANGLE_DEG);
-        int count = 3 + (int) (radius * 2);
-        DustOptions dust = new DustOptions(Color.fromRGB(128, 122, 112), 1.1f);
-        for (int i = 0; i < count; i++) {
-            double angle = -halfAngle + Math.random() * 2 * halfAngle;
-            Vector offset = rotateHorizontal(coneForward, angle).multiply(radius);
-            world.spawnParticle(Particle.DUST,
-                    new Location(world, impactX + offset.getX() + 0.5, groundY + 1 + Math.random() * 0.5,
-                            impactZ + offset.getZ() + 0.5),
-                    1, 0.15, 0.15, 0.15, 0.01, dust);
-        }
-    }
+        for (double theta = -halfAngle; theta <= halfAngle; theta += Math.toRadians(5.0)) {
+            double dirX = forward.getX() * Math.cos(theta) + right.getX() * Math.sin(theta);
+            double dirZ = forward.getZ() * Math.cos(theta) + right.getZ() * Math.sin(theta);
+            Vector dir = new Vector(dirX, 0, dirZ).normalize().multiply(0.8);
 
-    // ---- Helpers ---------------------------------------------------------------
-
-    /**
-     * Rotates a vector around the Y axis (horizontal rotation).
-     */
-    private static Vector rotateHorizontal(Vector v, double radians) {
-        return v.clone().rotateAroundY(radians);
-    }
-
-    /**
-     * Y of the floor under a location: the block below the given point when
-     * solid, otherwise the first solid block underneath. NaN when the column
-     * has no solid block (mid-air slam with no ground to ripple).
-     */
-    private static double groundYAt(Location loc) {
-        Block below = loc.getBlock().getRelative(BlockFace.DOWN);
-        if (below.getType().isSolid()) {
-            return below.getY();
+            world.spawnParticle(Particle.EXPLOSION, center.clone().add(dir), 1, 0, 0, 0, 0);
+            world.spawnParticle(Particle.CLOUD, center, 0, dir.getX(), 0.1, dir.getZ(), 0.3);
         }
-        World w = loc.getWorld();
-        for (int y = loc.getBlockY(); y > w.getMinHeight(); y--) {
-            Block b = w.getBlockAt(loc.getBlockX(), y, loc.getBlockZ());
-            if (b.getType().isSolid()) {
-                return b.getY();
-            }
-        }
-        return Double.NaN;
     }
 
     private static Block floorBlock(Location loc) {
         Block below = loc.getBlock().getRelative(BlockFace.DOWN);
         return below.getType().isSolid() ? below : loc.getBlock();
+    }
+
+    /**
+     * Picks the block a pillar rises out of for one ground column. The highest
+     * motion-blocking surface in the column is followed whenever it is not
+     * unreasonably high above the caster's feet (that only happens for stairs
+     * climbing out of the slam, up to {@link #MAX_SLOPE_RISE}); a higher
+     * surface is a roof/overhang and the search falls back to the nearest
+     * floor under the caster. Returns null when the column has no usable
+     * surface (e.g. over an open pit).
+     */
+    private static Block pillarColumnGround(World world, int bx, int bz, double impactY) {
+        Block highest = world.getHighestBlockAt(bx, bz, HeightMap.MOTION_BLOCKING_NO_LEAVES);
+        while (highest.getY() > world.getMinHeight() && highest.isPassable()) {
+            highest = highest.getRelative(BlockFace.DOWN);
+        }
+        if (highest.getY() + 1.0 <= impactY + MAX_SLOPE_RISE) {
+            return highest; // flat ground, descending stairs, or climbing stairs
+        }
+        // Roof/overhang: fall back to the nearest floor at or below the caster.
+        int from = (int) Math.floor(impactY + 1.0);
+        int to = (int) Math.floor(impactY) - MAX_FLOOR_SCAN_DOWN;
+        for (int y = from; y >= to && y > world.getMinHeight(); y--) {
+            Block candidate = world.getBlockAt(bx, y, bz);
+            if (candidate.getType().isSolid()) {
+                return candidate;
+            }
+        }
+        return null;
+    }
+
+    /**
+     * Top of the solid surface an entity is standing on: the highest solid
+     * block at or below the entity's feet. NaN when the column has no solid
+     * block (flying over a void).
+     */
+    private static double groundTopBelow(Location loc) {
+        World world = loc.getWorld();
+        int bx = loc.getBlockX();
+        int bz = loc.getBlockZ();
+        for (int y = loc.getBlockY(); y >= world.getMinHeight(); y--) {
+            Block b = world.getBlockAt(bx, y, bz);
+            if (b.getType().isSolid()) {
+                return b.getY() + 1.0;
+            }
+        }
+        return Double.NaN;
     }
 }
