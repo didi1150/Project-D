@@ -350,6 +350,8 @@ public class SimpleDungeonBuilderBukkit {
                         BoundingBox startRoom = dungeonGenerator.getStartRoom();
                         if (startRoom != null) {
                             Location spawnLoc = findSafeSpawnLocation(world, startRoom);
+                            Vector3f roomCenter = startRoom.get2DCenter().toVector3f().add(0.5f, 1, 0.5f);
+                            spawnLoc = new Location(world, roomCenter.x, roomCenter.y, roomCenter.z);
                             for (Player p : Bukkit.getOnlinePlayers()) {
                                 p.teleport(spawnLoc);
                             }

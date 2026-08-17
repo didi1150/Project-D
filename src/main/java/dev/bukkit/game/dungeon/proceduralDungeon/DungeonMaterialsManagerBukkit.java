@@ -251,7 +251,7 @@ public class DungeonMaterialsManagerBukkit extends DungeonMaterialsManager<Mater
         for (var face : faces) {
             Block b = block.getRelative(face);
             if (b.getType() == Material.AIR) {
-                b.setType(Material.TARGET);
+                b.setType(Material.STONE);
             }
         }
     }
