@@ -11,6 +11,7 @@ import dev.core.entity.boss.MovementStrategy;
 import dev.core.entity.boss.NoopMovementStrategy;
 import dev.core.entity.boss.TargetingStrategy;
 import dev.core.event.EventBusInterface;
+import dev.core.status.StatusEffectManagerInterface;
 
 public class RPGMobEntity extends RPGEntity {
 
@@ -29,6 +30,15 @@ public class RPGMobEntity extends RPGEntity {
             EventBusInterface eventBus, MovementStrategy movementStrategy, TargetingStrategy targetingStrategy,
             AttackPattern attackPattern) {
         super(uuid, name, entityType, effectManager, eventBus);
+        this.movementStrategy = movementStrategy;
+        this.targetingStrategy = targetingStrategy;
+        this.attackPattern = attackPattern;
+    }
+
+    public RPGMobEntity(UUID uuid, String name, EntityType entityType, EffectManagerInterface effectManager,
+            EventBusInterface eventBus, MovementStrategy movementStrategy, TargetingStrategy targetingStrategy,
+            AttackPattern attackPattern, StatusEffectManagerInterface statusEffects) {
+        super(uuid, name, entityType, effectManager, eventBus, statusEffects);
         this.movementStrategy = movementStrategy;
         this.targetingStrategy = targetingStrategy;
         this.attackPattern = attackPattern;

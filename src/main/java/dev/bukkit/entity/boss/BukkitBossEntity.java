@@ -13,6 +13,7 @@ import org.bukkit.event.entity.EntityDamageByEntityEvent;
 import dev.bukkit.ability.BukkitEffectManager;
 import dev.bukkit.entity.BukkitPlayerEntity;
 import dev.bukkit.stat.BukkitBossStatManager;
+import dev.bukkit.status.BukkitStatusEffectManager;
 import dev.core.entity.EntityManager;
 import dev.core.entity.RPGEntity;
 import dev.core.entity.boss.BossRuntime;
@@ -32,7 +33,7 @@ public class BukkitBossEntity extends RPGBossEntity {
     private final BossBarController bossBar;
 
     public BukkitBossEntity(UUID uuid, String name, EventBusInterface eventBus, TaskScheduler scheduler) {
-        super(uuid, name, BukkitEffectManager.getInstance(), eventBus, scheduler);
+        super(uuid, name, BukkitEffectManager.getInstance(), eventBus, scheduler, BukkitStatusEffectManager.getInstance());
         EntityManager.getInstance().registerEntity(this);
         Entity entity = Bukkit.getEntity(uuid);
         if (entity == null) {

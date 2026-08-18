@@ -19,6 +19,7 @@ import dev.bukkit.ability.BukkitEffectManager;
 import dev.bukkit.entity.boss.BukkitBossEntity;
 import dev.bukkit.event.BukkitEventBus;
 import dev.bukkit.stat.BukkitStatManager;
+import dev.bukkit.status.BukkitStatusEffectManager;
 import dev.bukkit.utils.HealAuraUtils;
 import dev.core.entity.EntityManager;
 import dev.core.entity.EntityType;
@@ -38,7 +39,7 @@ public class BukkitPlayerEntity extends RPGEntity {
 
     public BukkitPlayerEntity(Player player) {
         super(player.getUniqueId(), player.getName(), EntityType.PLAYER, BukkitEffectManager.getInstance(),
-                BukkitEventBus.getInstance());
+                BukkitEventBus.getInstance(), BukkitStatusEffectManager.getInstance());
         this.playerProgression = new PlayerProgression(player.getUniqueId());
         this.bukkitStatManager = new BukkitStatManager(player,  getStatManager());
     }

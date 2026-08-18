@@ -40,6 +40,12 @@ import dev.bukkit.storage.BukkitConfigManager;
 import dev.bukkit.storage.progression.BukkitConfigProgressionDatabase;
 import dev.bukkit.storage.progression.ClassProgressionService;
 import dev.bukkit.storage.progression.HashMapProgressionCache;
+import dev.bukkit.status.BukkitStatusEffectManager;
+import dev.bukkit.status.StatusEffectBehaviorRegistry;
+import dev.bukkit.status.behavior.AirborneStatusEffectBehavior;
+import dev.bukkit.status.behavior.RootedStatusEffectBehavior;
+import dev.bukkit.status.behavior.SlowedStatusEffectBehavior;
+import dev.bukkit.status.behavior.StunnedStatusEffectBehavior;
 import dev.bukkit.utils.BackstabUtils;
 import dev.bukkit.utils.BukkitMessageSender;
 import dev.bukkit.utils.HealAuraUtils;
@@ -67,6 +73,7 @@ import dev.core.stat.DefaultStats;
 import dev.core.stat.Stat;
 import dev.core.stat.StatType;
 import dev.core.stat.loader.StatLoader;
+import dev.core.status.StatusEffectType;
 import dev.core.storage.config.ConfigProvider;
 import dev.core.storage.database.ProgressionCacheStrategy;
 import dev.core.storage.database.ProgressionDatabaseStrategy;
@@ -108,6 +115,14 @@ public final class DMain extends JavaPlugin {
         BukkitEffectRegistry.register("GUIDED_BAT", BukkitSpiritSceptreBatEffect::new);
         BukkitEffectRegistry.register("SPINJITZU", BukkitSpinjitzuEffect::new);
         BukkitEffectRegistry.register("SMASH", BukkitSmashEffect::new);
+
+        // Status effect behaviors: how each CC type plays out on the vanilla
+        // entity (stat engine / potions / AI / velocity). Types without a
+        // behavior (e.g. CC immune) only block in the core manager.
+        StatusEffectBehaviorRegistry.register(StatusEffectType.SLOWED, new SlowedStatusEffectBehavior());
+        StatusEffectBehaviorRegistry.register(StatusEffectType.ROOTED, new RootedStatusEffectBehavior());
+        StatusEffectBehaviorRegistry.register(StatusEffectType.STUNNED, new StunnedStatusEffectBehavior());
+        StatusEffectBehaviorRegistry.register(StatusEffectType.AIRBORNE, new AirborneStatusEffectBehavior());
 
         // Item set passives: registered before items.yml loads so the loader can
         // resolve the "passives:" lists of set bonuses.
@@ -230,6 +245,7 @@ public final class DMain extends JavaPlugin {
     public void onDisable() {
         gameStateController.stop();
         effectManagerInterface.cancelAll();
+        BukkitStatusEffectManager.getInstance().cancelAll();
         combatListener.cleanup();
         configManager.saveAll();
         eventBusInterface.getSubscribed().clear();

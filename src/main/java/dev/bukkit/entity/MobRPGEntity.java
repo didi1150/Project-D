@@ -6,6 +6,7 @@ import org.bukkit.entity.LivingEntity;
 import org.bukkit.entity.Player;
 
 import dev.bukkit.utils.DamageUtils;
+import dev.bukkit.status.BukkitStatusEffectManager;
 import dev.core.ability.Ability;
 import dev.core.ability.AbilityAction;
 import dev.core.ability.AbilityTriggerType;
@@ -45,7 +46,7 @@ public class MobRPGEntity extends RPGEntity {
     public MobRPGEntity(LivingEntity vanilla, MobDefinition definition, StatManager baseStats,
             EffectManagerInterface effectManager, EventBusInterface eventBus) {
         super(baseStats, vanilla.getUniqueId(), vanilla.getName(), EntityType.MOB, effectManager, eventBus,
-                RPGClassType.NONE);
+                RPGClassType.NONE, BukkitStatusEffectManager.getInstance());
         this.vanilla = vanilla;
         this.definition = definition;
         this.behavior = MobBehaviorRegistry.getInstance().get(definition.getBehaviorId());
