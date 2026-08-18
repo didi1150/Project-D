@@ -774,6 +774,31 @@ items:
       policy: STACK
     abilities:
     - SMASH
+  BULWARK:
+    # The Bulwark: SHIFT RIGHT CLICK swings the shield through the half-circle
+    # in front of the wielder, stunning every enemy inside for 1.5 seconds
+    # (see the SHIELD_BASH ability).
+    unlockLevel: 0
+    name: Bulwark
+    material: SHIELD
+    slot: MAIN_HAND
+    itemType: SHIELD
+    passive-stats: []
+    allowed-classes:
+    - TANK
+    active-stats:
+    - amount: 30.0
+      statType: HEALTH_MAX
+      modifierType: FLAT
+      statTarget: BOTH
+      policy: STACK
+    - amount: 15.0
+      statType: ARMOR
+      modifierType: FLAT
+      statTarget: BOTH
+      policy: STACK
+    abilities:
+    - SHIELD_BASH
 
 # ---- Basic Archer Set (item set bonus: full 4/4 set) -----------------------
 # Full set passive: +10% projectile damage dealt (arrows, projectiles and the

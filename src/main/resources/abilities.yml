@@ -111,3 +111,14 @@ abilities:
     action: RIGHT_CLICK
     cooldownScope: ITEM
     cooldown: 5000
+  SHIELD_BASH:
+    name: Shield Bash
+    description:
+      - "Swing your shield through the"
+      - "half-circle in front of you,"
+      - "<yellow>stunning</yellow> every enemy"
+      - "inside for <yellow>1.5</yellow> seconds."
+    triggerType: MANUAL
+    action: SHIFT_RIGHT_CLICK
+    cooldownScope: ITEM
+    cooldown: 3000

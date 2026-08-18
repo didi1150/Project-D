@@ -12,6 +12,7 @@ import org.bukkit.plugin.java.JavaPlugin;
 import dev.bukkit.ability.BukkitEffectManager;
 import dev.bukkit.ability.BukkitEffectRegistry;
 import dev.bukkit.ability.BukkitParticleTestEffect;
+import dev.bukkit.ability.BukkitShieldBashEffect;
 import dev.bukkit.ability.BukkitSmashEffect;
 import dev.bukkit.ability.BukkitSpiritSceptreBatEffect;
 import dev.bukkit.ability.BukkitSpinjitzuEffect;
@@ -115,6 +116,7 @@ public final class DMain extends JavaPlugin {
         BukkitEffectRegistry.register("GUIDED_BAT", BukkitSpiritSceptreBatEffect::new);
         BukkitEffectRegistry.register("SPINJITZU", BukkitSpinjitzuEffect::new);
         BukkitEffectRegistry.register("SMASH", BukkitSmashEffect::new);
+        BukkitEffectRegistry.register("SHIELD_BASH", BukkitShieldBashEffect::new);
 
         // Status effect behaviors: how each CC type plays out on the vanilla
         // entity (stat engine / potions / AI / velocity). Types without a

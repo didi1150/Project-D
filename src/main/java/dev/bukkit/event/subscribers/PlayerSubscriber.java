@@ -164,7 +164,7 @@ public class PlayerSubscriber {
                     if (event.getAction().toString().contains("RIGHT_CLICK")) {
                         if (event.getPlayer().isSneaking()) {
                             optional.get().triggerAbility(AbilityAction.SHIFT_RIGHT_CLICK);
-                            optional.get().triggerAbility(AbilityAction.RIGHT_CLICK);
+//                            optional.get().triggerAbility(AbilityAction.RIGHT_CLICK);
                         } else {
                             optional.get().triggerAbility(AbilityAction.RIGHT_CLICK);
                         }
