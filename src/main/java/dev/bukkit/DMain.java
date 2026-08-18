@@ -4,6 +4,7 @@ import java.io.File;
 import java.io.IOException;
 import java.util.Map;
 
+import dev.bukkit.game.dungeon.proceduralDungeon.BuildAssetManager;
 import org.bukkit.Bukkit;
 import org.bukkit.WorldCreator;
 import org.bukkit.plugin.java.JavaPlugin;
@@ -84,6 +85,8 @@ public final class DMain extends JavaPlugin {
     private MessageSenderInterface messageSenderInterface;
     private GameStateController gameStateController;
     private dev.bukkit.game.boss.BossArenaManager bossArenaManager;
+
+    private BuildAssetManager buildAssetManager;
 
     @Override
     public void onEnable() {
@@ -208,6 +211,10 @@ public final class DMain extends JavaPlugin {
         CommandManager commandManager = CommandManager.getInstance(itemsConfig, progressionService, gameStateController,
                 gameSettingsLoader, eventBusInterface);
         SimpleDungeonBuilderBukkit.initDungeonTestCommand(commandManager);
+
+        buildAssetManager = new BuildAssetManager(this, "buildAssets/");
+        buildAssetManager.registerCommand(commandManager);
+
         commandManager.registerCommands(this);
         Bukkit.getPluginManager().registerEvents(new EventListener(this), this);
 //        new CancelledListener(instance);
