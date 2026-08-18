@@ -81,6 +81,10 @@ public class SubCommandBuilder {
         return setCommandArgumentsList(argsNumber, name, tabSuggestions, argType);
     }
 
+    public SubCommandBuilder setCommandArgumentsList(int argsNumber, Supplier<List<String>> tabSuggestionsSupplier, String argType) {
+        return setCommandArgumentsList(argsNumber, name, tabSuggestionsSupplier, argType);
+    }
+
     public SubCommandBuilder setCommandArgumentsList(int argsNumber, String argType) {
         return setCommandArgumentsList(argsNumber, name, List.of(), argType);
     }
