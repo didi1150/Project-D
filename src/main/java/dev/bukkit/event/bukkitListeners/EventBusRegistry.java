@@ -29,6 +29,7 @@ import org.bukkit.event.player.PlayerChangedWorldEvent;
 import org.bukkit.event.player.PlayerCommandPreprocessEvent;
 import org.bukkit.event.player.PlayerDropItemEvent;
 import org.bukkit.event.player.PlayerInteractAtEntityEvent;
+import org.bukkit.event.player.PlayerInteractEntityEvent;
 import org.bukkit.event.player.PlayerInteractEvent;
 import org.bukkit.event.player.PlayerItemHeldEvent;
 import org.bukkit.event.player.PlayerJoinEvent;
@@ -71,6 +72,7 @@ public class EventBusRegistry {
             new Reg(PlayerCommandPreprocessEvent.class, EventPriority.NORMAL, false),
             new Reg(EntityDeathEvent.class, EventPriority.NORMAL, false),
             new Reg(PlayerInteractAtEntityEvent.class, EventPriority.NORMAL, false),
+            new Reg(PlayerInteractEntityEvent.class, EventPriority.NORMAL, false),
             new Reg(PlayerItemHeldEvent.class, EventPriority.LOWEST, false),
             new Reg(EntityRegainHealthEvent.class, EventPriority.NORMAL, false),
             new Reg(FoodLevelChangeEvent.class, EventPriority.NORMAL, false),

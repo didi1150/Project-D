@@ -37,7 +37,7 @@ public class BukkitEventBus implements EventBusInterface {
     // can be used in an event-call to execute all the subscribed actions
     @SuppressWarnings("unchecked")
     public <E> List<EventAction<E>> getSubscribedOfType(Class<E> type) {
-        return subscribed.stream().filter(eventAction -> eventAction.getType().equals(type))
+        return subscribed.stream().filter(eventAction -> eventAction.getType() != null && eventAction.getType().equals(type))
                 .map(eventAction -> (EventAction<E>) eventAction).sorted().collect(Collectors.toList());
     }
 

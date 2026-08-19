@@ -21,9 +21,6 @@ import dev.bukkit.command.CommandManager;
 import dev.bukkit.event.BukkitEventBus;
 import dev.bukkit.event.bukkitListeners.CombatListener;
 import dev.bukkit.event.bukkitListeners.EventBusRegistry;
-import dev.bukkit.event.bukkitListeners.EventListener;
-import dev.bukkit.event.subscribers.CancelSubscriber;
-import dev.bukkit.event.subscribers.PlayerSubscriber;
 import dev.bukkit.event.subscribers.ThreatPassiveSubscriber;
 import dev.bukkit.entity.boss.BukkitBossStageTypeRegistry;
 import dev.bukkit.entity.boss.BukkitBossStrategyRegistry;
@@ -63,6 +60,7 @@ import dev.core.entity.mob.MobDefinitionRegistry;
 import dev.core.entity.boss.BossDefinitionRegistry;
 import dev.core.entity.rpgclass.RPGClassType;
 import dev.core.event.EventBusInterface;
+import dev.core.event.EventSubscriberScanner;
 import dev.core.game.GameStateController;
 import dev.core.game.settings.GameSettings;
 import dev.core.game.settings.GameSettingsLoader;
@@ -233,14 +231,12 @@ public final class DMain extends JavaPlugin {
         buildAssetManager.registerCommand(commandManager);
 
         commandManager.registerCommands(this);
-        Bukkit.getPluginManager().registerEvents(new EventListener(this), this);
-//        new CancelledListener(instance);
-        new CancelSubscriber(eventBusInterface, instance);
-        new ThreatPassiveSubscriber(eventBusInterface);
-//        Bukkit.getPluginManager().registerEvents(new CancelledListener(this, protocolManager), this);
         combatListener = new CombatListener(this);
         Bukkit.getPluginManager().registerEvents(combatListener, this);
-        new PlayerSubscriber(eventBusInterface, this).subscribe();
+
+        // Scanned last: subscriber constructors inject dependencies (e.g. the
+        // plugin instance) that must all be initialised before they run.
+        EventSubscriberScanner.scan(eventBusInterface, "dev", instance);
     }
 
     @Override

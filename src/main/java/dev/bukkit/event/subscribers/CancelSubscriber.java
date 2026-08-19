@@ -29,153 +29,129 @@ import dev.bukkit.entity.VanillaEntityMeta;
 import dev.bukkit.utils.DamageUtils;
 import dev.core.entity.EntityManager;
 import dev.core.event.EventAction;
-import dev.core.event.EventBusInterface;
+import dev.core.event.EventSubscriber;
+import dev.core.event.Subscribe;
 
+@EventSubscriber
 public class CancelSubscriber {
 
-    private Plugin plugin;
-    private EventBusInterface eventBus;
+    private final Plugin plugin;
 
-    public CancelSubscriber(EventBusInterface eventBus, Plugin plugin) {
-        this.eventBus = eventBus;
+    public CancelSubscriber(Plugin plugin) {
         this.plugin = plugin;
-
-        cancelRegainHealth();
-        cancelFoodLevelChange();
-        cancelTargetOtherMob();
-        cancelDeathDrops();
-        cancelBlockExplodeDamage();
-        cancelCreatureSpawn();
-        cancelDeathDrops();
-        cancelEnterPortalEvent();
-        cancelEntityExplodeDamage();
-        cancelPlayerPortal();
-        cancelPortalCreate();
-        cancelEntityDamageByEntity();
     }
 
-    private void cancelRegainHealth() {
-        eventBus.subscribe(new EventAction<>(event -> {
-            if (event.getEntityType() == EntityType.PLAYER) {
-                event.setCancelled(true);
-            }
-
-            if (event.getEntity() instanceof LivingEntity living) {
-                Bukkit.getScheduler().runTaskLater(plugin, () -> DamageUtils.updateName(living), 1L);
-            }
-        }, EntityRegainHealthEvent.class, EventAction.NORMAL_PRIORITY));
-    }
-
-    private void cancelFoodLevelChange() {
-        eventBus.subscribe(new EventAction<>(event -> {
+    @Subscribe
+    public void onRegainHealth(EntityRegainHealthEvent event) {
+        if (event.getEntityType() == EntityType.PLAYER) {
             event.setCancelled(true);
-        }, FoodLevelChangeEvent.class, EventAction.NORMAL_PRIORITY));
+        }
+
+        if (event.getEntity() instanceof LivingEntity living) {
+            Bukkit.getScheduler().runTaskLater(plugin, () -> DamageUtils.updateName(living), 1L);
+        }
     }
 
-    private void cancelTargetOtherMob() {
-        eventBus.subscribe(new EventAction<>(event -> {
-            if (!(event.getEntity() instanceof Mob mob)) {
-                return;
-            }
-
-            LivingEntity target = event.getTarget();
-            if (target == null) {
-                return;
-            }
-
-            // Prevent mobs from targeting other mobs
-            if (target instanceof Player player) {
-                if (EntityManager.getInstance().isDead(player.getUniqueId())) {
-                    event.setCancelled(true);
-                    mob.setTarget(null);
-                }
-
-            } else {
-                if (event.getEntity().hasMetadata("DUNGEON") && target.hasMetadata("DUNGEON")) {
-                    event.setCancelled(true);
-                }
-            }
-        }, EntityTargetLivingEntityEvent.class, EventAction.NORMAL_PRIORITY));
+    @Subscribe
+    public void onFoodLevelChange(FoodLevelChangeEvent event) {
+        event.setCancelled(true);
     }
 
-    private void cancelDeathDrops() {
-        eventBus.subscribe(new EventAction<>(event -> {
-            event.getDrops().clear();
-            event.setDroppedExp(0);
-        }, EntityDeathEvent.class, EventAction.NORMAL_PRIORITY));
-    }
+    @Subscribe
+    public void onTargetOtherMob(EntityTargetLivingEntityEvent event) {
+        if (!(event.getEntity() instanceof Mob mob)) {
+            return;
+        }
 
-    private void cancelEntityExplodeDamage() {
-        eventBus.subscribe(new EventAction<>(event -> {
-            event.blockList().clear();
-        }, EntityExplodeEvent.class, EventAction.NORMAL_PRIORITY));
-    }
+        LivingEntity target = event.getTarget();
+        if (target == null) {
+            return;
+        }
 
-    private void cancelBlockExplodeDamage() {
-        eventBus.subscribe(new EventAction<>(event -> {
-            event.blockList().clear();
-        }, BlockExplodeEvent.class, EventAction.NORMAL_PRIORITY));
-    }
-
-    private void cancelCreatureSpawn() {
-        eventBus.subscribe(new EventAction<>(event -> {
-            if (event.getSpawnReason() != SpawnReason.CUSTOM && event.getSpawnReason() != SpawnReason.COMMAND)
+        // Prevent mobs from targeting other mobs
+        if (target instanceof Player player) {
+            if (EntityManager.getInstance().isDead(player.getUniqueId())) {
                 event.setCancelled(true);
-            else {
-                LivingEntity entity = event.getEntity();
-                if (entity.isInvisible() || entity.hasMetadata(BukkitSpiritSceptreBatEffect.METADATA)) {
-                    return; // summoned projectiles (e.g. the Spirit Sceptre bat) get no level/health
-                            // nametag
-                }
-                VanillaEntityMeta meta = new VanillaEntityMeta(1, BukkitEntityFactory.getRelation(entity));
-                // Store metadata
-                entity.setMetadata("VANILLA_META", new FixedMetadataValue(plugin, meta));
-                entity.setNoDamageTicks(0);
-                // Set initial custom name
-                DamageUtils.updateName(entity);
+                mob.setTarget(null);
             }
-        }, CreatureSpawnEvent.class, EventAction.NORMAL_PRIORITY));
-    }
 
-    private void cancelPortalCreate() {
-        eventBus.subscribe(new EventAction<>(event -> {
-            if (event.getReason() == CreateReason.NETHER_PAIR) {
+        } else {
+            if (event.getEntity().hasMetadata("DUNGEON") && target.hasMetadata("DUNGEON")) {
                 event.setCancelled(true);
             }
-
-            if (event.getReason() == CreateReason.FIRE) {
-                if (event.getWorld().getName().equalsIgnoreCase("world")
-                        || event.getWorld().getName().equalsIgnoreCase("lobby")) {
-                    event.setCancelled(true);
-                }
-            }
-        }, PortalCreateEvent.class, EventAction.NORMAL_PRIORITY));
+        }
     }
 
-    private void cancelEnterPortalEvent() {
-        eventBus.subscribe(new EventAction<>(event -> {
+    @Subscribe
+    public void onDeathDrops(EntityDeathEvent event) {
+        event.getDrops().clear();
+        event.setDroppedExp(0);
+    }
+
+    @Subscribe
+    public void onEntityExplodeDamage(EntityExplodeEvent event) {
+        event.blockList().clear();
+    }
+
+    @Subscribe
+    public void onBlockExplodeDamage(BlockExplodeEvent event) {
+        event.blockList().clear();
+    }
+
+    @Subscribe
+    public void onCreatureSpawn(CreatureSpawnEvent event) {
+        if (event.getSpawnReason() != SpawnReason.CUSTOM && event.getSpawnReason() != SpawnReason.COMMAND)
             event.setCancelled(true);
-        }, EntityPortalEvent.class, EventAction.NORMAL_PRIORITY));
-    }
-
-    private void cancelPlayerPortal() {
-        eventBus.subscribe(new EventAction<>(event -> {
-            if (event.getCause() == TeleportCause.NETHER_PORTAL) {
-                event.setCanCreatePortal(false);
+        else {
+            LivingEntity entity = event.getEntity();
+            if (entity.isInvisible() || entity.hasMetadata(BukkitSpiritSceptreBatEffect.METADATA)) {
+                return; // summoned projectiles (e.g. the Spirit Sceptre bat) get no level/health
+                        // nametag
             }
-            event.setCancelled(true);
-        }, PlayerPortalEvent.class, EventAction.NORMAL_PRIORITY));
+            VanillaEntityMeta meta = new VanillaEntityMeta(1, BukkitEntityFactory.getRelation(entity));
+            // Store metadata
+            entity.setMetadata("VANILLA_META", new FixedMetadataValue(plugin, meta));
+            entity.setNoDamageTicks(0);
+            // Set initial custom name
+            DamageUtils.updateName(entity);
+        }
     }
 
-    private void cancelEntityDamageByEntity() {
-        eventBus.subscribe(new EventAction<>(event -> {
-            Entity entity = event.getEntity();
-            Entity damager = event.getDamager();
+    @Subscribe
+    public void onPortalCreate(PortalCreateEvent event) {
+        if (event.getReason() == CreateReason.NETHER_PAIR) {
+            event.setCancelled(true);
+        }
 
-            if (entity.hasMetadata("DUNGEON") && damager.hasMetadata("DUNGEON")) {
+        if (event.getReason() == CreateReason.FIRE) {
+            if (event.getWorld().getName().equalsIgnoreCase("world")
+                    || event.getWorld().getName().equalsIgnoreCase("lobby")) {
                 event.setCancelled(true);
             }
-        }, EntityDamageByEntityEvent.class, EventAction.LOW_PRIORITY));
+        }
+    }
+
+    @Subscribe
+    public void onEnterPortalEvent(EntityPortalEvent event) {
+        event.setCancelled(true);
+    }
+
+    @Subscribe
+    public void onPlayerPortal(PlayerPortalEvent event) {
+        if (event.getCause() == TeleportCause.NETHER_PORTAL) {
+            event.setCanCreatePortal(false);
+        }
+        event.setCancelled(true);
+    }
+
+    @Subscribe(priority = EventAction.LOW_PRIORITY)
+    public void onEntityDamageByEntity(EntityDamageByEntityEvent event) {
+        Entity entity = event.getEntity();
+        Entity damager = event.getDamager();
+
+        if (entity.hasMetadata("DUNGEON") && damager.hasMetadata("DUNGEON")) {
+            event.setCancelled(true);
+        }
     }
 
 }

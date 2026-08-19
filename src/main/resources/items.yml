@@ -714,7 +714,7 @@ items:
     # Mage staff cut from an allium flower. RIGHT CLICK fires a Guided Bat
     # (250 mana, no cooldown) that tracks the crosshair and explodes into magic
     # damage. The flower itself can never be placed as a block (see
-    # EventListener.onBlockPlace).
+    # BlockSubscriber.onBlockPlace).
     unlockLevel: 0
     name: Spirit Sceptre
     material: ALLIUM
@@ -739,7 +739,7 @@ items:
   SPINJITZU:
     # The Iron Hopper: RIGHT CLICK summons a cyclone of spinning rings that
     # pulls enemies into the wielder. The hopper itself can never be placed as
-    # a block (see EventListener.onBlockPlace).
+    # a block (see BlockSubscriber.onBlockPlace).
     unlockLevel: 0
     name: Iron Hopper
     material: HOPPER
