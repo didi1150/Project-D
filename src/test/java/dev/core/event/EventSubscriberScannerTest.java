@@ -1,6 +1,7 @@
 package dev.core.event;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
 import java.util.ArrayList;
@@ -52,6 +53,37 @@ public class EventSubscriberScannerTest {
 		}
 	}
 
+	static class InjectionDependency {
+	}
+
+	@EventSubscriber
+	public static class InjectionNoArgSubscriber {
+
+		static final List<String> CALLS = new ArrayList<>();
+
+		@Subscribe
+		public void onScannerEvent(ScannerTestEvent event) {
+			CALLS.add("no-arg");
+		}
+	}
+
+	@EventSubscriber
+	public static class InjectionParamSubscriber {
+
+		static final List<String> CALLS = new ArrayList<>();
+
+		private final InjectionDependency dependency;
+
+		InjectionParamSubscriber(InjectionDependency dependency) {
+			this.dependency = dependency;
+		}
+
+		@Subscribe
+		public void onScannerEvent(ScannerTestEvent event) {
+			CALLS.add("param:" + (dependency != null));
+		}
+	}
+
 	private EventBusInterface eventBus;
 
 	@BeforeEach
@@ -85,6 +117,28 @@ public class EventSubscriberScannerTest {
 		eventBus.sendEvent(new ScannerTestEvent());
 
 		assertEquals(List.of("highest", "normal"), ScannerTestSubscriber.CALLS);
+	}
+
+	@Test
+	void testRegisterWithInjectionCandidateSupportsNoArgConstructors() {
+		InjectionNoArgSubscriber.CALLS.clear();
+		Object instance = EventSubscriberScanner.register(eventBus, InjectionNoArgSubscriber.class,
+				new InjectionDependency());
+
+		assertNotNull(instance);
+		eventBus.sendEvent(new ScannerTestEvent());
+		assertEquals(List.of("no-arg"), InjectionNoArgSubscriber.CALLS);
+	}
+
+	@Test
+	void testRegisterWithInjectionCandidateSatisfiesConstructorParameters() {
+		InjectionParamSubscriber.CALLS.clear();
+		Object instance = EventSubscriberScanner.register(eventBus, InjectionParamSubscriber.class,
+				new InjectionDependency());
+
+		assertNotNull(instance);
+		eventBus.sendEvent(new ScannerTestEvent());
+		assertEquals(List.of("param:true"), InjectionParamSubscriber.CALLS);
 	}
 
 	@Test

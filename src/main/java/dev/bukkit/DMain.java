@@ -14,6 +14,9 @@ import dev.bukkit.ability.BukkitEffectRegistry;
 import dev.bukkit.ability.BukkitParticleTestEffect;
 import dev.bukkit.ability.BukkitShieldBashEffect;
 import dev.bukkit.ability.BukkitSmashEffect;
+import dev.bukkit.ability.BukkitSoulRecallEffect;
+import dev.bukkit.ability.BukkitSoulStoreEffect;
+import dev.bukkit.ability.BukkitSoulSummonEffect;
 import dev.bukkit.ability.BukkitSpiritSceptreBatEffect;
 import dev.bukkit.ability.BukkitSpinjitzuEffect;
 import dev.bukkit.ability.BukkitSwingBoneEffect;
@@ -51,6 +54,10 @@ import dev.bukkit.utils.ManaDiscountUtils;
 import dev.core.ability.Ability;
 import dev.core.ability.AbilityRegistry;
 import dev.core.ability.EffectManagerInterface;
+import dev.core.ability.impl.SoulCollectorAbility;
+import dev.core.ability.impl.SoulRecallAbility;
+import dev.core.ability.impl.SoulRecallShiftAbility;
+import dev.core.ability.impl.SoulSummonAbility;
 import dev.core.ability.passive.SetPassiveRegistry;
 import dev.core.ability.storage.AbilityLoader;
 import dev.core.entity.EntityManager;
@@ -105,6 +112,10 @@ public final class DMain extends JavaPlugin {
         itemRegistry = RPGItemRegistry.getInstance();
         messageSenderInterface = BukkitMessageSender.getInstance();
         AbilityRegistry.preregister();
+        AbilityRegistry.register(new SoulSummonAbility());
+        AbilityRegistry.register(new SoulRecallAbility());
+        AbilityRegistry.register(new SoulRecallShiftAbility());
+        AbilityRegistry.register(new SoulCollectorAbility());
 
         // ---- Extension point: wire ability ids to their Bukkit effects ----
         // (register additional abilities via AbilityRegistry.register(...) BEFORE
@@ -115,6 +126,9 @@ public final class DMain extends JavaPlugin {
         BukkitEffectRegistry.register("SPINJITZU", BukkitSpinjitzuEffect::new);
         BukkitEffectRegistry.register("SMASH", BukkitSmashEffect::new);
         BukkitEffectRegistry.register("SHIELD_BASH", BukkitShieldBashEffect::new);
+        BukkitEffectRegistry.register("SOUL_SUMMON", BukkitSoulSummonEffect::new);
+        BukkitEffectRegistry.register("SOUL_RECALL", BukkitSoulRecallEffect::new);
+        BukkitEffectRegistry.register("SOUL_RECALL_SHIFT", BukkitSoulStoreEffect::new);
 
         // Status effect behaviors: how each CC type plays out on the vanilla
         // entity (stat engine / potions / AI / velocity). Types without a
@@ -259,6 +273,10 @@ public final class DMain extends JavaPlugin {
 
     public CombatListener getCombatListener() {
         return combatListener;
+    }
+
+    public ClassProgressionService getProgressionService() {
+        return progressionService;
     }
 
     /**

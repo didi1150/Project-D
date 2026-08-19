@@ -32,7 +32,7 @@ class RPGEntityDamageImmunityTest {
     @Test
     void immuneTargetTakesNoDamageAndNoReaction() {
         HitCountingEntity target = new HitCountingEntity(statsManager());
-        RPGEntity attacker = new HitCountingEntity(statsManager());
+        RPGEntity attacker = new HitCountingEntity(statsManager(), EntityType.PLAYER);
 
         double healthBefore = target.getHealth();
         target.setDamageImmune(true);
@@ -48,7 +48,9 @@ class RPGEntityDamageImmunityTest {
     @Test
     void landedHitLowersHealthAndTriggersCentralReaction() {
         HitCountingEntity target = new HitCountingEntity(statsManager());
-        RPGEntity attacker = new HitCountingEntity(statsManager());
+        // Cross-team attacker: PLAYER is on the player team, the mob target is
+        // not, so the allied-team guard lets the hit through.
+        RPGEntity attacker = new HitCountingEntity(statsManager(), EntityType.PLAYER);
 
         double healthBefore = target.getHealth();
 
@@ -62,7 +64,7 @@ class RPGEntityDamageImmunityTest {
     @Test
     void deadTargetTakesNoDamageNoReactionNoIndicatorData() {
         HitCountingEntity target = new HitCountingEntity(statsManager());
-        RPGEntity attacker = new HitCountingEntity(statsManager());
+        RPGEntity attacker = new HitCountingEntity(statsManager(), EntityType.PLAYER);
 
         target.onDeath();
         double healthAfterDeath = target.getHealth();
@@ -79,7 +81,7 @@ class RPGEntityDamageImmunityTest {
     void reviveMarksEntityAliveAndDamageableAgain() {
         EntityManager manager = EntityManager.getInstance();
         HitCountingEntity target = new HitCountingEntity(statsManager());
-        RPGEntity attacker = new HitCountingEntity(statsManager());
+        RPGEntity attacker = new HitCountingEntity(statsManager(), EntityType.PLAYER);
         manager.registerEntity(target);
 
         target.onDeath();
@@ -117,7 +119,11 @@ class RPGEntityDamageImmunityTest {
         int hitReactions = 0;
 
         HitCountingEntity(StatManager statManager) {
-            super(statManager, UUID.randomUUID(), "target", EntityType.MOB, new NoopEffectManager(),
+            this(statManager, EntityType.MOB);
+        }
+
+        HitCountingEntity(StatManager statManager, EntityType type) {
+            super(statManager, UUID.randomUUID(), "target", type, new NoopEffectManager(),
                     BukkitEventBus.getInstance(), RPGClassType.NONE);
         }
 

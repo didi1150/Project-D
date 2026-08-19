@@ -736,6 +736,25 @@ items:
       policy: STACK
     abilities:
     - GUIDED_BAT
+  SOUL_TOME:
+    # The Support's summoning tool: RIGHT CLICK summons every soul held in the
+    # tome, LEFT CLICK recalls active summons to your side, SHIFT RIGHT CLICK
+    # dismisses them and stores their souls back into the tome, and its passive
+    # (Soul Collector) lets the holder claim dropped souls by running into them.
+    unlockLevel: 0
+    name: Soul Tome
+    material: NETHER_STAR
+    slot: MAIN_HAND
+    itemType: MISC
+    passive-stats: []
+    allowed-classes:
+    - SUPPORT
+    active-stats: []
+    abilities:
+    - SOUL_COLLECTOR
+    - SOUL_RECALL
+    - SOUL_RECALL_SHIFT
+    - SOUL_SUMMON
   SPINJITZU:
     # The Iron Hopper: RIGHT CLICK summons a cyclone of spinning rings that
     # pulls enemies into the wielder. The hopper itself can never be placed as

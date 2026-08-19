@@ -137,19 +137,20 @@ public class MobRPGEntity extends RPGEntity {
 
     /**
      * Casts the equipped weapon's manual ({@code RIGHT_CLICK}) abilities.
-     * Player-targeting abilities are only cast at a live, in-line-of-sight
-     * non-ghost player (the mob faces the target first); abilities that do not
-     * target players (e.g. self-buffs) cast unconditionally, even with no
-     * player in sight. Returns {@code true} if a cast actually happened.
+     * Abilities that need somebody to aim at only cast while a valid target is
+     * in range — {@link #findAbilityTarget()} decides whom the mob aims at
+     * (a nearby visible player by default; a summon overrides it to aim at
+     * enemies). Abilities that do not need a target (e.g. self-buffs) cast
+     * unconditionally. Returns {@code true} if a cast actually happened.
      */
     public boolean castAbility() {
         if (getEquipmentManager().getEquippedItem(EquipmentSlot.MAIN_HAND) == null) {
             return false; // nothing castable equipped
         }
         if (castsPlayerTargetedAbility()) {
-            Player target = nearestVisiblePlayer(ABILITY_CAST_RANGE);
-            if (target == null || target.isDead() || !target.isOnline()) {
-                return false; // no player in sight: stop casting, resume on the next interval tick
+            LivingEntity target = findAbilityTarget();
+            if (target == null || target.isDead() || !target.isValid()) {
+                return false; // no target in sight: stop casting, resume on the next interval tick
             }
             // Face the target so the thrown projectile flies toward it.
             Location loc = vanilla.getLocation();
@@ -158,6 +159,15 @@ public class MobRPGEntity extends RPGEntity {
         }
         triggerAbility(AbilityAction.RIGHT_CLICK);
         return true;
+    }
+
+    /**
+     * The entity this mob aims targeted abilities at: a live, in-line-of-sight
+     * non-ghost player by default. Summons override this to aim at enemies of
+     * the player team.
+     */
+    protected LivingEntity findAbilityTarget() {
+        return nearestVisiblePlayer(ABILITY_CAST_RANGE);
     }
 
     /** Whether any of the mob's castable manual abilities needs a player target. */
@@ -194,5 +204,9 @@ public class MobRPGEntity extends RPGEntity {
 
     public MobDefinition getDefinition() {
         return definition;
+    }
+
+    public LivingEntity getVanilla() {
+        return vanilla;
     }
 }

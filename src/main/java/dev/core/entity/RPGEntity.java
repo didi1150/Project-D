@@ -44,6 +44,12 @@ public abstract class RPGEntity {
     private EventBusInterface eventBusInterface;
     private RPGClassType classType;
     private RPGEntityAttackTracker attackTracker;
+    /**
+     * The last entity that landed damage on this entity, recorded just before a
+     * lethal hit seals a death. Kill credit for soul drops and reward tracking;
+     * survives death so {@code RPGEntityDeathEvent} can carry the killer.
+     */
+    private RPGEntity lastAttacker;
 
     public RPGEntity(UUID uuid, String name, EntityType entityType, EffectManagerInterface effectManagerInterface,
             EventBusInterface eventBusInterface) {
@@ -117,10 +123,14 @@ public abstract class RPGEntity {
     public void onDeath() {
         alive = false;
         setHealth(getMaxHealth());
-        RPGEntityDeathEvent event = new RPGEntityDeathEvent(this);
+        RPGEntityDeathEvent event = new RPGEntityDeathEvent(this, lastAttacker);
         eventBusInterface.sendEvent(event);
 
         EntityManager.getInstance().markDead(uuid);
+    }
+
+    public RPGEntity getLastAttacker() {
+        return lastAttacker;
     }
 
     /**
@@ -211,10 +221,12 @@ public abstract class RPGEntity {
             return new RPGDamageResult(DamageResult.DENY, 0);
         }
 
-        // No PvP: players must never damage each other through the RPG pipeline
-        // (ability AoE, bonemerang, spirit sceptre, melee translation, ...).
-        if (attacker != null && attacker.getEntityType() == EntityType.PLAYER
-                && target.getEntityType() == EntityType.PLAYER) {
+        // Same-team protection: players never damage each other and nobody may
+        // damage an allied summon (the old hard-coded no-PvP guard, generalized
+        // to cover every ability AoE, bonemerang, spirit sceptre, melee
+        // translation, ... through this single pipeline). A null attacker
+        // (environment damage) is never denied.
+        if (attacker != null && CombatTeamUtils.isAlly(attacker, target)) {
             return new RPGDamageResult(DamageResult.DENY, 0);
         }
 
@@ -244,7 +256,11 @@ public abstract class RPGEntity {
         // Step 4: Apply penetration and defenses (LoL system)
         double reducedDamage = applyAllDefenses(event.getAmount(), event.getDamageType(), attacker, target);
 
-        // Step 5: Apply to target
+        // Step 5: Apply to target. Credit the killer on a landed hit (null
+        // attackers, e.g. environment damage, never take credit).
+        if (attacker != null && reducedDamage > 0) {
+            target.lastAttacker = attacker;
+        }
         target.setHealth(target.getHealth() - reducedDamage);
         target.checkAlive();
 

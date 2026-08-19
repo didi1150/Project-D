@@ -93,8 +93,17 @@ public class EventBusRegistry {
         PluginManager pm = plugin.getServer().getPluginManager();
 
         for (Reg r : FORWARDED) {
-            pm.registerEvent(r.type(), dummy, r.priority(), (l, event) -> BukkitEventBus.getInstance().sendEvent(event),
-                    plugin, r.ignoreCancelled());
+            pm.registerEvent(r.type(), dummy, r.priority(), (l, event) -> {
+                if (event instanceof PlayerInteractEvent interact) {
+                    // The pre-refactor EventListener un-cancelled the interact
+                    // event before forwarding it to the bus; without this,
+                    // BukkitEventBus.sendEvent would skip every subscriber when
+                    // the event arrives cancelled (it breaks on isCancelled()
+                    // before executing any action).
+                    interact.setCancelled(false);
+                }
+                BukkitEventBus.getInstance().sendEvent(event);
+            }, plugin, r.ignoreCancelled());
         }
     }
 }

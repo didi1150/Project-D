@@ -24,12 +24,18 @@ import org.bukkit.plugin.Plugin;
 import org.bukkit.scheduler.BukkitRunnable;
 
 import dev.bukkit.entity.VanillaEntityMeta;
+import dev.bukkit.summon.SoulSkull;
 import dev.core.entity.EntityManager;
 import dev.core.entity.RPGEntity;
 
 public class DamageUtils {
 
     public static void damageMob(LivingEntity le, double damage, LivingEntity source) {
+        // Soul skulls are collectibles, not combat entities: AoE abilities that
+        // fall back to this vanilla-damage path must never hurt or remove them.
+        if (SoulSkull.isSoulSkull(le)) {
+            return;
+        }
         le.damage(0.001, source);
         if (le.getHealth() > 0) {
             le.setHealth(Math.max(le.getHealth() - damage, 0));
