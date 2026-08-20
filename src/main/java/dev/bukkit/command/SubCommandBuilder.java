@@ -7,9 +7,9 @@ import me.kodysimpson.simpapi.command.SubCommand;
 import org.bukkit.ChatColor;
 import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
-import org.bukkit.util.StringUtil;
 
 import java.util.*;
+import java.util.function.Supplier;
 
 public class SubCommandBuilder {
 
@@ -81,6 +81,10 @@ public class SubCommandBuilder {
         return setCommandArgumentsList(argsNumber, name, tabSuggestions, argType);
     }
 
+    public SubCommandBuilder setCommandArgumentsList(int argsNumber, Supplier<List<String>> tabSuggestionsSupplier, String argType) {
+        return setCommandArgumentsList(argsNumber, name, tabSuggestionsSupplier, argType);
+    }
+
     public SubCommandBuilder setCommandArgumentsList(int argsNumber, String argType) {
         return setCommandArgumentsList(argsNumber, name, List.of(), argType);
     }
@@ -91,6 +95,11 @@ public class SubCommandBuilder {
 
     public SubCommandBuilder setCommandArgumentsList(int argsNumber, String necessaryArg, List<String> tabSuggestions, String argType) {
         this.tabSuggestions.add(new CommandArgumentsContainer(argsNumber, necessaryArg, tabSuggestions, argType));
+        return this;
+    }
+
+    public SubCommandBuilder setCommandArgumentsList(int argsNumber, String necessaryArg, Supplier<List<String>> tabSuggestionsSupplier, String argType) {
+        this.tabSuggestions.add(new CommandArgumentsContainer(argsNumber, necessaryArg, tabSuggestionsSupplier, argType));
         return this;
     }
 
@@ -144,7 +153,7 @@ public class SubCommandBuilder {
         return tabSuggestions.stream()
                 .filter(c -> c.necessaryArg.equalsIgnoreCase(mainArg))
                 .filter(c -> c.argsNumber == argsNum)
-                .map(c -> c.tabSuggestions)
+                .map(CommandArgumentsContainer::tabSuggestions)
                 .findFirst()
                 .orElse(List.of());
     }
@@ -313,7 +322,33 @@ public class SubCommandBuilder {
 
     public record CommandActionContainer(int argsNumber, String necessaryArg, CommandAction commandAction){}
 
-    public record CommandArgumentsContainer(int argsNumber, String necessaryArg, List<String> tabSuggestions, String argType){}
+    public static final class CommandArgumentsContainer {
+        private final int argsNumber;
+        private final String necessaryArg;
+        private List<String> tabSuggestions;
+        private final String argType;
+
+        private Supplier<List<String>> tabSuggestionsSupplier;
+
+        public CommandArgumentsContainer(int argsNumber, String necessaryArg, List<String> tabSuggestions, String argType) {
+            this.argsNumber = argsNumber;
+            this.necessaryArg = necessaryArg;
+            this.tabSuggestions = tabSuggestions;
+            this.argType = argType;
+        }
+
+        public CommandArgumentsContainer(int argsNumber, String necessaryArg, Supplier<List<String>> tabSuggestionsSupplier, String argType) {
+            this.argsNumber = argsNumber;
+            this.necessaryArg = necessaryArg;
+            this.argType = argType;
+            this.tabSuggestionsSupplier = tabSuggestionsSupplier;
+        }
+
+        public List<String> tabSuggestions() {
+            if (tabSuggestionsSupplier != null) return tabSuggestionsSupplier.get();
+            return tabSuggestions;
+        }
+    }
 
     public record Pair<K, V>(K first, V second){}
 

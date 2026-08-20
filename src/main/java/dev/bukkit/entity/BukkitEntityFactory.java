@@ -192,7 +192,7 @@ public class BukkitEntityFactory {
      * combat stats (HEALTH_MAX / ATTACK_DAMAGE / ARMOR) scaled by floor level and
      * elite bonus — exactly like the old per-level attribute scaling.
      */
-    private static StatManager scaleStats(MobDefinition definition, int level, boolean isElite) {
+    public static StatManager scaleStats(MobDefinition definition, int level, boolean isElite) {
         Map<StatType, Stat> stats = StatLoader.copyStats(definition.getBaseStats().getStats());
         long now = System.currentTimeMillis();
 
@@ -257,7 +257,7 @@ public class BukkitEntityFactory {
      * the effect manager's active effects. Vanilla potion effects are not supported
      * here.
      */
-    private static void applyDefinitionEffects(MobRPGEntity rpgMob, MobDefinition definition) {
+    public static void applyDefinitionEffects(MobRPGEntity rpgMob, MobDefinition definition) {
         for (MobEffect effect : definition.getEffects()) {
             Optional<Ability> ability = AbilityRegistry.get(effect.effectId());
             if (ability.isEmpty()) {
@@ -270,7 +270,7 @@ public class BukkitEntityFactory {
         }
     }
 
-    private static void applyMainHandItem(LivingEntity entity, MobRPGEntity rpgMob, MobDefinition definition) {
+    public static void applyMainHandItem(LivingEntity entity, MobRPGEntity rpgMob, MobDefinition definition) {
         EntityEquipment equipment = entity.getEquipment();
 
         // RPG item weapon: cosmetic main hand + equipped on the RPG entity, so its
@@ -291,7 +291,7 @@ public class BukkitEntityFactory {
         rpgMob.getEquipmentManager().equipItem(EquipmentSlot.MAIN_HAND, item.get());
     }
 
-    private static void applyArmor(LivingEntity entity, MobRPGEntity rpgMob, MobDefinition definition) {
+    public static void applyArmor(LivingEntity entity, MobRPGEntity rpgMob, MobDefinition definition) {
         for (Map.Entry<EquipmentSlot, String> entry : definition.getArmor().entrySet()) {
             Optional<RPGItem> item = RPGItemRegistry.getInstance().getItem(entry.getValue());
             if (item.isEmpty()) {

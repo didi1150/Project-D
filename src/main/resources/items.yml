@@ -714,7 +714,7 @@ items:
     # Mage staff cut from an allium flower. RIGHT CLICK fires a Guided Bat
     # (250 mana, no cooldown) that tracks the crosshair and explodes into magic
     # damage. The flower itself can never be placed as a block (see
-    # EventListener.onBlockPlace).
+    # BlockSubscriber.onBlockPlace).
     unlockLevel: 0
     name: Spirit Sceptre
     material: ALLIUM
@@ -736,10 +736,29 @@ items:
       policy: STACK
     abilities:
     - GUIDED_BAT
+  SOUL_TOME:
+    # The Support's summoning tool: RIGHT CLICK summons every soul held in the
+    # tome, LEFT CLICK recalls active summons to your side, SHIFT RIGHT CLICK
+    # dismisses them and stores their souls back into the tome, and its passive
+    # (Soul Collector) lets the holder claim dropped souls by running into them.
+    unlockLevel: 0
+    name: Soul Tome
+    material: NETHER_STAR
+    slot: MAIN_HAND
+    itemType: MISC
+    passive-stats: []
+    allowed-classes:
+    - SUPPORT
+    active-stats: []
+    abilities:
+    - SOUL_COLLECTOR
+    - SOUL_RECALL
+    - SOUL_RECALL_SHIFT
+    - SOUL_SUMMON
   SPINJITZU:
     # The Iron Hopper: RIGHT CLICK summons a cyclone of spinning rings that
     # pulls enemies into the wielder. The hopper itself can never be placed as
-    # a block (see EventListener.onBlockPlace).
+    # a block (see BlockSubscriber.onBlockPlace).
     unlockLevel: 0
     name: Iron Hopper
     material: HOPPER
@@ -774,6 +793,31 @@ items:
       policy: STACK
     abilities:
     - SMASH
+  BULWARK:
+    # The Bulwark: SHIFT RIGHT CLICK swings the shield through the half-circle
+    # in front of the wielder, stunning every enemy inside for 1.5 seconds
+    # (see the SHIELD_BASH ability).
+    unlockLevel: 0
+    name: Bulwark
+    material: SHIELD
+    slot: MAIN_HAND
+    itemType: SHIELD
+    passive-stats: []
+    allowed-classes:
+    - TANK
+    active-stats:
+    - amount: 30.0
+      statType: HEALTH_MAX
+      modifierType: FLAT
+      statTarget: BOTH
+      policy: STACK
+    - amount: 15.0
+      statType: ARMOR
+      modifierType: FLAT
+      statTarget: BOTH
+      policy: STACK
+    abilities:
+    - SHIELD_BASH
   SHADOW_WEAVER_STAFF:
     # The Shadow Weaver's Staff: the Assassin's platforming tool. RIGHT CLICK
     # conjures a shadow platform at the crosshair (up to 3, minimum 3 blocks

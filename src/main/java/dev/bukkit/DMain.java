@@ -4,6 +4,7 @@ import java.io.File;
 import java.io.IOException;
 import java.util.Map;
 
+import dev.bukkit.game.dungeon.proceduralDungeon.BuildAssetManager;
 import org.bukkit.Bukkit;
 import org.bukkit.WorldCreator;
 import org.bukkit.plugin.java.JavaPlugin;
@@ -11,9 +12,13 @@ import org.bukkit.plugin.java.JavaPlugin;
 import dev.bukkit.ability.BukkitEffectManager;
 import dev.bukkit.ability.BukkitEffectRegistry;
 import dev.bukkit.ability.BukkitParticleTestEffect;
+import dev.bukkit.ability.BukkitShieldBashEffect;
 import dev.bukkit.ability.BukkitShadowWeaverDashEffect;
 import dev.bukkit.ability.BukkitShadowWeaverPlaceEffect;
 import dev.bukkit.ability.BukkitSmashEffect;
+import dev.bukkit.ability.BukkitSoulRecallEffect;
+import dev.bukkit.ability.BukkitSoulStoreEffect;
+import dev.bukkit.ability.BukkitSoulSummonEffect;
 import dev.bukkit.ability.BukkitSpiritSceptreBatEffect;
 import dev.bukkit.ability.BukkitSpinjitzuEffect;
 import dev.bukkit.ability.BukkitSwingBoneEffect;
@@ -22,9 +27,6 @@ import dev.bukkit.command.CommandManager;
 import dev.bukkit.event.BukkitEventBus;
 import dev.bukkit.event.bukkitListeners.CombatListener;
 import dev.bukkit.event.bukkitListeners.EventBusRegistry;
-import dev.bukkit.event.bukkitListeners.EventListener;
-import dev.bukkit.event.subscribers.CancelSubscriber;
-import dev.bukkit.event.subscribers.PlayerSubscriber;
 import dev.bukkit.event.subscribers.ThreatPassiveSubscriber;
 import dev.bukkit.entity.boss.BukkitBossStageTypeRegistry;
 import dev.bukkit.entity.boss.BukkitBossStrategyRegistry;
@@ -42,6 +44,12 @@ import dev.bukkit.storage.BukkitConfigManager;
 import dev.bukkit.storage.progression.BukkitConfigProgressionDatabase;
 import dev.bukkit.storage.progression.ClassProgressionService;
 import dev.bukkit.storage.progression.HashMapProgressionCache;
+import dev.bukkit.status.BukkitStatusEffectManager;
+import dev.bukkit.status.StatusEffectBehaviorRegistry;
+import dev.bukkit.status.behavior.AirborneStatusEffectBehavior;
+import dev.bukkit.status.behavior.RootedStatusEffectBehavior;
+import dev.bukkit.status.behavior.SlowedStatusEffectBehavior;
+import dev.bukkit.status.behavior.StunnedStatusEffectBehavior;
 import dev.bukkit.utils.BackstabUtils;
 import dev.bukkit.utils.BukkitMessageSender;
 import dev.bukkit.utils.HealAuraUtils;
@@ -49,6 +57,10 @@ import dev.bukkit.utils.ManaDiscountUtils;
 import dev.core.ability.Ability;
 import dev.core.ability.AbilityRegistry;
 import dev.core.ability.EffectManagerInterface;
+import dev.core.ability.impl.SoulCollectorAbility;
+import dev.core.ability.impl.SoulRecallAbility;
+import dev.core.ability.impl.SoulRecallShiftAbility;
+import dev.core.ability.impl.SoulSummonAbility;
 import dev.core.ability.passive.SetPassiveRegistry;
 import dev.core.ability.storage.AbilityLoader;
 import dev.core.entity.EntityManager;
@@ -58,6 +70,7 @@ import dev.core.entity.mob.MobDefinitionRegistry;
 import dev.core.entity.boss.BossDefinitionRegistry;
 import dev.core.entity.rpgclass.RPGClassType;
 import dev.core.event.EventBusInterface;
+import dev.core.event.EventSubscriberScanner;
 import dev.core.game.GameStateController;
 import dev.core.game.settings.GameSettings;
 import dev.core.game.settings.GameSettingsLoader;
@@ -69,6 +82,7 @@ import dev.core.stat.DefaultStats;
 import dev.core.stat.Stat;
 import dev.core.stat.StatType;
 import dev.core.stat.loader.StatLoader;
+import dev.core.status.StatusEffectType;
 import dev.core.storage.config.ConfigProvider;
 import dev.core.storage.database.ProgressionCacheStrategy;
 import dev.core.storage.database.ProgressionDatabaseStrategy;
@@ -88,6 +102,8 @@ public final class DMain extends JavaPlugin {
     private GameStateController gameStateController;
     private dev.bukkit.game.boss.BossArenaManager bossArenaManager;
 
+    private BuildAssetManager buildAssetManager;
+
     @Override
     public void onEnable() {
         instance = this;
@@ -99,6 +115,10 @@ public final class DMain extends JavaPlugin {
         itemRegistry = RPGItemRegistry.getInstance();
         messageSenderInterface = BukkitMessageSender.getInstance();
         AbilityRegistry.preregister();
+        AbilityRegistry.register(new SoulSummonAbility());
+        AbilityRegistry.register(new SoulRecallAbility());
+        AbilityRegistry.register(new SoulRecallShiftAbility());
+        AbilityRegistry.register(new SoulCollectorAbility());
 
         // ---- Extension point: wire ability ids to their Bukkit effects ----
         // (register additional abilities via AbilityRegistry.register(...) BEFORE
@@ -108,6 +128,18 @@ public final class DMain extends JavaPlugin {
         BukkitEffectRegistry.register("GUIDED_BAT", BukkitSpiritSceptreBatEffect::new);
         BukkitEffectRegistry.register("SPINJITZU", BukkitSpinjitzuEffect::new);
         BukkitEffectRegistry.register("SMASH", BukkitSmashEffect::new);
+        BukkitEffectRegistry.register("SHIELD_BASH", BukkitShieldBashEffect::new);
+        BukkitEffectRegistry.register("SOUL_SUMMON", BukkitSoulSummonEffect::new);
+        BukkitEffectRegistry.register("SOUL_RECALL", BukkitSoulRecallEffect::new);
+        BukkitEffectRegistry.register("SOUL_RECALL_SHIFT", BukkitSoulStoreEffect::new);
+
+        // Status effect behaviors: how each CC type plays out on the vanilla
+        // entity (stat engine / potions / AI / velocity). Types without a
+        // behavior (e.g. CC immune) only block in the core manager.
+        StatusEffectBehaviorRegistry.register(StatusEffectType.SLOWED, new SlowedStatusEffectBehavior());
+        StatusEffectBehaviorRegistry.register(StatusEffectType.ROOTED, new RootedStatusEffectBehavior());
+        StatusEffectBehaviorRegistry.register(StatusEffectType.STUNNED, new StunnedStatusEffectBehavior());
+        StatusEffectBehaviorRegistry.register(StatusEffectType.AIRBORNE, new AirborneStatusEffectBehavior());
         BukkitEffectRegistry.register(dev.core.ability.impl.ShadowWeaverStaffAbility.PLACE_ID,
                 BukkitShadowWeaverPlaceEffect::new);
         BukkitEffectRegistry.register(dev.core.ability.impl.ShadowWeaverStaffAbility.DASH_ID,
@@ -219,21 +251,24 @@ public final class DMain extends JavaPlugin {
         CommandManager commandManager = CommandManager.getInstance(itemsConfig, progressionService, gameStateController,
                 gameSettingsLoader, eventBusInterface);
         SimpleDungeonBuilderBukkit.initDungeonTestCommand(commandManager);
+
+        buildAssetManager = new BuildAssetManager(this, "buildAssets/");
+        buildAssetManager.registerCommand(commandManager);
+
         commandManager.registerCommands(this);
-        Bukkit.getPluginManager().registerEvents(new EventListener(this), this);
-//        new CancelledListener(instance);
-        new CancelSubscriber(eventBusInterface, instance);
-        new ThreatPassiveSubscriber(eventBusInterface);
-//        Bukkit.getPluginManager().registerEvents(new CancelledListener(this, protocolManager), this);
         combatListener = new CombatListener(this);
         Bukkit.getPluginManager().registerEvents(combatListener, this);
-        new PlayerSubscriber(eventBusInterface, this).subscribe();
+
+        // Scanned last: subscriber constructors inject dependencies (e.g. the
+        // plugin instance) that must all be initialised before they run.
+        EventSubscriberScanner.scan(eventBusInterface, "dev", instance);
     }
 
     @Override
     public void onDisable() {
         gameStateController.stop();
         effectManagerInterface.cancelAll();
+        BukkitStatusEffectManager.getInstance().cancelAll();
         ShadowWeaverManager.getInstance().stop();
         combatListener.cleanup();
         configManager.saveAll();
@@ -250,6 +285,10 @@ public final class DMain extends JavaPlugin {
 
     public CombatListener getCombatListener() {
         return combatListener;
+    }
+
+    public ClassProgressionService getProgressionService() {
+        return progressionService;
     }
 
     /**

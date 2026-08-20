@@ -14,7 +14,6 @@ import org.bukkit.Particle;
 import org.bukkit.Sound;
 import org.bukkit.entity.ArmorStand;
 import org.bukkit.entity.Entity;
-import org.bukkit.entity.EntityType;
 import org.bukkit.entity.LivingEntity;
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.ItemStack;
@@ -29,6 +28,7 @@ import dev.bukkit.entity.BukkitPlayerEntity;
 import dev.bukkit.event.bukkitListeners.CombatListener;
 import dev.bukkit.item.BukkitItemStackAdapter;
 import dev.bukkit.utils.BackstabUtils;
+import dev.bukkit.utils.CombatRelation;
 import dev.bukkit.utils.DamageUtils;
 import dev.core.ability.CooldownSink;
 import dev.core.ability.Effect;
@@ -452,8 +452,6 @@ public class BukkitSwingBoneEffect extends Effect {
         List<Entity> nearbyEntities = (List<Entity>) casterEntity.getWorld()
                 .getNearbyEntities(armorStand.getLocation().clone().add(0, 1.575, 0), 0.8, 0.8, 0.8);
 
-        boolean casterIsPlayer = caster instanceof BukkitPlayerEntity;
-
         for (Entity entity : nearbyEntities) {
             if (!(entity instanceof LivingEntity le) || le.getUniqueId().equals(caster.getUuid())) {
                 continue;
@@ -465,11 +463,9 @@ public class BukkitSwingBoneEffect extends Effect {
                 continue; // ghosts take no damage; don't track them as a hit
             }
 
-            // Players throw at mobs; mobs throw at players.
-            if (casterIsPlayer && entity.getType() == EntityType.PLAYER) {
-                continue;
-            }
-            if (!casterIsPlayer && entity.getType() != EntityType.PLAYER) {
+            // Players and player-owned summons are allies; only cross-team
+            // targets (mobs for the player team, players for mobs) take hits.
+            if (!CombatRelation.isEnemy(caster, entity)) {
                 continue;
             }
 

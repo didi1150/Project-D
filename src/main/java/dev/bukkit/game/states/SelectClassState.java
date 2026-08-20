@@ -29,6 +29,7 @@ import org.bukkit.event.player.PlayerQuitEvent;
 import org.bukkit.event.player.PlayerToggleSneakEvent;
 import org.bukkit.util.Vector;
 
+import dev.bukkit.DMain;
 import dev.bukkit.entity.BukkitPlayerEntity;
 import dev.bukkit.game.coords.PointToLocation;
 import dev.bukkit.game.dungeon.DungeonVoting;
@@ -265,6 +266,10 @@ public class SelectClassState extends GameState {
                     : RPGClassType.NONE; // defensive: no finalized selection -> keep base stats
             playerEntity.getPlayerProgression().setActiveClass(assignedClass, playerEntity.getStatManager());
         }
+        // The local progressions are the source of truth for the assigned
+        // classes; push them into the service cache + database so validation
+        // lookups (e.g. soul capture) see the actual class.
+        DMain.getInstance().getProgressionService().syncActiveClasses();
         cancelUpdateTask();
     }
 

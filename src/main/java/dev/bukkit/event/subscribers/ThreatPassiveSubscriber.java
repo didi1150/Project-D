@@ -3,16 +3,16 @@ package dev.bukkit.event.subscribers;
 import java.util.Optional;
 import java.util.Random;
 
-import org.bukkit.entity.LivingEntity;
 import org.bukkit.entity.Mob;
 import org.bukkit.entity.Player;
 import org.bukkit.event.entity.EntityTargetLivingEntityEvent;
 
+import dev.core.ability.passive.SetPassive;
 import dev.core.entity.EntityManager;
 import dev.core.entity.RPGEntity;
-import dev.core.ability.passive.SetPassive;
 import dev.core.event.EventAction;
-import dev.core.event.EventBusInterface;
+import dev.core.event.EventSubscriber;
+import dev.core.event.Subscribe;
 
 /**
  * Tank set passive ("THREAT"): when a mob picks a player as its target and a
@@ -21,6 +21,7 @@ import dev.core.event.EventBusInterface;
  * {@code EquipmentManager.hasSetPassive("THREAT")}, so breaking the set
  * immediately stops drawing aggro.
  */
+@EventSubscriber
 public class ThreatPassiveSubscriber {
 
     private static final String PASSIVE_ID = "THREAT";
@@ -39,24 +40,26 @@ public class ThreatPassiveSubscriber {
         }
     };
 
-    public ThreatPassiveSubscriber(EventBusInterface eventBus) {
-        eventBus.subscribe(new EventAction<>(event -> {
-            if (!(event.getEntity() instanceof Mob mob)) {
-                return;
-            }
-            if (!(event.getTarget() instanceof Player) || event.isCancelled()) {
-                return;
-            }
+    public ThreatPassiveSubscriber() {
+    }
 
-            Player tank = nearestTank(mob);
-            if (tank == null || tank.getUniqueId().equals(event.getTarget().getUniqueId())) {
-                return;
-            }
-            if (random.nextInt(100) >= CHANCE_PERCENT) {
-                return;
-            }
-            event.setTarget(tank);
-        }, EntityTargetLivingEntityEvent.class, EventAction.NORMAL_PRIORITY));
+    @Subscribe(priority = EventAction.NORMAL_PRIORITY)
+    public void onEntityTarget(EntityTargetLivingEntityEvent event) {
+        if (!(event.getEntity() instanceof Mob mob)) {
+            return;
+        }
+        if (!(event.getTarget() instanceof Player) || event.isCancelled()) {
+            return;
+        }
+
+        Player tank = nearestTank(mob);
+        if (tank == null || tank.getUniqueId().equals(event.getTarget().getUniqueId())) {
+            return;
+        }
+        if (random.nextInt(100) >= CHANCE_PERCENT) {
+            return;
+        }
+        event.setTarget(tank);
     }
 
     private Player nearestTank(Mob mob) {

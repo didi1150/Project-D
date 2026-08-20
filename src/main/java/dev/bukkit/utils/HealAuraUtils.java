@@ -8,6 +8,7 @@ import org.bukkit.World;
 import org.bukkit.entity.Player;
 
 import dev.bukkit.entity.BukkitPlayerEntity;
+import dev.bukkit.summon.SummonedMobRPGEntity;
 import dev.core.ability.passive.SetPassive;
 import dev.core.entity.EntityManager;
 import dev.core.entity.RPGEntity;
@@ -32,7 +33,8 @@ public class HealAuraUtils {
     }
 
     /**
-     * Heals alive, non-ghost players within range of the aura holder.
+     * Heals alive, non-ghost players and player-owned summons within range of
+     * the aura holder.
      */
     public static void tick(RPGEntity holder) {
         if (!(holder instanceof BukkitPlayerEntity auraHolder)) {
@@ -63,6 +65,22 @@ public class HealAuraUtils {
                         holder.healRPGEntity(holder, target, HEAL_AMOUNT, HealReason.SPELL);
                         player.getWorld().spawnParticle(Particle.HEART, player.getLocation().add(0, 1.2, 0), 1);
                     });
+        }
+
+        // Team auras cover player-owned summons too: they are registered
+        // RPG entities, so they get the same tick of healing as any teammate.
+        for (RPGEntity target : EntityManager.getInstance().getAliveEntities()) {
+            if (target == holder || !(target instanceof SummonedMobRPGEntity summon) || !summon.isAlive()) {
+                continue;
+            }
+            if (summon.getVanilla().getLocation().distanceSquared(holderPlayer.get().getLocation()) > radiusSq) {
+                continue;
+            }
+            if (summon.getHealth() < summon.getMaxHealth()) {
+                holder.healRPGEntity(holder, summon, HEAL_AMOUNT, HealReason.SPELL);
+                summon.getVanilla().getWorld().spawnParticle(Particle.HEART,
+                        summon.getVanilla().getLocation().add(0, 1.2, 0), 1);
+            }
         }
     }
 

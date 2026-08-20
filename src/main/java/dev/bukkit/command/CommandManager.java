@@ -301,7 +301,7 @@ public class CommandManager {
                                 BukkitInventorySync.syncInventory(p, player);
                             });
                         }).addAlias("g").setCommandArgumentsList(0,
-                                RPGItemRegistry.getInstance().allItems().values().stream().map(RPGItem::getId).toList(),
+                                () -> RPGItemRegistry.getInstance().allItems().values().stream().map(RPGItem::getId).toList(),
                                 "itemName"))
                 .addSubCommand(SubCommandBuilder.startBuilding("saveItem").setDescription("to save an item")
                         .setPlayerCommandAction(0, (player, args) -> {
@@ -326,7 +326,7 @@ public class CommandManager {
                                 BukkitInventorySync.syncInventory(p, player);
                             });
                         }).setCommandArgumentsList(0,
-                                RPGItemRegistry.getInstance().allItems().values().stream().map(RPGItem::getId).toList(),
+                                () -> RPGItemRegistry.getInstance().allItems().values().stream().map(RPGItem::getId).toList(),
                                 "itemName"))
                 .addSubCommand(SubCommandBuilder.startBuilding("showProgress")
                         .setDescription("to show your leveling progress / class milestones")

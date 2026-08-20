@@ -9,6 +9,8 @@ import dev.core.entity.rpgclass.RPGClassType;
 import dev.core.event.EventBusInterface;
 import dev.core.stat.DefaultStats;
 import dev.core.stat.StatManager;
+import dev.core.status.NoopStatusEffectManager;
+import dev.core.status.StatusEffectManagerInterface;
 
 /**
  * Builder for creating RPGEntity instances with flexible composition.
@@ -34,6 +36,7 @@ public class RPGEntityBuilder {
     private RPGClassType classType = RPGClassType.TANK;
     private EffectManagerInterface effectManager;
     private EventBusInterface eventBus;
+    private StatusEffectManagerInterface statusEffects = NoopStatusEffectManager.getInstance();
 
     /**
      * Create a new builder with required parameters.
@@ -72,6 +75,15 @@ public class RPGEntityBuilder {
     }
 
     /**
+     * Set the status effect manager for this entity.
+     * Defaults to a no-op manager if not set.
+     */
+    public RPGEntityBuilder withStatusEffectManager(@NotNull StatusEffectManagerInterface statusEffects) {
+        this.statusEffects = statusEffects;
+        return this;
+    }
+
+    /**
      * Set the event bus for this entity.
      * This is required to build.
      */
@@ -106,7 +118,7 @@ public class RPGEntityBuilder {
             statManager = new StatManager(DefaultStats.getStatsByClass(RPGClassType.TANK));
         }
 
-        return new RPGEntity(statManager, uuid, name, entityType, effectManager, eventBus, classType) {
+        return new RPGEntity(statManager, uuid, name, entityType, effectManager, eventBus, classType, statusEffects) {
         };
     }
 }

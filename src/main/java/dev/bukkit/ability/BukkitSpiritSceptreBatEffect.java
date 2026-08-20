@@ -11,7 +11,6 @@ import org.bukkit.Particle.DustOptions;
 import org.bukkit.Sound;
 import org.bukkit.entity.Bat;
 import org.bukkit.entity.Entity;
-import org.bukkit.entity.EntityType;
 import org.bukkit.entity.LivingEntity;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.LeatherArmorMeta;
@@ -22,6 +21,7 @@ import org.bukkit.util.Vector;
 import dev.bukkit.DMain;
 import dev.bukkit.entity.BukkitPlayerEntity;
 import dev.bukkit.event.bukkitListeners.CombatListener;
+import dev.bukkit.utils.CombatRelation;
 import dev.bukkit.utils.DamageUtils;
 import dev.core.ability.CooldownSink;
 import dev.core.ability.Effect;
@@ -266,11 +266,12 @@ public class BukkitSpiritSceptreBatEffect extends Effect {
 
     /**
      * Enemy filter shared by the contact check and the AoE: living entities,
-     * excluding the caster, other bats/bonemerangs, ghosts, and same-team entities
-     * (players only blast mobs, mobs only blast players).
+     * excluding the caster, other bat/bonemerang projectiles, ghosts, and
+     * same-team entities (players and player-owned summons are allies; only
+     * cross-team targets are valid).
      */
     private boolean isEnemy(RPGEntity caster, Entity entity) {
-        if (!(entity instanceof LivingEntity le) || le.getUniqueId().equals(caster.getUuid())) {
+        if (!(entity instanceof LivingEntity le)) {
             return false;
         }
         if (le.hasMetadata(METADATA) || le.hasMetadata("BONEMERANG")) {
@@ -279,11 +280,7 @@ public class BukkitSpiritSceptreBatEffect extends Effect {
         if (EntityManager.getInstance().isGhost(le.getUniqueId())) {
             return false;
         }
-        boolean casterIsPlayer = caster instanceof BukkitPlayerEntity;
-        if (casterIsPlayer && entity.getType() == EntityType.PLAYER) {
-            return false;
-        }
-        return casterIsPlayer || entity.getType() == EntityType.PLAYER;
+        return CombatRelation.isEnemy(caster, entity);
     }
 
     private void knockback(LivingEntity le, Location blastLoc) {

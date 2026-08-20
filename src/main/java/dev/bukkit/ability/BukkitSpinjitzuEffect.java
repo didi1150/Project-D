@@ -13,7 +13,6 @@ import org.bukkit.entity.ArmorStand;
 import org.bukkit.entity.BlockDisplay;
 import org.bukkit.entity.Display;
 import org.bukkit.entity.Entity;
-import org.bukkit.entity.EntityType;
 import org.bukkit.entity.LivingEntity;
 import org.bukkit.util.Transformation;
 import org.bukkit.util.Vector;
@@ -21,6 +20,7 @@ import org.joml.AxisAngle4f;
 import org.joml.Vector3f;
 
 import dev.bukkit.entity.BukkitPlayerEntity;
+import dev.bukkit.utils.CombatRelation;
 import dev.core.ability.CooldownSink;
 import dev.core.ability.Effect;
 import dev.core.entity.EntityManager;
@@ -283,7 +283,6 @@ public class BukkitSpinjitzuEffect extends Effect {
     }
 
     private void pullEnemies(LivingEntity casterEntity) {
-        boolean casterIsPlayer = caster instanceof BukkitPlayerEntity;
         Location center = casterEntity.getLocation().add(0, 0.75, 0);
         for (Entity entity : center.getWorld().getNearbyEntities(center, PULL_RADIUS, PULL_RADIUS, PULL_RADIUS)) {
             if (!(entity instanceof LivingEntity living) || living.getUniqueId().equals(caster.getUuid())) {
@@ -295,10 +294,9 @@ public class BukkitSpinjitzuEffect extends Effect {
             if (EntityManager.getInstance().isGhost(living.getUniqueId())) {
                 continue;
             }
-            if (casterIsPlayer && entity.getType() == EntityType.PLAYER) {
-                continue;
-            }
-            if (!casterIsPlayer && entity.getType() != EntityType.PLAYER) {
+            // Players and player-owned summons are allies; only cross-team
+            // targets are pulled.
+            if (!CombatRelation.isEnemy(caster, entity)) {
                 continue;
             }
             Vector toCenter = center.toVector().subtract(living.getLocation().toVector());

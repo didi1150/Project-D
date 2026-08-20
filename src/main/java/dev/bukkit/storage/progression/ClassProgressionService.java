@@ -1,8 +1,12 @@
 package dev.bukkit.storage.progression;
 
+import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
+import dev.bukkit.entity.BukkitPlayerEntity;
+import dev.core.entity.EntityManager;
+import dev.core.entity.RPGEntity;
 import dev.core.entity.rpgclass.RPGClassType;
 import dev.core.progression.PlayerClassProgression;
 import dev.core.progression.PlayerProgression;
@@ -50,6 +54,28 @@ public class ClassProgressionService {
     public void setActiveClass(PlayerProgression playerProgression) {
         cache.setActiveClass(playerProgression.getPlayerId(), playerProgression.getActiveClass());
         database.setActiveClass(playerProgression.getPlayerId(), playerProgression.getActiveClass());
+    }
+
+    /**
+     * Reconciles the persisted active class of every registered player with the
+     * actual active class held in their local {@link PlayerProgression} — the
+     * state the running game actually assigned. Keeps the cache's activeClasses
+     * map and the database in sync with the local source of truth.
+     */
+    public void syncActiveClasses() {
+        List<RPGEntity> entities = EntityManager.getInstance().getAliveEntities();
+        entities.addAll(EntityManager.getInstance().getDeadEntities());
+        for (RPGEntity entity : entities) {
+            if (!(entity instanceof BukkitPlayerEntity playerEntity)) {
+                continue;
+            }
+            PlayerProgression progression = playerEntity.getPlayerProgression();
+            RPGClassType activeClass = progression.getActiveClass() != null
+                    ? progression.getActiveClass()
+                    : RPGClassType.NONE;
+            cache.setActiveClass(progression.getPlayerId(), activeClass);
+            database.setActiveClass(progression.getPlayerId(), activeClass);
+        }
     }
 
     public RPGClassType getActiveClass(UUID playerId) {

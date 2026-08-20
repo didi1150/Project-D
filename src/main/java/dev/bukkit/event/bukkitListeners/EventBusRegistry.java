@@ -29,6 +29,7 @@ import org.bukkit.event.player.PlayerChangedWorldEvent;
 import org.bukkit.event.player.PlayerCommandPreprocessEvent;
 import org.bukkit.event.player.PlayerDropItemEvent;
 import org.bukkit.event.player.PlayerInteractAtEntityEvent;
+import org.bukkit.event.player.PlayerInteractEntityEvent;
 import org.bukkit.event.player.PlayerInteractEvent;
 import org.bukkit.event.player.PlayerItemHeldEvent;
 import org.bukkit.event.player.PlayerJoinEvent;
@@ -71,6 +72,7 @@ public class EventBusRegistry {
             new Reg(PlayerCommandPreprocessEvent.class, EventPriority.NORMAL, false),
             new Reg(EntityDeathEvent.class, EventPriority.NORMAL, false),
             new Reg(PlayerInteractAtEntityEvent.class, EventPriority.NORMAL, false),
+            new Reg(PlayerInteractEntityEvent.class, EventPriority.NORMAL, false),
             new Reg(PlayerItemHeldEvent.class, EventPriority.LOWEST, false),
             new Reg(EntityRegainHealthEvent.class, EventPriority.NORMAL, false),
             new Reg(FoodLevelChangeEvent.class, EventPriority.NORMAL, false),
@@ -91,8 +93,17 @@ public class EventBusRegistry {
         PluginManager pm = plugin.getServer().getPluginManager();
 
         for (Reg r : FORWARDED) {
-            pm.registerEvent(r.type(), dummy, r.priority(), (l, event) -> BukkitEventBus.getInstance().sendEvent(event),
-                    plugin, r.ignoreCancelled());
+            pm.registerEvent(r.type(), dummy, r.priority(), (l, event) -> {
+                if (event instanceof PlayerInteractEvent interact) {
+                    // The pre-refactor EventListener un-cancelled the interact
+                    // event before forwarding it to the bus; without this,
+                    // BukkitEventBus.sendEvent would skip every subscriber when
+                    // the event arrives cancelled (it breaks on isCancelled()
+                    // before executing any action).
+                    interact.setCancelled(false);
+                }
+                BukkitEventBus.getInstance().sendEvent(event);
+            }, plugin, r.ignoreCancelled());
         }
     }
 }

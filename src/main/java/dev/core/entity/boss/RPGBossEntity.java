@@ -8,6 +8,7 @@ import dev.core.entity.EntityType;
 import dev.core.entity.RPGMobEntity;
 import dev.core.event.EventBusInterface;
 import dev.core.game.TaskScheduler;
+import dev.core.status.StatusEffectManagerInterface;
 
 public class RPGBossEntity extends RPGMobEntity {
 
@@ -20,6 +21,13 @@ public class RPGBossEntity extends RPGMobEntity {
             TaskScheduler scheduler) {
         super(uuid, name, EntityType.BOSS, effectManager, eventBus, new NoopMovementStrategy(),
                 new FirstAlivePlayerTargetingStrategy(), new MeleeAttackPattern());
+        this.stageManager = new BossStageManager(this, scheduler);
+    }
+
+    public RPGBossEntity(UUID uuid, String name, EffectManagerInterface effectManager, EventBusInterface eventBus,
+            TaskScheduler scheduler, StatusEffectManagerInterface statusEffects) {
+        super(uuid, name, EntityType.BOSS, effectManager, eventBus, new NoopMovementStrategy(),
+                new FirstAlivePlayerTargetingStrategy(), new MeleeAttackPattern(), statusEffects);
         this.stageManager = new BossStageManager(this, scheduler);
     }
 

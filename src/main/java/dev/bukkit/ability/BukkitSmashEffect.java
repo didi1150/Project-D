@@ -16,7 +16,6 @@ import org.bukkit.block.data.BlockData;
 import org.bukkit.entity.ArmorStand;
 import org.bukkit.entity.BlockDisplay;
 import org.bukkit.entity.Entity;
-import org.bukkit.entity.EntityType;
 import org.bukkit.entity.LivingEntity;
 import org.bukkit.util.Transformation;
 import org.bukkit.util.Vector;
@@ -25,6 +24,7 @@ import org.joml.Vector3f;
 import dev.bukkit.DMain;
 import dev.bukkit.entity.BukkitPlayerEntity;
 import dev.bukkit.event.bukkitListeners.CombatListener;
+import dev.bukkit.utils.CombatRelation;
 import dev.bukkit.utils.DamageUtils;
 import dev.core.ability.CooldownSink;
 import dev.core.ability.Effect;
@@ -263,7 +263,6 @@ public class BukkitSmashEffect extends Effect {
     }
 
     private void smashEnemies(RPGEntity caster, LivingEntity casterEntity, Vector forward, Location impact) {
-        boolean casterIsPlayer = caster instanceof BukkitPlayerEntity;
         double cosHalfAngle = Math.cos(Math.toRadians(CONE_HALF_ANGLE_DEG));
         long now = System.currentTimeMillis();
         double armor = caster.getStatEngineAdapter().getCurrentValue(StatType.ARMOR, now);
@@ -280,10 +279,9 @@ public class BukkitSmashEffect extends Effect {
             if (EntityManager.getInstance().isGhost(living.getUniqueId())) {
                 continue;
             }
-            if (casterIsPlayer && entity.getType() == EntityType.PLAYER) {
-                continue;
-            }
-            if (!casterIsPlayer && entity.getType() != EntityType.PLAYER) {
+            // Players and player-owned summons are allies; only cross-team
+            // targets take the shockwave.
+            if (!CombatRelation.isEnemy(caster, entity)) {
                 continue;
             }
             // The shockwave rides the ground, not the caster's own altitude: a

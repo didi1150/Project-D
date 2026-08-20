@@ -21,6 +21,7 @@ import dev.bukkit.game.coords.PointToLocation;
 import dev.bukkit.game.dungeon.proceduralDungeon.SimpleDungeonBuilderBukkit;
 import dev.bukkit.item.BukkitInventorySync;
 import dev.bukkit.storage.progression.ClassProgressionService;
+import dev.bukkit.summon.SummonedEntityFactory;
 import dev.core.entity.EntityManager;
 import dev.core.entity.RPGEntity;
 import dev.core.entity.rpgclass.RPGClassType;
@@ -45,6 +46,12 @@ public class PostGameState extends GameState {
 
     @Override
     protected void onStart() {
+        // The run is over: clear all player-owned summons so the next run starts
+        // clean. Souls stay on the tomes (the inventory is cleared again when the
+        // new run begins), so a Support can carry dungeon souls into the boss
+        // fight; this only runs after the boss fight has ended.
+        SummonedEntityFactory.despawnAll();
+
         SimpleDungeonBuilderBukkit simpleDungeonBuilderBukkit = new SimpleDungeonBuilderBukkit(plugin,
                 Bukkit.getWorld(GameSettings.getCurrentSettings().getDungeonWorld()));
 

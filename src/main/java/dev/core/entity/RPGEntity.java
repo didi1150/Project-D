@@ -21,6 +21,9 @@ import dev.core.stat.modifier.StatModifier;
 import dev.core.stat.engine.StatEngine;
 import dev.core.stat.engine.StatEngineAdapter;
 import dev.core.stat.provider.adapter.ModifierBucketProvider;
+import dev.core.status.NoopStatusEffectManager;
+import dev.core.status.StatusEffectManagerInterface;
+import dev.core.status.StatusEffectType;
 
 public abstract class RPGEntity {
 
@@ -31,6 +34,7 @@ public abstract class RPGEntity {
     private final StatManager statManager;
     private final EquipmentManager equipmentManager;
     private final EffectManagerInterface effectManagerInterface;
+    private final StatusEffectManagerInterface statusEffects;
     private final StatEngine statEngine;
     private final StatEngineAdapter statEngineAdapter;
 
@@ -40,6 +44,12 @@ public abstract class RPGEntity {
     private EventBusInterface eventBusInterface;
     private RPGClassType classType;
     private RPGEntityAttackTracker attackTracker;
+    /**
+     * The last entity that landed damage on this entity, recorded just before a
+     * lethal hit seals a death. Kill credit for soul drops and reward tracking;
+     * survives death so {@code RPGEntityDeathEvent} can carry the killer.
+     */
+    private RPGEntity lastAttacker;
 
     public RPGEntity(UUID uuid, String name, EntityType entityType, EffectManagerInterface effectManagerInterface,
             EventBusInterface eventBusInterface) {
@@ -47,12 +57,26 @@ public abstract class RPGEntity {
                 eventBusInterface, RPGClassType.NONE);
     }
 
+    public RPGEntity(UUID uuid, String name, EntityType entityType, EffectManagerInterface effectManagerInterface,
+            EventBusInterface eventBusInterface, StatusEffectManagerInterface statusEffects) {
+        this(new StatManager(DefaultStats.getDefaultStats()), uuid, name, entityType, effectManagerInterface,
+                eventBusInterface, RPGClassType.NONE, statusEffects);
+    }
+
     public RPGEntity(StatManager statManager, UUID uuid, String name, EntityType entityType,
             EffectManagerInterface effectManagerInterface, EventBusInterface eventBusInterface,
             RPGClassType classType) {
+        this(statManager, uuid, name, entityType, effectManagerInterface, eventBusInterface, classType,
+                NoopStatusEffectManager.getInstance());
+    }
+
+    public RPGEntity(StatManager statManager, UUID uuid, String name, EntityType entityType,
+            EffectManagerInterface effectManagerInterface, EventBusInterface eventBusInterface,
+            RPGClassType classType, StatusEffectManagerInterface statusEffects) {
         this.statManager = statManager;
         this.effectManagerInterface = effectManagerInterface;
         this.eventBusInterface = eventBusInterface;
+        this.statusEffects = statusEffects;
         this.equipmentManager = new EquipmentManager(this, eventBusInterface, effectManagerInterface);
         this.uuid = uuid;
         this.name = name;
@@ -86,6 +110,7 @@ public abstract class RPGEntity {
     public void tick(long now) {
         statManager.tick(now);
         equipmentManager.tick(now);
+        statusEffects.tick(now);
         checkAlive();
     }
 
@@ -98,10 +123,14 @@ public abstract class RPGEntity {
     public void onDeath() {
         alive = false;
         setHealth(getMaxHealth());
-        RPGEntityDeathEvent event = new RPGEntityDeathEvent(this);
+        RPGEntityDeathEvent event = new RPGEntityDeathEvent(this, lastAttacker);
         eventBusInterface.sendEvent(event);
 
         EntityManager.getInstance().markDead(uuid);
+    }
+
+    public RPGEntity getLastAttacker() {
+        return lastAttacker;
     }
 
     /**
@@ -124,7 +153,8 @@ public abstract class RPGEntity {
     }
 
     public boolean canAttack() {
-        return attackTracker.canAttack();
+        // Hard CC (stunned/airborne) is full control loss: no attacking.
+        return !statusEffects.hasHardCc(this) && attackTracker.canAttack();
     }
 
     public long getLastValidAttack() {
@@ -191,10 +221,12 @@ public abstract class RPGEntity {
             return new RPGDamageResult(DamageResult.DENY, 0);
         }
 
-        // No PvP: players must never damage each other through the RPG pipeline
-        // (ability AoE, bonemerang, spirit sceptre, melee translation, ...).
-        if (attacker != null && attacker.getEntityType() == EntityType.PLAYER
-                && target.getEntityType() == EntityType.PLAYER) {
+        // Same-team protection: players never damage each other and nobody may
+        // damage an allied summon (the old hard-coded no-PvP guard, generalized
+        // to cover every ability AoE, bonemerang, spirit sceptre, melee
+        // translation, ... through this single pipeline). A null attacker
+        // (environment damage) is never denied.
+        if (attacker != null && CombatTeamUtils.isAlly(attacker, target)) {
             return new RPGDamageResult(DamageResult.DENY, 0);
         }
 
@@ -224,7 +256,11 @@ public abstract class RPGEntity {
         // Step 4: Apply penetration and defenses (LoL system)
         double reducedDamage = applyAllDefenses(event.getAmount(), event.getDamageType(), attacker, target);
 
-        // Step 5: Apply to target
+        // Step 5: Apply to target. Credit the killer on a landed hit (null
+        // attackers, e.g. environment damage, never take credit).
+        if (attacker != null && reducedDamage > 0) {
+            target.lastAttacker = attacker;
+        }
         target.setHealth(target.getHealth() - reducedDamage);
         target.checkAlive();
 
@@ -329,7 +365,15 @@ public abstract class RPGEntity {
 
     // =========================- Abilities ==========================
 
+    /**
+     * Trigger manual abilities based on player action. No-op while the entity is
+     * under hard CC (stunned/airborne): casting is part of the CC'd entity's
+     * lost control. Applies to players AND mobs (mob casts route through here).
+     */
     public void triggerAbility(AbilityAction abilityAction) {
+        if (statusEffects.hasHardCc(this)) {
+            return;
+        }
         equipmentManager.triggerAbility(abilityAction);
     }
 
@@ -357,6 +401,36 @@ public abstract class RPGEntity {
 
     public EffectManagerInterface getEffectManager() {
         return effectManagerInterface;
+    }
+
+    /**
+     * Apply a status effect (slowed, stunned, ...) to this entity. Multiple
+     * different effects can be active at once; re-applying the same type
+     * refreshes its duration.
+     *
+     * @return false when the apply was rejected (CC immunity, another hard CC).
+     */
+    public boolean applyStatusEffect(StatusEffectType type, long durationMillis) {
+        return statusEffects.apply(this, type, durationMillis);
+    }
+
+    /**
+     * Apply a status effect with an explicit fade-out choice. {@code fadeOut}
+     * true fades the display out over the final moments instead of removing it
+     * abruptly when the duration ends.
+     *
+     * @return false when the apply was rejected (CC immunity, another hard CC).
+     */
+    public boolean applyStatusEffect(StatusEffectType type, long durationMillis, boolean fadeOut) {
+        return statusEffects.apply(this, type, durationMillis, fadeOut, 1.0);
+    }
+
+    public boolean hasStatusEffect(StatusEffectType type) {
+        return statusEffects.has(this, type);
+    }
+
+    public StatusEffectManagerInterface getStatusEffectManager() {
+        return statusEffects;
     }
 
     public StatEngine getStatEngine() {

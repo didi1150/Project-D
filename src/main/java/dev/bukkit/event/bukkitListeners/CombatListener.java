@@ -13,6 +13,7 @@ import org.bukkit.World;
 import org.bukkit.entity.Display;
 import org.bukkit.entity.Entity;
 import org.bukkit.entity.LivingEntity;
+import org.bukkit.entity.Mob;
 import org.bukkit.entity.Player;
 import org.bukkit.entity.Projectile;
 import org.bukkit.entity.TextDisplay;
@@ -29,8 +30,12 @@ import org.bukkit.util.Transformation;
 
 import dev.bukkit.ability.ShadowWeaverManager;
 import dev.bukkit.event.BukkitEventBus;
+import dev.bukkit.entity.MobRPGEntity;
 import dev.bukkit.item.BowArrowManager;
+import dev.bukkit.summon.SoulSkull;
+import dev.bukkit.summon.SummonedMobRPGEntity;
 import dev.bukkit.utils.BackstabUtils;
+import dev.bukkit.utils.CombatRelation;
 import dev.bukkit.utils.DamageUtils;
 import dev.core.entity.EntityManager;
 import dev.core.entity.RPGDamageResult;
@@ -332,9 +337,29 @@ public class CombatListener implements Listener {
         });
     }
 
+    /**
+     * Whether the given projectile/melee damager and victim are both on the
+     * player team (players or player-owned summons), i.e. an allied hit that
+     * must never land. A non-living damager (e.g. a block update) is not an
+     * allied attacker.
+     */
+    private static boolean isPlayerTeamDamage(Entity damager, Entity victim) {
+        Entity effective = damager;
+        if (damager instanceof Projectile projectile && projectile.getShooter() instanceof LivingEntity shooter) {
+            effective = shooter;
+        }
+        return CombatRelation.isPlayerTeam(effective) && CombatRelation.isPlayerTeam(victim);
+    }
+
     @EventHandler(priority = EventPriority.LOWEST)
     public void onDamage(EntityDamageEvent event) {
         if (event instanceof EntityDamageByEntityEvent) {
+            return;
+        }
+        // Collectibles are never combat targets: a soul skull (armor stand)
+        // must survive every damage source, including environment/AoE damage.
+        if (SoulSkull.isSoulSkull(event.getEntity())) {
+            event.setCancelled(true);
             return;
         }
         // Ignore negligible (~0.001) vanilla damage pokes: BukkitPlayerEntity
@@ -359,24 +384,25 @@ public class CombatListener implements Listener {
 
     @EventHandler(priority = EventPriority.LOWEST)
     public void onDamagedByEntity(EntityDamageByEntityEvent event) {
+        // Soul skulls are collectibles, not combat entities: no mob or player
+        // attack (melee, projectile, sweep, ...) may damage or remove them.
+        if (SoulSkull.isSoulSkull(event.getEntity())) {
+            event.setCancelled(true);
+            return;
+        }
         if (event.getDamage() <= 0.002) {
             return;
         }
 
-        // No PvP: players can never damage each other through any vanilla
-        // damage source - melee, sweep attacks, or projectiles fired by a
-        // player (shift-clicked arrows, tridents, ...). The victim guard runs
-        // first so no indicator, knockback or hit reaction ever leaks through.
-        if (event.getEntity() instanceof Player) {
-            if (event.getDamager() instanceof Player) {
-                event.setCancelled(true);
-                return;
-            }
-            if (event.getDamager() instanceof Projectile projectile
-                    && projectile.getShooter() instanceof Player) {
-                event.setCancelled(true);
-                return;
-            }
+        // No friendly fire: players and their summons are on the same team and
+        // can never damage each other through any vanilla damage source - melee,
+        // sweep attacks, or projectiles fired by a player (shift-clicked arrows,
+        // tridents, ...). The guard runs first so no indicator, knockback or hit
+        // reaction ever leaks through. Projectile damagers are unwrapped to the
+        // shooter.
+        if (isPlayerTeamDamage(event.getDamager(), event.getEntity())) {
+            event.setCancelled(true);
+            return;
         }
 
         // Projectile attacks (arrows, tridents, fireballs, ...) amplify their
@@ -449,6 +475,16 @@ public class CombatListener implements Listener {
                 }
                 if (projectileHit && rpgDamage.getResult() != DamageResult.DENY) {
                     playProjectileHitSound(event.getEntity(), rpgDamage.getResult());
+                }
+                // A dungeon mob that just took a hit from a player-owned summon
+                // retargets onto it, so summons can actually tank: otherwise the
+                // mob's vanilla AI keeps chasing the nearest player and never
+                // acknowledges the summon attacking it.
+                if (damager instanceof SummonedMobRPGEntity summon
+                        && entity instanceof MobRPGEntity mobRpg
+                        && mobRpg.getVanilla() instanceof Mob vanillaMob
+                        && summon.getVanilla().isValid()) {
+                    vanillaMob.setTarget(summon.getVanilla());
                 }
             }, () -> {
                 // Case 2: Victim is RPG entity, damager is NOT managed by RPG (e.g., vanilla

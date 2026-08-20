@@ -111,6 +111,55 @@ abilities:
     action: RIGHT_CLICK
     cooldownScope: ITEM
     cooldown: 5000
+  SHIELD_BASH:
+    name: Shield Bash
+    description:
+      - "Swing your shield through the"
+      - "half-circle in front of you,"
+      - "<yellow>stunning</yellow> every enemy"
+      - "inside for <yellow>1.5</yellow> seconds."
+    triggerType: MANUAL
+    action: SHIFT_RIGHT_CLICK
+    cooldownScope: ITEM
+    cooldown: 3000
+  SOUL_SUMMON:
+    name: Soul Summon
+    description:
+      - "Summon every soul held in your tome"
+      - "as <green>allies</green> that fight for"
+      - "you. Souls are captured when your"
+      - "team slays dungeon mobs."
+    triggerType: MANUAL
+    action: RIGHT_CLICK
+    cooldownScope: PLAYER
+    cooldown: 500
+  SOUL_COLLECTOR:
+    name: Soul Collector
+    description:
+      - "Walk into dropped souls to claim"
+      - "them into your tome."
+    triggerType: PASSIVE
+    action: NONE
+    cooldownScope: PLAYER
+    cooldown: 0
+  SOUL_RECALL:
+    name: Soul Recall
+    description:
+      - "Recall every active summon to"
+      - "your side."
+    triggerType: MANUAL
+    action: LEFT_CLICK
+    cooldownScope: PLAYER
+    cooldown: 2000
+  SOUL_RECALL_SHIFT:
+    name: Soul Store
+    description:
+      - "Dismiss every active summon and store"
+      - "their souls back into your tome."
+    triggerType: MANUAL
+    action: SHIFT_RIGHT_CLICK
+    cooldownScope: PLAYER
+    cooldown: 2000
   SHADOW_STAFF_PLACE:
     name: Shadow Platform
     description:
