@@ -134,13 +134,15 @@ items:
   BASIC_TANK_HELMET:
     name: Tank Helmet
     material: LEATHER_HELMET
+    leather-color: 0x3C3C3C
     slot: HEAD
     itemType: HELMET
     unlockLevel: 0
     allowed-classes:
     - TANK
     description:
-    - Basic Tank armor piece
+    - "Reinforced leather helm,"
+    - "built to take hits head-on."
     passive-stats: []
     active-stats:
     - amount: 10.0
@@ -157,13 +159,15 @@ items:
   BASIC_TANK_CHESTPLATE:
     name: Tank Chestplate
     material: LEATHER_CHESTPLATE
+    leather-color: 0x646464
     slot: CHEST
     itemType: CHESTPLATE
     unlockLevel: 0
     allowed-classes:
     - TANK
     description:
-    - Basic Tank armor piece
+    - "A padded leather chestplate"
+    - "that soaks up the hard hits."
     passive-stats: []
     active-stats:
     - amount: 15.0
@@ -180,13 +184,15 @@ items:
   BASIC_TANK_LEGGINGS:
     name: Tank Leggings
     material: LEATHER_LEGGINGS
+    leather-color: 0x8C8C8C
     slot: LEGS
     itemType: LEGGINGS
     unlockLevel: 0
     allowed-classes:
     - TANK
     description:
-    - Basic Tank armor piece
+    - "Thick leather leg guards"
+    - "for holding the front line."
     passive-stats: []
     active-stats:
     - amount: 10.0
@@ -203,13 +209,15 @@ items:
   BASIC_TANK_BOOTS:
     name: Tank Boots
     material: LEATHER_BOOTS
+    leather-color: 0xB4B4B4
     slot: FEET
     itemType: BOOTS
     unlockLevel: 0
     allowed-classes:
     - TANK
     description:
-    - Basic Tank armor piece
+    - "Heavy-soled leather boots,"
+    - "planted firm in a scrap."
     passive-stats: []
     active-stats:
     - amount: 5.0
@@ -234,13 +242,15 @@ items:
   BASIC_ASSASSIN_HELMET:
     name: Assassin Hood
     material: LEATHER_HELMET
+    leather-color: 0x000000
     slot: HEAD
     itemType: HELMET
     unlockLevel: 0
     allowed-classes:
     - ASSASSIN
     description:
-    - Basic Assassin armor piece
+    - "A dark hood, worn low,"
+    - "to hide your approach."
     passive-stats: []
     active-stats:
     - amount: 2.0
@@ -257,13 +267,15 @@ items:
   BASIC_ASSASSIN_CHESTPLATE:
     name: Assassin Tunic
     material: LEATHER_CHESTPLATE
+    leather-color: 0x000000
     slot: CHEST
     itemType: CHESTPLATE
     unlockLevel: 0
     allowed-classes:
     - ASSASSIN
     description:
-    - Basic Assassin armor piece
+    - "A fitted tunic that lets"
+    - "you strike fast and vanish."
     passive-stats: []
     active-stats:
     - amount: 3.0
@@ -280,13 +292,15 @@ items:
   BASIC_ASSASSIN_LEGGINGS:
     name: Assassin Leggings
     material: LEATHER_LEGGINGS
+    leather-color: 0x000000
     slot: LEGS
     itemType: LEGGINGS
     unlockLevel: 0
     allowed-classes:
     - ASSASSIN
     description:
-    - Basic Assassin armor piece
+    - "Slim leggings built for"
+    - "speed, not protection."
     passive-stats: []
     active-stats:
     - amount: 2.0
@@ -303,13 +317,15 @@ items:
   BASIC_ASSASSIN_BOOTS:
     name: Assassin Boots
     material: LEATHER_BOOTS
+    leather-color: 0x000000
     slot: FEET
     itemType: BOOTS
     unlockLevel: 0
     allowed-classes:
     - ASSASSIN
     description:
-    - Basic Assassin armor piece
+    - "Soft-soled boots meant for"
+    - "silent, cold-blooded work."
     passive-stats: []
     active-stats:
     - amount: 5.0
@@ -336,7 +352,8 @@ items:
     allowed-classes:
     - ARCHER
     description:
-    - Basic Archer armor piece
+    - "A light hood that keeps"
+    - "your view clear, always."
     passive-stats: []
     active-stats:
     - amount: 0.03
@@ -360,7 +377,8 @@ items:
     allowed-classes:
     - ARCHER
     description:
-    - Basic Archer armor piece
+    - "A fitted tunic for a"
+    - "quick draw and steady aim."
     passive-stats: []
     active-stats:
     - amount: 3.0
@@ -384,7 +402,8 @@ items:
     allowed-classes:
     - ARCHER
     description:
-    - Basic Archer armor piece
+    - "Flexible leggings for"
+    - "moving fast between shots."
     passive-stats: []
     active-stats:
     - amount: 2.0
@@ -408,7 +427,8 @@ items:
     allowed-classes:
     - ARCHER
     description:
-    - Basic Archer armor piece
+    - "Swift boots that let you"
+    - "kite at extreme range."
     passive-stats: []
     active-stats:
     - amount: 5.0
@@ -435,7 +455,8 @@ items:
     allowed-classes:
     - MAGE
     description:
-    - Basic Mage armor piece
+    - "A hood stitched with"
+    - "faintly glowing runes."
     passive-stats: []
     active-stats:
     - amount: 2.0
@@ -459,7 +480,8 @@ items:
     allowed-classes:
     - MAGE
     description:
-    - Basic Mage armor piece
+    - "A flowing blue robe that"
+    - "channels raw magic."
     passive-stats: []
     active-stats:
     - amount: 3.0
@@ -483,7 +505,8 @@ items:
     allowed-classes:
     - MAGE
     description:
-    - Basic Mage armor piece
+    - "Leggings enchanted to"
+    - "hold a deeper well of mana."
     passive-stats: []
     active-stats:
     - amount: 2.0
@@ -507,7 +530,8 @@ items:
     allowed-classes:
     - MAGE
     description:
-    - Basic Mage armor piece
+    - "Soft boots enchanted for"
+    - "quick repositioning."
     passive-stats: []
     active-stats:
     - amount: 2.0
@@ -532,13 +556,15 @@ items:
   BASIC_SUPPORT_HELMET:
     name: Support Hood
     material: LEATHER_HELMET
+    leather-color: 0x006600
     slot: HEAD
     itemType: HELMET
     unlockLevel: 0
     allowed-classes:
     - SUPPORT
     description:
-    - Basic Support armor piece
+    - "A simple, kind hood that"
+    - "keeps watch over allies."
     passive-stats: []
     active-stats:
     - amount: 2.0
@@ -555,13 +581,15 @@ items:
   BASIC_SUPPORT_CHESTPLATE:
     name: Support Tunic
     material: LEATHER_CHESTPLATE
+    leather-color: 0x008800
     slot: CHEST
     itemType: CHESTPLATE
     unlockLevel: 0
     allowed-classes:
     - SUPPORT
     description:
-    - Basic Support armor piece
+    - "A warm tunic that feels"
+    - "like a guardian's embrace."
     passive-stats: []
     active-stats:
     - amount: 3.0
@@ -578,13 +606,15 @@ items:
   BASIC_SUPPORT_LEGGINGS:
     name: Support Leggings
     material: LEATHER_LEGGINGS
+    leather-color: 0x00AA00
     slot: LEGS
     itemType: LEGGINGS
     unlockLevel: 0
     allowed-classes:
     - SUPPORT
     description:
-    - Basic Support armor piece
+    - "Comfortable leggings for"
+    - "staying close to your team."
     passive-stats: []
     active-stats:
     - amount: 2.0
@@ -601,13 +631,15 @@ items:
   BASIC_SUPPORT_BOOTS:
     name: Support Boots
     material: LEATHER_BOOTS
+    leather-color: 0x00CC00
     slot: FEET
     itemType: BOOTS
     unlockLevel: 0
     allowed-classes:
     - SUPPORT
     description:
-    - Basic Support armor piece
+    - "Sturdy boots for rushing"
+    - "to the side of the fallen."
     passive-stats: []
     active-stats:
     - amount: 0.5
@@ -761,6 +793,8 @@ items:
     # a block (see BlockSubscriber.onBlockPlace).
     unlockLevel: 0
     name: Iron Hopper
+    allowed-classes:
+      - TANK
     material: HOPPER
     slot: MAIN_HAND
     itemType: MISC
@@ -819,13 +853,6 @@ items:
     abilities:
     - SHIELD_BASH
   SHADOW_WEAVER_STAFF:
-    # The Shadow Weaver's Staff: the Assassin's platforming tool. RIGHT CLICK
-    # conjures a shadow platform at the crosshair (up to 3, minimum 3 blocks
-    # apart, fading Light Gray -> Gray -> Black over 6 seconds). LEFT CLICK
-    # dashes onto a highlighted platform with a 4-tick interpolated dash and
-    # sticks the assassin to it (gravity off) until they move, jump or sneak.
-    # Dropping off grants brief Invisibility + Slow Falling and arms Plunge
-    # Strike (1.5x melee) for 3 seconds.
     unlockLevel: 0
     name: Shadow Weaver's Staff
     material: STICK
@@ -868,7 +895,9 @@ item-sets:
     - BASIC_ARCHER_BOOTS
     bonuses:
       '4':
-        description: 'Full Archer Set (4/4): +10% Projectile Damage, +10 Attack Damage'
+        description: |-
+          Full Archer Set (4/4):
+          +10% Projectile Damage, +10 Attack Damage
         stat-modifiers:
         - amount: 10.0
           statType: PROJECTILE_DAMAGE
@@ -895,8 +924,10 @@ item-sets:
     - BASIC_TANK_BOOTS
     bonuses:
       '4':
-        description: 'Full Tank Set (4/4): +100 Max Health, +20 Armor, +10 Magic Resist,
-          draws monster aggression'
+        description: |-
+          Full Tank Set (4/4):
+          +100 Max Health, +20 Armor, +10 Magic Resist,
+          draws monster aggression
         stat-modifiers:
         - amount: 100.0
           statType: HEALTH_MAX
@@ -929,8 +960,10 @@ item-sets:
     - BASIC_ASSASSIN_BOOTS
     bonuses:
       '4':
-        description: 'Full Assassin Set (4/4): +10 Attack Damage, +10 Move Speed,
-          +50% damage from behind'
+        description: |-
+          Full Assassin Set (4/4):
+          +10 Attack Damage, +10 Move Speed,
+          +50% damage from behind
         stat-modifiers:
         - amount: 10.0
           statType: ATTACK_DAMAGE
@@ -958,8 +991,11 @@ item-sets:
     - BASIC_MAGE_BOOTS
     bonuses:
       '4':
-        description: 'Full Mage Set (4/4): +50 Mana, +10 Ability Haste (cooldown
-          reduction), 10% cheaper mana costs'
+        description: |-
+          Full Mage Set (4/4):
+          +50 Mana, +10 Ability Haste
+          (cooldown reduction),
+          10% cheaper mana costs
         stat-modifiers:
         - amount: 50.0
           statType: MANA_MAX
@@ -987,8 +1023,10 @@ item-sets:
     - BASIC_SUPPORT_BOOTS
     bonuses:
       '4':
-        description: 'Full Support Set (4/4): +10 Heal & Shield Power, +50 Mana, healing
-          aura around the wearer'
+        description: |-
+          Full Support Set (4/4):
+          +10 Heal & Shield Power, +50 Mana,
+          healing aura around the wearer
         stat-modifiers:
         - amount: 10.0
           statType: HEAL_AND_SHIELD_POWER
