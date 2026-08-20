@@ -1,6 +1,6 @@
 # User-specific stuff
 .idea/
-
+*.txt
 *.iml
 *.ipr
 *.iws

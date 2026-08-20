@@ -774,6 +774,41 @@ items:
       policy: STACK
     abilities:
     - SMASH
+  SHADOW_WEAVER_STAFF:
+    # The Shadow Weaver's Staff: the Assassin's platforming tool. RIGHT CLICK
+    # conjures a shadow platform at the crosshair (up to 3, minimum 3 blocks
+    # apart, fading Light Gray -> Gray -> Black over 6 seconds). LEFT CLICK
+    # dashes onto a highlighted platform with a 4-tick interpolated dash and
+    # sticks the assassin to it (gravity off) until they move, jump or sneak.
+    # Dropping off grants brief Invisibility + Slow Falling and arms Plunge
+    # Strike (1.5x melee) for 3 seconds.
+    unlockLevel: 0
+    name: Shadow Weaver's Staff
+    material: STICK
+    slot: MAIN_HAND
+    itemType: STAFF
+    passive-stats: []
+    allowed-classes:
+    - ASSASSIN
+    active-stats:
+    - amount: 50.0
+      statType: ATTACK_DAMAGE
+      modifierType: FLAT
+      statTarget: BOTH
+      policy: STACK
+    - amount: 15.0
+      statType: LETHALITY
+      modifierType: FLAT
+      statTarget: BOTH
+      policy: STACK
+    - amount: 20.0
+      statType: ABILITY_HASTE
+      modifierType: FLAT
+      statTarget: BOTH
+      policy: STACK
+    abilities:
+    - SHADOW_STAFF_PLACE
+    - SHADOW_STAFF_DASH
 
 # ---- Basic Archer Set (item set bonus: full 4/4 set) -----------------------
 # Full set passive: +10% projectile damage dealt (arrows, projectiles and the

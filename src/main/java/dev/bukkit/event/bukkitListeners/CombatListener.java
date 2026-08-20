@@ -7,6 +7,7 @@ import java.util.UUID;
 
 import org.bukkit.Bukkit;
 import org.bukkit.Location;
+import org.bukkit.Particle;
 import org.bukkit.Sound;
 import org.bukkit.World;
 import org.bukkit.entity.Display;
@@ -26,6 +27,7 @@ import org.bukkit.plugin.Plugin;
 import org.bukkit.scheduler.BukkitRunnable;
 import org.bukkit.util.Transformation;
 
+import dev.bukkit.ability.ShadowWeaverManager;
 import dev.bukkit.event.BukkitEventBus;
 import dev.bukkit.item.BowArrowManager;
 import dev.bukkit.utils.BackstabUtils;
@@ -422,16 +424,29 @@ public class CombatListener implements Listener {
                 event.setDamage(damager.getStatEngineAdapter().getCurrentValue(StatType.ATTACK_DAMAGE,
                         System.currentTimeMillis()));
                 // Assassin set passive: bonus damage on melee hits from behind.
+                boolean plungeStrike = false;
                 if (event.getCause() == DamageCause.ENTITY_ATTACK
                         || event.getCause() == DamageCause.ENTITY_SWEEP_ATTACK) {
                     event.setDamage(event.getDamage() * BackstabUtils.backstabMultiplier(damager, event.getEntity()));
+                    // Assassin staff synergy: 1.5x melee damage on the first hit
+                    // within 3s of dropping off a shadow platform.
+                    double plunge = ShadowWeaverManager.getInstance().consumePlungeMultiplier(damager.getUuid());
+                    if (plunge > 1.0) {
+                        event.setDamage(event.getDamage() * plunge);
+                        plungeStrike = true;
+                    }
                 }
                 // Case 1: Both attacker and victim are RPG entities
                 // 'damager' is the RPG entity dealing damage
                 // 'entity' is the RPG entity receiving damage
                 RPGDamageResult rpgDamage = entity.dealRPGDamage(damager, entity, event.getDamage(),
                         DamageType.PHYSICAL);
-                showPhysicalDamage(event.getEntity().getLocation(), rpgDamage.getDamage(), rpgDamage.getResult());
+                if (plungeStrike) {
+                    showPhysicalDamage(event.getEntity().getLocation(), rpgDamage.getDamage(), DamageResult.CRIT);
+                    spawnCritParticles(event.getEntity());
+                } else {
+                    showPhysicalDamage(event.getEntity().getLocation(), rpgDamage.getDamage(), rpgDamage.getResult());
+                }
                 if (projectileHit && rpgDamage.getResult() != DamageResult.DENY) {
                     playProjectileHitSound(event.getEntity(), rpgDamage.getResult());
                 }
@@ -460,6 +475,7 @@ public class CombatListener implements Listener {
                 }
 
                 // DAMAGER is an RPG ENtity
+                boolean plungeActive = false;
                 if (event.getCause() == DamageCause.ENTITY_ATTACK
                         || event.getCause() == DamageCause.ENTITY_SWEEP_ATTACK) {
 
@@ -474,16 +490,26 @@ public class CombatListener implements Listener {
                             System.currentTimeMillis()));
                     // Assassin set passive: bonus damage on melee hits from behind.
                     event.setDamage(event.getDamage() * BackstabUtils.backstabMultiplier(damager, event.getEntity()));
+                    // Assassin staff synergy: 1.5x melee damage on the first hit
+                    // within 3s of dropping off a shadow platform.
+                    double plunge = ShadowWeaverManager.getInstance().consumePlungeMultiplier(damager.getUuid());
+                    if (plunge > 1.0) {
+                        event.setDamage(event.getDamage() * plunge);
+                        plungeActive = true;
+                    }
                 }
 
                 double critChance = damager.getStatEngineAdapter().getCurrentValue(StatType.CRIT_CHANCE,
                         System.currentTimeMillis());
-                if (new Random().nextInt(101) < critChance) {
+                if (plungeActive || new Random().nextInt(101) < critChance) {
 
                     // Apply crit modifier
 
                     event.setDamage(event.getDamage() * 1.75);
                     showPhysicalDamage(event.getEntity().getLocation(), event.getFinalDamage(), DamageResult.CRIT);
+                    if (plungeActive) {
+                        spawnCritParticles(event.getEntity());
+                    }
                     if (projectileHit) {
                         playProjectileHitSound(event.getEntity(), DamageResult.CRIT);
                     }
@@ -505,5 +531,11 @@ public class CombatListener implements Listener {
                 DamageUtils.updateName(le);
             }, 1L);
         }
+    }
+
+    private void spawnCritParticles(Entity victim) {
+        Location center = victim.getLocation().add(0, victim.getHeight() * 0.5, 0);
+        victim.getWorld().spawnParticle(Particle.CRIT, center, 24, 0.4, 0.6, 0.4, 0.2);
+        victim.getWorld().spawnParticle(Particle.ENCHANTED_HIT, center, 12, 0.4, 0.6, 0.4, 0.2);
     }
 }

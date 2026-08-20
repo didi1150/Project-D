@@ -111,3 +111,31 @@ abilities:
     action: RIGHT_CLICK
     cooldownScope: ITEM
     cooldown: 5000
+  SHADOW_STAFF_PLACE:
+    name: Shadow Platform
+    description:
+      - "Right-click to conjure a shadow"
+      - "platform at the crosshair. Up to <yellow>3</yellow>"
+      - "platforms may exist at once; they"
+      - "darken and fade away over <yellow>6</yellow> seconds."
+      - ""
+      - "Platforms must stay at least <yellow>3</yellow>"
+      - "blocks apart."
+    triggerType: MANUAL
+    action: RIGHT_CLICK
+    cooldownScope: PLAYER
+    cooldown: 0
+  SHADOW_STAFF_DASH:
+    name: Shadow Dash
+    description:
+      - "Left-click while looking at a"
+      - "highlighted platform to dash onto it."
+      - ""
+      - "Dashing between platforms chains"
+      - "seamlessly; dropping off grants"
+      - "brief <aqua>Invisibility</aqua> and <aqua>Slow Falling</aqua>,"
+      - "arming a <red>Plunge Strike</red> for 3 seconds."
+    triggerType: MANUAL
+    action: LEFT_CLICK
+    cooldownScope: PLAYER
+    cooldown: 0

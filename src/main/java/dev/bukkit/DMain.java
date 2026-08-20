@@ -11,10 +11,13 @@ import org.bukkit.plugin.java.JavaPlugin;
 import dev.bukkit.ability.BukkitEffectManager;
 import dev.bukkit.ability.BukkitEffectRegistry;
 import dev.bukkit.ability.BukkitParticleTestEffect;
+import dev.bukkit.ability.BukkitShadowWeaverDashEffect;
+import dev.bukkit.ability.BukkitShadowWeaverPlaceEffect;
 import dev.bukkit.ability.BukkitSmashEffect;
 import dev.bukkit.ability.BukkitSpiritSceptreBatEffect;
 import dev.bukkit.ability.BukkitSpinjitzuEffect;
 import dev.bukkit.ability.BukkitSwingBoneEffect;
+import dev.bukkit.ability.ShadowWeaverManager;
 import dev.bukkit.command.CommandManager;
 import dev.bukkit.event.BukkitEventBus;
 import dev.bukkit.event.bukkitListeners.CombatListener;
@@ -105,6 +108,14 @@ public final class DMain extends JavaPlugin {
         BukkitEffectRegistry.register("GUIDED_BAT", BukkitSpiritSceptreBatEffect::new);
         BukkitEffectRegistry.register("SPINJITZU", BukkitSpinjitzuEffect::new);
         BukkitEffectRegistry.register("SMASH", BukkitSmashEffect::new);
+        BukkitEffectRegistry.register(dev.core.ability.impl.ShadowWeaverStaffAbility.PLACE_ID,
+                BukkitShadowWeaverPlaceEffect::new);
+        BukkitEffectRegistry.register(dev.core.ability.impl.ShadowWeaverStaffAbility.DASH_ID,
+                BukkitShadowWeaverDashEffect::new);
+
+        // Shadow Weaver's Staff: per-tick preview, platform decay, dash lock and
+        // sticky-lock runtime, plus its drop-off synergy listeners.
+        ShadowWeaverManager.getInstance().start(this);
 
         // Item set passives: registered before items.yml loads so the loader can
         // resolve the "passives:" lists of set bonuses.
@@ -223,6 +234,7 @@ public final class DMain extends JavaPlugin {
     public void onDisable() {
         gameStateController.stop();
         effectManagerInterface.cancelAll();
+        ShadowWeaverManager.getInstance().stop();
         combatListener.cleanup();
         configManager.saveAll();
         eventBusInterface.getSubscribed().clear();
