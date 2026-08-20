@@ -95,6 +95,7 @@ public class PlayerSubscriber {
                 MessageComponent.of(MessageText.INFO_PLAYER_JOINED, event.getPlayer().getName()));
         BukkitMessageSender.getInstance().sendLine(event.getPlayer(), ChatColor.AQUA.toString());
         event.setJoinMessage("");
+        event.getPlayer().setFoodLevel(20);
 //			BukkitMessageSender.getInstance().sendMessage(event.getPlayer(), MessageComponent.of("&a&m                                                                             "), false);
 //			BukkitMessageSender.getInstance().sendMessage(event.getPlayer(), MessageComponent.of("<red>Okay, so, this message is longer than 1 line of text. The color code should pass and it should center</red>"));
 //			BukkitMessageSender.getInstance().sendDebugMessage(event.getPlayer(), MessageComponent.of("If no <diff-option> is provided, the default behavior will be given by the stash.showStat, and stash.showPatch config variables. You can also use stash.showIncludeUntracked to set whether --include-untracked is enabled by default. Show the changes recorded in the stash entry as a diff between the stashed contents and the commit back when the stash entry was first created. By default, the command shows the diffstat, but it will accept any format known to git diff (e.g., git stash show -p stash@{1} to view the second most recent entry in patch form). If no <diff-option> is provided, the default behavior will be given by the stash.showStat, and stash.showPatch config variables. You can also use stash.showIncludeUntracked to set whether --include-untracked is enabled by default."));
@@ -259,10 +260,9 @@ public class PlayerSubscriber {
 
     @Subscribe
     public void onBowInventoryClick(InventoryClickEvent event) {
-        if (event.getWhoClicked() instanceof Player player
-                && ((event.getClickedInventory() == player.getInventory()
-                        && BowArrowManager.isPlantedArrowSlot(player, event.getSlot()))
-                        || BowArrowManager.isPlantedArrows(player, event.getCursor()))) {
+        if (event.getWhoClicked() instanceof Player player && ((event.getClickedInventory() == player.getInventory()
+                && BowArrowManager.isPlantedArrowSlot(player, event.getSlot()))
+                || BowArrowManager.isPlantedArrows(player, event.getCursor()))) {
             event.setCancelled(true);
         }
     }
@@ -319,8 +319,7 @@ public class PlayerSubscriber {
     public void onBowPickup(EntityPickupItemEvent event) {
         if (event.getEntity() instanceof Player player) {
             ItemStack stack = event.getItem().getItemStack();
-            if (BowArrowManager.isArrowMaterial(stack.getType())
-                    && !BowArrowManager.isBounceArrow(stack)) {
+            if (BowArrowManager.isArrowMaterial(stack.getType()) && !BowArrowManager.isBounceArrow(stack)) {
                 event.setCancelled(true);
             }
         }
@@ -349,12 +348,10 @@ public class PlayerSubscriber {
 
     @Subscribe
     public void onBowShoot(EntityShootBowEvent event) {
-        if (event.getEntity() instanceof Player player
-                && event.getProjectile() instanceof Projectile projectile) {
+        if (event.getEntity() instanceof Player player && event.getProjectile() instanceof Projectile projectile) {
             // Vanilla consumes the arrow after the event; defer the refresh
             // so the stack is topped back up once the shot completes.
-            Bukkit.getScheduler().runTask(plugin,
-                    () -> BowArrowManager.onShoot(player, projectile));
+            Bukkit.getScheduler().runTask(plugin, () -> BowArrowManager.onShoot(player, projectile));
         }
     }
 
@@ -372,18 +369,17 @@ public class PlayerSubscriber {
 
     @Subscribe
     public void onBowPickupArrow(PlayerPickupArrowEvent event) {
-        if (event.getItem() != null
-                && BowArrowManager.isArrowMaterial(event.getItem().getItemStack().getType())
+        if (event.getItem() != null && BowArrowManager.isArrowMaterial(event.getItem().getItemStack().getType())
                 && !BowArrowManager.isBounceArrow(event.getArrow())) {
             event.setCancelled(true);
         }
     }
 
     /**
-     * True if the player holds an RPG item in either hand. Right-clicking with
-     * such an item can quick-equip it (armor), which the server applies after
-     * PlayerInteractEvent; a deferred inventory diff keeps the equipment
-     * manager in sync.
+     * True if the player holds an RPG item in either hand. Right-clicking with such
+     * an item can quick-equip it (armor), which the server applies after
+     * PlayerInteractEvent; a deferred inventory diff keeps the equipment manager in
+     * sync.
      */
     private static boolean holdsRpgItem(Player player) {
         ItemStack mainHand = player.getInventory().getItemInMainHand();
@@ -394,13 +390,12 @@ public class PlayerSubscriber {
 
     /**
      * Re-renders the player's item lore holder-aware on the next tick, so the
-     * inventory has settled after the triggering event. Keeps holder-dependent
-     * lore (e.g. the Mage Set's mana discount on ability costs) accurate when
-     * the player's equipment changes.
+     * inventory has settled after the triggering event. Keeps holder-dependent lore
+     * (e.g. the Mage Set's mana discount on ability costs) accurate when the
+     * player's equipment changes.
      */
     private void refreshLore(Player player) {
-        EntityManager.getInstance().getEntity(player.getUniqueId())
-                .ifPresent(rpg -> Bukkit.getScheduler().runTask(plugin,
-                        () -> BukkitInventorySync.refreshLore(rpg, player)));
+        EntityManager.getInstance().getEntity(player.getUniqueId()).ifPresent(
+                rpg -> Bukkit.getScheduler().runTask(plugin, () -> BukkitInventorySync.refreshLore(rpg, player)));
     }
 }
