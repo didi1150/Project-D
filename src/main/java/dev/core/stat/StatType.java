@@ -1,6 +1,7 @@
 package dev.core.stat;
 
 import dev.core.item.display.TextColor;
+import dev.core.stat.adapter.StatTypeAdapter;
 
 public enum StatType {
 
@@ -91,6 +92,21 @@ public enum StatType {
      * @return Formatted stat string like "⚔ +15 Attack Damage"
      */
     public String formatValue(double value, boolean showPlus) {
+        // When the StatRegistry is initialized (production), formatting goes
+        // through the stat descriptor so config-driven metadata (display name,
+        // symbol, percent semantics) is honored. The legacy branch below keeps
+        // single-layer tests and pre-registry uses working.
+        var descriptor = StatTypeAdapter.getDescriptor(this);
+        if (descriptor.isPresent()) {
+            return descriptor.get().formatValue(value, showPlus);
+        }
+        return legacyFormatValue(value, showPlus);
+    }
+
+    /**
+     * Legacy formatting used when no descriptor is registered.
+     */
+    private String legacyFormatValue(double value, boolean showPlus) {
         String prefix = (showPlus) ? (value > 0 ? "+" : "-") : "";
 
         // Format value based on stat type

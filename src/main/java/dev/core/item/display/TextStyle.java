@@ -3,19 +3,28 @@ package dev.core.item.display;
 import java.util.EnumSet;
 import java.util.Set;
 
-public record TextStyle(TextColor color, Set<TextFormatter> formatters) {
+/**
+ * A text style: an optional named {@link TextColor}, an optional custom RGB hex
+ * color ({@code #RRGGBB}), and a set of formatters. Exactly one of
+ * {@code color} / {@code hexColor} is non-null.
+ */
+public record TextStyle(TextColor color, String hexColor, Set<TextFormatter> formatters) {
 	public static TextStyle defaultStyle(TextColor defaultColor) {
-		return new TextStyle(defaultColor, EnumSet.noneOf(TextFormatter.class));
+		return new TextStyle(defaultColor, null, EnumSet.noneOf(TextFormatter.class));
 	}
 
 	public TextStyle withColor(TextColor newColor) {
-		return new TextStyle(newColor, formatters);
+		return new TextStyle(newColor, null, formatters);
+	}
+
+	public TextStyle withHexColor(String hex) {
+		return new TextStyle(null, hex, formatters);
 	}
 
 	public TextStyle withFormatter(TextFormatter formatter) {
 		Set<TextFormatter> newFormatters = EnumSet.copyOf(formatters);
 		newFormatters.add(formatter);
-		return new TextStyle(color, newFormatters);
+		return new TextStyle(color, hexColor, newFormatters);
 	}
 
 	public TextStyle reset(TextColor defaultColor) {

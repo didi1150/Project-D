@@ -31,7 +31,7 @@ public class ShowStatsCommand implements CommandExecutor {
                 // (e.g. armor from equipped gear) are reflected, not just base stats.
                 for (StatType type : playerEntity.getStatManager().getStats().keySet()) {
                     double value = playerEntity.getStatEngineAdapter().getCurrentValue(type, now);
-                    player.sendMessage(BukkitTextColorAdapter.colored(type.getColor(), type.formatValue(value, false)));
+                    player.sendMessage(BukkitTextColorAdapter.formatStat(type, value, false));
                 }
                 player.sendMessage(ChatColor.GOLD + "═══════════════════════════════════");
             }

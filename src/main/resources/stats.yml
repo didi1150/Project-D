@@ -1,6 +1,16 @@
+# ============================================================================
+# STATS CONFIGURATION
+# ============================================================================
 # NONE is the universal base stat set that every entity starts from (players
 # before class selection, mobs and bosses without their own stats).
 # Each class block is a BONUS layered on top of that base, scaled by level.
+#
+# The stat key names below (HEALTH_MAX, MANA_MAX, ARMOR, ...) are also the
+# variable names available in dynamic ability cost formulas — see the
+# "COST FORMULAS" section of abilities.yml, e.g.:
+#   cost:
+#     mode: MANA
+#     formula: "10 + 0.05 * MANA_MAX"
 statDefaults:
   NONE:
     HEALTH_MAX: 100
@@ -109,3 +119,113 @@ statDefaults:
     MANA_REGEN: 6.0
     ABILITY_HASTE: 0
     HEAL_AND_SHIELD_POWER: 10
+
+# Data-driven stat metadata overrides (optional). Keys are stat ids (see
+# StatTypeAdapter: full "core:attack_damage" or short "attack_damage" forms).
+# Any field omitted falls back to the defaults seeded from the StatType enum.
+#   display-name : override the display name
+#   symbol       : override the stat symbol
+#   color        : named color (e.g. GOLD) or RGB hex (e.g. "#FFD700")
+#   percent      : true/false — display value as a percentage (value * 100),
+#                  e.g. CRIT_CHANCE 0.25 renders as "25.0%"
+statMetadata:
+  core:health_max:
+    display-name: Health
+    symbol: "❤"
+    color: "#FF5555"
+    percent: false
+
+  core:mana_max:
+    display-name: Mana
+    symbol: "✎"
+    color: "#55FFFF"
+    percent: false
+
+  core:armor:
+    display-name: Armor
+    symbol: "❈"
+    color: "#A9A9A9"
+    percent: false
+
+  core:magic_resist:
+    display-name: Magic Resist
+    symbol: "❂"
+    color: "#9B59B6"
+    percent: false
+
+  core:attack_damage:
+    display-name: Attack Damage
+    symbol: "❁"
+    color: GOLD
+    percent: false
+
+  core:ability_power:
+    display-name: Ability Power
+    symbol: "✦"
+    color: "#7ED321"
+    percent: false
+
+  core:attack_speed:
+    display-name: Attack Speed
+    symbol: "⚔"
+    color: YELLOW
+    percent: true
+
+  core:lethality:
+    display-name: Lethality
+    symbol: "🗡"
+    color: "#8B0000"
+    percent: false
+
+  core:armor_penetration:
+    display-name: Armor Penetration
+    symbol: "⚡"
+    color: "#D3D3D3"
+    percent: false
+
+  core:crit_chance:
+    display-name: Critical Chance
+    symbol: "☣"
+    color: "#FF69B4"
+    percent: true
+
+  core:projectile_damage:
+    display-name: Projectile Damage
+    symbol: "➹"
+    color: "#FF8C00"
+    percent: false
+
+  core:move_speed:
+    display-name: Speed
+    symbol: "✦"
+    color: WHITE
+    percent: false
+
+  core:health_regen:
+    display-name: Health Regen
+    symbol: "❣"
+    color: "#FF6B6B"
+    percent: false
+
+  core:mana_regen:
+    display-name: Mana Regen
+    symbol: "✎"
+    color: "#00CED1"
+    percent: false
+
+  core:ability_haste:
+    display-name: Ability Haste
+    symbol: "◆"
+    color: "#1ABC9C"
+    percent: false
+
+  core:heal_and_shield_power:
+    display-name: Heal & Shield Power
+    symbol: "✤"
+    color: "#2ECC71"
+    percent: false
+  # Example overrides:
+  # core:ability_power:
+  #   display-name: Spell Power
+  #   symbol: "*"
+  #   color: "#7ED321"

@@ -2,8 +2,11 @@ package dev.core.stat.adapter;
 
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Optional;
+
 import dev.core.item.display.TextColor;
 import dev.core.stat.StatType;
+import dev.core.stat.descriptor.StatColor;
 import dev.core.stat.descriptor.StatDescriptor;
 import dev.core.stat.descriptor.StatRegistry;
 
@@ -87,12 +90,21 @@ public class StatTypeAdapter {
             id,
             type.getDisplayName(),
             type.getSymbol(),
-            type.getColor(),
+            StatColor.named(type.getColor()),
             mapCategory(type),
-            (value, showPlus) -> type.formatValue(value, showPlus)
+            isPercent(type)
         );
 
         registry.register(descriptor);
+    }
+
+    /**
+     * Percent stats display their value multiplied by 100 (e.g. CRIT_CHANCE
+     * 0.25 renders as "25.0%"). This corrects the legacy StatType behavior
+     * which printed the raw fraction for CRIT_CHANCE.
+     */
+    private static boolean isPercent(StatType type) {
+        return type == StatType.CRIT_CHANCE || type == StatType.ATTACK_SPEED;
     }
 
     /**
@@ -105,6 +117,17 @@ public class StatTypeAdapter {
             return StatDescriptor.StatCategory.RESOURCE;
         }
         return StatDescriptor.StatCategory.ATTRIBUTE;
+    }
+
+    /**
+     * Look up the descriptor registered for a StatType (if any).
+     */
+    public static Optional<StatDescriptor> getDescriptor(StatType type) {
+        String id = TYPE_TO_ID.get(type);
+        if (id == null) {
+            return Optional.empty();
+        }
+        return StatRegistry.getInstance().get(id);
     }
 
     /**

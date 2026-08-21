@@ -36,6 +36,14 @@ public class StatRegistry {
     }
 
     /**
+     * Replace an existing stat descriptor (kept for config-driven metadata
+     * overrides). Unknown ids are registered like {@link #register}.
+     */
+    public void override(@NotNull StatDescriptor descriptor) {
+        stats.put(descriptor.getId(), descriptor);
+    }
+
+    /**
      * Lookup a stat descriptor by id.
      */
     public Optional<StatDescriptor> get(@NotNull String statId) {

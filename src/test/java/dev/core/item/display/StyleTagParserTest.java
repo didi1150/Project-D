@@ -10,6 +10,8 @@ import org.junit.jupiter.api.Test;
 
 import dev.core.item.display.StyleTagParser.StyledSegment;
 import dev.core.item.display.TextStyle.TextFormatter;
+import dev.core.stat.adapter.StatTypeAdapter;
+import dev.core.stat.descriptor.StatRegistry;
 
 public class StyleTagParserTest {
 
@@ -20,6 +22,9 @@ public class StyleTagParserTest {
     void setUp() {
         defaultColor = TextColor.WHITE;
         parser = new StyleTagParser(defaultColor);
+        // Seed the StatRegistry so <stat:...> placeholders resolve.
+        StatRegistry.getInstance().clear();
+        StatTypeAdapter.initializeStatTypes();
     }
 
     @Test
@@ -235,6 +240,153 @@ public class StyleTagParserTest {
         assertEquals(1, result.size());
         assertEquals("only tagged content", result.get(0).text());
         assertEquals(TextStyle.defaultStyle(defaultColor).withColor(TextColor.RED), result.get(0).style());
+    }
+
+    @Test
+    void testStatPlaceholderWithAmount() {
+        String input = "Grants <stat:core:attack_damage:150>.";
+        List<StyledSegment> result = parser.parse(input);
+
+        assertEquals(3, result.size());
+        assertEquals("Grants ", result.get(0).text());
+        assertEquals("⚔ +150 Attack Damage", result.get(1).text());
+        assertEquals(TextStyle.defaultStyle(defaultColor).withColor(TextColor.GOLD), result.get(1).style(),
+                "stat segment must carry the stat's color");
+        assertEquals(".", result.get(2).text());
+    }
+
+    @Test
+    void testStatPlaceholderShortId() {
+        String input = "<stat:attack_damage>";
+        List<StyledSegment> result = parser.parse(input);
+
+        assertEquals(1, result.size());
+        assertEquals("⚔ Attack Damage", result.get(0).text());
+    }
+
+    @Test
+    void testStatPlaceholderPercentValue() {
+        String input = "<stat:crit_chance:0.25>";
+        List<StyledSegment> result = parser.parse(input);
+
+        assertEquals(1, result.size());
+        assertEquals("⚹ +25.0% Critical Chance", result.get(0).text(),
+                "percent stats must scale the amount by 100");
+    }
+
+    @Test
+    void testStatPlaceholderNegativeAmount() {
+        String input = "<stat:core:move_speed:-5>";
+        List<StyledSegment> result = parser.parse(input);
+
+        assertEquals(1, result.size());
+        assertEquals("➤ -5 Movement Speed", result.get(0).text());
+    }
+
+    @Test
+    void testUnknownStatPlaceholderKeptAsLiteral() {
+        String input = "Grants <stat:core:nope:5>.";
+        List<StyledSegment> result = parser.parse(input);
+
+        assertEquals(3, result.size());
+        assertEquals("Grants ", result.get(0).text());
+        assertEquals("<stat:core:nope:5>", result.get(1).text(),
+                "unregistered stat ids must render the literal token");
+        assertEquals(TextStyle.defaultStyle(defaultColor), result.get(1).style());
+    }
+
+    @Test
+    void testStatPlaceholderInsideColorTag() {
+        String input = "<red>Grants <stat:core:attack_damage:10></red>";
+        List<StyledSegment> result = parser.parse(input);
+
+        assertEquals(2, result.size());
+        assertEquals("Grants ", result.get(0).text());
+        assertEquals(TextStyle.defaultStyle(defaultColor).withColor(TextColor.RED), result.get(0).style());
+
+        assertEquals("⚔ +10 Attack Damage", result.get(1).text());
+        assertEquals(TextStyle.defaultStyle(defaultColor).withColor(TextColor.GOLD), result.get(1).style(),
+                "the stat's own color wins over the surrounding tag");
+    }
+
+    @Test
+    void testStatPlaceholderAdjacentToColorTag() {
+        String input = "<stat:core:attack_damage:10> <red>(held)</red>";
+        List<StyledSegment> result = parser.parse(input);
+
+        assertEquals(3, result.size());
+        assertEquals("⚔ +10 Attack Damage", result.get(0).text());
+        assertEquals(" ", result.get(1).text());
+        assertEquals(TextStyle.defaultStyle(defaultColor), result.get(1).style());
+        assertEquals("(held)", result.get(2).text());
+        assertEquals(TextStyle.defaultStyle(defaultColor).withColor(TextColor.RED), result.get(2).style());
+    }
+
+    @Test
+    void testSelfClosingTagStylesFollowingText() {
+        String input = "<red/>plain text";
+        List<StyledSegment> result = parser.parse(input);
+
+        assertEquals(1, result.size());
+        assertEquals("plain text", result.get(0).text());
+        assertEquals(TextStyle.defaultStyle(defaultColor).withColor(TextColor.RED), result.get(0).style());
+    }
+
+    @Test
+    void testSelfClosingTagsStack() {
+        String input = "<red/><bold/>text";
+        List<StyledSegment> result = parser.parse(input);
+
+        assertEquals(1, result.size());
+        assertEquals("text", result.get(0).text());
+        TextStyle expectedStyle = TextStyle.defaultStyle(defaultColor).withColor(TextColor.RED)
+                .withFormatter(TextFormatter.BOLD);
+        assertEquals(expectedStyle, result.get(0).style());
+    }
+
+    @Test
+    void testSelfClosingAllowsSpaceBeforeSlash() {
+        String input = "<gray />text";
+        List<StyledSegment> result = parser.parse(input);
+
+        assertEquals(1, result.size());
+        assertEquals(TextStyle.defaultStyle(defaultColor).withColor(TextColor.GRAY), result.get(0).style());
+    }
+
+    @Test
+    void testSelfClosingFollowedByPairedTag() {
+        String input = "<gray/>label <yellow>value</yellow>";
+        List<StyledSegment> result = parser.parse(input);
+
+        assertEquals(2, result.size());
+        assertEquals("label ", result.get(0).text());
+        assertEquals(TextStyle.defaultStyle(defaultColor).withColor(TextColor.GRAY), result.get(0).style());
+        assertEquals("value", result.get(1).text());
+        assertEquals(TextStyle.defaultStyle(defaultColor).withColor(TextColor.YELLOW), result.get(1).style());
+    }
+
+    @Test
+    void testSelfClosingInsidePairedTag() {
+        String input = "<red>a<bold/>b</red>";
+        List<StyledSegment> result = parser.parse(input);
+
+        assertEquals(2, result.size());
+        assertEquals("a", result.get(0).text());
+        assertEquals(TextStyle.defaultStyle(defaultColor).withColor(TextColor.RED), result.get(0).style());
+        assertEquals("b", result.get(1).text());
+        TextStyle expectedStyle = TextStyle.defaultStyle(defaultColor).withColor(TextColor.RED)
+                .withFormatter(TextFormatter.BOLD);
+        assertEquals(expectedStyle, result.get(1).style());
+    }
+
+    @Test
+    void testSelfClosingResetRestoresDefault() {
+        String input = "<red/><reset/>back to default";
+        List<StyledSegment> result = parser.parse(input);
+
+        assertEquals(1, result.size());
+        assertEquals("back to default", result.get(0).text());
+        assertEquals(TextStyle.defaultStyle(defaultColor), result.get(0).style());
     }
 
 }
