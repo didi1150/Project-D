@@ -286,3 +286,32 @@ abilities:
     cost:
       mode: MANA
       amount: 50
+  BOUNCY_ARROWS:
+    name: Bouncy Arrows
+    description:
+      - "Shift while drawing your bow to"
+      - "charge up to <yellow>3</yellow> bounces into"
+      - "your next arrow."
+      - ""
+      - "- Each shift adds <aqua>1 bounce</aqua>,"
+      - "wrapping back to <gray>0</gray> at max."
+      - "- Charged arrows <aqua>ricochet</aqua> off"
+      - "blocks until charges are spent."
+    triggerType: MANUAL
+    action: SHIFT
+    cooldownScope: PLAYER
+    cooldown: 0
+  EXPLOSIVE_ARROWS:
+    name: Shock Bolt
+    description:
+      - "Left-click to arm your next arrow"
+      - "with a <red>shock charge</red>."
+      - ""
+      - "- Explodes once all bounces are"
+      - "used up, or on first impact if"
+      - "uncharged."
+      - "- <gray>Sova-inspired ordnance.</gray>"
+    triggerType: MANUAL
+    action: LEFT_CLICK
+    cooldownScope: PLAYER
+    cooldown: 400

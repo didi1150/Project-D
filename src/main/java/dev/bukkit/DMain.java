@@ -9,7 +9,9 @@ import org.bukkit.Bukkit;
 import org.bukkit.WorldCreator;
 import org.bukkit.plugin.java.JavaPlugin;
 
+import dev.bukkit.ability.BukkitBouncyArrowEffect;
 import dev.bukkit.ability.BukkitEffectManager;
+import dev.bukkit.ability.BukkitExplosiveArrowEffect;
 import dev.bukkit.ability.BukkitFocusBeamEffect;
 import dev.bukkit.ability.BukkitParticleTestEffect;
 import dev.bukkit.ability.BukkitShieldBashEffect;
@@ -23,6 +25,7 @@ import dev.bukkit.ability.BukkitSpiritSceptreBatEffect;
 import dev.bukkit.ability.BukkitSpinjitzuEffect;
 import dev.bukkit.ability.BukkitSwingBoneEffect;
 import dev.bukkit.ability.ShadowWeaverManager;
+import dev.bukkit.item.HunterBowManager;
 import dev.bukkit.command.CommandManager;
 import dev.bukkit.event.BukkitEventBus;
 import dev.bukkit.event.bukkitListeners.CombatListener;
@@ -58,6 +61,8 @@ import dev.bukkit.utils.ManaDiscountUtils;
 import dev.core.ability.Ability;
 import dev.core.ability.AbilityRegistry;
 import dev.core.ability.EffectManagerInterface;
+import dev.core.ability.impl.BouncyArrowAbility;
+import dev.core.ability.impl.ExplosiveArrowAbility;
 import dev.core.ability.impl.FocusBeamAbility;
 import dev.core.ability.impl.ParticleTestAbility;
 import dev.core.ability.impl.ShadowWeaverStaffAbility;
@@ -142,6 +147,8 @@ public final class DMain extends JavaPlugin {
         AbilityRegistry.register(new SoulCollectorAbility()); // PASSIVE: lore-only, no effect
         AbilityRegistry.register(ShadowWeaverStaffAbility.place(), BukkitShadowWeaverPlaceEffect::new);
         AbilityRegistry.register(ShadowWeaverStaffAbility.dash(), BukkitShadowWeaverDashEffect::new);
+        AbilityRegistry.register(new BouncyArrowAbility(), BukkitBouncyArrowEffect::new);
+        AbilityRegistry.register(new ExplosiveArrowAbility(), BukkitExplosiveArrowEffect::new);
 
         // Status effect behaviors: how each CC type plays out on the vanilla
         // entity (stat engine / potions / AI / velocity). Types without a
@@ -154,6 +161,9 @@ public final class DMain extends JavaPlugin {
         // Shadow Weaver's Staff: per-tick preview, platform decay, dash lock and
         // sticky-lock runtime, plus its drop-off synergy listeners.
         ShadowWeaverManager.getInstance().start(this);
+
+        // Hunter's Bow: bounce charges, shock arming, ricochet physics, detonations, trails
+        HunterBowManager.getInstance().start(this);
 
         // Item set passives: registered before items.yml loads so the loader can
         // resolve the "passives:" lists of set bonuses.
@@ -288,6 +298,7 @@ public final class DMain extends JavaPlugin {
         effectManagerInterface.cancelAll();
         BukkitStatusEffectManager.getInstance().cancelAll();
         ShadowWeaverManager.getInstance().stop();
+        HunterBowManager.getInstance().stop();
         combatListener.cleanup();
         configManager.saveAll();
         eventBusInterface.getSubscribed().clear();

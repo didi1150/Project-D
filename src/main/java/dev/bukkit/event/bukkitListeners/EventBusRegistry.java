@@ -21,6 +21,7 @@ import org.bukkit.event.entity.EntityShootBowEvent;
 import org.bukkit.event.entity.EntityTargetLivingEntityEvent;
 import org.bukkit.event.entity.FoodLevelChangeEvent;
 import org.bukkit.event.entity.PlayerDeathEvent;
+import org.bukkit.event.entity.ProjectileHitEvent;
 import org.bukkit.event.inventory.InventoryClickEvent;
 import org.bukkit.event.inventory.InventoryCloseEvent;
 import org.bukkit.event.inventory.InventoryDragEvent;
@@ -84,6 +85,7 @@ public class EventBusRegistry {
             new Reg(PortalCreateEvent.class, EventPriority.NORMAL, false),
             new Reg(EntityPortalEvent.class, EventPriority.NORMAL, false),
             new Reg(EntityShootBowEvent.class, EventPriority.NORMAL, false),
+            new Reg(ProjectileHitEvent.class, EventPriority.NORMAL, false),
             new Reg(PlayerPickupArrowEvent.class, EventPriority.NORMAL, false),
             new Reg(AsyncPlayerChatEvent.class, EventPriority.NORMAL, false));
 

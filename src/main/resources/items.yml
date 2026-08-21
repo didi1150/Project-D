@@ -700,6 +700,35 @@ items:
       policy: STACK
     abilities:
     - BONE_SWING
+  HUNTERS_BOW:
+    # Sova-inspired hunter bow: shift while drawing to charge bounces (0..3, wraps),
+    # left-click to arm a shock charge. The next arrow carries both modifiers:
+    #   - bouncy arrows ricochet off blocks (see HunterBowManager)
+    #   - shock bolts detonate after all bounces are spent, or on first impact
+    #     when fired plain. Trails, sounds and action-bar feedback sell the state.
+    unlockLevel: 0
+    name: Hunter's Bow
+    material: BOW
+    slot: MAIN_HAND
+    itemType: BOW
+    requiresArrows: true
+    passive-stats: []
+    allowed-classes:
+    - ARCHER
+    active-stats:
+    - amount: 12.0
+      statType: ATTACK_DAMAGE
+      modifierType: FLAT
+      statTarget: BOTH
+      policy: STACK
+    - amount: 10.0
+      statType: CRIT_CHANCE
+      modifierType: FLAT
+      statTarget: BOTH
+      policy: STACK
+    abilities:
+    - BOUNCY_ARROWS
+    - EXPLOSIVE_ARROWS
   ASPECT_OF_THE_DRAGON:
     unlockLevel: 5
     name: Aspect of the Dragon
