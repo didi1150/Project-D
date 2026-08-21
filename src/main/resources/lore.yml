@@ -1,0 +1,54 @@
+# ============================================================================
+# LORE PRESENTATION CONFIGURATION
+# ============================================================================
+# Every label the item lore renderer (BukkitLoreRenderer) prints lives here,
+# so wording, colors and layout can be changed without touching Java code.
+#
+# FORMATTING
+#   Labels support the same style tags as ability descriptions, plus
+#   SELF-CLOSING tags that switch the style from that point on:
+#
+#     <gray>text</gray>      paired: styles only the wrapped text
+#     <gray/>text            self-closing: styles everything that follows
+#                            (until the next tag or the end of the line)
+#
+#   Colors: dark_red, red, gold, yellow, green, aqua, dark_aqua, blue,
+#           light_purple, dark_purple, white, gray, dark_gray, black
+#   Formatters: bold, italic, underline, strikethrough, magic, reset
+#
+# PLACEHOLDERS
+#   {name}     ability display name           {action}   trigger action words
+#   {cooldown} cooldown seconds (e.g. 3.0s)   {set}      item set name
+#   {pieces}   required piece count           {level}    item unlock level
+#   {type}     item type (e.g. SWORD)
+#
+# Missing keys fall back to the defaults below; unknown keys are ignored.
+lore:
+  # Section headers
+  passive-stats-header: "<gray/>Passive Stats:"
+  active-stats-header: "<gray/>Active Stats (Only applied when held):"
+  abilities-header: "<gold/>Item Abilities:"
+
+  # Ability entries ({name} = display name, {action} = e.g. RIGHT CLICK)
+  ability-label: "<yellow/>Ability: {name}"
+  passive-label: "<yellow/>Passive: {name}"
+  action-suffix: " <dark_gray/><bold/>{action}"
+
+  # Cost block
+  cost-label: "<dark_gray/>Cost:"
+  mana-discount-note: "<dark_purple/>Mana costs reduced by 10% (Mage Set)"
+
+  # Cooldown block ({cooldown} = e.g. 3.0s). The scaling suffix is appended to
+  # the cooldown line; the scope note is printed underneath it.
+  cooldown-label: "<dark_gray/>Cooldown: {cooldown}"
+  cooldown-scaling-haste-suffix: " <gray/>(scales with Ability Haste)"
+  cooldown-scaling-none-suffix: " <gray/>(fixed)"
+  cooldown-scope-player-note: "<dark_gray/>Per-player cooldown"
+  cooldown-scope-item-note: "<dark_gray/>Per-item cooldown"
+
+  # Item sets ({set} = set name, {pieces} = piece count)
+  item-set-line: "<dark_purple/>Part of the {set} Set"
+  set-bonus-label: "<gray/>{pieces}-Piece Bonus: "
+
+  # Footer ({level} = unlock level, {type} = item type)
+  level-line: "<gold/><bold/>LEVEL {level}: {type} ITEM"
