@@ -1,7 +1,6 @@
 package dev.core.ability.impl;
 
 import dev.core.ability.Ability;
-import dev.core.ability.AbilityCost;
 
 /**
  * The Shadow Weaver's Staff's two manual clicks. The staff is a platforming
@@ -18,7 +17,7 @@ public class ShadowWeaverStaffAbility extends Ability {
 	public static final String DASH_ID = "SHADOW_STAFF_DASH";
 
 	private ShadowWeaverStaffAbility(String id) {
-		super(id, null, AbilityCost.noCost());
+		super(id);
 	}
 
 	/** The right-click placement half of the staff. */

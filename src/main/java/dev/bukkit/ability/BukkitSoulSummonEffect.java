@@ -11,7 +11,9 @@ import dev.bukkit.summon.SoulFragment;
 import dev.bukkit.summon.SoulTome;
 import dev.bukkit.summon.SummonedEntityFactory;
 import dev.bukkit.utils.ManaDiscountUtils;
+import dev.core.ability.AbilityRegistry;
 import dev.core.ability.CooldownSink;
+import dev.core.ability.CostMode;
 import dev.core.ability.Effect;
 import dev.core.entity.RPGEntity;
 import dev.core.entity.rpgclass.RPGClassType;
@@ -26,15 +28,12 @@ import dev.core.stat.StatType;
  * Support level, or that could not be spawned, stay on the tome.
  *
  * <p>
- * The ability's 25-mana cost is deducted by the effect manager BEFORE this
+ * The ability's mana cost is deducted by the effect manager BEFORE this
  * effect runs; when not a single soul was summoned (empty tome, no tome held,
  * every spawn failed) the mana is refunded and no cooldown starts, so a failed
  * attempt costs nothing.
  */
 public class BukkitSoulSummonEffect extends Effect {
-
-    /** Must match the cost on {@code SoulSummonAbility}. */
-    private static final double MANA_COST = 25;
 
     public BukkitSoulSummonEffect(String cooldownKey) {
         // Instant: the summon happens inside cast(); the effect expires after
@@ -101,11 +100,20 @@ public class BukkitSoulSummonEffect extends Effect {
 
     /**
      * Returns the mana this cast was charged by the effect manager: the
-     * attempt failed (nothing was summoned), so refund it. The discounted
-     * price matches what {@code BukkitEffectManager.cast} deducted.
+     * attempt failed (nothing was summoned), so refund it. The resolved
+     * (dynamic formula + discounted) price matches what
+     * {@code BukkitEffectManager.cast} deducted. Costs are config-only
+     * (abilities.yml {@code SOUL_SUMMON} entry); if the ability were missing
+     * from the registry there is no price to restore.
      */
     private static void refundMana(RPGEntity caster) {
-        double cost = ManaDiscountUtils.discountedCost(caster, "MANA_RESOURCE", MANA_COST);
+        double amount = AbilityRegistry.get("SOUL_SUMMON")
+                .map(ability -> ability.getCost().getCosts().stream()
+                        .filter(entry -> entry.mode() == CostMode.MANA)
+                        .mapToDouble(entry -> entry.resolve(caster))
+                        .sum())
+                .orElse(0.0);
+        double cost = ManaDiscountUtils.discountedCost(caster, CostMode.MANA.getResourceType(), amount);
         caster.getStatManager().modifyStat(StatType.MANA_RESOURCE, cost);
     }
 

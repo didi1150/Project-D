@@ -1,7 +1,6 @@
 package dev.core.ability.impl;
 
 import dev.core.ability.Ability;
-import dev.core.ability.AbilityCost;
 
 /**
  * Soul Collector — the Soul Tome's passive ability. While holding the tome, the
@@ -13,7 +12,7 @@ import dev.core.ability.AbilityCost;
 public class SoulCollectorAbility extends Ability {
 
 	public SoulCollectorAbility() {
-		super("SOUL_COLLECTOR", null, AbilityCost.noCost());
+		super("SOUL_COLLECTOR");
 	}
 
 	@Override

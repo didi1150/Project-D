@@ -19,6 +19,7 @@ import dev.bukkit.event.BukkitEventBus;
 import dev.bukkit.item.display.BukkitLoreRenderer;
 import dev.bukkit.utils.ManaDiscountUtils;
 import dev.core.ability.Ability;
+import dev.core.ability.AbilityCost;
 import dev.core.ability.EffectManagerInterface;
 import dev.core.ability.SetBonus;
 import dev.core.ability.impl.SpiritSceptreAbility;
@@ -248,8 +249,13 @@ class SetBonusIntegrationTest {
                         List.of(), List.of(), List.of(new TestPassive("MANA_DISCOUNT"))))
                 .build();
 
+        // Costs are config-only: apply the abilities.yml price the loader
+        // would set (GUIDED_BAT: 25 mana) before rendering.
+        SpiritSceptreAbility sceptreAbility = new SpiritSceptreAbility();
+        sceptreAbility.setCost(AbilityCost.manaCost(25));
+
         RPGItem sceptre = RPGItem.builder("SPIRIT_SCEPTRE", "Spirit Sceptre", EquipmentSlot.MAIN_HAND)
-                .withAbilities(List.of(new SpiritSceptreAbility()))
+                .withAbilities(List.of(sceptreAbility))
                 .build();
 
         RPGItemLoreRenderer renderer = new BukkitLoreRenderer();

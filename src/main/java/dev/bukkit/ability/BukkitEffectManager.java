@@ -4,7 +4,6 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Map.Entry;
 
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.ItemStack;
@@ -14,9 +13,11 @@ import dev.bukkit.entity.BukkitPlayerEntity;
 import dev.bukkit.item.BukkitItemStackAdapter;
 import dev.bukkit.utils.ManaDiscountUtils;
 import dev.core.ability.Ability;
+import dev.core.ability.AbilityRegistry;
 import dev.core.ability.CooldownScope;
 import dev.core.ability.CooldownScaling;
 import dev.core.ability.CooldownSink;
+import dev.core.ability.CostEntry;
 import dev.core.ability.Effect;
 import dev.core.ability.EffectManagerInterface;
 import dev.core.entity.RPGEntity;
@@ -47,14 +48,20 @@ public class BukkitEffectManager implements EffectManagerInterface {
 		if (!canActivate(entity, ability)) {
 			return null;
 		}
-		for (Entry<String, Double> entry : ability.getCost().getResourceCosts().entrySet()) {
-			double cost = ManaDiscountUtils.discountedCost(entity, entry.getKey(), entry.getValue());
-			entity.getStatManager().modifyStat(StatType.valueOf(entry.getKey()), -cost);
+		List<Charge> charges;
+		try {
+			charges = resolveCharges(entity, ability);
+		} catch (IllegalArgumentException e) {
+			System.out.println("Cost evaluation failed for ability " + ability.getId() + ": " + e.getMessage());
+			return null;
+		}
+		for (Charge charge : charges) {
+			entity.getStatManager().modifyStat(charge.resource(), -charge.amount());
 		}
 
 		String cooldownKey = getCooldownKey(entity, ability);
 
-		Effect effect = BukkitEffectRegistry.create(ability.getId(), cooldownKey);
+		Effect effect = AbilityRegistry.createEffect(ability.getId(), cooldownKey);
 		if (effect == null) {
 			return null; // registry already logged the warning
 		}
@@ -111,15 +118,44 @@ public class BukkitEffectManager implements EffectManagerInterface {
 			return false;
 		}
 
-		for (Entry<String, Double> entry : ability.getCost().getResourceCosts().entrySet()) {
-			double cost = ManaDiscountUtils.discountedCost(entity, entry.getKey(), entry.getValue());
-			if (entity.getStatManager().getCurrentValue(StatType.valueOf(entry.getKey()),
-					System.currentTimeMillis()) < cost) {
-				return false;
+		try {
+			for (Charge charge : resolveCharges(entity, ability)) {
+				if (entity.getStatManager().getCurrentValue(charge.resource(), System.currentTimeMillis()) < charge
+						.amount()) {
+					return false;
+				}
 			}
+		} catch (IllegalArgumentException e) {
+			System.out.println("Cost evaluation failed for ability " + ability.getId() + ": " + e.getMessage());
+			return false;
 		}
 		// TODO: Other clauses
 		return true;
+	}
+
+	/**
+	 * The costs an ability would charge this caster right now: each entry's
+	 * dynamic/flat amount resolved against the caster, mana-discount applied.
+	 * Resolved up front (before any deduction) so a failing formula aborts the
+	 * cast without partially draining resources. Throws
+	 * {@link IllegalArgumentException} when a formula references an unknown
+	 * variable or evaluates non-finite.
+	 */
+	private List<Charge> resolveCharges(RPGEntity entity, Ability ability) {
+		List<Charge> charges = new ArrayList<>();
+		for (CostEntry cost : ability.getCost().getCosts()) {
+			double base = cost.resolve(entity);
+			double amount = ManaDiscountUtils.discountedCost(entity, cost.mode().getResourceType(), base);
+			charges.add(new Charge(StatType.valueOf(cost.mode().getResourceType()), amount));
+		}
+		return charges;
+	}
+
+	/**
+	 * One resolved resource charge: the stat to drain and the discounted amount
+	 * to drain it by.
+	 */
+	private record Charge(StatType resource, double amount) {
 	}
 
 	private String getEffectKey(RPGEntity entity, Ability ability) {

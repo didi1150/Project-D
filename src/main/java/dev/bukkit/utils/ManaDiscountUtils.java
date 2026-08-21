@@ -14,7 +14,7 @@ import dev.core.entity.RPGEntity;
 public class ManaDiscountUtils {
 
     public static final String PASSIVE_ID = "MANA_DISCOUNT";
-    /** Mana cost resource key (see {@code AbilityCost.manaCost}). */
+    /** Mana cost resource key (see {@code CostMode.MANA}). */
     private static final String MANA_RESOURCE = "MANA_RESOURCE";
     /** 10% off mana costs. */
     public static final double MANA_DISCOUNT = 0.10;

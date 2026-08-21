@@ -29,7 +29,7 @@ import dev.core.entity.RPGEntity;
 /**
  * Regression test for the bonemerang's in-flight cast refusal. Every cast
  * builds a FRESH {@link Effect} instance (the manager calls
- * {@link BukkitEffectRegistry#create} per cast), so instance state can never
+ * {@link AbilityRegistry#createEffect} per cast), so instance state can never
  * block a second throw on its own. What refuses the re-cast is the manager's
  * per-EFFECT-KEY single-instance slot: for ITEM-scoped abilities the key is
  * the held item's UUID, so while the bone of a given bonemerang is in the air
@@ -51,8 +51,8 @@ class BukkitSwingBoneInFlightRefusalTest {
     void setUp() {
         castAttempts = 0;
         AbilityRegistry.clear();
-        AbilityRegistry.register(configured("BONE_SWING", AbilityAction.RIGHT_CLICK, CooldownScope.ITEM, 3000));
-        BukkitEffectRegistry.register("BONE_SWING", NoopSwingBoneEffect::new);
+        AbilityRegistry.register(configured("BONE_SWING", AbilityAction.RIGHT_CLICK, CooldownScope.ITEM, 3000),
+                NoopSwingBoneEffect::new);
     }
 
     @Test

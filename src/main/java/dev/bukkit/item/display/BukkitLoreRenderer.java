@@ -5,7 +5,6 @@ import static dev.bukkit.item.display.BukkitTextColorAdapter.toChatFormatting;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Map.Entry;
 
 import org.bukkit.ChatColor;
 import org.bukkit.entity.Player;
@@ -19,6 +18,9 @@ import dev.bukkit.summon.SummonStats;
 import dev.bukkit.utils.ManaDiscountUtils;
 import dev.core.ability.Ability;
 import dev.core.ability.AbilityTriggerType;
+import dev.core.ability.CooldownScaling;
+import dev.core.ability.CooldownScope;
+import dev.core.ability.CostEntry;
 import dev.core.entity.RPGEntity;
 import dev.core.entity.rpgclass.RPGClassType;
 import dev.core.item.RPGItem;
@@ -41,7 +43,7 @@ public class BukkitLoreRenderer implements RPGItemLoreRenderer {
 
         // Passive stats
         if (!item.getPassiveStats().isEmpty()) {
-            lore.add(colored(TextColor.GRAY, "Passive Stats:"));
+            lore.add(LoreLabels.format(LoreLabels.PASSIVE_STATS_HEADER));
             for (StatModifier stat : item.getPassiveStats()) {
                 lore.add(colored(TextColor.BLUE, formatStat(stat)));
             }
@@ -49,9 +51,26 @@ public class BukkitLoreRenderer implements RPGItemLoreRenderer {
         }
         // Active stats
         if (!item.getActiveStats().isEmpty()) {
-            lore.add(colored(TextColor.GRAY, "Active Stats (Only applied when held):"));
+            lore.add(LoreLabels.format(LoreLabels.ACTIVE_STATS_HEADER));
             for (StatModifier stat : item.getActiveStats()) {
                 lore.add(colored(TextColor.GREEN, formatStat(stat)));
+            }
+            lore.add("");
+        }
+
+        // --- Item description ---
+        StyleTagParser descriptionParser = new StyleTagParser(TextColor.GRAY);
+        List<String> itemDescription = item.getDescription();
+        if (!itemDescription.isEmpty()) {
+            for (String line : itemDescription) {
+                if (line == null) {
+                    continue;
+                }
+                StringBuilder parsedLine = new StringBuilder();
+                for (StyleTagParser.StyledSegment seg : descriptionParser.parse(line)) {
+                    parsedLine.append(toChatFormatting(seg.style())).append(seg.text());
+                }
+                lore.add(parsedLine.toString());
             }
             lore.add("");
         }
@@ -59,7 +78,7 @@ public class BukkitLoreRenderer implements RPGItemLoreRenderer {
         // --- Abilities ---
         List<Ability> abilities = item.getAbilities();
         if (!abilities.isEmpty()) {
-            lore.add(ChatColor.GOLD + "Item Abilities:");
+            lore.add(LoreLabels.format(LoreLabels.ABILITIES_HEADER));
 
             StyleTagParser parser = new StyleTagParser(TextColor.GRAY);
             for (int i = 0; i < abilities.size(); i++) {
@@ -72,13 +91,14 @@ public class BukkitLoreRenderer implements RPGItemLoreRenderer {
                 // abilities.yml keeps null name/description/action.
                 String abilityName = ability.getName() != null ? ability.getName() : ability.getId();
                 if (ability.getTriggerType() == AbilityTriggerType.PASSIVE) {
-                    lore.add(ChatColor.YELLOW.toString() + "Passive: " + abilityName);
+                    lore.add(LoreLabels.format(LoreLabels.PASSIVE_LABEL, "name", abilityName));
                 } else {
-                    lore.add(ChatColor.YELLOW.toString() + "Ability: " + abilityName
-                            + (ability.getTriggerType() == AbilityTriggerType.MANUAL && ability.getAction() != null
-                                    ? " " + ChatColor.DARK_GRAY + ChatColor.BOLD
-                                            + ability.getAction().toString().replaceAll("_", " ")
-                                    : ""));
+                    String actionSuffix = ability.getTriggerType() == AbilityTriggerType.MANUAL
+                            && ability.getAction() != null
+                                    ? LoreLabels.format(LoreLabels.ACTION_SUFFIX, "action",
+                                            ability.getAction().toString().replaceAll("_", " "))
+                                    : "";
+                    lore.add(LoreLabels.format(LoreLabels.ABILITY_LABEL, "name", abilityName) + actionSuffix);
                 }
 
                 List<String> description = ability.getDescription();
@@ -102,25 +122,35 @@ public class BukkitLoreRenderer implements RPGItemLoreRenderer {
                 if (ability.getCost() != null && ability.getCost().hasCost()) {
                     line = true;
                     lore.add("");
-                    lore.add(ChatColor.DARK_GRAY + "Cost: ");
+                    lore.add(LoreLabels.format(LoreLabels.COST_LABEL));
                     boolean discounted = false;
-                    for (Entry<String, Double> entry : ability.getCost().getResourceCosts().entrySet()) {
-                        StatType type = StatType.valueOf(entry.getKey());
-                        double cost = ManaDiscountUtils.discountedCost(holder, entry.getKey(), entry.getValue());
-                        if (cost < entry.getValue()) {
+                    for (CostEntry cost : ability.getCost().getCosts()) {
+                        StatType type = StatType.valueOf(cost.mode().getResourceType());
+                        // Dynamic (formula) costs resolve against the viewing
+                        // holder so the lore shows the price they would pay.
+                        double base = cost.resolve(holder);
+                        double amount = ManaDiscountUtils.discountedCost(holder, cost.mode().getResourceType(), base);
+                        if (amount < base) {
                             discounted = true;
                         }
-                        lore.add(colored(type.getColor(), type.formatValue(cost, true)));
+                        lore.add(BukkitTextColorAdapter.formatStat(type, amount, true));
                     }
                     if (discounted) {
-                        lore.add(colored(TextColor.DARK_PURPLE, "Mana costs reduced by 10% (Mage Set)"));
+                        lore.add(LoreLabels.format(LoreLabels.MANA_DISCOUNT_NOTE));
                     }
                 }
 
                 if (ability.getCooldown() > 0) {
                     line = true;
                     lore.add("");
-                    lore.add(ChatColor.DARK_GRAY + "Cooldown: " + ability.getCooldown() / 1000.0 + "s");
+                    String scalingSuffix = ability.getCooldownScaling() == CooldownScaling.NONE
+                            ? LoreLabels.format(LoreLabels.COOLDOWN_SCALING_NONE_SUFFIX)
+                            : LoreLabels.format(LoreLabels.COOLDOWN_SCALING_HASTE_SUFFIX);
+                    lore.add(LoreLabels.format(LoreLabels.COOLDOWN_LABEL, "cooldown",
+                            ability.getCooldown() / 1000.0 + "s") + scalingSuffix);
+                    lore.add(LoreLabels.format(ability.getScope() == CooldownScope.ITEM
+                            ? LoreLabels.COOLDOWN_SCOPE_ITEM_NOTE
+                            : LoreLabels.COOLDOWN_SCOPE_PLAYER_NOTE));
                 }
                 if (!line) {
                     lore.add("");
@@ -135,23 +165,31 @@ public class BukkitLoreRenderer implements RPGItemLoreRenderer {
 
         // --- Item set ---
         item.getItemSet().ifPresent(set -> {
-            lore.add(colored(TextColor.DARK_PURPLE, "Part of the " + set.getName() + " Set"));
+            lore.add(LoreLabels.format(LoreLabels.ITEM_SET_LINE, "set", set.getName()));
+            StyleTagParser setParser = new StyleTagParser(TextColor.GRAY);
             set.getBonuses().forEach((pieces, bonus) -> {
-                lore.add(colored(TextColor.GRAY, pieces + "-Piece Bonus: ")
-                        + colored(TextColor.LIGHT_PURPLE, bonus.getDescription()));
+                lore.add(LoreLabels.format(LoreLabels.SET_BONUS_LABEL, "pieces", pieces));
+                if (bonus.getDescription() != null) {
+                    for (String line : bonus.getDescription().split("\n")) {
+                        StringBuilder parsedLine = new StringBuilder();
+                        for (StyleTagParser.StyledSegment seg : setParser.parse(line)) {
+                            parsedLine.append(toChatFormatting(seg.style())).append(seg.text());
+                        }
+                        lore.add(parsedLine.toString());
+                    }
+                }
             });
         });
 
         // --- Level / type ---
-        lore.add(ChatColor.GOLD.toString() + ChatColor.BOLD + "LEVEL " + item.getUnlockLevel() + ": "
-                + item.getItemType().name() + " ITEM");
+        lore.add(LoreLabels.format(LoreLabels.LEVEL_LINE,
+                "level", item.getUnlockLevel(), "type", item.getItemType().name()));
 
         return lore;
     }
 
     private String formatStat(StatModifier stat) {
-        return BukkitTextColorAdapter.toChatColor(stat.statType.getColor())
-                + stat.statType.formatValue(stat.amount, true);
+        return BukkitTextColorAdapter.formatStat(stat.statType, stat.amount, true);
     }
 
     /**

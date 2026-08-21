@@ -38,13 +38,13 @@ class BukkitEffectManagerCastSmokeTest {
     @BeforeEach
     void setUp() {
         AbilityRegistry.clear();
-        AbilityRegistry.register(configured("BONE_SWING", AbilityAction.RIGHT_CLICK, CooldownScope.ITEM, 3000));
-        AbilityRegistry
-                .register(configured("PARTICLE_TEST_ABILITY", AbilityAction.RIGHT_CLICK, CooldownScope.PLAYER, 0));
-        AbilityRegistry.register(configured("SMASH", AbilityAction.RIGHT_CLICK, CooldownScope.ITEM, 5000));
-        BukkitEffectRegistry.register("BONE_SWING", BukkitSwingBoneEffect::new);
-        BukkitEffectRegistry.register("PARTICLE_TEST_ABILITY", BukkitParticleTestEffect::new);
-        BukkitEffectRegistry.register("SMASH", BukkitSmashEffect::new);
+        AbilityRegistry.register(configured("BONE_SWING", AbilityAction.RIGHT_CLICK, CooldownScope.ITEM, 3000),
+                BukkitSwingBoneEffect::new);
+        AbilityRegistry.register(
+                configured("PARTICLE_TEST_ABILITY", AbilityAction.RIGHT_CLICK, CooldownScope.PLAYER, 0),
+                BukkitParticleTestEffect::new);
+        AbilityRegistry.register(configured("SMASH", AbilityAction.RIGHT_CLICK, CooldownScope.ITEM, 5000),
+                BukkitSmashEffect::new);
     }
 
     @Test

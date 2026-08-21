@@ -28,6 +28,12 @@ public abstract class Ability {
 	 * as-is ({@link CooldownScaling#NONE}).
 	 */
 	private CooldownScaling cooldownScaling = CooldownScaling.HASTE;
+	/**
+	 * The cast cost, configured EXCLUSIVELY in abilities.yml ({@code cost:}
+	 * section, flat {@code amount} or dynamic {@code formula}). Java code
+	 * never defines costs; an ability without a config cost is free to cast.
+	 * Written by {@link dev.core.ability.storage.AbilityLoader} at startup.
+	 */
 	private AbilityCost cost;
 	/**
 	 * Whether this ability, when cast by a mob, is aimed at players (e.g.
@@ -37,13 +43,13 @@ public abstract class Ability {
 	 */
 	private boolean targetsPlayer = true;
 
-	public Ability(String id, Event triggerEvent, AbilityCost abilityCost) {
+	public Ability(String id, Event triggerEvent) {
 		this.id = id;
 		this.triggerEvent = triggerEvent;
-		this.cost = abilityCost != null ? abilityCost : AbilityCost.noCost();
+		this.cost = AbilityCost.noCost();
 	}
 
 	public Ability(String id) {
-		this(id, null, AbilityCost.noCost());
+		this(id, null);
 	}
 }

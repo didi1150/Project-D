@@ -6,29 +6,58 @@
 # dev.core.ability.impl.*). The yml only configures an already-registered id;
 # unknown ids are skipped with a warning.
 #
-# Full list of supported keys (all optional unless noted):
+# Cooldowns and costs are CONFIG-ONLY: Java defines the behavior, this file
+# defines the numbers. An ability with no `cooldown:` key has no cooldown, and
+# one with no `cost:` key is free to cast.
+#
+# ----------------------------------------------------------------------------
+# KEY REFERENCE (all keys optional unless noted)
+# ----------------------------------------------------------------------------
 #
 #   name            Display name of the ability (defaults to the id). Used on
 #                   item lore via BukkitLoreRenderer.
+#
 #   description     Lore lines shown on the item holding the ability. Tagged
 #                   style is supported, e.g. <red>, <bold>, <aqua>, <blue>,
 #                   <yellow>.
+#
 #   triggerType     MANUAL or AUTOMATIC (default MANUAL).
-#                     MANUAL   cast when the holder performs the configured
-#                              `action` (player clicks, mob casts).
+#                     MANUAL    cast when the holder performs the configured
+#                               `action` (player clicks, mob casts).
 #                     AUTOMATIC cast when the holder's registered trigger event
-#                              fires (requires the Java Ability to define a
-#                              trigger Event).
+#                               fires (requires the Java Ability to define a
+#                               trigger Event).
+#
 #   action          AbilityAction for MANUAL abilities: RIGHT_CLICK,
 #                   LEFT_CLICK, SHIFT_RIGHT_CLICK, SHIFT_LEFT_CLICK, SHIFT,
 #                   JUMP (default NONE). An item only casts when this matches
 #                   the performed action, e.g. mobs trigger RIGHT_CLICK.
+#
 #   cooldownScope   PLAYER (per caster) or ITEM (per item instance) (default
 #                   PLAYER).
+#
 #   cooldown        Cooldown in milliseconds (default 0).
+#
 #   cooldownScaling HASTE (default) or NONE. HASTE shortens the cooldown by the
 #                   caster's ABILITY_HASTE stat; NONE applies the configured
 #                   cooldown as-is.
+#
+#   cost            Optional cast cost (default: none). A "mode" (MANA or
+#                   HEALTH) plus a price, given either as a flat "amount" or a
+#                   dynamic "formula" (formula wins when both are set):
+#
+#                     # flat price:
+#                     cost:
+#                       mode: MANA
+#                       amount: 25
+#
+#                     # dynamic price — evaluated against the CASTER at every
+#                     # cast, so the same ability can cost different casters
+#                     # different amounts:
+#                     cost:
+#                       mode: MANA
+#                       formula: "10 + 0.05 * MANA_MAX"
+#
 #   targetsPlayer   MOB-CASTING ONLY, true by default. Whether a mob casting
 #                   this ability needs a player target: true abilities only
 #                   fire while a player is in range AND in line of sight (the
@@ -36,12 +65,50 @@
 #                   abilities (heals, buffs) that a mob should keep casting
 #                   even with no player visible.
 #
-# The actual in-game behavior (projectiles, AoE, particles, ...) lives in the
-# matching Bukkit Effect, registered under the same id in BukkitEffectRegistry
-# (see DMain.onEnable); a yml entry without a registered effect id fires
-# nothing.
+# ----------------------------------------------------------------------------
+# COST FORMULAS
+# ----------------------------------------------------------------------------
 #
-# Example:
+#   Syntax: numbers (decimals allowed), + - * / , parentheses, unary minus.
+#   Standard precedence (* and / bind tighter than + and -).
+#
+#   Variables resolve against the casting entity at cast time,
+#   case-insensitively:
+#
+#     <STAT_NAME>       Any stat from stats.yml by its key name:
+#                       HEALTH_MAX, MANA_MAX, ARMOR, MAGIC_RESIST,
+#                       ATTACK_DAMAGE, ABILITY_POWER, ATTACK_SPEED, LETHALITY,
+#                       ARMOR_PENETRATION, CRIT_CHANCE, PROJECTILE_DAMAGE,
+#                       MOVE_SPEED, HEALTH_REGEN, MANA_REGEN, ABILITY_HASTE,
+#                       HEAL_AND_SHIELD_POWER, HEALTH_RESOURCE (current
+#                       health), MANA_RESOURCE (current mana).
+#     MANA_MISSING      Max mana minus current mana.
+#     HEALTH_MISSING    Max health minus current health.
+#
+#   Examples:
+#     "25"                      same as amount: 25
+#     "0.05 * MANA_MAX"         5% of the caster's max mana
+#     "10 + 0.1 * ABILITY_POWER"  10 plus 10% of ability power
+#     "MANA_MISSING / 4"        a quarter of the mana the caster is missing
+#
+#   Error handling:
+#     - Bad formula SYNTAX is reported at startup ("Bad cost config for
+#       ability ...") and the ability is left WITHOUT a cost.
+#     - An UNKNOWN VARIABLE refuses the individual cast at runtime with a
+#       console warning; nothing is deducted.
+#     - Formula results below zero are clamped to 0.
+#
+# ----------------------------------------------------------------------------
+# WIRING & EXAMPLE
+# ----------------------------------------------------------------------------
+#
+# The actual in-game behavior (projectiles, AoE, particles, ...) lives in the
+# matching Bukkit Effect, wired to the same id in DMain.onEnable via
+# AbilityRegistry.register(id, effectFactory); a yml entry without a registered
+# effect fires nothing.
+#
+# Full example (copy into `abilities:` and rename to a registered id):
+#
 #   MY_ABILITY:
 #     name: My Ability
 #     description:
@@ -50,6 +117,10 @@
 #     action: RIGHT_CLICK
 #     cooldownScope: PLAYER
 #     cooldown: 5000
+#     cooldownScaling: HASTE
+#     cost:
+#       mode: MANA
+#       formula: "10 + 0.05 * MANA_MAX"
 #     targetsPlayer: true
 # ============================================================================
 abilities:
@@ -85,6 +156,9 @@ abilities:
     action: RIGHT_CLICK
     cooldownScope: PLAYER
     cooldown: 0
+    cost:
+      mode: MANA
+      amount: 25
   SPINJITZU:
     name: Spinjitzu
     description:
@@ -133,6 +207,9 @@ abilities:
     action: RIGHT_CLICK
     cooldownScope: PLAYER
     cooldown: 500
+    cost:
+      mode: MANA
+      amount: 25
   SOUL_COLLECTOR:
     name: Soul Collector
     description:
@@ -174,6 +251,9 @@ abilities:
     action: RIGHT_CLICK
     cooldownScope: PLAYER
     cooldown: 0
+    cost:
+      mode: MANA
+      amount: 25
   SHADOW_STAFF_DASH:
     name: Shadow Dash
     description:

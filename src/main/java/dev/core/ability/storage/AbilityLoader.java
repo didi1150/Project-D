@@ -7,6 +7,7 @@ import java.util.Optional;
 
 import dev.core.ability.Ability;
 import dev.core.ability.AbilityAction;
+import dev.core.ability.AbilityCost;
 import dev.core.ability.AbilityRegistry;
 import dev.core.ability.AbilityTriggerType;
 import dev.core.ability.CooldownScope;
@@ -55,7 +56,20 @@ public class AbilityLoader {
 				.valueOf(section.getString("cooldownScaling", CooldownScaling.HASTE.name()));
 		ability.setCooldownScaling(cooldownScaling);
 		ability.setTargetsPlayer(section.getBoolean("targetsPlayer", true));
-		
+
+		// Cost: config-only (Java never defines costs). Optional
+		// "cost: { mode, amount | formula }" section; an ability without one
+		// is free to cast. A malformed cost logs a warning and leaves the
+		// ability without a cost.
+		ConfigSection costSection = section.getSection("cost");
+		if (costSection != null) {
+			try {
+				ability.setCost(AbilityCost.fromConfig(costSection));
+			} catch (IllegalArgumentException e) {
+				System.out.println("Bad cost config for ability " + id + ": " + e.getMessage());
+			}
+		}
+
 		return Optional.of(ability);
 	}
 
