@@ -13,11 +13,13 @@ import dev.bukkit.entity.BukkitPlayerEntity;
 import dev.bukkit.item.BukkitItemStackAdapter;
 import dev.bukkit.utils.ManaDiscountUtils;
 import dev.core.ability.Ability;
+import dev.bukkit.hud.HudResourceFeedback;
 import dev.core.ability.AbilityRegistry;
 import dev.core.ability.CooldownScope;
 import dev.core.ability.CooldownScaling;
 import dev.core.ability.CooldownSink;
 import dev.core.ability.CostEntry;
+import dev.core.ability.CostMode;
 import dev.core.ability.Effect;
 import dev.core.ability.EffectManagerInterface;
 import dev.core.entity.RPGEntity;
@@ -122,6 +124,15 @@ public class BukkitEffectManager implements EffectManagerInterface {
 			for (Charge charge : resolveCharges(entity, ability)) {
 				if (entity.getStatManager().getCurrentValue(charge.resource(), System.currentTimeMillis()) < charge
 						.amount()) {
+					// HUD-transient "Not enough <resource>" feedback (auto StatType color, debounced, chat fallback if hud disabled)
+					if (entity instanceof BukkitPlayerEntity bpe) {
+						bpe.getPlayer().ifPresent(p -> {
+							try {
+								CostMode mode = CostMode.fromResourceType(charge.resource().name());
+								HudResourceFeedback.send(p, mode);
+							} catch (Exception ignored) {}
+						});
+					}
 					return false;
 				}
 			}
@@ -131,6 +142,24 @@ public class BukkitEffectManager implements EffectManagerInterface {
 		}
 		// TODO: Other clauses
 		return true;
+	}
+
+	/**
+	 * Returns the first insufficient resource mode for this cast, or empty if costs can be paid / on cooldown.
+	 * Exposed for callers that want custom handling without side-effect.
+	 */
+	public java.util.Optional<CostMode> insufficientResource(RPGEntity entity, Ability ability) {
+		if (isOnCooldown(entity, ability)) return java.util.Optional.empty();
+		try {
+			for (Charge charge : resolveCharges(entity, ability)) {
+				if (entity.getStatManager().getCurrentValue(charge.resource(), System.currentTimeMillis()) < charge.amount()) {
+					return java.util.Optional.of(CostMode.fromResourceType(charge.resource().name()));
+				}
+			}
+		} catch (IllegalArgumentException e) {
+			return java.util.Optional.empty();
+		}
+		return java.util.Optional.empty();
 	}
 
 	/**

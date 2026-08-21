@@ -40,6 +40,23 @@ public class BukkitConfigProvider implements ConfigProvider {
         this.config = YamlConfiguration.loadConfiguration(file);
     }
 
+    /** Reloads the underlying yaml from disk, replacing current in-memory values. */
+    public void reload() {
+        try {
+            // clear and load anew so removed keys disappear
+            FileConfiguration reloaded = YamlConfiguration.loadConfiguration(file);
+            // copy reloaded keys into existing config instance so existing section wrappers stay valid
+            for (String key : new java.util.HashSet<>(config.getKeys(true))) {
+                config.set(key, null);
+            }
+            for (String key : reloaded.getKeys(true)) {
+                config.set(key, reloaded.get(key));
+            }
+        } catch (Exception e) {
+            throw new RuntimeException("Failed to reload config file: " + fileName, e);
+        }
+    }
+
     @Override
     public ConfigSection getRoot() {
         return new BukkitConfigSection(config);

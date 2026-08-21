@@ -20,6 +20,17 @@ public class BukkitConfigManager {
         return providers.computeIfAbsent(fileName, name -> new BukkitConfigProvider(plugin, name));
     }
 
+    /** Force reload of a provider from disk (used for live /hud reload). */
+    public ConfigProvider reloadProvider(String fileName) {
+        ConfigProvider existing = providers.get(fileName);
+        if (existing instanceof BukkitConfigProvider bcp) {
+            bcp.reload();
+            return bcp;
+        }
+        // not yet loaded -> load normally
+        return getProvider(fileName);
+    }
+
     public void saveAll() {
         for (ConfigProvider provider : providers.values()) {
             provider.save();

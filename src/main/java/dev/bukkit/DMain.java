@@ -4,7 +4,6 @@ import java.io.File;
 import java.io.IOException;
 import java.util.Map;
 
-import dev.bukkit.game.dungeon.proceduralDungeon.BuildAssetManager;
 import org.bukkit.Bukkit;
 import org.bukkit.WorldCreator;
 import org.bukkit.plugin.java.JavaPlugin;
@@ -14,25 +13,25 @@ import dev.bukkit.ability.BukkitEffectManager;
 import dev.bukkit.ability.BukkitExplosiveArrowEffect;
 import dev.bukkit.ability.BukkitFocusBeamEffect;
 import dev.bukkit.ability.BukkitParticleTestEffect;
-import dev.bukkit.ability.BukkitShieldBashEffect;
 import dev.bukkit.ability.BukkitShadowWeaverDashEffect;
 import dev.bukkit.ability.BukkitShadowWeaverPlaceEffect;
+import dev.bukkit.ability.BukkitShieldBashEffect;
 import dev.bukkit.ability.BukkitSmashEffect;
 import dev.bukkit.ability.BukkitSoulRecallEffect;
 import dev.bukkit.ability.BukkitSoulStoreEffect;
 import dev.bukkit.ability.BukkitSoulSummonEffect;
-import dev.bukkit.ability.BukkitSpiritSceptreBatEffect;
 import dev.bukkit.ability.BukkitSpinjitzuEffect;
+import dev.bukkit.ability.BukkitSpiritSceptreBatEffect;
 import dev.bukkit.ability.BukkitSwingBoneEffect;
 import dev.bukkit.ability.ShadowWeaverManager;
-import dev.bukkit.item.HunterBowManager;
 import dev.bukkit.command.CommandManager;
+import dev.bukkit.entity.boss.BukkitBossStageTypeRegistry;
+import dev.bukkit.entity.boss.BukkitBossStrategyRegistry;
 import dev.bukkit.event.BukkitEventBus;
 import dev.bukkit.event.bukkitListeners.CombatListener;
 import dev.bukkit.event.bukkitListeners.EventBusRegistry;
 import dev.bukkit.event.subscribers.ThreatPassiveSubscriber;
-import dev.bukkit.entity.boss.BukkitBossStageTypeRegistry;
-import dev.bukkit.entity.boss.BukkitBossStrategyRegistry;
+import dev.bukkit.game.dungeon.proceduralDungeon.BuildAssetManager;
 import dev.bukkit.game.dungeon.proceduralDungeon.BukkitVoidWorldGenerator;
 import dev.bukkit.game.dungeon.proceduralDungeon.SimpleDungeonBuilderBukkit;
 import dev.bukkit.game.scheduler.BukkitTaskScheduler;
@@ -43,17 +42,18 @@ import dev.bukkit.game.states.PreLobbyState;
 import dev.bukkit.game.states.SelectClassState;
 import dev.bukkit.game.states.SelectItemState;
 import dev.bukkit.game.states.SetupState;
+import dev.bukkit.item.HunterBowManager;
 import dev.bukkit.item.display.LoreLabels;
-import dev.bukkit.storage.BukkitConfigManager;
-import dev.bukkit.storage.progression.BukkitConfigProgressionDatabase;
-import dev.bukkit.storage.progression.ClassProgressionService;
-import dev.bukkit.storage.progression.HashMapProgressionCache;
 import dev.bukkit.status.BukkitStatusEffectManager;
 import dev.bukkit.status.StatusEffectBehaviorRegistry;
 import dev.bukkit.status.behavior.AirborneStatusEffectBehavior;
 import dev.bukkit.status.behavior.RootedStatusEffectBehavior;
 import dev.bukkit.status.behavior.SlowedStatusEffectBehavior;
 import dev.bukkit.status.behavior.StunnedStatusEffectBehavior;
+import dev.bukkit.storage.BukkitConfigManager;
+import dev.bukkit.storage.progression.BukkitConfigProgressionDatabase;
+import dev.bukkit.storage.progression.ClassProgressionService;
+import dev.bukkit.storage.progression.HashMapProgressionCache;
 import dev.bukkit.utils.BackstabUtils;
 import dev.bukkit.utils.BukkitMessageSender;
 import dev.bukkit.utils.HealAuraUtils;
@@ -79,9 +79,9 @@ import dev.core.ability.passive.SetPassiveRegistry;
 import dev.core.ability.storage.AbilityLoader;
 import dev.core.entity.EntityManager;
 import dev.core.entity.boss.BossDefinitionLoader;
+import dev.core.entity.boss.BossDefinitionRegistry;
 import dev.core.entity.mob.MobDefinitionLoader;
 import dev.core.entity.mob.MobDefinitionRegistry;
-import dev.core.entity.boss.BossDefinitionRegistry;
 import dev.core.entity.rpgclass.RPGClassType;
 import dev.core.event.EventBusInterface;
 import dev.core.event.EventSubscriberScanner;
@@ -93,11 +93,11 @@ import dev.core.item.RPGItemSet;
 import dev.core.item.loader.RPGItemLoader;
 import dev.core.item.loader.RPGItemRegistry;
 import dev.core.stat.DefaultStats;
-import dev.core.stat.adapter.StatTypeAdapter;
-import dev.core.stat.loader.StatMetadataLoader;
 import dev.core.stat.Stat;
 import dev.core.stat.StatType;
+import dev.core.stat.adapter.StatTypeAdapter;
 import dev.core.stat.loader.StatLoader;
+import dev.core.stat.loader.StatMetadataLoader;
 import dev.core.status.StatusEffectType;
 import dev.core.storage.config.ConfigProvider;
 import dev.core.storage.database.ProgressionCacheStrategy;
@@ -158,6 +158,12 @@ public final class DMain extends JavaPlugin {
         StatusEffectBehaviorRegistry.register(StatusEffectType.STUNNED, new StunnedStatusEffectBehavior());
         StatusEffectBehaviorRegistry.register(StatusEffectType.AIRBORNE, new AirborneStatusEffectBehavior());
 
+        // HUD overlay config — create manager early so hud.yml is available before services start
+        configManager = new BukkitConfigManager(this);
+        dev.bukkit.hud.HudConfig hudCfg = dev.bukkit.hud.HudConfigLoader.load(configManager.getProvider("hud.yml"));
+        dev.bukkit.hud.HudOverlayService.getInstance().init(this, hudCfg);
+        dev.bukkit.hud.HunterHudFormatter.load(hudCfg);
+
         // Shadow Weaver's Staff: per-tick preview, platform decay, dash lock and
         // sticky-lock runtime, plus its drop-off synergy listeners.
         ShadowWeaverManager.getInstance().start(this);
@@ -171,8 +177,6 @@ public final class DMain extends JavaPlugin {
         SetPassiveRegistry.register(BackstabUtils.MARKER);
         SetPassiveRegistry.register(HealAuraUtils.MARKER);
         SetPassiveRegistry.register(ManaDiscountUtils.MARKER);
-
-        configManager = new BukkitConfigManager(this);
 
         // ==============================================[ Load lore.yml
         // ]==================================================
@@ -283,6 +287,27 @@ public final class DMain extends JavaPlugin {
         buildAssetManager = new BuildAssetManager(this, "buildAssets/");
         buildAssetManager.registerCommand(commandManager);
 
+        // HUD live reload: /hud reload (supports player and console)
+        commandManager.createCommand(dev.bukkit.command.MainCommandBuilder.startBuilding("hud")
+                .setDescription("HUD overlay controls")
+                .setUsage("/hud reload")
+                .addSubCommand(dev.bukkit.command.SubCommandBuilder.startBuilding("reload")
+                        .setDescription("Reload hud.yml and refresh overlay/formats")
+                        .setCommandAction(0, (sender, args) -> {
+                            try {
+                                dev.core.storage.config.ConfigProvider reloaded = configManager.reloadProvider("hud.yml");
+                                dev.bukkit.hud.HudConfig n = dev.bukkit.hud.HudConfigLoader.load(reloaded);
+                                dev.bukkit.hud.HudOverlayService.getInstance().reload(n);
+                                dev.bukkit.hud.HunterHudFormatter.load(n);
+                                dev.bukkit.utils.BukkitMessageSender.getInstance().sendMessage(sender,
+                                        dev.core.utils.MessageComponent.of("<green>HUD reloaded.</green>"));
+                            } catch (Exception e) {
+                                dev.bukkit.utils.BukkitMessageSender.getInstance().sendMessage(sender,
+                                        dev.core.utils.MessageComponent.of("<red>HUD reload failed: %s</red>", e.getMessage()));
+                            }
+                        }))
+                .build());
+
         commandManager.registerCommands(this);
         combatListener = new CombatListener(this);
         Bukkit.getPluginManager().registerEvents(combatListener, this);
@@ -297,6 +322,7 @@ public final class DMain extends JavaPlugin {
         gameStateController.stop();
         effectManagerInterface.cancelAll();
         BukkitStatusEffectManager.getInstance().cancelAll();
+        dev.bukkit.hud.HudOverlayService.getInstance().shutdown();
         ShadowWeaverManager.getInstance().stop();
         HunterBowManager.getInstance().stop();
         combatListener.cleanup();

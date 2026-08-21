@@ -1,0 +1,57 @@
+# ============================================================================
+# HUD OVERLAY CONFIGURATION
+# ============================================================================
+# The HUD uses per-key stacked TextDisplays in front of the player's eye.
+# Health/Mana stays on the action bar (BukkitPlayerEntity); this file tunes
+# the extra ability HUD (e.g. Hunter's Bow) and the "Not enough <resource>"
+# feedback.
+#
+# distance       — forward from eye before vertical-offset is applied; raytraced
+#                  against walls (min 0.4 after hit).
+# vertical-offset— Y offset applied after forward projection.
+# spacing        — vertical gap between stacked keys (priority-sorted).
+# scale          — TextDisplay transformation scale.
+# view-range     — max view distance scalar.
+# line-width     — TextDisplay line width.
+# background     — nested ARGB 0-255 each (alpha,r,g,b).
+#                  legacy background-color: "#AARRGGBB" still parsed if nested absent.
+# formats.hunter — allow '&' color codes, placeholders %dots%, %bounces%.
+# messages.not-enough — must contain <resource> placeholder; auto-colored via StatType.
+# max-keys       — maximum concurrent HUD fragments (TextDisplays) visible at
+#                  once. Each ability pushes a keyed fragment (e.g.
+#                  "hunter:bounce" prio10, "hunter:shock" prio20,
+#                  "hud:resource" prio100 for "Not enough <resource>").
+#                  Fragments are priority-sorted (higher first) and culled to
+#                  this limit; excess lowest-priority keys are dropped until
+#                  they expire. Range 1–8, default 4. Hunter's Bow uses 2 keys
+#                  while held, leaving 2 slots for future abilities / resource
+#                  warnings. Increase if you plan 3+ simultaneous overlays;
+#                  decrease to force stricter stacking. Live-reloadable via
+#                  /hud reload.
+enabled: true
+max-keys: 4
+display:
+  distance: 1.85
+  vertical-offset: 0.75
+  spacing: 0.28
+  scale: 0.65
+  view-range: 0.9
+  line-width: 300
+  background:
+    alpha: 96
+    r: 0
+    g: 0
+    b: 0
+  brightness: 15
+  interpolation-duration: 1
+  teleport-duration: 0
+  shadowed: true
+  see-through: false
+formats:
+  hunter:
+    bounce-zero: "&6Hunter's Bow &8| &7Bouncy %dots% &8(0/3) &7— plain"
+    bounce: "&6Hunter's Bow &8| &bBouncy %dots% &7(%bounces%/3)"
+    shock-armed: "&c◉ Shock Bolt ARMED &7— next arrow detonates"
+    shock-plain: "&7○ Shock — plain  &8○ No shock"
+messages:
+  not-enough: "&cNot enough <resource>!"

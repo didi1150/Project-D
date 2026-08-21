@@ -5,7 +5,6 @@ import java.util.Map;
 import java.util.UUID;
 
 import org.bukkit.Bukkit;
-import org.bukkit.ChatColor;
 import org.bukkit.Color;
 import org.bukkit.Location;
 import org.bukkit.Material;
@@ -22,18 +21,22 @@ import org.bukkit.entity.Player;
 import org.bukkit.event.entity.EntityShootBowEvent;
 import org.bukkit.event.entity.PlayerDeathEvent;
 import org.bukkit.event.entity.ProjectileHitEvent;
+import org.bukkit.event.inventory.InventoryCloseEvent;
+import org.bukkit.event.player.PlayerItemHeldEvent;
+import org.bukkit.event.player.PlayerJoinEvent;
 import org.bukkit.event.player.PlayerQuitEvent;
+import org.bukkit.event.player.PlayerSwapHandItemsEvent;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.persistence.PersistentDataType;
 import org.bukkit.plugin.Plugin;
 import org.bukkit.scheduler.BukkitRunnable;
+import org.bukkit.scheduler.BukkitTask;
 import org.bukkit.util.Vector;
-
-import net.md_5.bungee.api.ChatMessageType;
-import net.md_5.bungee.api.chat.TextComponent;
 
 import dev.bukkit.DMain;
 import dev.bukkit.event.bukkitListeners.CombatListener;
+import dev.bukkit.hud.HudOverlayService;
+import dev.bukkit.hud.HunterHudFormatter;
 import dev.bukkit.utils.CombatRelation;
 import dev.bukkit.utils.DamageUtils;
 import dev.core.entity.EntityManager;
@@ -97,6 +100,7 @@ public class HunterBowManager {
 
     private static Plugin plugin;
     private static boolean running;
+    private static BukkitTask heldPollTask;
 
     public HunterBowManager() {
         if (instance == null) {
@@ -130,6 +134,7 @@ public class HunterBowManager {
         if (instance == null || instance != this) {
             instance = this;
         }
+        startHeldPoll();
     }
 
     public void stop() {
@@ -139,16 +144,51 @@ public class HunterBowManager {
         running = false;
         CHARGED_BOUNCES.clear();
         EXPLOSIVE_ARMED.clear();
+        stopHeldPoll();
+        // clear HUD for all tracked players
+        try {
+            for (Player p : Bukkit.getOnlinePlayers()) {
+                hideHud(p);
+            }
+        } catch (Exception ignored) {}
     }
 
-    // ---- Ability entry points (called from Bukkit*Effect.cast) ----
+    private void startHeldPoll() {
+        stopHeldPoll();
+        if (plugin == null) return;
+        heldPollTask = Bukkit.getScheduler().runTaskTimer(plugin, () -> {
+            for (Player p : Bukkit.getOnlinePlayers()) {
+                try {
+                    boolean holds = isHunterBow(p.getInventory().getItemInMainHand());
+                    if (holds) {
+                        refreshHud(p);
+                    } else {
+                        // hide hunter HUD if not holding (idempotent)
+                        if (hasHunterHud(p)) {
+                            hideHud(p);
+                        }
+                    }
+                } catch (Exception ignored) {}
+            }
+        }, 20L, 5L);
+    }
 
-    /**
-     * Cycle the player's next-shot bounce charge {@code 0..MAX_BOUNCES} and
-     * play Sova recon-bolt feedback. Only fires while the hunter's bow is in
-     * the main hand — the ability trigger itself already guarantees this
-     * (equipped-item MANUAL), but we double-guard against off-hand edge cases.
-     */
+    private void stopHeldPoll() {
+        if (heldPollTask != null) {
+            try { heldPollTask.cancel(); } catch (Exception ignored) {}
+            heldPollTask = null;
+        }
+    }
+
+    private boolean hasHunterHud(Player player) {
+        if (player == null) return false;
+        try {
+            return HudOverlayService.getInstance().getActiveCount(player) > 0;
+        } catch (Exception e) {
+            return false;
+        }
+    }
+
     public void cycleBounceCharges(Player player) {
         if (player == null || !isHunterBow(player.getInventory().getItemInMainHand())) {
             return;
@@ -176,14 +216,14 @@ public class HunterBowManager {
         }
 
         // Recon-style burst — cyan END_ROD ring + electric sparks
-        Location eye = player.getEyeLocation();
-        Color burstColor = trailColor(next, false);
-        Particle.DustOptions dust = new Particle.DustOptions(burstColor, 1.2f);
-        world.spawnParticle(Particle.DUST, eye.clone().add(0, -0.25, 0), 10, 0.25, 0.25, 0.25, 0, dust);
-        world.spawnParticle(Particle.END_ROD, eye.clone().add(0, -0.15, 0), 8, 0.3, 0.3, 0.3, 0.02);
-        world.spawnParticle(Particle.ELECTRIC_SPARK, eye.clone().add(0, -0.15, 0), 14, 0.4, 0.4, 0.4, 0.06);
+//        Location eye = player.getEyeLocation();
+//        Color burstColor = trailColor(next, false);
+//        Particle.DustOptions dust = new Particle.DustOptions(burstColor, 1.2f);
+//        world.spawnParticle(Particle.DUST, eye.clone().add(0, -0.25, 0), 10, 0.25, 0.25, 0.25, 0, dust);
+//        world.spawnParticle(Particle.END_ROD, eye.clone().add(0, -0.15, 0), 8, 0.3, 0.3, 0.3, 0.02);
+//        world.spawnParticle(Particle.ELECTRIC_SPARK, eye.clone().add(0, -0.15, 0), 14, 0.4, 0.4, 0.4, 0.06);
 
-        sendBounceActionBar(player, next);
+        refreshHud(player);
     }
 
     /**
@@ -221,7 +261,7 @@ public class HunterBowManager {
             world.spawnParticle(Particle.SMOKE, player.getEyeLocation().add(0, -0.3, 0), 12, 0.35, 0.3, 0.35, 0.02);
         }
 
-        sendExplosiveActionBar(player, nextArmed);
+        refreshHud(player);
     }
 
     // ---- Shoot stamping (bus subscriber) ----
@@ -276,8 +316,8 @@ public class HunterBowManager {
             world.playSound(loc, Sound.BLOCK_BEACON_POWER_SELECT, 0.4f, 1.8f);
         }
 
-        // Carry the shot summary on the action bar for a moment
-        sendShotActionBar(player, bounces, explosive);
+        // Refresh HUD to reflect consumed state (now 0/plain); shot trail still armed
+        refreshHud(player);
 
         // Arm the in-flight trail
         startTrail(arrow, bounces, explosive);
@@ -336,7 +376,6 @@ public class HunterBowManager {
                 detonate(hitLoc, shooter, stored);
             }
         }
-        // bounces==0 && !explosive → vanilla stick (recoverable via BOUNCE_KEY)
     }
 
     @Subscribe
@@ -344,6 +383,7 @@ public class HunterBowManager {
         UUID uuid = event.getPlayer().getUniqueId();
         CHARGED_BOUNCES.remove(uuid);
         EXPLOSIVE_ARMED.remove(uuid);
+        hideHud(event.getPlayer());
     }
 
     @Subscribe
@@ -352,6 +392,74 @@ public class HunterBowManager {
             UUID uuid = player.getUniqueId();
             CHARGED_BOUNCES.remove(uuid);
             EXPLOSIVE_ARMED.remove(uuid);
+            hideHud(player);
+        }
+    }
+
+
+    @Subscribe
+    public void onHeldChange(PlayerItemHeldEvent event) {
+        if (plugin == null) return;
+        // event fires before client updates, defer one tick
+        Bukkit.getScheduler().runTask(plugin, () -> {
+            Player p = event.getPlayer();
+            try {
+                ItemStack newItem = p.getInventory().getItem(event.getNewSlot());
+                if (isHunterBow(newItem)) {
+                    refreshHud(p);
+                } else {
+                    hideHud(p);
+                }
+            } catch (Exception ignored) {}
+        });
+    }
+
+    @Subscribe
+    public void onSwapHands(PlayerSwapHandItemsEvent event) {
+        if (plugin == null) return;
+        Bukkit.getScheduler().runTask(plugin, () -> {
+            Player p = event.getPlayer();
+            try {
+                if (isHunterBow(p.getInventory().getItemInMainHand())) {
+                    refreshHud(p);
+                } else {
+                    hideHud(p);
+                }
+            } catch (Exception ignored) {}
+        });
+    }
+
+    @Subscribe
+    public void onInventoryClose(InventoryCloseEvent event) {
+        if (!(event.getPlayer() instanceof Player p)) return;
+        if (plugin == null) return;
+        Bukkit.getScheduler().runTask(plugin, () -> {
+            try {
+                if (isHunterBow(p.getInventory().getItemInMainHand())) {
+                    refreshHud(p);
+                } else {
+                    hideHud(p);
+                }
+            } catch (Exception ignored) {}
+        });
+    }
+
+    @Subscribe
+    public void onJoinHudInit(PlayerJoinEvent event) {
+        Player joined = event.getPlayer();
+        // hide existing overlays from the new viewer (MVP privacy)
+        try {
+            HudOverlayService.getInstance().hideAllFrom(joined);
+        } catch (Exception ignored) {}
+        // if the joiner spawns holding the bow, the poll will show shortly; also try immediate
+        if (plugin != null) {
+            Bukkit.getScheduler().runTaskLater(plugin, () -> {
+                try {
+                    if (isHunterBow(joined.getInventory().getItemInMainHand())) {
+                        refreshHud(joined);
+                    }
+                } catch (Exception ignored) {}
+            }, 5L);
         }
     }
 
@@ -538,66 +646,28 @@ public class HunterBowManager {
         };
     }
 
-    // ---- Action bar ----
+    // ---- HUD (stacked TextDisplay, persistent while held) ----
 
-    private void sendBounceActionBar(Player player, int bounces) {
-        String dots = dots(bounces);
-        String msg;
-        if (bounces == 0) {
-            msg = ChatColor.GOLD + "Hunter's Bow " + ChatColor.DARK_GRAY + "| "
-                    + ChatColor.GRAY + "Bouncy " + dots + ChatColor.DARK_GRAY + " (0/3) "
-                    + ChatColor.GRAY + "— plain";
-        } else {
-            msg = ChatColor.GOLD + "Hunter's Bow " + ChatColor.DARK_GRAY + "| "
-                    + ChatColor.AQUA + "Bouncy " + dots + ChatColor.GRAY + " (" + bounces + "/3)";
-        }
-        // Hint the other half of the kit
-        boolean armed = Boolean.TRUE.equals(EXPLOSIVE_ARMED.get(player.getUniqueId()));
-        if (armed) {
-            msg += ChatColor.DARK_GRAY + "  " + ChatColor.RED + "◉ Shock armed";
-        }
-        player.spigot().sendMessage(ChatMessageType.ACTION_BAR, new TextComponent(msg));
-    }
-
-    private void sendExplosiveActionBar(Player player, boolean armed) {
-        String msg;
-        if (armed) {
-            msg = ChatColor.GOLD + "Hunter's Bow " + ChatColor.DARK_GRAY + "| "
-                    + ChatColor.RED + "◉ Shock Bolt ARMED" + ChatColor.GRAY + " — next arrow detonates";
-        } else {
-            msg = ChatColor.GOLD + "Hunter's Bow " + ChatColor.DARK_GRAY + "| "
-                    + ChatColor.GRAY + "Shock Bolt disarmed";
+    private static void refreshHud(Player player) {
+        if (player == null) return;
+        if (!isHunterBow(player.getInventory().getItemInMainHand())) {
+            hideHud(player);
+            return;
         }
         int bounces = CHARGED_BOUNCES.getOrDefault(player.getUniqueId(), 0);
-        if (bounces > 0) {
-            msg += ChatColor.DARK_GRAY + "  " + ChatColor.AQUA + "Bouncy " + dots(bounces);
-        }
-        player.spigot().sendMessage(ChatMessageType.ACTION_BAR, new TextComponent(msg));
+        boolean armed = Boolean.TRUE.equals(EXPLOSIVE_ARMED.get(player.getUniqueId()));
+        HudOverlayService hud = HudOverlayService.getInstance();
+        // bounce bottom (priority 10), shock top (priority 20) — stacked 0.28 apart
+        hud.show(player, "hunter:bounce", HunterHudFormatter.formatBounce(bounces), 0, 10);
+        hud.show(player, "hunter:shock", HunterHudFormatter.formatShock(armed), 0, 20);
     }
 
-    private void sendShotActionBar(Player player, int bounces, boolean explosive) {
-        StringBuilder msg = new StringBuilder(ChatColor.GOLD + "Hunter's Bow " + ChatColor.DARK_GRAY + "| ");
-        if (bounces > 0) {
-            msg.append(ChatColor.AQUA).append("Recon ×").append(bounces).append(" ");
-        } else {
-            msg.append(ChatColor.GRAY).append("Plain ");
-        }
-        if (explosive) {
-            msg.append(ChatColor.RED).append("◉ Shock");
-        } else {
-            msg.append(ChatColor.DARK_GRAY).append("○ No shock");
-        }
-        player.spigot().sendMessage(ChatMessageType.ACTION_BAR, new TextComponent(msg.toString()));
-    }
-
-    private String dots(int bounces) {
-        String filled = ChatColor.AQUA + "●";
-        String empty = ChatColor.GRAY + "○";
-        StringBuilder sb = new StringBuilder();
-        for (int i = 0; i < MAX_BOUNCES; i++) {
-            sb.append(i < bounces ? filled : empty);
-        }
-        return sb.toString();
+    private static void hideHud(Player player) {
+        if (player == null) return;
+        HudOverlayService hud = HudOverlayService.getInstance();
+        hud.hide(player, "hunter:bounce");
+        hud.hide(player, "hunter:shock");
+        hud.hide(player, "hunter:shot");
     }
 
     // ---- Helpers ----
