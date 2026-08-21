@@ -10,7 +10,7 @@ import org.bukkit.WorldCreator;
 import org.bukkit.plugin.java.JavaPlugin;
 
 import dev.bukkit.ability.BukkitEffectManager;
-import dev.bukkit.ability.BukkitEffectRegistry;
+import dev.bukkit.ability.BukkitFocusBeamEffect;
 import dev.bukkit.ability.BukkitParticleTestEffect;
 import dev.bukkit.ability.BukkitShieldBashEffect;
 import dev.bukkit.ability.BukkitShadowWeaverDashEffect;
@@ -40,6 +40,7 @@ import dev.bukkit.game.states.PreLobbyState;
 import dev.bukkit.game.states.SelectClassState;
 import dev.bukkit.game.states.SelectItemState;
 import dev.bukkit.game.states.SetupState;
+import dev.bukkit.item.display.LoreLabels;
 import dev.bukkit.storage.BukkitConfigManager;
 import dev.bukkit.storage.progression.BukkitConfigProgressionDatabase;
 import dev.bukkit.storage.progression.ClassProgressionService;
@@ -57,10 +58,18 @@ import dev.bukkit.utils.ManaDiscountUtils;
 import dev.core.ability.Ability;
 import dev.core.ability.AbilityRegistry;
 import dev.core.ability.EffectManagerInterface;
+import dev.core.ability.impl.FocusBeamAbility;
+import dev.core.ability.impl.ParticleTestAbility;
+import dev.core.ability.impl.ShadowWeaverStaffAbility;
+import dev.core.ability.impl.ShieldBashAbility;
+import dev.core.ability.impl.SmashAbility;
 import dev.core.ability.impl.SoulCollectorAbility;
 import dev.core.ability.impl.SoulRecallAbility;
 import dev.core.ability.impl.SoulRecallShiftAbility;
 import dev.core.ability.impl.SoulSummonAbility;
+import dev.core.ability.impl.SpinjitzuAbility;
+import dev.core.ability.impl.SpiritSceptreAbility;
+import dev.core.ability.impl.SwingBoneAbility;
 import dev.core.ability.passive.SetPassiveRegistry;
 import dev.core.ability.storage.AbilityLoader;
 import dev.core.entity.EntityManager;
@@ -79,6 +88,8 @@ import dev.core.item.RPGItemSet;
 import dev.core.item.loader.RPGItemLoader;
 import dev.core.item.loader.RPGItemRegistry;
 import dev.core.stat.DefaultStats;
+import dev.core.stat.adapter.StatTypeAdapter;
+import dev.core.stat.loader.StatMetadataLoader;
 import dev.core.stat.Stat;
 import dev.core.stat.StatType;
 import dev.core.stat.loader.StatLoader;
@@ -114,24 +125,23 @@ public final class DMain extends JavaPlugin {
         effectManagerInterface = BukkitEffectManager.getInstance();
         itemRegistry = RPGItemRegistry.getInstance();
         messageSenderInterface = BukkitMessageSender.getInstance();
-        AbilityRegistry.preregister();
-        AbilityRegistry.register(new SoulSummonAbility());
-        AbilityRegistry.register(new SoulRecallAbility());
-        AbilityRegistry.register(new SoulRecallShiftAbility());
-        AbilityRegistry.register(new SoulCollectorAbility());
-
-        // ---- Extension point: wire ability ids to their Bukkit effects ----
-        // (register additional abilities via AbilityRegistry.register(...) BEFORE
-        //  abilities.yml loads below so the config metadata is applied to them.)
-        BukkitEffectRegistry.register("PARTICLE_TEST_ABILITY", BukkitParticleTestEffect::new);
-        BukkitEffectRegistry.register("BONE_SWING", BukkitSwingBoneEffect::new);
-        BukkitEffectRegistry.register("GUIDED_BAT", BukkitSpiritSceptreBatEffect::new);
-        BukkitEffectRegistry.register("SPINJITZU", BukkitSpinjitzuEffect::new);
-        BukkitEffectRegistry.register("SMASH", BukkitSmashEffect::new);
-        BukkitEffectRegistry.register("SHIELD_BASH", BukkitShieldBashEffect::new);
-        BukkitEffectRegistry.register("SOUL_SUMMON", BukkitSoulSummonEffect::new);
-        BukkitEffectRegistry.register("SOUL_RECALL", BukkitSoulRecallEffect::new);
-        BukkitEffectRegistry.register("SOUL_RECALL_SHIFT", BukkitSoulStoreEffect::new);
+        // ---- Register abilities together with their Bukkit effects ----
+        // One call per ability wires both the metadata (overridden by
+        // abilities.yml below) and the in-game effect. Register BEFORE
+        // abilities.yml loads so the config metadata is applied to them.
+        AbilityRegistry.register(new ParticleTestAbility(), BukkitParticleTestEffect::new);
+        AbilityRegistry.register(new SwingBoneAbility(), BukkitSwingBoneEffect::new);
+        AbilityRegistry.register(new SpiritSceptreAbility(), BukkitSpiritSceptreBatEffect::new);
+        AbilityRegistry.register(new FocusBeamAbility(), BukkitFocusBeamEffect::new);
+        AbilityRegistry.register(new SpinjitzuAbility(), BukkitSpinjitzuEffect::new);
+        AbilityRegistry.register(new SmashAbility(), BukkitSmashEffect::new);
+        AbilityRegistry.register(new ShieldBashAbility(), BukkitShieldBashEffect::new);
+        AbilityRegistry.register(new SoulSummonAbility(), BukkitSoulSummonEffect::new);
+        AbilityRegistry.register(new SoulRecallAbility(), BukkitSoulRecallEffect::new);
+        AbilityRegistry.register(new SoulRecallShiftAbility(), BukkitSoulStoreEffect::new);
+        AbilityRegistry.register(new SoulCollectorAbility()); // PASSIVE: lore-only, no effect
+        AbilityRegistry.register(ShadowWeaverStaffAbility.place(), BukkitShadowWeaverPlaceEffect::new);
+        AbilityRegistry.register(ShadowWeaverStaffAbility.dash(), BukkitShadowWeaverDashEffect::new);
 
         // Status effect behaviors: how each CC type plays out on the vanilla
         // entity (stat engine / potions / AI / velocity). Types without a
@@ -140,10 +150,6 @@ public final class DMain extends JavaPlugin {
         StatusEffectBehaviorRegistry.register(StatusEffectType.ROOTED, new RootedStatusEffectBehavior());
         StatusEffectBehaviorRegistry.register(StatusEffectType.STUNNED, new StunnedStatusEffectBehavior());
         StatusEffectBehaviorRegistry.register(StatusEffectType.AIRBORNE, new AirborneStatusEffectBehavior());
-        BukkitEffectRegistry.register(dev.core.ability.impl.ShadowWeaverStaffAbility.PLACE_ID,
-                BukkitShadowWeaverPlaceEffect::new);
-        BukkitEffectRegistry.register(dev.core.ability.impl.ShadowWeaverStaffAbility.DASH_ID,
-                BukkitShadowWeaverDashEffect::new);
 
         // Shadow Weaver's Staff: per-tick preview, platform decay, dash lock and
         // sticky-lock runtime, plus its drop-off synergy listeners.
@@ -157,9 +163,21 @@ public final class DMain extends JavaPlugin {
         SetPassiveRegistry.register(ManaDiscountUtils.MARKER);
 
         configManager = new BukkitConfigManager(this);
+
+        // ==============================================[ Load lore.yml
+        // ]==================================================
+        // Presentation labels for item lore (headers, ability/cost/cooldown
+        // lines, set + level footers). Must load before any item is rendered.
+        LoreLabels.load(configManager.getProvider("lore.yml"));
+
         // ==============================================[ Load Default Stats
         // ]===============================================
         ConfigProvider statsConfig = configManager.getProvider("stats.yml");
+        // Seed the StatRegistry from the StatType enum, then apply config-driven
+        // metadata overrides (display name, symbol, color, percent) from the
+        // statMetadata section of stats.yml.
+        StatTypeAdapter.initializeStatTypes();
+        StatMetadataLoader.loadStatMetadata(statsConfig);
         Map<RPGClassType, Map<StatType, Stat>> defaultStats = StatLoader.loadDefaultStats(statsConfig);
         DefaultStats.loadAll(defaultStats);
 

@@ -268,3 +268,21 @@ abilities:
     action: LEFT_CLICK
     cooldownScope: PLAYER
     cooldown: 0
+  FOCUS_BEAM:
+    name: Focus Beam
+    description:
+      - "Charge your focus, then release a"
+      - "searing arcane beam that deals"
+      - "<aqua>Magic Damage</aqua> every tick to the"
+      - "first enemy in your sights."
+      - ""
+      - "Right-click again while the beam"
+      - "is up to cancel it (the cancelling"
+      - "click is free)."
+    triggerType: MANUAL
+    action: RIGHT_CLICK
+    cooldownScope: PLAYER
+    cooldown: 0
+    cost:
+      mode: MANA
+      amount: 50

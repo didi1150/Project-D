@@ -768,6 +768,33 @@ items:
       policy: STACK
     abilities:
     - GUIDED_BAT
+  ARCANE_FOCUS:
+    # Mage focus staff: RIGHT CLICK channels a Focus Beam (50 mana, no
+    # cooldown) — a short spiral charge followed by an arcane beam that burns
+    # the first enemy in line every tick. RIGHT CLICK again while the beam is
+    # up cancels it; the cancelling click's cost is refunded (see
+    # BukkitFocusBeamEffect).
+    unlockLevel: 0
+    name: Arcane Focus
+    material: BLAZE_ROD
+    slot: MAIN_HAND
+    itemType: STAFF
+    passive-stats: []
+    allowed-classes:
+    - MAGE
+    active-stats:
+    - amount: 100.0
+      statType: MANA_MAX
+      modifierType: FLAT
+      statTarget: BOTH
+      policy: STACK
+    - amount: 60.0
+      statType: ABILITY_POWER
+      modifierType: FLAT
+      statTarget: BOTH
+      policy: STACK
+    abilities:
+    - FOCUS_BEAM
   SOUL_TOME:
     # The Support's summoning tool: RIGHT CLICK summons every soul held in the
     # tome, LEFT CLICK recalls active summons to your side, SHIFT RIGHT CLICK

@@ -4,6 +4,7 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
 
+import dev.core.ability.impl.FocusBeamAbility;
 import dev.core.ability.impl.ParticleTestAbility;
 import dev.core.ability.impl.ShieldBashAbility;
 import dev.core.ability.impl.ShadowWeaverStaffAbility;
@@ -34,6 +35,7 @@ public class AbilityRegistry {
 		register(new ParticleTestAbility());
 		register(new SwingBoneAbility());
 		register(new SpiritSceptreAbility());
+		register(new FocusBeamAbility());
 		register(new SpinjitzuAbility());
 		register(new SmashAbility());
 		register(new ShieldBashAbility());
