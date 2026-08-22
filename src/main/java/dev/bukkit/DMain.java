@@ -75,6 +75,7 @@ import dev.core.ability.impl.SoulSummonAbility;
 import dev.core.ability.impl.SpinjitzuAbility;
 import dev.core.ability.impl.SpiritSceptreAbility;
 import dev.core.ability.impl.SwingBoneAbility;
+import dev.core.ability.impl.TriVolleyAbility;
 import dev.core.ability.passive.SetPassiveRegistry;
 import dev.core.ability.storage.AbilityLoader;
 import dev.core.entity.EntityManager;
@@ -149,6 +150,7 @@ public final class DMain extends JavaPlugin {
         AbilityRegistry.register(ShadowWeaverStaffAbility.dash(), BukkitShadowWeaverDashEffect::new);
         AbilityRegistry.register(new BouncyArrowAbility(), BukkitBouncyArrowEffect::new);
         AbilityRegistry.register(new ExplosiveArrowAbility(), BukkitExplosiveArrowEffect::new);
+        AbilityRegistry.register(new TriVolleyAbility(), dev.bukkit.ability.BukkitTriVolleyEffect::new);
 
         // Status effect behaviors: how each CC type plays out on the vanilla
         // entity (stat engine / potions / AI / velocity). Types without a
@@ -163,6 +165,7 @@ public final class DMain extends JavaPlugin {
         dev.bukkit.hud.HudConfig hudCfg = dev.bukkit.hud.HudConfigLoader.load(configManager.getProvider("hud.yml"));
         dev.bukkit.hud.HudOverlayService.getInstance().init(this, hudCfg);
         dev.bukkit.hud.HunterHudFormatter.load(hudCfg);
+        dev.bukkit.hud.TriHomingHudFormatter.load(hudCfg);
 
         // Shadow Weaver's Staff: per-tick preview, platform decay, dash lock and
         // sticky-lock runtime, plus its drop-off synergy listeners.
@@ -170,6 +173,9 @@ public final class DMain extends JavaPlugin {
 
         // Hunter's Bow: bounce charges, shock arming, ricochet physics, detonations, trails
         HunterBowManager.getInstance().start(this);
+
+        // Trinity Bow: 3 homing arrows + 5-arrow volley
+        dev.bukkit.item.TriHomingBowManager.getInstance().start(this);
 
         // Item set passives: registered before items.yml loads so the loader can
         // resolve the "passives:" lists of set bonuses.
@@ -287,27 +293,6 @@ public final class DMain extends JavaPlugin {
         buildAssetManager = new BuildAssetManager(this, "buildAssets/");
         buildAssetManager.registerCommand(commandManager);
 
-        // HUD live reload: /hud reload (supports player and console)
-        commandManager.createCommand(dev.bukkit.command.MainCommandBuilder.startBuilding("hud")
-                .setDescription("HUD overlay controls")
-                .setUsage("/hud reload")
-                .addSubCommand(dev.bukkit.command.SubCommandBuilder.startBuilding("reload")
-                        .setDescription("Reload hud.yml and refresh overlay/formats")
-                        .setCommandAction(0, (sender, args) -> {
-                            try {
-                                dev.core.storage.config.ConfigProvider reloaded = configManager.reloadProvider("hud.yml");
-                                dev.bukkit.hud.HudConfig n = dev.bukkit.hud.HudConfigLoader.load(reloaded);
-                                dev.bukkit.hud.HudOverlayService.getInstance().reload(n);
-                                dev.bukkit.hud.HunterHudFormatter.load(n);
-                                dev.bukkit.utils.BukkitMessageSender.getInstance().sendMessage(sender,
-                                        dev.core.utils.MessageComponent.of("<green>HUD reloaded.</green>"));
-                            } catch (Exception e) {
-                                dev.bukkit.utils.BukkitMessageSender.getInstance().sendMessage(sender,
-                                        dev.core.utils.MessageComponent.of("<red>HUD reload failed: %s</red>", e.getMessage()));
-                            }
-                        }))
-                .build());
-
         commandManager.registerCommands(this);
         combatListener = new CombatListener(this);
         Bukkit.getPluginManager().registerEvents(combatListener, this);
@@ -325,6 +310,7 @@ public final class DMain extends JavaPlugin {
         dev.bukkit.hud.HudOverlayService.getInstance().shutdown();
         ShadowWeaverManager.getInstance().stop();
         HunterBowManager.getInstance().stop();
+        dev.bukkit.item.TriHomingBowManager.getInstance().stop();
         combatListener.cleanup();
         configManager.saveAll();
         eventBusInterface.getSubscribed().clear();
@@ -344,6 +330,10 @@ public final class DMain extends JavaPlugin {
 
     public ClassProgressionService getProgressionService() {
         return progressionService;
+    }
+
+    public BukkitConfigManager getConfigManager() {
+        return configManager;
     }
 
     /**

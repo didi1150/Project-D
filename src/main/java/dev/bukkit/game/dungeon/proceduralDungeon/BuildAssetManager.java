@@ -191,22 +191,33 @@ public class BuildAssetManager {
     private BuildAsset lastPreviewedAsset;
     private Vector3Int lastPreviewStartPos;
 
+    private boolean checkPerm(org.bukkit.entity.Player player, String node) {
+        if (player.hasPermission(node) || player.hasPermission("projectd.admin") || player.isOp()) return true;
+        player.sendMessage("§cNo permission: " + node);
+        return false;
+    }
+
     public void registerCommand(CommandManager cm) {
         cm.addSubCommand("project-d", SubCommandBuilder.startBuilding("asset")
+                .setDescription("Build asset controls")
                 .setPlayerCommandAction(1, "firstPos", (player, args) -> {
+                    if (!checkPerm(player, "projectd.asset.use")) return;
                     firstPos = new Vector3Int(player.getLocation().getBlockX(), player.getLocation().getBlockY(), player.getLocation().getBlockZ());
                     player.sendMessage("Set firstPos to: " + firstPos);
                 })
                 .setPlayerCommandAction(1, "secondPos", (player, args) -> {
+                    if (!checkPerm(player, "projectd.asset.use")) return;
                     secondPos = new Vector3Int(player.getLocation().getBlockX(), player.getLocation().getBlockY(), player.getLocation().getBlockZ());
                     player.sendMessage("Set secondPos to: " + secondPos);
                 })
                 .setPlayerCommandAction(2, "save", (player, args) -> {
+                    if (!checkPerm(player, "projectd.asset.save")) return;
                     String name = args[1];
                     saveAsset(name, player.getWorld(), firstPos, secondPos);
                     player.sendMessage("Saving asset from " + firstPos + " to " + secondPos + " as: " + name);
                 }).setCommandArgumentsList(1, "save", "name")
                 .setPlayerCommandAction(2, "load", (player, args) -> {
+                    if (!checkPerm(player, "projectd.asset.load")) return;
                     String name = args[1];
                     BuildAsset asset = getAsset(name);
                     if (asset == null){
@@ -219,10 +230,12 @@ public class BuildAssetManager {
                     player.sendMessage("firstPos=" + asset.startPos() + " secondPos=" + asset.endPos() + " blocks.size=" + asset.blocks().size() + " entities.size=" + asset.entities().size());
                 }).setCommandArgumentsList(1, "load", getAllAssetNames(), "name")
                 .setPlayerCommandAction(1, "reloadAssets", (player, args) -> {
+                    if (!checkPerm(player, "projectd.asset.reload")) return;
                     loadAllAssets();
                     player.sendMessage("Reloaded " + getAllAssetNames().size() + " build assets");
                 })
                 .setPlayerCommandAction(2, "showPreview", (player, args) -> {
+                    if (!checkPerm(player, "projectd.asset.preview")) return;
                     String name = args[1];
                     BuildAsset asset = getAsset(name);
                     if (asset == null){
@@ -237,6 +250,7 @@ public class BuildAssetManager {
                     player.sendMessage("firstPos=" + asset.startPos() + " secondPos=" + asset.endPos() + " blocks.size=" + asset.blocks().size() + " entities.size=" + asset.entities().size());
                 }).setCommandArgumentsList(1, "showPreview", this::getAllAssetNames, "name")
                 .setPlayerCommandAction(1, "removeLastPreview", (player, args) -> {
+                    if (!checkPerm(player, "projectd.asset.preview")) return;
                     if (lastPreviewedAsset == null){
                         player.sendMessage("No last build asset found");
                         return;

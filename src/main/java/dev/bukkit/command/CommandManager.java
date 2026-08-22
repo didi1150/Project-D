@@ -13,6 +13,7 @@ import java.util.Optional;
 import org.bukkit.Bukkit;
 import org.bukkit.ChatColor;
 import org.bukkit.command.CommandMap;
+import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
 import org.bukkit.plugin.java.JavaPlugin;
 import org.jetbrains.annotations.Nullable;
@@ -69,505 +70,413 @@ public class CommandManager {
         return instance;
     }
 
-//    private final Map<String, CommandExecutor> oldCommandMap;
     private final Map<String, MainCommandBuilder.MainCommand> commandMap;
 
     private final BukkitMessageSender messageSender;
 
+    // permission helpers
+    private boolean hasPerm(CommandSender sender, String node) {
+        if (sender.hasPermission(node) || sender.hasPermission("projectd.admin") || sender.isOp()) return true;
+        if (!(sender instanceof Player) && sender != null) return true; // console
+        return false;
+    }
+    private SubCommandBuilder.PlayerCommandAction perm(String node, SubCommandBuilder.PlayerCommandAction action) {
+        return (player, args) -> {
+            if (!hasPerm(player, node)) {
+                messageSender.sendMessage(player, MessageComponent.of("<red>No permission: %s</red>", node));
+                return;
+            }
+            action.perform(player, args);
+        };
+    }
+    private SubCommandBuilder.CommandAction permAny(String node, SubCommandBuilder.CommandAction action) {
+        return (sender, args) -> {
+            if (!hasPerm(sender, node)) {
+                messageSender.sendMessage(sender, MessageComponent.of("<red>No permission: %s</red>", node));
+                return;
+            }
+            action.perform(sender, args);
+        };
+    }
+
     private CommandManager(ConfigProvider configProvider, ClassProgressionService classProgressionService) {
-//        oldCommandMap = new HashMap<>();
-//        oldCommandMap.put("giveItem", new GiveItemCommand());
-//        oldCommandMap.put("saveItem", new SaveItemCommand(configProvider));
-//        oldCommandMap.put("showProgress", new ShowProgressCommand());
-//        oldCommandMap.put("selectActive", new SelectActiveCommand(classProgressionService));
-//        oldCommandMap.put("showStats", new ShowStatsCommand());
-//        oldCommandMap.put("setXp", new SetXPCommand(classProgressionService));
-//        oldCommandMap.put("dungeon", new DungeonCommand());
 
         messageSender = BukkitMessageSender.getInstance();
 
         commandMap = new HashMap<>();
 
-        createCommand(MainCommandBuilder.startBuilding("setup").setDescription("Main command for Setup")
-                .addSubCommand(SubCommandBuilder.startBuilding("toggle").addAlias("t")
-                        .setDescription("Toggles the setup mode").setPlayerCommandAction(0, (player, args) -> {
-                            // TODO: Toggle setup mode
-                            boolean mode = gameSettingsLoader.toggleSetup();
-                            messageSender.sendLine(player, "<red></red>");
-                            messageSender.sendCenteredMessage(player,
-                                    MessageComponent.of("<yellow>In Setup: %s</yellow>", mode));
-                            messageSender.sendLine(player, "<red></red>");
-                        }))
-                .addSubCommand(
-                        SubCommandBuilder.startBuilding("set").setPlayerCommandAction(1, "prelobby", (player, args) -> {
-                            /*
-                             * - PreLobby Spawn location - Selection Spawn Location - Selection Class
-                             * Locations - Hole Center Location
-                             */
-                            SetupUtils.giveViewLocationSetter(gameSettingsLoader, player,
-                                    GameSettingsLoader.LOCATIONS_PRELOBBYSPAWN, eventBus, messageSender);
-
-                        }).setPlayerCommandAction(1, "selectionspawn", (player, args) -> {
-                            SetupUtils.giveViewLocationSetter(gameSettingsLoader, player,
-                                    GameSettingsLoader.LOCATIONS_SELECTIONSPAWN, eventBus, messageSender);
-                            System.out.println("Called selectionspawn");
-                        }).setPlayerCommandAction(1, "holecenter", (player, args) -> {
-                            SetupUtils.giveBlockLocationSetter(gameSettingsLoader, player,
-                                    GameSettingsLoader.LOCATIONS_HOLECENTER, eventBus, messageSender);
-
-                        }).setPlayerCommandAction(2, "classblock", (player, args) -> {
-                            try {
-                                RPGClassType classType = RPGClassType.valueOf(args[1].toUpperCase());
-                                SetupUtils.giveBlockLocationSetter(gameSettingsLoader, player,
-                                        GameSettingsLoader.LOCATIONS_SELECTIONCLASSES + "." + classType.toString(),
-                                        eventBus, messageSender);
-                            } catch (Exception e) {
-                                messageSender.sendLine(player, "<red></red>");
-                                messageSender.sendCenteredMessage(player, MessageComponent
-                                        .of("<red>The classType <yellow>%s</yellow> does not exist!</red>", args[1]));
-                                messageSender.sendLine(player, "<red></red>");
-                            }
-                        }).setPlayerCommandAction(2, "dungeonworld", (player, args) -> {
-                            String world = args[1];
-                            SetupUtils.setDungeonWorld(world, gameSettingsLoader);
-                            messageSender.sendMessage(player, MessageComponent.of(
-                                    "<yellow>The world %s will now be used for dungeon exploration!</yellow> ", world));
-                        }).setPlayerCommandAction(3, "bossworld", (player, args) -> {
-                            try {
-                                String world = args[1];
-                                int floor = Integer.parseInt(args[2]);
-                                SetupUtils.setBossWorld(world, gameSettingsLoader, floor);
-                                messageSender.sendMessage(player, MessageComponent.of(
-                                        "<yellow>The world %s has been set as boss arena of floor %s.</yellow> ", world,
-                                        floor));
-                            } catch (NumberFormatException e) {
-                                messageSender.sendLine(player, "<red></red>");
-                                messageSender.sendCenteredMessage(player,
-                                        MessageComponent.of("<red>Invalid Number <yellow>%s</yellow></red>", args[1]));
-                                messageSender.sendLine(player, "<red></red>");
-                            }
-                        }).setPlayerCommandAction(2, "minplayers", (player, args) -> {
-                            try {
-                                Integer count = Integer.valueOf(args[1]);
-                                gameSettingsLoader.setMinPlayers(count);
-                                messageSender.sendMessage(player, MessageComponent
-                                        .of("<yellow>The game will now start at %s player!</yellow> ", args[1]));
-                            } catch (NumberFormatException e) {
-                                messageSender.sendLine(player, "<red></red>");
-                                messageSender.sendCenteredMessage(player,
-                                        MessageComponent.of("<red>Invalid Number <yellow>%s</yellow></red>", args[1]));
-                                messageSender.sendLine(player, "<red></red>");
-                            }
-                        }).setPlayerCommandAction(2, "bossspawn", (player, args) -> {
-                            try {
-                                int floor = Integer.parseInt(args[1]);
-                                Point3D point = new Point3D((int) Math.floor(player.getLocation().getX()),
-                                        (int) Math.floor(player.getLocation().getY()),
-                                        (int) Math.floor(player.getLocation().getZ()));
-                                gameSettingsLoader.setBossSpawnLocation(floor, point);
-                                messageSender.sendCenteredMessage(player, MessageComponent
-                                        .of("<green>Boss spawn for floor %s has been set.</green>", floor));
-                            } catch (NumberFormatException e) {
-                                messageSender.sendLine(player, "<red></red>");
-                                messageSender.sendCenteredMessage(player,
-                                        MessageComponent.of("<red>Invalid Number <yellow>%s</yellow></red>", args[1]));
-                                messageSender.sendLine(player, "<red></red>");
-                            }
-                        }).setPlayerCommandAction(2, "bossplayerspawn", (player, args) -> {
-                            try {
-                                int floor = Integer.parseInt(args[1]);
-                                Point3D point = new Point3D((int) Math.floor(player.getLocation().getX()),
-                                        (int) Math.floor(player.getLocation().getY()),
-                                        (int) Math.floor(player.getLocation().getZ()));
-                                gameSettingsLoader.setBossPlayerSpawnLocation(floor, point);
-                                messageSender.sendCenteredMessage(player, MessageComponent
-                                        .of("<green>Boss player spawn for floor %s has been set.</green>", floor));
-                            } catch (NumberFormatException e) {
-                                messageSender.sendLine(player, "<red></red>");
-                                messageSender.sendCenteredMessage(player,
-                                        MessageComponent.of("<red>Invalid Number <yellow>%s</yellow></red>", args[1]));
-                                messageSender.sendLine(player, "<red></red>");
-                            }
-                        }).setPlayerCommandAction(2, "loadbossworld", (player, args) -> {
-                            String worldId = args[1];
-                            DMain.getInstance().getBossArenaManager().loadTemplateEditWorld(worldId)
-                                    .whenComplete((world, throwable) -> {
-                                        if (throwable != null) {
-                                            messageSender.sendCenteredMessage(player, MessageComponent.of(
-                                                    "<red>Could not load boss template world <yellow>%s</yellow>.Traceback: %s</red>",
-                                                    worldId, throwable.getMessage()));
-                                            return;
-                                        }
-                                        messageSender.sendCenteredMessage(player, MessageComponent.of(
-                                                "<green>Boss template world <yellow>%s</yellow> loaded.</green>",
-                                                worldId));
-                                        player.teleport(world.getSpawnLocation());
-                                    });
-                        }).setPlayerCommandAction(2, "tpbossworld", (player, args) -> {
-                            String worldId = args[1];
-                            String worldName = "boss_template_edit_" + worldId.replaceAll("[^A-Za-z0-9_-]", "_");
-                            org.bukkit.World world = Bukkit.getWorld(worldName);
-                            if (world == null) {
-                                messageSender.sendCenteredMessage(player, MessageComponent.of(
-                                        "<red>Boss template world <yellow>%s</yellow> is not loaded.</red>", worldId));
-                                return;
-                            }
-                            player.teleport(world.getSpawnLocation());
-                            messageSender.sendCenteredMessage(player, MessageComponent.of(
-                                    "<green>Teleported to boss template world <yellow>%s</yellow>.</green>", worldId));
-                        }).setPlayerCommandAction(2, "savebossworld", (player, args) -> {
-                            String worldId = args[1];
-                            DMain.getInstance().getBossArenaManager().saveTemplateEditWorld(worldId)
-                                    .whenComplete((ignored, throwable) -> {
-                                        if (throwable != null) {
-                                            messageSender.sendCenteredMessage(player, MessageComponent.of(
-                                                    "<red>Could not save boss template world <yellow>%s</yellow>.</red>",
-                                                    worldId));
-                                            return;
-                                        }
-                                        messageSender.sendCenteredMessage(player, MessageComponent.of(
-                                                "<green>Boss template world <yellow>%s</yellow> saved back to template.</green>",
-                                                worldId));
-                                    });
-                        }).setPlayerCommandAction(2, "quitbossworld", (player, args) -> {
-                            String worldId = args[1];
-                            DMain.getInstance().getBossArenaManager()
-                                    .quitTemplateEditWorld(worldId, Bukkit.getWorlds().get(0))
-                                    .whenComplete((ignored, throwable) -> {
-                                        if (throwable != null) {
-                                            messageSender.sendCenteredMessage(player, MessageComponent.of(
-                                                    "<red>Could not save boss template world <yellow>%s</yellow>.</red>",
-                                                    worldId));
-                                            return;
-                                        }
-                                        messageSender.sendCenteredMessage(player, MessageComponent.of(
-                                                "<green>Boss template world <yellow>%s</yellow> saved back to template.</green>",
-                                                worldId));
-                                    });
-                        }).setPlayerCommandAction(1, "setupstatus", (player, args) -> {
-                            GameSettings settings = GameSettings.getCurrentSettings();
-                            int floor = settings.getFloor();
-                            boolean hasDungeonWorld = settings.getDungeonWorld() != null
-                                    && !settings.getDungeonWorld().isBlank();
-                            boolean hasPreLobby = settings.getPreLobbySpawn() != null
-                                    && settings.getPreLobbySpawn().getWorld() != null;
-                            boolean hasSelectionSpawn = settings.getSelectionSpawn() != null
-                                    && settings.getSelectionSpawn().getWorld() != null;
-                            boolean hasHoleCenter = settings.getHoleCenter() != null
-                                    && settings.getHoleCenter().getWorld() != null;
-                            boolean hasBossWorld = settings.getBossWorld() != null
-                                    && !settings.getBossWorld().isBlank();
-                            boolean hasBossSpawn = settings.getBossSpawnLocation(floor) != null;
-                            boolean hasBossPlayerSpawn = settings.getBossPlayerSpawnLocation(floor) != null;
-
-                            messageSender.sendLine(player, "<gold>==== Setup Status ====");
-                            messageSender.sendCenteredMessage(player, MessageComponent
-                                    .of("<yellow>Pre-lobby spawn:</yellow> %s", hasPreLobby ? "SET" : "MISSING"));
-                            messageSender.sendCenteredMessage(player, MessageComponent
-                                    .of("<yellow>Selection spawn:</yellow> %s", hasSelectionSpawn ? "SET" : "MISSING"));
-                            messageSender.sendCenteredMessage(player, MessageComponent.of(
-                                    "<yellow>Selection hole center:</yellow> %s", hasHoleCenter ? "SET" : "MISSING"));
-                            messageSender.sendCenteredMessage(player, MessageComponent
-                                    .of("<yellow>Dungeon world:</yellow> %s", hasDungeonWorld ? "SET" : "MISSING"));
-                            messageSender.sendCenteredMessage(player,
-                                    MessageComponent.of("<yellow>Boss world for floor %s:</yellow> %s", floor,
-                                            hasBossWorld ? "SET" : "MISSING"));
-                            messageSender.sendCenteredMessage(player,
-                                    MessageComponent.of("<yellow>Boss spawn for floor %s:</yellow> %s", floor,
-                                            hasBossSpawn ? "SET" : "MISSING"));
-                            messageSender.sendCenteredMessage(player,
-                                    MessageComponent.of("<yellow>Boss player spawn for floor %s:</yellow> %s", floor,
-                                            hasBossPlayerSpawn ? "SET" : "MISSING"));
-                            messageSender.sendLine(player, "<gold>======================");
-                        }).setCommandArgumentsList(0,
-                                Arrays.asList("selectionspawn", "holecenter", "prelobby", "classblock", "dungeonworld",
-                                        "bossworld", "minplayers", "bossspawn", "bossplayerspawn", "loadbossworld",
-                                        "tpbossworld", "savebossworld", "setupstatus"))
-                                .setCommandArgumentsList(1, "classblock", Arrays.asList(RPGClassType.validTypes())
-                                        .stream().map(type -> type.toString()).toList()))
-                .build());
-
+        // Strict absolute: only one MainCommand — project-d (alias d, pd). All trees extend from it.
         createCommand(MainCommandBuilder.startBuilding("project-d").setDescription("Main command for Project-D")
-                .setUsage("/project-d").addAlias("d").addSubCommand(SubCommandBuilder.startBuilding("giveItem")
-                        .setDescription("to give items").setPlayerCommandAction(1, (player, args) -> {
-                            EntityManager.getInstance().getEntity(player.getUniqueId()).ifPresent(p -> {
-                                String id = args[0];
-                                RPGItemRegistry.getInstance().getItem(id).ifPresentOrElse(item -> {
-                                    player.getInventory().addItem(BukkitItemStackAdapter.toItemStack(item, p));
-                                    player.sendMessage("Success! You received " + item.getName());
-                                }, () -> {
-                                    player.sendMessage("This item does not exist");
-                                });
-                                BukkitInventorySync.syncInventory(p, player);
-                            });
-                        }).addAlias("g").setCommandArgumentsList(0,
-                                () -> RPGItemRegistry.getInstance().allItems().values().stream().map(RPGItem::getId).toList(),
-                                "itemName"))
-                .addSubCommand(SubCommandBuilder.startBuilding("saveItem").setDescription("to save an item")
-                        .setPlayerCommandAction(0, (player, args) -> {
-                            EntityManager.getInstance().getEntity(player.getUniqueId()).ifPresent(p -> {
-                                RPGItem item = p.getEquipmentManager().getEquippedItem(EquipmentSlot.MAIN_HAND);
-                                if (item == null) {
-                                    player.sendMessage("You need to hold the item in your main hand");
-                                } else {
-                                    RPGItemLoader.saveItem(configProvider, item);
-                                    player.sendMessage(ChatColor.YELLOW + item.getId() + ChatColor.GREEN
-                                            + " has been successfully saved to the config.");
-                                }
-                            });
-                        }).setPlayerCommandAction(1, (player, args) -> {
-                            EntityManager.getInstance().getEntity(player.getUniqueId()).ifPresent(p -> {
-                                String id = args[0];
-                                RPGItemRegistry.getInstance().getItem(id).ifPresentOrElse(item -> {
-                                    player.getInventory().addItem(BukkitItemStackAdapter.toItemStack(item, p));
-                                }, () -> {
-                                    player.sendMessage("This item does not exist");
-                                });
-                                BukkitInventorySync.syncInventory(p, player);
-                            });
-                        }).setCommandArgumentsList(0,
-                                () -> RPGItemRegistry.getInstance().allItems().values().stream().map(RPGItem::getId).toList(),
-                                "itemName"))
-                .addSubCommand(SubCommandBuilder.startBuilding("showProgress")
-                        .setDescription("to show your leveling progress / class milestones")
-                        .setPlayerCommandAction(0, (player, args) -> {
-                            Optional<RPGEntity> optional = EntityManager.getInstance().getEntity(player.getUniqueId());
-                            if (optional.isEmpty()) {
-                                player.sendMessage(ChatColor.RED + "Could not find profile");
-                            } else {
-                                BukkitPlayerEntity playerEntity = (BukkitPlayerEntity) optional.get();
-
-                                // Display active class
-                                RPGClassType activeClass = playerEntity.getPlayerProgression().getActiveClass();
-                                player.sendMessage(ChatColor.GOLD + "═══════════════════════════════════");
-                                player.sendMessage(ChatColor.YELLOW + "Active Class: " + ChatColor.GREEN
-                                        + (activeClass != null ? activeClass.name() : "None"));
-                                player.sendMessage(ChatColor.GOLD + "═══════════════════════════════════");
-
-                                // Display all class progressions
-                                for (Map.Entry<RPGClassType, PlayerClassProgression> entry : playerEntity
-                                        .getPlayerProgression().getAllProgressions().entrySet()) {
-                                    RPGClassType classType = entry.getKey();
-                                    PlayerClassProgression progression = entry.getValue();
-
-                                    // Highlight active class
-                                    String classPrefix = classType.equals(activeClass) ? ChatColor.AQUA + "★ "
-                                            : ChatColor.GRAY + "  ";
-
-                                    player.sendMessage(classPrefix + ChatColor.WHITE + classType.name() + ":");
-                                    player.sendMessage(
-                                            ChatColor.GRAY + "  Level: " + ChatColor.YELLOW + progression.getLevel());
-                                    player.sendMessage(
-                                            ChatColor.GRAY + "  XP: " + ChatColor.GREEN + progression.getXp());
-                                    player.sendMessage(ChatColor.GRAY + "  XP til next level: " + ChatColor.GREEN
-                                            + progression.getXpToNextLevel());
-                                    player.sendMessage(ChatColor.GRAY + "  Usable Items: " + ChatColor.LIGHT_PURPLE
-                                            + progression.getUsableItems());
-                                    player.sendMessage(""); // Empty line for spacing
-                                }
-
-                                player.sendMessage(ChatColor.GOLD + "═══════════════════════════════════");
-                                player.sendMessage(ChatColor.GRAY + "★ = Active Class");
-                            }
-                        }))
-                .addSubCommand(
-                        SubCommandBuilder.startBuilding("setXp").setDescription("to set your current xp of a class")
-                                .setPlayerCommandAction(2, (player, args) -> {
-                                    Optional<RPGEntity> optional = EntityManager.getInstance()
-                                            .getEntity(player.getUniqueId());
-                                    if (optional.isEmpty()) {
-                                        player.sendMessage(ChatColor.RED + "Could not find profile");
-                                    } else {
-                                        BukkitPlayerEntity playerEntity = (BukkitPlayerEntity) optional.get();
-                                        try {
-                                            RPGClassType targetClass = RPGClassType.valueOf(args[0]);
-                                            int newXp = Integer.valueOf(args[1]);
-
-                                            playerEntity.getPlayerProgression().getProgression(targetClass)
-                                                    .setXp(newXp);
-                                            classProgressionService.saveClassProgression(playerEntity.getUuid(),
-                                                    playerEntity.getPlayerProgression().getProgression(targetClass));
-                                            messageSender.sendMessage(MessageComponent.of(MessageLevel.INFO_LEVEL,
-                                                    "Set the %s-Class-XP to %s", RPGClassType.valueOf(args[0]), newXp));
-                                        } catch (Exception e) {
-                                            player.sendMessage("/setXp <class> <xp>");
-                                        }
-                                    }
-                                })
-                                .setCommandArgumentsList(0, Arrays.stream(RPGClassType.values())
-                                        .filter(classType -> classType != RPGClassType.NONE).map(Enum::name).toList(),
-                                        "className")
-                                .setCommandArgumentsList(1, "xpNumber(Integer)"))
+                .setUsage("/project-d <subcommand>").addAlias("d").addAlias("pd")
                 .build());
-        addSubCommand("project-d", SubCommandBuilder.startBuilding("showStats").setDescription("to see your stats")
-                .setPlayerCommandAction(0, (player, args) -> {
-                    Optional<RPGEntity> optional = EntityManager.getInstance().getEntity(player.getUniqueId());
-                    if (optional.isEmpty()) {
-                        player.sendMessage(ChatColor.RED + "Could not find profile");
-                    } else {
-                        BukkitPlayerEntity playerEntity = (BukkitPlayerEntity) optional.get();
 
-                        player.sendMessage(ChatColor.GOLD + "═══════════════════════════════════");
-                        long now = System.currentTimeMillis();
-                        // Read through the StatEngine adapter so item-contributed stats
-                        // (e.g. armor from equipped gear) are reflected, not just base stats.
-                        for (StatType type : playerEntity.getStatManager().getStats().keySet()) {
-                            double value = playerEntity.getStatEngineAdapter().getCurrentValue(type, now);
-                            player.sendMessage(BukkitTextColorAdapter.formatStat(type, value, false));
-
-                        }
-                        player.sendMessage(ChatColor.GOLD + "═══════════════════════════════════");
+        // ==============================================================
+        // setup tree -> /d setup <toggle|prelobby|selectionspawn|holecenter|classblock|dungeonworld|bossworld|minplayers|bossspawn|bossplayerspawn|loadbossworld|tpbossworld|savebossworld|quitbossworld|status>
+        // ==============================================================
+        addSubCommand("project-d", SubCommandBuilder.startBuilding("setup")
+                .setDescription("Setup controls")
+                .setPlayerCommandAction(1, "toggle", perm("projectd.setup.toggle", (player, args) -> {
+                    boolean mode = gameSettingsLoader.toggleSetup();
+                    messageSender.sendLine(player, "<red></red>");
+                    messageSender.sendCenteredMessage(player, MessageComponent.of("<yellow>In Setup: %s</yellow>", mode));
+                    messageSender.sendLine(player, "<red></red>");
+                })).addAlias("t")
+                .setPlayerCommandAction(1, "prelobby", perm("projectd.setup.set", (player, args) -> {
+                    SetupUtils.giveViewLocationSetter(gameSettingsLoader, player, GameSettingsLoader.LOCATIONS_PRELOBBYSPAWN, eventBus, messageSender);
+                }))
+                .setPlayerCommandAction(1, "selectionspawn", perm("projectd.setup.set", (player, args) -> {
+                    SetupUtils.giveViewLocationSetter(gameSettingsLoader, player, GameSettingsLoader.LOCATIONS_SELECTIONSPAWN, eventBus, messageSender);
+                }))
+                .setPlayerCommandAction(1, "holecenter", perm("projectd.setup.set", (player, args) -> {
+                    SetupUtils.giveBlockLocationSetter(gameSettingsLoader, player, GameSettingsLoader.LOCATIONS_HOLECENTER, eventBus, messageSender);
+                }))
+                .setPlayerCommandAction(2, "classblock", perm("projectd.setup.set", (player, args) -> {
+                    try {
+                        RPGClassType classType = RPGClassType.valueOf(args[1].toUpperCase());
+                        SetupUtils.giveBlockLocationSetter(gameSettingsLoader, player, GameSettingsLoader.LOCATIONS_SELECTIONCLASSES + "." + classType.toString(), eventBus, messageSender);
+                    } catch (Exception e) {
+                        messageSender.sendLine(player, "<red></red>");
+                        messageSender.sendCenteredMessage(player, MessageComponent.of("<red>The classType <yellow>%s</yellow> does not exist!</red>", args[1]));
+                        messageSender.sendLine(player, "<red></red>");
                     }
-                }));
-        addSubCommand("project-d", SubCommandBuilder.startBuilding("selectActive").setDescription("to select a class")
-                .setPlayerCommandAction(1, (player, args) -> {
-                    Optional<RPGEntity> optional = EntityManager.getInstance().getEntity(player.getUniqueId());
-                    if (optional.isEmpty()) {
-                        player.sendMessage(ChatColor.RED + "Could not find profile");
-                    } else {
-                        BukkitPlayerEntity playerEntity = (BukkitPlayerEntity) optional.get();
-
-                        playerEntity.getPlayerProgression().setActiveClass(RPGClassType.valueOf(args[0]),
-                                playerEntity.getStatManager());
-                        classProgressionService.setActiveClass(playerEntity.getPlayerProgression());
-                        messageSender.sendMessage(MessageComponent.of(MessageLevel.INFO_LEVEL, "Selected the %s-Class",
-                                RPGClassType.valueOf(args[0])));
+                }))
+                .setPlayerCommandAction(2, "dungeonworld", perm("projectd.setup.set", (player, args) -> {
+                    String world = args[1];
+                    SetupUtils.setDungeonWorld(world, gameSettingsLoader);
+                    messageSender.sendMessage(player, MessageComponent.of("<yellow>The world %s will now be used for dungeon exploration!</yellow> ", world));
+                }))
+                .setPlayerCommandAction(3, "bossworld", perm("projectd.setup.set", (player, args) -> {
+                    try {
+                        String world = args[1]; int floor = Integer.parseInt(args[2]);
+                        SetupUtils.setBossWorld(world, gameSettingsLoader, floor);
+                        messageSender.sendMessage(player, MessageComponent.of("<yellow>The world %s has been set as boss arena of floor %s.</yellow> ", world, floor));
+                    } catch (NumberFormatException e) {
+                        messageSender.sendLine(player, "<red></red>");
+                        messageSender.sendCenteredMessage(player, MessageComponent.of("<red>Invalid Number <yellow>%s</yellow></red>", args[1]));
+                        messageSender.sendLine(player, "<red></red>");
                     }
-                }).setCommandArgumentsList(0, Arrays.stream(RPGClassType.values())
-                        .filter(classType -> classType != RPGClassType.NONE).map(Enum::name).toList(), "className"));
-
-        addSubCommand("project-d", SubCommandBuilder.startBuilding("revive").setDescription("to select a class")
-                .setPlayerCommandAction(0, (player, args) -> {
-                    Optional<RPGEntity> optional = EntityManager.getInstance().getEntity(player.getUniqueId());
-                    if (optional.isEmpty()) {
-                        player.sendMessage(ChatColor.RED + "Could not find profile");
-                    } else {
-                        BukkitPlayerEntity playerEntity = (BukkitPlayerEntity) optional.get();
-
-                        if (playerEntity.isAlive()) {
+                }))
+                .setPlayerCommandAction(2, "minplayers", perm("projectd.setup.set", (player, args) -> {
+                    try {
+                        Integer count = Integer.valueOf(args[1]);
+                        gameSettingsLoader.setMinPlayers(count);
+                        messageSender.sendMessage(player, MessageComponent.of("<yellow>The game will now start at %s player!</yellow> ", args[1]));
+                    } catch (NumberFormatException e) {
+                        messageSender.sendLine(player, "<red></red>");
+                        messageSender.sendCenteredMessage(player, MessageComponent.of("<red>Invalid Number <yellow>%s</yellow></red>", args[1]));
+                        messageSender.sendLine(player, "<red></red>");
+                    }
+                }))
+                .setPlayerCommandAction(2, "bossspawn", perm("projectd.setup.set", (player, args) -> {
+                    try {
+                        int floor = Integer.parseInt(args[1]);
+                        Point3D point = new Point3D((int) Math.floor(player.getLocation().getX()), (int) Math.floor(player.getLocation().getY()), (int) Math.floor(player.getLocation().getZ()));
+                        gameSettingsLoader.setBossSpawnLocation(floor, point);
+                        messageSender.sendCenteredMessage(player, MessageComponent.of("<green>Boss spawn for floor %s has been set.</green>", floor));
+                    } catch (NumberFormatException e) {
+                        messageSender.sendLine(player, "<red></red>");
+                        messageSender.sendCenteredMessage(player, MessageComponent.of("<red>Invalid Number <yellow>%s</yellow></red>", args[1]));
+                        messageSender.sendLine(player, "<red></red>");
+                    }
+                }))
+                .setPlayerCommandAction(2, "bossplayerspawn", perm("projectd.setup.set", (player, args) -> {
+                    try {
+                        int floor = Integer.parseInt(args[1]);
+                        Point3D point = new Point3D((int) Math.floor(player.getLocation().getX()), (int) Math.floor(player.getLocation().getY()), (int) Math.floor(player.getLocation().getZ()));
+                        gameSettingsLoader.setBossPlayerSpawnLocation(floor, point);
+                        messageSender.sendCenteredMessage(player, MessageComponent.of("<green>Boss player spawn for floor %s has been set.</green>", floor));
+                    } catch (NumberFormatException e) {
+                        messageSender.sendLine(player, "<red></red>");
+                        messageSender.sendCenteredMessage(player, MessageComponent.of("<red>Invalid Number <yellow>%s</yellow></red>", args[1]));
+                        messageSender.sendLine(player, "<red></red>");
+                    }
+                }))
+                .setPlayerCommandAction(2, "loadbossworld", perm("projectd.setup.set", (player, args) -> {
+                    String worldId = args[1];
+                    DMain.getInstance().getBossArenaManager().loadTemplateEditWorld(worldId).whenComplete((world, throwable) -> {
+                        if (throwable != null) {
+                            messageSender.sendCenteredMessage(player, MessageComponent.of("<red>Could not load boss template world <yellow>%s</yellow>.Traceback: %s</red>", worldId, throwable.getMessage()));
                             return;
                         }
-
-                        EntityManager.getInstance().revive(playerEntity.getUuid());
+                        messageSender.sendCenteredMessage(player, MessageComponent.of("<green>Boss template world <yellow>%s</yellow> loaded.</green>", worldId));
+                        player.teleport(world.getSpawnLocation());
+                    });
+                }))
+                .setPlayerCommandAction(2, "tpbossworld", perm("projectd.setup.set", (player, args) -> {
+                    String worldId = args[1]; String worldName = "boss_template_edit_" + worldId.replaceAll("[^A-Za-z0-9_-]", "_");
+                    org.bukkit.World world = Bukkit.getWorld(worldName);
+                    if (world == null) {
+                        messageSender.sendCenteredMessage(player, MessageComponent.of("<red>Boss template world <yellow>%s</yellow> is not loaded.</red>", worldId));
+                        return;
                     }
-                }).setPlayerCommandAction(1, (player, args) -> {
-                    String name = args[0];
-                    Player target = Bukkit.getPlayer(name);
-                    if (target == null) {
-                        player.sendMessage(ChatColor.RED + "This player is not online.");
-                    }
-                    Optional<RPGEntity> optional = EntityManager.getInstance().getEntity(target.getUniqueId());
-                    if (optional.isEmpty()) {
-                        player.sendMessage(ChatColor.RED + "Could not find profile");
-                    } else {
-                        EntityManager.getInstance().revive(target.getUniqueId());
-                    }
-                }).setCommandArgumentsList(0,
-                        Bukkit.getOnlinePlayers().stream()
-                                .filter(p -> EntityManager.getInstance().isDead(p.getUniqueId())).map(p -> p.getName())
-                                .toList()));
+                    player.teleport(world.getSpawnLocation());
+                    messageSender.sendCenteredMessage(player, MessageComponent.of("<green>Teleported to boss template world <yellow>%s</yellow>.</green>", worldId));
+                }))
+                .setPlayerCommandAction(2, "savebossworld", perm("projectd.setup.set", (player, args) -> {
+                    String worldId = args[1];
+                    DMain.getInstance().getBossArenaManager().saveTemplateEditWorld(worldId).whenComplete((ignored, throwable) -> {
+                        if (throwable != null) {
+                            messageSender.sendCenteredMessage(player, MessageComponent.of("<red>Could not save boss template world <yellow>%s</yellow>.</red>", worldId));
+                            return;
+                        }
+                        messageSender.sendCenteredMessage(player, MessageComponent.of("<green>Boss template world <yellow>%s</yellow> saved back to template.</green>", worldId));
+                    });
+                }))
+                .setPlayerCommandAction(2, "quitbossworld", perm("projectd.setup.set", (player, args) -> {
+                    String worldId = args[1];
+                    DMain.getInstance().getBossArenaManager().quitTemplateEditWorld(worldId, Bukkit.getWorlds().get(0)).whenComplete((ignored, throwable) -> {
+                        if (throwable != null) {
+                            messageSender.sendCenteredMessage(player, MessageComponent.of("<red>Could not save boss template world <yellow>%s</yellow>.</red>", worldId));
+                            return;
+                        }
+                        messageSender.sendCenteredMessage(player, MessageComponent.of("<green>Boss template world <yellow>%s</yellow> saved back to template.</green>", worldId));
+                    });
+                }))
+                .setPlayerCommandAction(1, "status", perm("projectd.setup.status", (player, args) -> {
+                    GameSettings settings = GameSettings.getCurrentSettings();
+                    int floor = settings.getFloor();
+                    boolean hasDungeonWorld = settings.getDungeonWorld() != null && !settings.getDungeonWorld().isBlank();
+                    boolean hasPreLobby = settings.getPreLobbySpawn() != null && settings.getPreLobbySpawn().getWorld() != null;
+                    boolean hasSelectionSpawn = settings.getSelectionSpawn() != null && settings.getSelectionSpawn().getWorld() != null;
+                    boolean hasHoleCenter = settings.getHoleCenter() != null && settings.getHoleCenter().getWorld() != null;
+                    boolean hasBossWorld = settings.getBossWorld() != null && !settings.getBossWorld().isBlank();
+                    boolean hasBossSpawn = settings.getBossSpawnLocation(floor) != null;
+                    boolean hasBossPlayerSpawn = settings.getBossPlayerSpawnLocation(floor) != null;
+                    messageSender.sendLine(player, "<gold>==== Setup Status ====");
+                    messageSender.sendCenteredMessage(player, MessageComponent.of("<yellow>Pre-lobby spawn:</yellow> %s", hasPreLobby ? "SET" : "MISSING"));
+                    messageSender.sendCenteredMessage(player, MessageComponent.of("<yellow>Selection spawn:</yellow> %s", hasSelectionSpawn ? "SET" : "MISSING"));
+                    messageSender.sendCenteredMessage(player, MessageComponent.of("<yellow>Selection hole center:</yellow> %s", hasHoleCenter ? "SET" : "MISSING"));
+                    messageSender.sendCenteredMessage(player, MessageComponent.of("<yellow>Dungeon world:</yellow> %s", hasDungeonWorld ? "SET" : "MISSING"));
+                    messageSender.sendCenteredMessage(player, MessageComponent.of("<yellow>Boss world for floor %s:</yellow> %s", floor, hasBossWorld ? "SET" : "MISSING"));
+                    messageSender.sendCenteredMessage(player, MessageComponent.of("<yellow>Boss spawn for floor %s:</yellow> %s", floor, hasBossSpawn ? "SET" : "MISSING"));
+                    messageSender.sendCenteredMessage(player, MessageComponent.of("<yellow>Boss player spawn for floor %s:</yellow> %s", floor, hasBossPlayerSpawn ? "SET" : "MISSING"));
+                    messageSender.sendLine(player, "<gold>======================");
+                }))
+                .setCommandArgumentsList(0, Arrays.asList("toggle","prelobby","selectionspawn","holecenter","classblock","dungeonworld","bossworld","minplayers","bossspawn","bossplayerspawn","loadbossworld","tpbossworld","savebossworld","quitbossworld","status"))
+                .setCommandArgumentsList(1, "classblock", Arrays.asList(RPGClassType.validTypes()).stream().map(type -> type.toString()).toList())
+        );
 
-//        addSubCommand("project-d", SubCommandBuilder.startBuilding("dungeon").setDescription("Main dungeon command")
-////                        .setSyntax("/dungeon <generate|tp> [world_name]")
-//                .setPlayerCommandAction(2, (player, args) -> {
-//                    Plugin plugin = DMain.getInstance();
-//
-//                    World world = Bukkit
-//                            .createWorld(new WorldCreator(args[1]).generator(new BukkitStoneWorldGenerator()));
-//
-//                    int tmpRoomCount = 10;
-//
-//                    try {
-//                        tmpRoomCount = Integer.parseInt(args[0]);
-//                        tmpRoomCount = Math.max(1, tmpRoomCount); // Limit between 1-50
-//                    } catch (NumberFormatException e) {
-//                        player.sendMessage("§cInvalid room count! Using default: 10");
-//                    }
-//
-//                    int roomCount = tmpRoomCount;
-//
-//                    player.sendMessage("§aGenerating dungeon with " + roomCount + " rooms...");
-//
-//                    // Generate dungeon in async task
-//                    Bukkit.getScheduler().runTaskAsynchronously(plugin, () -> {
-//                        DungeonGenerator generator = new DungeonGenerator(System.currentTimeMillis(), messageSender);
-//                        Point3D startPoint = new Point3D(0, 64, // Fixed Y level for dungeons
-//                                0);
-//
-//                        Dungeon dungeon = generator.generateDungeon(roomCount, startPoint);
-//
-//                        // Access spawn information
-//                        for (DungeonRoom room : dungeon.getRooms()) {
-//                            List<SpawnLocation> roomSpawns = room.getSpawnLocations();
-//                            List<DecorationElement> roomDecorations = room.getDecorations();
-//
-//                            System.out.println("Room " + room.getId() + ": " + roomSpawns.size() + " spawns, "
-//                                    + roomDecorations.size() + " decorations");
-//                        }
-//
-//                        // Get dungeon-wide statistics
-//                        DungeonStatistics stats = dungeon.getStatistics();
-//                        player.sendMessage("§6" + stats.toString());
-//
-//                        // Build dungeon on main thread
-//                        Bukkit.getScheduler().runTask(plugin, () -> {
-//                            DungeonBuilderBukkit builder = new DungeonBuilderBukkit(plugin, world);
-//
-//                            // Build dungeon after clearing (delay by 5 seconds)
-//                            Bukkit.getScheduler().runTaskLater(plugin, () -> {
-//                                builder.buildDungeon(dungeon, () -> {
-//                                    player.sendMessage("§aDungeon generation complete! Generated "
-//                                            + dungeon.getRooms().size() + " rooms.");
-//
-//                                    // Teleport player to start room
-//                                    DungeonRoom startRoom = dungeon.getStartRoom();
-//                                    if (startRoom != null) {
-//                                        Point3D center = startRoom.getCenter();
-//                                        player.teleport(new org.bukkit.Location(world, center.getX() + 0.5,
-//                                                center.getY() + 1, center.getZ() + 0.5));
-//                                    }
-//                                });
-//                            }, 100L); // 5 second delay
-//                        });
-//                    });
-//                }).setCommandArgumentsList(0, "roomSize(Integer)").setCommandArgumentsList(1, "worldName"));
-        addSubCommand("project-d",
-                SubCommandBuilder.startBuilding("createHole").setDescription("Creates a Hole in the ground")
-                        .addAlias("ch").setPlayerCommandAction(0, (player, args) -> {
-                            DamageUtils.playEpicHoleAnimation(DMain.getInstance(), player.getLocation(), 5, 5,
-                                    new HashSet<Player>(Bukkit.getOnlinePlayers()));
-                        }).setPlayerCommandAction(4, (player, args) -> {
-                            DamageUtils.playEpicHoleAnimation(DMain.getInstance(), player.getLocation(),
-                                    Integer.parseInt(args[0]), Integer.parseInt(args[1]), Integer.parseInt(args[2]),
-                                    Integer.parseInt(args[3]), new HashSet<Player>(Bukkit.getOnlinePlayers()));
-                        }).setSyntax(
-                                "/project-d createHole <baseRadius> <depth> | <baseRadius> <depth> <baseDelay> <upwardLifespan>"));
-        addSubCommand("project-d",
-                SubCommandBuilder.startBuilding("gameState").setPlayerCommandAction(1, "next", (player, args) -> {
-                    messageSender.sendMessage(player,
-                            MessageComponent.of("<yellow>Skipping to next state...</yellow>"));
-                    gameStateController.skipCurrentState();
-                }).setPlayerCommandAction(1, "current", (player, args) -> {
-                    messageSender.sendCenteredDebugMessage(player, MessageComponent
-                            .of("<yellow>Current State: %s</yellow>", gameStateController.getCurrentState().getName()));
-                }).setCommandArgumentsList(0, Arrays.asList("next", "current")));
-
-        addSubCommand("project-d", SubCommandBuilder.startBuilding("open")
-                .setDescription("Open the item selection shop").setPlayerCommandAction(0, (player, args) -> {
+        // ==============================================================
+        // item tree -> /d item <give|save|reload|open>
+        // ==============================================================
+        addSubCommand("project-d", SubCommandBuilder.startBuilding("item")
+                .setDescription("Item controls")
+                .setPlayerCommandAction(1, "give", perm("projectd.item.give", (player, args) -> {
+                    EntityManager.getInstance().getEntity(player.getUniqueId()).ifPresent(p -> {
+                        String id = args[1];
+                        RPGItemRegistry.getInstance().getItem(id).ifPresentOrElse(item -> {
+                            player.getInventory().addItem(BukkitItemStackAdapter.toItemStack(item, p));
+                            player.sendMessage("Success! You received " + item.getName());
+                        }, () -> player.sendMessage("This item does not exist"));
+                        BukkitInventorySync.syncInventory(p, player);
+                    });
+                }))
+                .setPlayerCommandAction(2, "give", perm("projectd.item.give", (player, args) -> {
+                    // alias handled via give above with 1 arg; keep 2-arg variant for tab
+                    EntityManager.getInstance().getEntity(player.getUniqueId()).ifPresent(p -> {
+                        String id = args[1];
+                        RPGItemRegistry.getInstance().getItem(id).ifPresentOrElse(item -> {
+                            player.getInventory().addItem(BukkitItemStackAdapter.toItemStack(item, p));
+                            player.sendMessage("Success! You received " + item.getName());
+                        }, () -> player.sendMessage("This item does not exist"));
+                        BukkitInventorySync.syncInventory(p, player);
+                    });
+                }))
+                .setPlayerCommandAction(1, "save", perm("projectd.item.save", (player, args) -> {
+                    // /d item save [<id>] -> 0 extra args means save held item, 1 means give as before? Keep both behaviors for compat
+                    // This branch for 1 arg after item save -> treat as item id to give
+                    EntityManager.getInstance().getEntity(player.getUniqueId()).ifPresent(p -> {
+                        String id = args[1];
+                        RPGItemRegistry.getInstance().getItem(id).ifPresentOrElse(item -> {
+                            player.getInventory().addItem(BukkitItemStackAdapter.toItemStack(item, p));
+                        }, () -> player.sendMessage("This item does not exist"));
+                        BukkitInventorySync.syncInventory(p, player);
+                    });
+                }))
+                .setPlayerCommandAction(0, "save", perm("projectd.item.save", (player, args) -> {
+                    EntityManager.getInstance().getEntity(player.getUniqueId()).ifPresent(p -> {
+                        RPGItem item = p.getEquipmentManager().getEquippedItem(EquipmentSlot.MAIN_HAND);
+                        if (item == null) player.sendMessage("You need to hold the item in your main hand");
+                        else {
+                            RPGItemLoader.saveItem(configProvider, item);
+                            player.sendMessage(ChatColor.YELLOW + item.getId() + ChatColor.GREEN + " has been successfully saved to the config.");
+                        }
+                    });
+                }))
+                .setCommandAction(1, "reload", permAny("projectd.item.reload", (sender, args) -> {
+                    try {
+                        long t0 = System.currentTimeMillis();
+                        dev.bukkit.utils.BukkitMessageSender.getInstance().sendMessage(sender, MessageComponent.of("<yellow>Reloading items/abilities...</yellow>"));
+                        var r = dev.bukkit.reload.ItemsAbilitiesReloadService.reload(DMain.getInstance().getConfigManager());
+                        if (r.success) {
+                            dev.bukkit.utils.BukkitMessageSender.getInstance().sendMessage(sender, MessageComponent.of("<green>Reloaded: %s</green>", r.message));
+                            Bukkit.getLogger().info("[items reload] " + r.message + " by " + sender.getName());
+                        } else {
+                            dev.bukkit.utils.BukkitMessageSender.getInstance().sendMessage(sender, MessageComponent.of("<red>Reload failed: %s</red>", r.message));
+                            if (r.error != null) r.error.printStackTrace();
+                        }
+                    } catch (Exception e) {
+                        dev.bukkit.utils.BukkitMessageSender.getInstance().sendMessage(sender, MessageComponent.of("<red>Items reload failed: %s</red>", e.getMessage()));
+                        e.printStackTrace();
+                    }
+                }))
+                .setPlayerCommandAction(0, "open", perm("projectd.item.open", (player, args) -> {
                     GameState current = gameStateController.getCurrentState();
                     if (current instanceof SelectItemState select) {
                         select.openShop(player);
                         player.sendMessage("§eOpening the item shop...");
-                    } else {
-                        player.sendMessage("§cThe item shop is only available during item selection.");
+                    } else player.sendMessage("§cThe item shop is only available during item selection.");
+                }))
+                .setCommandArgumentsList(0, Arrays.asList("give","save","reload","open"))
+                .setCommandArgumentsList(1, "give", () -> RPGItemRegistry.getInstance().allItems().values().stream().map(RPGItem::getId).toList(), "itemName")
+                .setCommandArgumentsList(1, "save", () -> RPGItemRegistry.getInstance().allItems().values().stream().map(RPGItem::getId).toList(), "itemName")
+        );
+
+        // ==============================================================
+        // player tree -> /d player <showProgress|showStats|selectActive|setXp|revive>
+        // ==============================================================
+        addSubCommand("project-d", SubCommandBuilder.startBuilding("player")
+                .setDescription("Player controls")
+                .setPlayerCommandAction(1, "showProgress", perm("projectd.player.showprogress", (player, args) -> {
+                    Optional<RPGEntity> optional = EntityManager.getInstance().getEntity(player.getUniqueId());
+                    if (optional.isEmpty()) player.sendMessage(ChatColor.RED + "Could not find profile");
+                    else {
+                        BukkitPlayerEntity playerEntity = (BukkitPlayerEntity) optional.get();
+                        RPGClassType activeClass = playerEntity.getPlayerProgression().getActiveClass();
+                        player.sendMessage(ChatColor.GOLD + "═══════════════════════════════════");
+                        player.sendMessage(ChatColor.YELLOW + "Active Class: " + ChatColor.GREEN + (activeClass != null ? activeClass.name() : "None"));
+                        player.sendMessage(ChatColor.GOLD + "═══════════════════════════════════");
+                        for (Map.Entry<RPGClassType, PlayerClassProgression> entry : playerEntity.getPlayerProgression().getAllProgressions().entrySet()) {
+                            RPGClassType classType = entry.getKey(); PlayerClassProgression progression = entry.getValue();
+                            String classPrefix = classType.equals(activeClass) ? ChatColor.AQUA + "★ " : ChatColor.GRAY + "  ";
+                            player.sendMessage(classPrefix + ChatColor.WHITE + classType.name() + ":");
+                            player.sendMessage(ChatColor.GRAY + "  Level: " + ChatColor.YELLOW + progression.getLevel());
+                            player.sendMessage(ChatColor.GRAY + "  XP: " + ChatColor.GREEN + progression.getXp());
+                            player.sendMessage(ChatColor.GRAY + "  XP til next level: " + ChatColor.GREEN + progression.getXpToNextLevel());
+                            player.sendMessage(ChatColor.GRAY + "  Usable Items: " + ChatColor.LIGHT_PURPLE + progression.getUsableItems());
+                            player.sendMessage("");
+                        }
+                        player.sendMessage(ChatColor.GOLD + "═══════════════════════════════════");
+                        player.sendMessage(ChatColor.GRAY + "★ = Active Class");
                     }
-                }));
+                }))
+                .setPlayerCommandAction(1, "showStats", perm("projectd.player.showstats", (player, args) -> {
+                    Optional<RPGEntity> optional = EntityManager.getInstance().getEntity(player.getUniqueId());
+                    if (optional.isEmpty()) player.sendMessage(ChatColor.RED + "Could not find profile");
+                    else {
+                        BukkitPlayerEntity playerEntity = (BukkitPlayerEntity) optional.get();
+                        player.sendMessage(ChatColor.GOLD + "═══════════════════════════════════");
+                        long now = System.currentTimeMillis();
+                        for (StatType type : playerEntity.getStatManager().getStats().keySet()) {
+                            double value = playerEntity.getStatEngineAdapter().getCurrentValue(type, now);
+                            player.sendMessage(BukkitTextColorAdapter.formatStat(type, value, false));
+                        }
+                        player.sendMessage(ChatColor.GOLD + "═══════════════════════════════════");
+                    }
+                }))
+                .setPlayerCommandAction(2, "selectActive", perm("projectd.player.select", (player, args) -> {
+                    Optional<RPGEntity> optional = EntityManager.getInstance().getEntity(player.getUniqueId());
+                    if (optional.isEmpty()) player.sendMessage(ChatColor.RED + "Could not find profile");
+                    else {
+                        BukkitPlayerEntity playerEntity = (BukkitPlayerEntity) optional.get();
+                        playerEntity.getPlayerProgression().setActiveClass(RPGClassType.valueOf(args[1]), playerEntity.getStatManager());
+                        classProgressionService.setActiveClass(playerEntity.getPlayerProgression());
+                        messageSender.sendMessage(MessageComponent.of(MessageLevel.INFO_LEVEL, "Selected the %s-Class", RPGClassType.valueOf(args[1])));
+                    }
+                }))
+                .setPlayerCommandAction(3, "setXp", perm("projectd.player.setxp", (player, args) -> {
+                    Optional<RPGEntity> optional = EntityManager.getInstance().getEntity(player.getUniqueId());
+                    if (optional.isEmpty()) player.sendMessage(ChatColor.RED + "Could not find profile");
+                    else {
+                        BukkitPlayerEntity playerEntity = (BukkitPlayerEntity) optional.get();
+                        try {
+                            RPGClassType targetClass = RPGClassType.valueOf(args[1]); int newXp = Integer.valueOf(args[2]);
+                            playerEntity.getPlayerProgression().getProgression(targetClass).setXp(newXp);
+                            classProgressionService.saveClassProgression(playerEntity.getUuid(), playerEntity.getPlayerProgression().getProgression(targetClass));
+                            messageSender.sendMessage(MessageComponent.of(MessageLevel.INFO_LEVEL, "Set the %s-Class-XP to %s", RPGClassType.valueOf(args[1]), newXp));
+                        } catch (Exception e) { player.sendMessage("/d player setXp <class> <xp>"); }
+                    }
+                }))
+                .setPlayerCommandAction(1, "revive", perm("projectd.player.revive", (player, args) -> {
+                    Optional<RPGEntity> optional = EntityManager.getInstance().getEntity(player.getUniqueId());
+                    if (optional.isEmpty()) player.sendMessage(ChatColor.RED + "Could not find profile");
+                    else {
+                        BukkitPlayerEntity playerEntity = (BukkitPlayerEntity) optional.get();
+                        if (playerEntity.isAlive()) return;
+                        EntityManager.getInstance().revive(playerEntity.getUuid());
+                    }
+                }))
+                .setPlayerCommandAction(2, "revive", perm("projectd.player.revive", (player, args) -> {
+                    String name = args[2]; Player target = Bukkit.getPlayer(name);
+                    if (target == null) player.sendMessage(ChatColor.RED + "This player is not online.");
+                    else {
+                        Optional<RPGEntity> optional = EntityManager.getInstance().getEntity(target.getUniqueId());
+                        if (optional.isEmpty()) player.sendMessage(ChatColor.RED + "Could not find profile");
+                        else EntityManager.getInstance().revive(target.getUniqueId());
+                    }
+                }))
+                .setCommandArgumentsList(0, Arrays.asList("showProgress","showStats","selectActive","setXp","revive"))
+                .setCommandArgumentsList(1, "selectActive", Arrays.stream(RPGClassType.values()).filter(c->c!=RPGClassType.NONE).map(Enum::name).toList(), "className")
+                .setCommandArgumentsList(1, "setXp", Arrays.stream(RPGClassType.values()).filter(c->c!=RPGClassType.NONE).map(Enum::name).toList(), "className")
+                .setCommandArgumentsList(2, "setXp", "xpNumber(Integer)")
+                .setCommandArgumentsList(1, "revive", Bukkit.getOnlinePlayers().stream().filter(p->EntityManager.getInstance().isDead(p.getUniqueId())).map(p->p.getName()).toList())
+        );
+
+        // ==============================================================
+        // gamestate tree -> /d gamestate <next|current>
+        // ==============================================================
+        addSubCommand("project-d", SubCommandBuilder.startBuilding("gamestate")
+                .setDescription("Game state controls")
+                .setCommandAction(1, "next", permAny("projectd.gamestate.next", (sender, args) -> {
+                    if (sender instanceof Player p) messageSender.sendMessage(p, MessageComponent.of("<yellow>Skipping to next state...</yellow>"));
+                    gameStateController.skipCurrentState();
+                }))
+                .setCommandAction(1, "current", permAny("projectd.gamestate.current", (sender, args) -> {
+                    if (sender instanceof Player p) messageSender.sendCenteredDebugMessage(p, MessageComponent.of("<yellow>Current State: %s</yellow>", gameStateController.getCurrentState().getName()));
+                    else sender.sendMessage("Current State: " + gameStateController.getCurrentState().getName());
+                }))
+                .setCommandArgumentsList(0, Arrays.asList("next","current"))
+        );
+
+        // ==============================================================
+        // build tree -> /d build createHole ...
+        // ==============================================================
+        addSubCommand("project-d", SubCommandBuilder.startBuilding("build")
+                .setDescription("Build controls")
+                .setPlayerCommandAction(1, "createHole", perm("projectd.build.createhole", (player, args) -> {
+                    DamageUtils.playEpicHoleAnimation(DMain.getInstance(), player.getLocation(), 5, 5, new HashSet<Player>(Bukkit.getOnlinePlayers()));
+                }))
+                .setPlayerCommandAction(5, "createHole", perm("projectd.build.createhole", (player, args) -> {
+                    DamageUtils.playEpicHoleAnimation(DMain.getInstance(), player.getLocation(), Integer.parseInt(args[1]), Integer.parseInt(args[2]), Integer.parseInt(args[3]), Integer.parseInt(args[4]), new HashSet<Player>(Bukkit.getOnlinePlayers()));
+                }))
+                .setCommandArgumentsList(0, Arrays.asList("createHole"))
+        );
+
+        // ==============================================================
+        // hud tree -> /d hud reload  (strict absolute, replaces top-level hud)
+        // ==============================================================
+        addSubCommand("project-d", SubCommandBuilder.startBuilding("hud")
+                .setDescription("HUD overlay controls")
+                .setCommandAction(1, "reload", permAny("projectd.hud.reload", (sender, args) -> {
+                    try {
+                        dev.core.storage.config.ConfigProvider reloaded = DMain.getInstance().getConfigManager().reloadProvider("hud.yml");
+                        dev.bukkit.hud.HudConfig n = dev.bukkit.hud.HudConfigLoader.load(reloaded);
+                        dev.bukkit.hud.HudOverlayService.getInstance().reload(n);
+                        dev.bukkit.hud.HunterHudFormatter.load(n);
+                        dev.bukkit.hud.TriHomingHudFormatter.load(n);
+                        dev.bukkit.utils.BukkitMessageSender.getInstance().sendMessage(sender, dev.core.utils.MessageComponent.of("<green>HUD reloaded.</green>"));
+                    } catch (Exception e) {
+                        dev.bukkit.utils.BukkitMessageSender.getInstance().sendMessage(sender, dev.core.utils.MessageComponent.of("<red>HUD reload failed: %s</red>", e.getMessage()));
+                    }
+                }))
+                .setCommandArgumentsList(0, Arrays.asList("reload"))
+        );
+
+        // Note: BuildAssetManager and SimpleDungeonBuilderBukkit add their own "asset"/"dungeon" branches under project-d via DMain hooks (already unified, not separate mains).
+
     }
 
     public void registerCommands(JavaPlugin javaPlugin) {
-//        oldCommandMap.forEach((name, commandExecutor) -> {
-//            javaPlugin.getCommand(name).setExecutor(commandExecutor);
-//        });
 
         commandMap.forEach((name, command) -> {
             createCoreCommand(javaPlugin, name, command.description(), command.usage(), command.commandList(),
@@ -591,22 +500,6 @@ public class CommandManager {
             throw new RuntimeException(e);
         }
     }
-
-//    public void createCommand(String commandName, String commandDescription, String commandUsage) {
-//        createCommand(commandName, commandDescription, commandUsage, null, List.of(), new ArrayList<>());
-//    }
-//
-//    public void createCommand(String commandName, String commandDescription, String commandUsage, CommandList commandList) {
-//        createCommand(commandName, commandDescription, commandUsage, commandList, List.of(), new ArrayList<>());
-//    }
-//
-//    public void createCommand(String commandName, String commandDescription, String commandUsage, CommandList commandList, List<String> aliases) {
-//        createCommand(commandName, commandDescription, commandUsage, commandList, aliases, new ArrayList<>());
-//    }
-//
-//    public void createCommand(String commandName, String commandDescription, String commandUsage, List<String> aliases) {
-//        createCommand(commandName, commandDescription, commandUsage, null, aliases, new ArrayList<>());
-//    }
 
     public void createCommand(MainCommandBuilder.MainCommand mainCommand) {
         if (commandMap.containsKey(mainCommand.name()))

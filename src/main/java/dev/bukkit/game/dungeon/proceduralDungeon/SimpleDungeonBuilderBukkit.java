@@ -495,10 +495,18 @@ public class SimpleDungeonBuilderBukkit {
     private static BoundingBox lastGeneratedSpace;
     private static RoomFirstDungeonGenerator3D last3DDungeonGenerator;
 
+    private static boolean checkPerm(org.bukkit.entity.Player p, String node) {
+        if (p.hasPermission(node) || p.hasPermission("projectd.admin") || p.isOp()) return true;
+        p.sendMessage("§cNo permission: " + node);
+        return false;
+    }
+
     public static void initDungeonTestCommand(CommandManager commandManager) {
         System.out.println("INIT Dungeon Test Commands");
         commandManager.addSubCommand("project-d", SubCommandBuilder.startBuilding("createDungeonWorld").addAlias("cdw")
+                .setDescription("Dungeon controls")
                 .setPlayerCommandAction(1, (player, args) -> {
+                    if (!checkPerm(player, "projectd.dungeon.createWorld")) return;
                     Plugin plugin = DMain.getInstance();
 
                     World world = Bukkit
@@ -512,7 +520,9 @@ public class SimpleDungeonBuilderBukkit {
                     }, 20L);
                 }).setCommandArgumentsList(0, "worldName"));
         commandManager.addSubCommand("project-d", SubCommandBuilder.startBuilding("createDungeon").addAlias("cd")
+                .setDescription("Dungeon controls")
                 .setPlayerCommandAction(2, (player, args) -> {
+                    if (!checkPerm(player, "projectd.dungeon.create")) return;
                     Plugin plugin = DMain.getInstance();
 
                     Runnable generateDungeon = () -> {
@@ -571,7 +581,9 @@ public class SimpleDungeonBuilderBukkit {
                 }).setCommandArgumentsList(0, List.of("small", "medium", "big"), "dungeonSize")
                 .setCommandArgumentsList(1, "seed"));
         commandManager.addSubCommand("project-d", SubCommandBuilder.startBuilding("createCustomDungeon").addAlias("ccd")
+                .setDescription("Dungeon controls")
                 .setPlayerCommandAction(9, (player, args) -> {
+                    if (!checkPerm(player, "projectd.dungeon.createCustom")) return;
                     Plugin plugin = DMain.getInstance();
 
                     Runnable generateDungeon = () -> {
@@ -643,7 +655,9 @@ public class SimpleDungeonBuilderBukkit {
                 .setCommandArgumentsList(5, "iterations").setCommandArgumentsList(6, "walkLength")
                 .setCommandArgumentsList(7, "startRandomlyEachIteration"));
         commandManager.addSubCommand("project-d", SubCommandBuilder.startBuilding("resetDungeon").addAlias("rd")
+                .setDescription("Dungeon controls")
                 .setPlayerCommandAction(0, (player, args) -> {
+                    if (!checkPerm(player, "projectd.dungeon.reset")) return;
                     if (lastDungeonGenerator == null) {
                         player.sendMessage("§cNo Dungeon to reset.");
                         return;
@@ -662,7 +676,8 @@ public class SimpleDungeonBuilderBukkit {
                     });
                 }));
         commandManager.addSubCommand("project-d", SubCommandBuilder.startBuilding("teleportToDungeonWorld")
-                .addAlias("tpDungeon").addAlias("tpd").setPlayerCommandAction(1, (player, args) -> {
+                .addAlias("tpDungeon").addAlias("tpd").setDescription("Dungeon controls").setPlayerCommandAction(1, (player, args) -> {
+                    if (!checkPerm(player, "projectd.dungeon.teleport")) return;
 
                     World world = Bukkit.getWorld(args[0]);
 
@@ -675,7 +690,8 @@ public class SimpleDungeonBuilderBukkit {
 
                 }).setCommandArgumentsList(0, "WorldName"));
         commandManager.addSubCommand("project-d",
-                SubCommandBuilder.startBuilding("dungeonTest").setPlayerCommandAction(14, "create", (player, args) -> {
+                SubCommandBuilder.startBuilding("dungeonTest").setDescription("Dungeon controls").setPlayerCommandAction(14, "create", (player, args) -> {
+                    if (!checkPerm(player, "projectd.dungeon.test")) return;
                     Plugin plugin = DMain.getInstance();
 
                     Runnable buildSpace = () -> {
@@ -759,6 +775,7 @@ public class SimpleDungeonBuilderBukkit {
                         .setCommandArgumentsList(12, "create", "startRandomlyEachIteration")
                         .setCommandArgumentsList(13, "create", "seed")
                         .setPlayerCommandAction(1, "reset", (player, args) -> {
+                            if (!checkPerm(player, "projectd.dungeon.test")) return;
                             if (lastGeneratedSpace == null) {
                                 player.sendMessage("§cNo Space to reset.");
                                 return;
