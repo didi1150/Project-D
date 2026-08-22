@@ -66,4 +66,20 @@ public class RPGItemRegistry {
         return new HashMap<String, RPGItem>(allItems);
     }
 
+    public Map<String, RPGItemSet> allItemSets() {
+        return new HashMap<String, RPGItemSet>(allItemSets);
+    }
+
+    public void clear() {
+        allItems.clear();
+        allItemSets.clear();
+    }
+
+    public void replaceAll(Map<String, RPGItem> items, Map<String, RPGItemSet> sets) {
+        allItems.clear();
+        allItemSets.clear();
+        if (items != null) allItems.putAll(items);
+        if (sets != null) allItemSets.putAll(sets);
+    }
+
 }

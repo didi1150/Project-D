@@ -26,9 +26,99 @@ import org.bukkit.scheduler.BukkitRunnable;
 import dev.bukkit.entity.VanillaEntityMeta;
 import dev.bukkit.summon.SoulSkull;
 import dev.core.entity.EntityManager;
+import dev.core.entity.RPGDamageResult;
 import dev.core.entity.RPGEntity;
+import dev.core.event.impl.RPGEntityDamageEvent.DamageResult;
+import dev.core.event.impl.RPGEntityDamageEvent.DamageType;
 
 public class DamageUtils {
+
+    /**
+     * Deals damage to any {@link LivingEntity}, automatically choosing the correct
+     * pipeline:
+     * <ul>
+     * <li>target is registered in {@link EntityManager} →
+     * {@link RPGEntity#dealRPGDamage} (respects immunity, ally checks, crit,
+     * armor/MR penetration, lastAttacker, hurt reaction).</li>
+     * <li>otherwise → vanilla {@link #damageMob} (0.001 poke, health clamp, Bukkit
+     * event, name update).</li>
+     * </ul>
+     * Soul-skulls and ghosted entities are never damaged (returns {@code DENY}).
+     *
+     * @param target   Bukkit living entity to damage (no-op if null/ not living)
+     * @param damage   final amount before defenses (defenses applied inside RPG
+     *                 path)
+     * @param attacker RPG attacker or {@code null} for environment
+     * @param type     physical / magic / true
+     * @return result of the RPG pipeline, or a synthetic {@code NORMAL} result for
+     *         the vanilla path
+     */
+    public static RPGDamageResult damageEntity(LivingEntity target, double damage, RPGEntity attacker,
+            DamageType type) {
+        return damageEntity(target, damage, attacker, bukkitSourceOf(attacker), type);
+    }
+
+    /**
+     * Same as {@link #damageEntity(LivingEntity, double, RPGEntity, DamageType)}
+     * but allows an explicit Bukkit source entity for the vanilla fallback (e.g.
+     * when the RPG attacker has no resolvable LivingEntity). When
+     * {@code bukkitSource} is {@code null} it is resolved from {@code attacker} if
+     * possible.
+     */
+    public static RPGDamageResult damageEntity(LivingEntity target, double damage, RPGEntity attacker,
+            LivingEntity bukkitSource, DamageType type) {
+        if (target == null || damage <= 0.001) {
+            return new RPGDamageResult(DamageResult.DENY, 0);
+        }
+        if (SoulSkull.isSoulSkull(target)) {
+            return new RPGDamageResult(DamageResult.DENY, 0);
+        }
+        if (EntityManager.getInstance().isGhost(target.getUniqueId())) {
+            return new RPGDamageResult(DamageResult.DENY, 0);
+        }
+        // RPG-registered target → full RPG pipeline
+        var rpgOpt = EntityManager.getInstance().getEntity(target.getUniqueId());
+        if (rpgOpt.isPresent()) {
+            RPGEntity targetRpg = rpgOpt.get();
+            return targetRpg.dealRPGDamage(attacker, targetRpg, damage, type);
+        }
+        // Vanilla fallback
+        LivingEntity source = bukkitSource != null ? bukkitSource : bukkitSourceOf(attacker);
+        damageMob(target, damage, source);
+        // Ghost/missing health already handled inside damageMob; synthesize NORMAL
+        // DENY is only for SoulSkull/ghost above, so report the dealt amount
+        return new RPGDamageResult(DamageResult.NORMAL, damage);
+    }
+
+    /**
+     * Convenience for generic {@link org.bukkit.entity.Entity} targets (armor
+     * stands etc. are ignored).
+     */
+    public static RPGDamageResult damageEntity(org.bukkit.entity.Entity target, double damage, RPGEntity attacker,
+            DamageType type) {
+        if (target instanceof LivingEntity le) {
+            return damageEntity(le, damage, attacker, type);
+        }
+        return new RPGDamageResult(DamageResult.DENY, 0);
+    }
+
+    /**
+     * Resolves the Bukkit {@link LivingEntity} backing an {@link RPGEntity}, for
+     * the vanilla fallback's damage source. Returns {@code null} for
+     * environment/null attacker.
+     */
+    private static LivingEntity bukkitSourceOf(RPGEntity attacker) {
+        if (attacker == null)
+            return null;
+        if (attacker instanceof dev.bukkit.entity.BukkitPlayerEntity p) {
+            return p.getPlayer().orElse(null);
+        }
+        if (attacker instanceof dev.bukkit.entity.boss.BukkitBossEntity b) {
+            return b.getLivingEntity().orElse(null);
+        }
+        org.bukkit.entity.Entity e = Bukkit.getEntity(attacker.getUuid());
+        return e instanceof LivingEntity le ? le : null;
+    }
 
     public static void damageMob(LivingEntity le, double damage, LivingEntity source) {
         // Soul skulls are collectibles, not combat entities: AoE abilities that
