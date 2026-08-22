@@ -315,3 +315,20 @@ abilities:
     action: LEFT_CLICK
     cooldownScope: PLAYER
     cooldown: 400
+  TRI_VOLLEY:
+    name: Scatter Volley
+    description:
+      - "Left-click to fan <light_purple>5 piercing arrows</light_purple>"
+      - "in front of you."
+      - ""
+      - "- Each arrow pierces up to <yellow>5</yellow> foes."
+      - "- No homing — close-range AoE burst."
+      - "- <gray>Trinity's close answer to the hunt.</gray>"
+    triggerType: MANUAL
+    action: LEFT_CLICK
+    cooldownScope: ITEM
+    cooldown: 8000
+    cooldownScaling: HASTE
+    cost:
+      mode: MANA
+      amount: 20

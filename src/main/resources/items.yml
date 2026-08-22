@@ -729,6 +729,32 @@ items:
     abilities:
     - BOUNCY_ARROWS
     - EXPLOSIVE_ARROWS
+  TRI_HOMING_BOW:
+    # Trinity bow: right-draw shoots 3 homing arrows (nearest enemy within 10 blocks,
+    # same mob allowed, no falloff, consumed), left-click fans 5 piercing arrows
+    # for close AoE. Trails are violet-pink (vs hunter aqua) to differentiate.
+    unlockLevel: 0
+    name: Trinity Bow
+    material: BOW
+    slot: MAIN_HAND
+    itemType: BOW
+    requiresArrows: true
+    passive-stats: []
+    allowed-classes:
+    - ARCHER
+    active-stats:
+    - amount: 12.0
+      statType: ATTACK_DAMAGE
+      modifierType: FLAT
+      statTarget: BOTH
+      policy: STACK
+    - amount: 10.0
+      statType: CRIT_CHANCE
+      modifierType: FLAT
+      statTarget: BOTH
+      policy: STACK
+    abilities:
+    - TRI_VOLLEY
   ASPECT_OF_THE_DRAGON:
     unlockLevel: 5
     name: Aspect of the Dragon
