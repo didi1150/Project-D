@@ -39,15 +39,17 @@ public final class HudConfig {
     private final boolean shadowed;
     private final boolean seeThrough;
     private final HunterFormats hunterFormats;
+    private final TriFormats triFormats;
     private final Messages messages;
 
     public record HunterFormats(String bounceZero, String bounce, String shockArmed, String shockPlain) {}
+    public record TriFormats(String ready, String volleyReady, String volleyCd) {}
     public record Messages(String notEnough) {}
 
     public HudConfig(boolean enabled, int maxKeys, double distance, double verticalOffset, double spacing,
                      float scale, float viewRange, int lineWidth, Color bgColor, int brightness,
                      int interpolationDuration, int teleportDuration, boolean shadowed, boolean seeThrough,
-                     HunterFormats hunterFormats, Messages messages) {
+                     HunterFormats hunterFormats, TriFormats triFormats, Messages messages) {
         this.enabled = enabled;
         this.maxKeys = clampInt(maxKeys, 1, 8, DEFAULT_MAX_KEYS);
         this.distance = clamp(distance, 0.4, 5.0, DEFAULT_DISTANCE);
@@ -63,6 +65,7 @@ public final class HudConfig {
         this.shadowed = shadowed;
         this.seeThrough = seeThrough;
         this.hunterFormats = hunterFormats != null ? hunterFormats : defaultHunterFormats();
+        this.triFormats = triFormats != null ? triFormats : defaultTriFormats();
         this.messages = messages != null ? messages : defaultMessages();
     }
 
@@ -70,7 +73,7 @@ public final class HudConfig {
         return new HudConfig(DEFAULT_ENABLED, DEFAULT_MAX_KEYS, DEFAULT_DISTANCE, DEFAULT_VERTICAL_OFFSET,
                 DEFAULT_SPACING, DEFAULT_SCALE, DEFAULT_VIEW_RANGE, DEFAULT_LINE_WIDTH, DEFAULT_BG_COLOR,
                 DEFAULT_BRIGHTNESS, DEFAULT_INTERP, DEFAULT_TELEPORT, DEFAULT_SHADOWED, DEFAULT_SEE_THROUGH,
-                defaultHunterFormats(), defaultMessages());
+                defaultHunterFormats(), defaultTriFormats(), defaultMessages());
     }
 
     private static HunterFormats defaultHunterFormats() {
@@ -79,6 +82,13 @@ public final class HudConfig {
                 "&6Hunter's Bow &8| &bBouncy %dots% &7(%bounces%/3)",
                 "&c◉ Shock Bolt ARMED &7— next arrow detonates",
                 "&7○ Shock — plain  &8○ No shock");
+    }
+
+    private static TriFormats defaultTriFormats() {
+        return new TriFormats(
+                "&5Trinity Bow &8| &dHoming ready &7(3 &8× &7homing)",
+                "&5Trinity &8| &dVolley ready",
+                "&cVolley &7%cds");
     }
 
     private static Messages defaultMessages() {
@@ -109,5 +119,6 @@ public final class HudConfig {
     public boolean shadowed() { return shadowed; }
     public boolean seeThrough() { return seeThrough; }
     public HunterFormats hunterFormats() { return hunterFormats; }
+    public TriFormats triFormats() { return triFormats; }
     public Messages messages() { return messages; }
 }

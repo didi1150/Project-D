@@ -54,6 +54,20 @@ public final class HudConfigLoader {
                 shockArmed != null ? shockArmed : defaultsH.shockArmed(),
                 shockPlain != null ? shockPlain : defaultsH.shockPlain());
 
+        // formats.tri
+        ConfigSection triSec = root.getSection("formats.tri");
+        String triReady = null, triVolleyReady = null, triVolleyCd = null;
+        if (triSec != null) {
+            triReady = trim(triSec.getString("ready", null));
+            triVolleyReady = trim(triSec.getString("volley-ready", null));
+            triVolleyCd = trim(triSec.getString("volley-cd", null));
+        }
+        HudConfig.TriFormats defaultsT = HudConfig.defaults().triFormats();
+        HudConfig.TriFormats triFormats = new HudConfig.TriFormats(
+                triReady != null ? triReady : defaultsT.ready(),
+                triVolleyReady != null ? triVolleyReady : defaultsT.volleyReady(),
+                triVolleyCd != null ? triVolleyCd : defaultsT.volleyCd());
+
         ConfigSection msgs = root.getSection("messages");
         String notEnough = null;
         if (msgs != null) notEnough = trim(msgs.getString("not-enough", null));
@@ -61,7 +75,7 @@ public final class HudConfigLoader {
         HudConfig.Messages messages = new HudConfig.Messages(notEnough);
 
         return new HudConfig(enabled, maxKeys, distance, vOff, spacing, scale, viewRange, lineWidth, bg,
-                brightness, interp, teleport, shadowed, seeThrough, formats, messages);
+                brightness, interp, teleport, shadowed, seeThrough, formats, triFormats, messages);
     }
 
     private static Color loadBackground(ConfigSection disp) {

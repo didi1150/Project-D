@@ -16,6 +16,7 @@
 # background     — nested ARGB 0-255 each (alpha,r,g,b).
 #                  legacy background-color: "#AARRGGBB" still parsed if nested absent.
 # formats.hunter — allow '&' color codes, placeholders %dots%, %bounces%.
+# formats.tri    — trinity bow: ready/volley strings, supports & codes.
 # messages.not-enough — must contain <resource> placeholder; auto-colored via StatType.
 # max-keys       — maximum concurrent HUD fragments (TextDisplays) visible at
 #                  once. Each ability pushes a keyed fragment (e.g.
@@ -53,5 +54,9 @@ formats:
     bounce: "&6Hunter's Bow &8| &bBouncy %dots% &7(%bounces%/3)"
     shock-armed: "&c◉ Shock Bolt ARMED &7— next arrow detonates"
     shock-plain: "&7○ Shock — plain  &8○ No shock"
+  tri:
+    ready: "&5Trinity Bow &8| &dHoming ready &7(3 &8× &7homing)"
+    volley-ready: "&5Trinity &8| &dVolley ready"
+    volley-cd: "&cVolley &7%cds"
 messages:
   not-enough: "&cNot enough <resource>!"
