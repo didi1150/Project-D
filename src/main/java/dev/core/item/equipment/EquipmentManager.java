@@ -1,6 +1,7 @@
 package dev.core.item.equipment;
 
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
@@ -8,7 +9,12 @@ import java.util.Map;
 
 import dev.core.ability.Ability;
 import dev.core.ability.AbilityAction;
+import dev.core.ability.AbilityBehavior;
+import dev.core.ability.AbilityBehaviorRegistry;
+import dev.core.ability.AbilityRegistry;
 import dev.core.ability.AbilityTriggerType;
+import dev.core.ability.ActiveAbility;
+import dev.core.ability.ActiveAbilityRegistry;
 import dev.core.ability.Effect;
 import dev.core.ability.EffectManagerInterface;
 import dev.core.ability.SetBonus;
@@ -22,6 +28,7 @@ import dev.core.stat.StatType;
 import dev.core.stat.modifier.StatModifier;
 import dev.core.stat.provider.StatProvider;
 import dev.core.stat.provider.adapter.ItemStatProvider;
+import dev.core.ability.passive.SetPassive;
 
 public class EquipmentManager {
 
@@ -46,6 +53,10 @@ public class EquipmentManager {
 
 	private final Map<String, String> registeredAutoAbilities;
 	private final List<Ability> temporaryAbilities;
+
+	// Ref-counted ActiveAbility tracking — "track all users" centralization
+	private final Map<String, Integer> abilityRefCounts = new HashMap<>();
+	private final Map<String, Integer> passiveRefCounts = new HashMap<>();
 
 	private EventBusInterface eventBus;
 	private EffectManagerInterface effectManager;
@@ -92,6 +103,9 @@ public class EquipmentManager {
 		// Register automatic abilities for this equipped item
 		registerAutomaticAbilities(item);
 
+		// Track all abilities for this holder (MANUAL/PASSIVE/AUTOMATIC) — central "track all users"
+		bindAbilities(item);
+
 		recalcSets();
 	}
 
@@ -109,6 +123,9 @@ public class EquipmentManager {
 
 		// Unregister automatic abilities
 		unregisterAutomaticAbilities(currentItem);
+
+		// Untrack abilities for this holder
+		unbindAbilities(currentItem);
 
 		// Remove from equipped items
 		equippedActiveItems.remove(slot);
@@ -154,6 +171,8 @@ public class EquipmentManager {
 				registeredAutoAbilities.put(ability.getId(), eventAction.getId());
 				eventBus.subscribe(eventAction);
 			}
+			// Unified tracking: also bind as ActiveAbility so PASSIVE and MANUAL set-bonus abilities are tracked
+			bindAbility(ability);
 		}
 	}
 
@@ -164,22 +183,32 @@ public class EquipmentManager {
 				eventBus.unsubscribe(registeredAutoAbilities.get(ability.getId()));
 			}
 		}
+		unbindAbility(ability);
 	}
 
 	/**
-	 * Trigger manual abilities based on player action
+	 * Trigger manual abilities based on player action — unified via
+	 * {@link ActiveAbilityRegistry} so all holders (items + set bonuses) flow
+	 * through the single tracking surface.
 	 */
 	public void triggerAbility(AbilityAction abilityAction) {
-		// Check equipped items for manual abilities
+		// Unified path: iterate tracked ActiveAbilities for this holder.
+		// Falls back to legacy item scan if registry is empty (e.g. tests that
+		// construct EquipmentManager without binding).
+		Collection<ActiveAbility> tracked = ActiveAbilityRegistry.getInstance().allFor(holder);
+		if (!tracked.isEmpty()) {
+			for (ActiveAbility aa : tracked) {
+				Ability ability = aa.getAbility();
+				if (ability.getTriggerType() == AbilityTriggerType.MANUAL && ability.getAction() == abilityAction) {
+					triggerSingleAbility(ability, effectManager);
+				}
+			}
+			return;
+		}
+		// Legacy fallback (should be unreachable in production after Phase 1)
 		for (Map.Entry<EquipmentSlot, RPGItem> entry : equippedActiveItems.entrySet()) {
 			RPGItem item = entry.getValue();
-
-			// Filter manual abilities that match the action
 			List<Ability> manualAbilities = getManualAbilities(item, abilityAction);
-
-			// Diagnostic: an equipped item WITH abilities but zero matches usually
-			// means abilities.yml never configured them (triggerType/action are
-			// null), so casting silently does nothing. Surface it instead.
 			if (manualAbilities.isEmpty() && !item.getAbilities().isEmpty()) {
 				Ability first = item.getAbilities().get(0);
 				if (first.getTriggerType() == null || first.getAction() == null) {
@@ -188,13 +217,10 @@ public class EquipmentManager {
 							+ ", action=" + first.getAction() + "); check abilities.yml.");
 				}
 			}
-
 			for (Ability ability : manualAbilities) {
 				triggerSingleAbility(ability, effectManager);
 			}
 		}
-
-		// Trigger set abilities
 		for (Ability setAbility : temporaryAbilities) {
 			if (setAbility.getTriggerType() == AbilityTriggerType.MANUAL && setAbility.getAction() == abilityAction) {
 				triggerSingleAbility(setAbility, effectManager);
@@ -252,12 +278,26 @@ public class EquipmentManager {
 	 * passive's effect at runtime.
 	 */
 	public boolean hasSetPassive(String passiveId) {
+		// Unified path: also consult ActiveAbilityRegistry so passives bound via
+		// ActiveAbility (the new tracking surface) are considered active.
+		if (ActiveAbilityRegistry.getInstance().has(holder, passiveId)) {
+			return true;
+		}
 		for (SetBonus bonus : appliedBonuses.values()) {
 			if (bonus.getPassives().stream().anyMatch(passive -> passive.getId().equals(passiveId))) {
 				return true;
 			}
 		}
 		return false;
+	}
+
+	/**
+	 * Whether this holder currently has the given ability (including set-bonus
+	 * temporary abilities and PASSIVE item abilities) active via
+	 * {@link ActiveAbilityRegistry}. Replaces ad-hoc {@code hasPassive} scans.
+	 */
+	public boolean hasActiveAbility(String abilityId) {
+		return ActiveAbilityRegistry.getInstance().has(holder, abilityId);
 	}
 
 	// ========================================================= PRIVATE HELPER
@@ -280,6 +320,7 @@ public class EquipmentManager {
 
 			int currentCount = counts.getOrDefault(set, 0);
 			if (set.getBonusForPieces(currentCount).orElse(null) != bonus) {
+				unbindSetPassives(bonus);
 				bonus.remove(holder); // remove stats + abilities
 				it.remove();
 			}
@@ -294,6 +335,7 @@ public class EquipmentManager {
 				if (!appliedBonuses.containsKey(set)) {
 					bonus.apply(holder); // apply stats + abilities
 					appliedBonuses.put(set, bonus);
+					bindSetPassives(bonus);
 				}
 			});
 		}
@@ -440,6 +482,146 @@ public class EquipmentManager {
 		for (Ability ability : autoAbilities) {
 			eventBus.unsubscribe(registeredAutoAbilities.get(ability.getId()));
 		}
+	}
+
+	// ---------------------------------------------------------------- ActiveAbility binding
+	private void bindAbilities(RPGItem item) {
+		for (Ability ability : item.getAbilities()) {
+			bindAbility(ability);
+		}
+	}
+
+	private void unbindAbilities(RPGItem item) {
+		for (Ability ability : item.getAbilities()) {
+			unbindAbility(ability);
+		}
+	}
+
+	private void bindAbility(Ability ability) {
+		String id = ability.getId();
+		int count = abilityRefCounts.getOrDefault(id, 0);
+		abilityRefCounts.put(id, count + 1);
+		if (count > 0) return; // already bound, ref-counted
+
+		ActiveAbility aa = new ActiveAbility(holder, ability, eventBus);
+		ActiveAbilityRegistry.getInstance().track(holder, aa);
+		try {
+			ability.onActivate(aa);
+		} catch (Exception e) {
+			System.out.println("Ability onActivate failed for " + id + ": " + e.getMessage());
+		}
+		AbilityBehavior behavior = AbilityBehaviorRegistry.create(id, aa);
+		if (behavior != null) {
+			aa.setBehavior(behavior);
+			try {
+				behavior.onActivate(aa);
+			} catch (Exception e) {
+				System.out.println("Behavior onActivate failed for " + id + ": " + e.getMessage());
+			}
+		}
+	}
+
+	private void unbindAbility(Ability ability) {
+		String id = ability.getId();
+		Integer count = abilityRefCounts.get(id);
+		if (count == null) return;
+		if (count > 1) {
+			abilityRefCounts.put(id, count - 1);
+			return;
+		}
+		abilityRefCounts.remove(id);
+		ActiveAbility aa = ActiveAbilityRegistry.getInstance().untrack(holder, id);
+		if (aa == null) return;
+		if (aa.getBehavior() != null) {
+			try {
+				aa.getBehavior().onDeactivate(aa);
+			} catch (Exception e) {
+				System.out.println("Behavior onDeactivate failed for " + id + ": " + e.getMessage());
+			}
+		}
+		try {
+			ability.onDeactivate(aa);
+		} catch (Exception e) {
+			System.out.println("Ability onDeactivate failed for " + id + ": " + e.getMessage());
+		}
+		aa.getSubscriptions().unsubscribeAll();
+	}
+
+	/** Cleanup all bindings for this holder (e.g. death/quit). */
+	public void cleanupBindings() {
+		for (String id : new ArrayList<>(abilityRefCounts.keySet())) {
+			Ability ability = AbilityRegistry.get(id).orElse(null);
+			if (ability != null) {
+				unbindAbility(ability);
+			} else {
+				ActiveAbility aa = ActiveAbilityRegistry.getInstance().untrack(holder, id);
+				if (aa != null) {
+					if (aa.getBehavior() != null) try { aa.getBehavior().onDeactivate(aa); } catch (Exception ignored) {}
+					try { aa.getAbility().onDeactivate(aa); } catch (Exception ignored) {}
+					aa.getSubscriptions().unsubscribeAll();
+				}
+			}
+		}
+		abilityRefCounts.clear();
+		for (String pid : new ArrayList<>(passiveRefCounts.keySet())) {
+			unbindSetPassive(pid);
+		}
+	}
+
+	// ---- Set-passive binding (unified tracking) ----
+
+	/** Synthetic ability wrapper so set-passive ids can live in ActiveAbilityRegistry. */
+	private static final class SyntheticPassiveAbility extends Ability {
+		private SyntheticPassiveAbility(String id) {
+			super(id);
+			setTriggerType(AbilityTriggerType.PASSIVE);
+		}
+	}
+
+	private void bindSetPassives(SetBonus bonus) {
+		for (SetPassive p : bonus.getPassives()) {
+			bindSetPassive(p.getId());
+		}
+	}
+
+	private void unbindSetPassives(SetBonus bonus) {
+		for (SetPassive p : bonus.getPassives()) {
+			unbindSetPassive(p.getId());
+		}
+	}
+
+	private void bindSetPassive(String passiveId) {
+		int count = passiveRefCounts.getOrDefault(passiveId, 0);
+		passiveRefCounts.put(passiveId, count + 1);
+		if (count > 0) return;
+		Ability synthetic = new SyntheticPassiveAbility(passiveId);
+		ActiveAbility aa = new ActiveAbility(holder, synthetic, eventBus);
+		ActiveAbilityRegistry.getInstance().track(holder, aa);
+		try { synthetic.onActivate(aa); } catch (Exception e) {
+			System.out.println("Synthetic passive onActivate failed for " + passiveId + ": " + e.getMessage());
+		}
+		AbilityBehavior behavior = AbilityBehaviorRegistry.create(passiveId, aa);
+		if (behavior != null) {
+			aa.setBehavior(behavior);
+			try { behavior.onActivate(aa); } catch (Exception e) {
+				System.out.println("Set-passive behavior onActivate failed for " + passiveId + ": " + e.getMessage());
+			}
+		}
+	}
+
+	private void unbindSetPassive(String passiveId) {
+		Integer count = passiveRefCounts.get(passiveId);
+		if (count == null) return;
+		if (count > 1) {
+			passiveRefCounts.put(passiveId, count - 1);
+			return;
+		}
+		passiveRefCounts.remove(passiveId);
+		ActiveAbility aa = ActiveAbilityRegistry.getInstance().untrack(holder, passiveId);
+		if (aa == null) return;
+		if (aa.getBehavior() != null) try { aa.getBehavior().onDeactivate(aa); } catch (Exception ignored) {}
+		try { aa.getAbility().onDeactivate(aa); } catch (Exception ignored) {}
+		aa.getSubscriptions().unsubscribeAll();
 	}
 
 	private void triggerSingleAbility(Ability ability, EffectManagerInterface effectManagerInterface) {

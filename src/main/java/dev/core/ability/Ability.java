@@ -6,10 +6,36 @@ import lombok.Getter;
 import lombok.Setter;
 
 import dev.core.event.Event;
+import dev.core.ability.storage.AbilityLoader;
 
 @Getter
 @Setter
 public abstract class Ability {
+
+	/**
+	 * Override to provide per-holder mutable state for this ability. One instance
+	 * is created per {@link ActiveAbility} binding. Return {@code null} when the
+	 * ability is stateless.
+	 */
+	public Object createState() {
+		return null;
+	}
+
+	/**
+	 * Called when this ability becomes active for a holder (equip or set-bonus
+	 * grant). The holder is available via {@code ctx.getHolder()}; per-holder
+	 * state via {@code ctx.getState()}; event subscriptions via
+	 * {@code ctx.getSubscriptions()}. Default is no-op.
+	 */
+	public void onActivate(ActiveAbility ctx) {
+	}
+
+	/**
+	 * Called when this ability is removed from a holder (unequip, set break,
+	 * death, quit). Behavior instances are torn down before this is invoked.
+	 */
+	public void onDeactivate(ActiveAbility ctx) {
+	}
 
 	private final String id;
 	private String name;
@@ -32,7 +58,7 @@ public abstract class Ability {
 	 * The cast cost, configured EXCLUSIVELY in abilities.yml ({@code cost:}
 	 * section, flat {@code amount} or dynamic {@code formula}). Java code
 	 * never defines costs; an ability without a config cost is free to cast.
-	 * Written by {@link dev.core.ability.storage.AbilityLoader} at startup.
+	 * Written by {@link AbilityLoader} at startup.
 	 */
 	private AbilityCost cost;
 	/**

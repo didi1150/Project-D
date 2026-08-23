@@ -2,7 +2,6 @@ package dev.core.event;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.UUID;
 
 import org.jetbrains.annotations.NotNull;
 

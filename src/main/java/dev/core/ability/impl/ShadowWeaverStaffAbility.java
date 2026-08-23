@@ -9,7 +9,7 @@ import dev.core.ability.Ability;
  * (see {@code preregister}) and configured in {@code abilities.yml}, which
  * supplies the trigger action and cooldown metadata. All of the actual behavior
  * (raycasting, platform lifecycle, dash animation) lives in the matching Bukkit
- * effects, which forward to {@code ShadowWeaverManager}.
+ * effects, which forward to the per-holder {@code ShadowWeaverBehavior}.
  */
 public class ShadowWeaverStaffAbility extends Ability {
 
