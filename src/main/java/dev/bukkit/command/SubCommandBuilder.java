@@ -18,6 +18,7 @@ public class SubCommandBuilder {
     private String description;
     private String syntax;
     private final List<String> aliases;
+    private String permission;
 
     private final List<CommandActionContainer> commandActions;
 
@@ -28,6 +29,7 @@ public class SubCommandBuilder {
         aliases = new ArrayList<>();
         tabSuggestions = new ArrayList<>();
         commandActions = new ArrayList<>();
+        permission = "projectd." + name;
     }
 
     public static SubCommandBuilder startBuilding(String name) {
@@ -46,6 +48,16 @@ public class SubCommandBuilder {
 
     public SubCommandBuilder addAlias(String alias) {
         this.aliases.add(alias);
+        return this;
+    }
+
+    public SubCommandBuilder setNoPermission() {
+        this.permission = null;
+        return this;
+    }
+
+    public SubCommandBuilder setPermission(String permission) {
+        this.permission = permission;
         return this;
     }
 
@@ -250,6 +262,11 @@ public class SubCommandBuilder {
 
             @Override
             public void perform(CommandSender sender, String[] args) {
+
+                if (permission != null && !(sender.hasPermission(permission) || sender.hasPermission("projectd.admin") || sender.isOp())) {
+                    BukkitMessageSender.getInstance().sendMessage(sender, MessageComponent.of(MessageText.ERROR_COMMAND_NO_PERMISSION, permission));
+                    return;
+                }
 
                 args = Arrays.stream(args).skip(1).toArray(String[]::new);
 

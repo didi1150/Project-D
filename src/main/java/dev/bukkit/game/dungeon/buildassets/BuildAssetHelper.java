@@ -136,6 +136,7 @@ public class BuildAssetHelper extends SetupHelper {
     @Override
     public void registerCommand(CommandManager cm, BukkitMessageSender ms) {
         cm.addSubCommand("project-d", SubCommandBuilder.startBuilding("asset")
+                .setPermission("projectd.asset")
                 .setPlayerCommandAction(1, "firstPos", (player, args) -> {
                     if (isPlayerInMode(player, ms, true)) {
                         selectFirstPos(ms, player, player.getLocation());
