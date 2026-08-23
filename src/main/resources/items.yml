@@ -89,11 +89,19 @@
 #                         teammates within 6 blocks
 #   MANA_DISCOUNT (Mage) ability casts cost 10% less mana while the full set
 #                         is worn (applied to mana costs at cast time)
+#   VAMPIRISM   (Tank)    every enemy death within 10 blocks heals the wearer
+#                         for a percentage of their max health, but only while
+#                         the wearer is in active combat (dealt or took damage
+#                         within the last 8 seconds)
 # Cooldown reduction (Mage) is a plain stat bonus: ABILITY_HASTE.
 #
 # PROJECTILE_DAMAGE is a percent stat: it amplifies the damage of whatever
 # projectile the holder attacks with (arrows, tridents, fireballs, ... and the
 # Bonemerang's bone), so FLAT 10.0 = +10%.
+#
+# LIFESTEAL is a percent stat (fraction-based like CRIT_CHANCE, displayed as
+# e.g. "5.0%"): melee attacks heal the attacker for that fraction of the damage
+# dealt. It does not apply to ability or projectile damage.
 #
 # Example item:
 #   MY_SWORD:
@@ -232,6 +240,150 @@ items:
       policy: STACK
     - amount: 0.5
       statType: HEALTH_REGEN
+      modifierType: FLAT
+      statTarget: BOTH
+      policy: STACK
+    abilities: []
+
+  # ---- Drain Tank Set -------------------------------------------------------
+  # Sustain pieces: max health, lifesteal, attack speed and move speed. The
+  # full set grants the VAMPIRISM passive (see header). Tank class only.
+  DRAIN_TANK_HELMET:
+    name: Drain Helmet
+    material: LEATHER_HELMET
+    leather-color: 0x4A1010
+    slot: HEAD
+    itemType: HELMET
+    unlockLevel: 0
+    allowed-classes:
+    - TANK
+    description:
+    - "A blood-darkened helm that"
+    - "drinks alongside its wearer."
+    passive-stats: []
+    active-stats:
+    - amount: 40.0
+      statType: HEALTH_MAX
+      modifierType: FLAT
+      statTarget: BOTH
+      policy: STACK
+    - amount: 0.02
+      statType: LIFESTEAL
+      modifierType: FLAT
+      statTarget: BOTH
+      policy: STACK
+    - amount: 0.05
+      statType: ATTACK_SPEED
+      modifierType: FLAT
+      statTarget: BOTH
+      policy: STACK
+    - amount: 2.0
+      statType: MOVE_SPEED
+      modifierType: FLAT
+      statTarget: BOTH
+      policy: STACK
+    abilities: []
+  DRAIN_TANK_CHESTPLATE:
+    name: Drain Chestplate
+    material: LEATHER_CHESTPLATE
+    leather-color: 0x6B1515
+    slot: CHEST
+    itemType: CHESTPLATE
+    unlockLevel: 0
+    allowed-classes:
+    - TANK
+    description:
+    - "Crimson plate that grows"
+    - "stronger with every wound."
+    passive-stats: []
+    active-stats:
+    - amount: 60.0
+      statType: HEALTH_MAX
+      modifierType: FLAT
+      statTarget: BOTH
+      policy: STACK
+    - amount: 0.03
+      statType: LIFESTEAL
+      modifierType: FLAT
+      statTarget: BOTH
+      policy: STACK
+    - amount: 0.05
+      statType: ATTACK_SPEED
+      modifierType: FLAT
+      statTarget: BOTH
+      policy: STACK
+    - amount: 2.0
+      statType: MOVE_SPEED
+      modifierType: FLAT
+      statTarget: BOTH
+      policy: STACK
+    abilities: []
+  DRAIN_TANK_LEGGINGS:
+    name: Drain Leggings
+    material: LEATHER_LEGGINGS
+    leather-color: 0x8C1A1A
+    slot: LEGS
+    itemType: LEGGINGS
+    unlockLevel: 0
+    allowed-classes:
+    - TANK
+    description:
+    - "Leg guards stained by a"
+    - "hundred victorious hunts."
+    passive-stats: []
+    active-stats:
+    - amount: 50.0
+      statType: HEALTH_MAX
+      modifierType: FLAT
+      statTarget: BOTH
+      policy: STACK
+    - amount: 0.02
+      statType: LIFESTEAL
+      modifierType: FLAT
+      statTarget: BOTH
+      policy: STACK
+    - amount: 0.075
+      statType: ATTACK_SPEED
+      modifierType: FLAT
+      statTarget: BOTH
+      policy: STACK
+    - amount: 3.0
+      statType: MOVE_SPEED
+      modifierType: FLAT
+      statTarget: BOTH
+      policy: STACK
+    abilities: []
+  DRAIN_TANK_BOOTS:
+    name: Drain Boots
+    material: LEATHER_BOOTS
+    leather-color: 0x3C0C0C
+    slot: FEET
+    itemType: BOOTS
+    unlockLevel: 0
+    allowed-classes:
+    - TANK
+    description:
+    - "Swift boots for chasing"
+    - "down the next meal."
+    passive-stats: []
+    active-stats:
+    - amount: 30.0
+      statType: HEALTH_MAX
+      modifierType: FLAT
+      statTarget: BOTH
+      policy: STACK
+    - amount: 0.01
+      statType: LIFESTEAL
+      modifierType: FLAT
+      statTarget: BOTH
+      policy: STACK
+    - amount: 0.075
+      statType: ATTACK_SPEED
+      modifierType: FLAT
+      statTarget: BOTH
+      policy: STACK
+    - amount: 5.0
+      statType: MOVE_SPEED
       modifierType: FLAT
       statTarget: BOTH
       policy: STACK
@@ -999,6 +1151,41 @@ items:
     abilities:
     - ARCANE_MANA_RESTORE
     - ARCANE_CLEAVE
+  DRAIN_BLADE:
+    # Drain Blade — matching iron sword for the Drain Tank Set.
+    # Stats: +15 Attack Damage (flat), +10% Attack Speed (additive), +5% Lifesteal.
+    # Passive:
+    #   STACKER — gain +1 Attack Damage for every 25 Max Health the wielder has
+    #   (evaluated per hit, so it scales live with health changes). Melee only.
+    unlockLevel: 0
+    name: Drain Blade
+    material: IRON_SWORD
+    slot: MAIN_HAND
+    itemType: SWORD
+    allowed-classes:
+    - TANK
+    passive-stats: []
+    active-stats:
+    - amount: 15.0
+      statType: ATTACK_DAMAGE
+      modifierType: FLAT
+      statTarget: BOTH
+      policy: STACK
+    - amount: 0.1
+      statType: ATTACK_SPEED
+      modifierType: FLAT
+      statTarget: BOTH
+      policy: STACK
+    - amount: 0.05
+      statType: LIFESTEAL
+      modifierType: FLAT
+      statTarget: BOTH
+      policy: STACK
+    description:
+    - "A <dark_red>thirsty blade</dark_red> that grows heavier"
+    - "<gray>as its wielder's vitality swells.</gray>"
+    abilities:
+    - STACKER
 
 # ---- Basic Archer Set (item set bonus: full 4/4 set) -----------------------
 # Full set passive: +10% projectile damage dealt (arrows, projectiles and the
@@ -1065,6 +1252,35 @@ item-sets:
           policy: STACK
         passives:
         - THREAT
+        abilities: []
+
+  # ---- Drain Tank Set (item set bonus: full 4/4 set) -------------------------
+  # Full set passive VAMPIRISM: every enemy death within 10 blocks heals the
+  # wearer for 5% of their max health — but only while in active combat
+  # (the wearer dealt or took damage within the last 8 seconds). A HUD line
+  # shows while the passive is live and fades when combat lapses.
+  DRAIN_TANK:
+    name: Drain Tank Set
+    pieces:
+    - DRAIN_TANK_HELMET
+    - DRAIN_TANK_CHESTPLATE
+    - DRAIN_TANK_LEGGINGS
+    - DRAIN_TANK_BOOTS
+    bonuses:
+      '4':
+        description: |-
+          Full Drain Tank Set (4/4):
+          +100 Max Health,
+          Vampirism: kills near you in combat heal you
+          for 5% of your max health
+        stat-modifiers:
+        - amount: 100.0
+          statType: HEALTH_MAX
+          modifierType: FLAT
+          statTarget: BOTH
+          policy: STACK
+        passives:
+        - VAMPIRISM
         abilities: []
   
   # ---- Basic Assassin Set (item set bonus: full 4/4 set) ----------------------

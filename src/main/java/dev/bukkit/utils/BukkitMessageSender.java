@@ -1,6 +1,5 @@
 package dev.bukkit.utils;
 
-import dev.core.utils.*;
 import org.bukkit.Bukkit;
 import org.bukkit.ChatColor;
 import org.bukkit.command.CommandSender;
@@ -10,6 +9,12 @@ import org.bukkit.entity.Player;
 import dev.bukkit.item.display.BukkitTextColorAdapter;
 import dev.core.item.display.StyleTagParser;
 import dev.core.item.display.TextColor;
+import dev.core.utils.ColorCodes;
+import dev.core.utils.DefaultFontInfo;
+import dev.core.utils.MessageComponent;
+import dev.core.utils.MessageLevel;
+import dev.core.utils.MessageSenderInterface;
+import dev.core.utils.MinecraftColorTranslator;
 
 public class BukkitMessageSender implements MessageSenderInterface {
 
@@ -140,7 +145,7 @@ public class BukkitMessageSender implements MessageSenderInterface {
 
     private String getCenteredMessage(String message) {
         if (message == null || message.isEmpty()) return "";
-        message = ChatColor.translateAlternateColorCodes('&', message);
+        message = ColorCodes.translate(message);
 
         int messagePxSize = 0;
         boolean previousCode = false;
@@ -175,7 +180,7 @@ public class BukkitMessageSender implements MessageSenderInterface {
 
     private String insertNewLines(String message, boolean shouldLineBreak) {
         if (message == null || message.isEmpty()) return "";
-        message = ChatColor.translateAlternateColorCodes('&', message);
+        message = dev.core.utils.ColorCodes.translate(message);
 
         int messagePxSize = 0;
         boolean previousCode = false;

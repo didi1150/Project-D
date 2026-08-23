@@ -34,6 +34,7 @@ public class StatTypeAdapter {
         TYPE_TO_ID.put(StatType.CRIT_CHANCE, "core:crit_chance");
         TYPE_TO_ID.put(StatType.PROJECTILE_DAMAGE, "core:projectile_damage");
         TYPE_TO_ID.put(StatType.HEAL_AND_SHIELD_POWER, "core:heal_and_shield_power");
+        TYPE_TO_ID.put(StatType.LIFESTEAL, "core:lifesteal");
         TYPE_TO_ID.put(StatType.HEALTH_MAX, "core:health_max");
         TYPE_TO_ID.put(StatType.HEALTH_RESOURCE, "core:health");
         TYPE_TO_ID.put(StatType.HEALTH_REGEN, "core:health_regen");
@@ -68,6 +69,9 @@ public class StatTypeAdapter {
         register(registry, StatType.CRIT_CHANCE);
         register(registry, StatType.PROJECTILE_DAMAGE);
         register(registry, StatType.HEAL_AND_SHIELD_POWER);
+
+        // Drain / sustain
+        register(registry, StatType.LIFESTEAL);
 
         // Health Stats
         register(registry, StatType.HEALTH_MAX);
@@ -104,7 +108,7 @@ public class StatTypeAdapter {
      * which printed the raw fraction for CRIT_CHANCE.
      */
     private static boolean isPercent(StatType type) {
-        return type == StatType.CRIT_CHANCE || type == StatType.ATTACK_SPEED;
+        return type == StatType.CRIT_CHANCE || type == StatType.ATTACK_SPEED || type == StatType.LIFESTEAL;
     }
 
     /**

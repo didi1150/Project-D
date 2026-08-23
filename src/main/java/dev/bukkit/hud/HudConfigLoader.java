@@ -36,6 +36,14 @@ public final class HudConfigLoader {
         boolean shadowed = getBool(disp, "shadowed", HudConfig.DEFAULT_SHADOWED);
         boolean seeThrough = getBool(disp, "see-through", HudConfig.DEFAULT_SEE_THROUGH);
 
+        // tracking (real-time follow tuning)
+        HudConfig.Tracking defTracking = HudConfig.defaultTracking();
+        ConfigSection trackSec = root.getSection("tracking");
+        double velocityLead = getDouble(trackSec, "velocity-lead-ticks", defTracking.velocityLeadTicks());
+        double minStep = getDouble(trackSec, "min-step", defTracking.minStep());
+        double snapDistance = getDouble(trackSec, "snap-distance", defTracking.snapDistance());
+        HudConfig.Tracking tracking = new HudConfig.Tracking(velocityLead, minStep, snapDistance);
+
         Color bg = loadBackground(disp);
 
         // formats.hunter
@@ -69,13 +77,24 @@ public final class HudConfigLoader {
                 triVolleyCd != null ? triVolleyCd : defaultsT.volleyCd());
 
         ConfigSection msgs = root.getSection("messages");
-        String notEnough = null;
-        if (msgs != null) notEnough = trim(msgs.getString("not-enough", null));
-        if (notEnough == null) notEnough = HudConfig.defaults().messages().notEnough();
-        HudConfig.Messages messages = new HudConfig.Messages(notEnough);
+        HudConfig.Messages defMsgs = HudConfig.defaults().messages();
+        String notEnough = null, onCooldown = null;
+        long cdDurationMs = defMsgs.onCooldownDurationMs();
+        long cdFadeMs = defMsgs.onCooldownFadeMs();
+        if (msgs != null) {
+            notEnough = trim(msgs.getString("not-enough", null));
+            onCooldown = trim(msgs.getString("on-cooldown", null));
+            cdDurationMs = (long) getDouble(msgs, "on-cooldown-duration-ms", defMsgs.onCooldownDurationMs());
+            cdFadeMs = (long) getDouble(msgs, "on-cooldown-fade-ms", defMsgs.onCooldownFadeMs());
+        }
+        HudConfig.Messages messages = new HudConfig.Messages(
+                notEnough != null ? notEnough : defMsgs.notEnough(),
+                onCooldown != null ? onCooldown : defMsgs.onCooldown(),
+                cdDurationMs, cdFadeMs);
 
         return new HudConfig(enabled, maxKeys, distance, vOff, spacing, scale, viewRange, lineWidth, bg,
-                brightness, interp, teleport, shadowed, seeThrough, formats, triFormats, messages);
+                brightness, interp, teleport, shadowed, seeThrough, tracking, formats, triFormats,
+                messages);
     }
 
     private static Color loadBackground(ConfigSection disp) {

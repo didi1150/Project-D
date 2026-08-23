@@ -77,7 +77,7 @@ class StatMetadataTest {
         assertEquals("×", replaced.getSymbol());
         assertEquals("#FF0000", replaced.getColor().toHex());
         assertEquals("× +15 Dmg", replaced.formatValue(15, true));
-        assertEquals(18, registry.size(), "override must not grow the registry");
+        assertEquals(19, registry.size(), "override must not grow the registry");
     }
 
     @Test

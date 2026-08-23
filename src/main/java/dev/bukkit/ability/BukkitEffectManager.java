@@ -10,6 +10,7 @@ import org.bukkit.inventory.ItemStack;
 import org.bukkit.persistence.PersistentDataType;
 
 import dev.bukkit.entity.BukkitPlayerEntity;
+import dev.bukkit.hud.HudCooldownFeedback;
 import dev.bukkit.item.BukkitItemStackAdapter;
 import dev.bukkit.utils.ManaDiscountUtils;
 import dev.core.ability.Ability;
@@ -117,6 +118,14 @@ public class BukkitEffectManager implements EffectManagerInterface {
 	@Override
 	public boolean canActivate(RPGEntity entity, Ability ability) {
 		if (isOnCooldown(entity, ability)) {
+			// HUD-transient "ability on cooldown" feedback (debounced, chat fallback if hud disabled)
+			if (entity instanceof BukkitPlayerEntity bpe) {
+				bpe.getPlayer().ifPresent(p -> {
+					try {
+						HudCooldownFeedback.send(p, ability, remainingCooldown(entity, ability));
+					} catch (Exception ignored) {}
+				});
+			}
 			return false;
 		}
 

@@ -20,6 +20,7 @@ import org.bukkit.entity.LivingEntity;
 import org.bukkit.entity.Player;
 import org.bukkit.event.entity.EntityDamageByEntityEvent;
 import org.bukkit.event.entity.EntityDamageEvent.DamageCause;
+import org.bukkit.event.player.PlayerQuitEvent;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
 import org.bukkit.plugin.Plugin;
@@ -48,6 +49,12 @@ import dev.core.stat.StatType;
  * while charged (diamond material) releases a forward half-circle magic cleave
  * and consumes the charge, reverting the blade to iron. The counter is tracked
  * per holder.
+ *
+ * <p>The charged morph is a toggled state with its own duration
+ * ({@link #DIAMOND_DURATION_TICKS}): switching the blade away mid-charge keeps
+ * it diamond, and the scheduled revert fades it back to iron on schedule even
+ * while unequipped. Quitting reverts immediately (timers do not survive
+ * relogin).</p>
  */
 public class ArcaneCleaveBehavior implements AbilityBehavior {
 
@@ -92,19 +99,30 @@ public class ArcaneCleaveBehavior implements AbilityBehavior {
         this.ctx = ctx;
         ctx.getSubscriptions().subscribe(
                 new EventAction<>(this::onDamage, EntityDamageByEntityEvent.class, EventAction.HIGHEST_PRIORITY));
+        ctx.getSubscriptions().subscribe(new EventAction<>(this::onQuit, PlayerQuitEvent.class));
     }
 
     @Override
     public void onDeactivate(ActiveAbility ctx) {
         hitCount = 0;
         recentVictimHits.clear();
+        // The charged (diamond) morph is a toggled state and deliberately
+        // survives unequip: pendingRevert/pendingConsume are plain scheduler
+        // tasks keyed by player uuid + slot, so the blade still fades back to
+        // iron after DIAMOND_DURATION_TICKS even while stowed, and re-equipping
+        // within that window resumes the charged state. Only quitting takes the
+        // explicit revert path (see onQuit), because scheduled tasks die with
+        // the server session and would leave a permanently diamond blade.
+    }
+
+    private void onQuit(PlayerQuitEvent e) {
+        if (!e.getPlayer().getUniqueId().equals(ctx.getHolder().getUuid()))
+            return;
+        // session end: the morph's fade timer does not survive relogin
+        revertStuckMorph();
         cancelPendingRevert();
         cancelPendingConsume();
-        // A blade unequipped mid-charge must not persist in its morphed form:
-        // otherwise the next equip starts in the charged state and the very
-        // first swing releases a "free" cleave — the hit counter appears to
-        // have skipped a charge.
-        revertStuckMorph();
+        releasing = false;
     }
 
     private void cancelPendingRevert() {
@@ -155,7 +173,13 @@ public class ArcaneCleaveBehavior implements AbilityBehavior {
     }
 
     private void onDamage(EntityDamageByEntityEvent event) {
-        if (event.isCancelled() || event.getDamage() <= 0.002)
+        if (event.isCancelled())
+            return;
+        // Hits on RPG-managed victims (dungeon mobs, boss) arrive rewritten to
+        // DamageUtils.RPG_HANDLED_ENTITY after CombatListener applied the real
+        // damage through the RPG pipeline — those are genuine swings and must
+        // charge/release the blade, not be dropped as negligible.
+        if (!DamageUtils.isChargeableHit(event))
             return;
         DamageCause cause = event.getCause();
         if (cause != DamageCause.ENTITY_ATTACK)

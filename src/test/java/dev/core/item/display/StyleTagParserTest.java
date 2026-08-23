@@ -389,4 +389,80 @@ public class StyleTagParserTest {
         assertEquals(TextStyle.defaultStyle(defaultColor), result.get(0).style());
     }
 
+    @Test
+    void testHexColorTagPaired() {
+        String input = "Dmg <#FF8800>fire</#FF8800>!";
+        List<StyledSegment> result = parser.parse(input);
+
+        assertEquals(3, result.size());
+        assertEquals("Dmg ", result.get(0).text());
+        assertEquals("fire", result.get(1).text());
+        assertEquals(TextStyle.defaultStyle(defaultColor).withHexColor("#FF8800"), result.get(1).style());
+        assertEquals("!", result.get(2).text());
+    }
+
+    @Test
+    void testHexColorTagSelfClosing() {
+        String input = "<#ff8800/>burning";
+        List<StyledSegment> result = parser.parse(input);
+
+        assertEquals(1, result.size());
+        assertEquals("burning", result.get(0).text());
+        assertEquals(TextStyle.defaultStyle(defaultColor).withHexColor("#FF8800"), result.get(0).style(),
+                "hex tags normalize to uppercase");
+    }
+
+    @Test
+    void testRgbColorTagPaired() {
+        String input = "<rgb(255, 128, 0)>amber</rgb(255,128,0)>";
+        List<StyledSegment> result = parser.parse(input);
+
+        assertEquals(1, result.size());
+        assertEquals("amber", result.get(0).text());
+        assertEquals(TextStyle.defaultStyle(defaultColor).withHexColor("#FF8000"), result.get(0).style());
+    }
+
+    @Test
+    void testRgbColorTagSelfClosing() {
+        String input = "<rgb(255,128,0)/>text";
+        List<StyledSegment> result = parser.parse(input);
+
+        assertEquals(1, result.size());
+        assertEquals(TextStyle.defaultStyle(defaultColor).withHexColor("#FF8000"), result.get(0).style());
+    }
+
+    @Test
+    void testRgbClampsComponents() {
+        String input = "<rgb(999,-5,300)/>x";
+        List<StyledSegment> result = parser.parse(input);
+
+        assertEquals(1, result.size());
+        assertEquals(TextStyle.defaultStyle(defaultColor).withHexColor("#FF00FF"), result.get(0).style());
+    }
+
+    @Test
+    void testHexTagNestedWithFormatter() {
+        String input = "<#00FF00><bold>go</bold></#00FF00>";
+        List<StyledSegment> result = parser.parse(input);
+
+        assertEquals(1, result.size());
+        assertEquals("go", result.get(0).text());
+        TextStyle expectedStyle = TextStyle.defaultStyle(defaultColor).withHexColor("#00FF00")
+                .withFormatter(TextFormatter.BOLD);
+        assertEquals(expectedStyle, result.get(0).style());
+    }
+
+    @Test
+    void testHexTagThenNamedTagSwitchesColor() {
+        String input = "<#123456>a<red>b</red>c</#123456>";
+        List<StyledSegment> result = parser.parse(input);
+
+        assertEquals(3, result.size());
+        assertEquals(TextStyle.defaultStyle(defaultColor).withHexColor("#123456"), result.get(0).style());
+        // inner <red> overrides the hex color
+        assertEquals(TextStyle.defaultStyle(defaultColor).withColor(TextColor.RED), result.get(1).style());
+        // after the inner pair closes, hex applies again (recursion re-parses remainder with outer style)
+        assertEquals(TextStyle.defaultStyle(defaultColor).withHexColor("#123456"), result.get(2).style());
+    }
+
 }

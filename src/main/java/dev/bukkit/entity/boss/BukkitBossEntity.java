@@ -4,14 +4,13 @@ import java.util.Optional;
 import java.util.UUID;
 
 import org.bukkit.Bukkit;
-import org.bukkit.ChatColor;
 import org.bukkit.Location;
 import org.bukkit.entity.Entity;
 import org.bukkit.entity.LivingEntity;
 import org.bukkit.event.entity.EntityDamageByEntityEvent;
 
 import dev.bukkit.ability.BukkitEffectManager;
-import dev.bukkit.entity.BukkitPlayerEntity;
+import dev.bukkit.entity.MobRPGEntity;
 import dev.bukkit.stat.BukkitBossStatManager;
 import dev.bukkit.status.BukkitStatusEffectManager;
 import dev.core.entity.EntityManager;
@@ -21,6 +20,7 @@ import dev.core.entity.boss.BossStage;
 import dev.core.entity.boss.RPGBossEntity;
 import dev.core.event.EventBusInterface;
 import dev.core.game.TaskScheduler;
+import dev.core.utils.ColorCodes;
 
 /**
  * Bukkit wrapper around a boss entity. Shares the bukkit entity's uuid so that
@@ -78,7 +78,7 @@ public class BukkitBossEntity extends RPGBossEntity {
     /** Show the boss's RPG health in its custom name as {@code [❤] current/max}. */
     private void updateName() {
         getLivingEntity().ifPresent(living -> {
-            String base = ChatColor.translateAlternateColorCodes('&', getName());
+            String base = ColorCodes.translate(getName());
             living.setCustomName(base + " [❤] " + Math.round(getHealth()) + "/" + Math.round(getMaxHealth()));
             living.setCustomNameVisible(true);
         });

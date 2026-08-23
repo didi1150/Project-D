@@ -1,7 +1,9 @@
 package dev.bukkit.summon;
 
 import java.util.UUID;
+import java.util.WeakHashMap;
 
+import org.bukkit.Bukkit;
 import org.bukkit.ChatColor;
 import org.bukkit.Color;
 import org.bukkit.Location;
@@ -34,7 +36,9 @@ public final class SoulSkull {
     /** Skulls despawn after this long. */
     public static final int DESPAWN_SECONDS = 20;
 
-    /** Radius (blocks) around the skull a tome holder must get within to collect it. */
+    /**
+     * Radius (blocks) around the skull a tome holder must get within to collect it.
+     */
     private static final double COLLECT_RADIUS = 2.5;
 
     private static final NamespacedKey SOUL_KEY = new NamespacedKey("project_d", "soulskull");
@@ -44,10 +48,10 @@ public final class SoulSkull {
     }
 
     /**
-     * Spawns a purple soul skull at the given location. The skull hovers
-     * slightly above the ground, shimmers with purple particles and removes
-     * itself after {@link #DESPAWN_SECONDS}. A nearby Support player holding a
-     * Soul Tome collects the soul just by getting close.
+     * Spawns a purple soul skull at the given location. The skull hovers slightly
+     * above the ground, shimmers with purple particles and removes itself after
+     * {@link #DESPAWN_SECONDS}. It is only visible to players carrying a Soul Tome;
+     * those players collect the soul just by getting close.
      */
     public static ArmorStand spawn(Location location, SoulFragment fragment) {
         World world = location.getWorld();
@@ -77,22 +81,56 @@ public final class SoulSkull {
         });
 
         BukkitRunnable aura = new BukkitRunnable() {
+            /**
+             * Last visibility state sent per player. Keyed by the Player instance (weakly
+             * held) so rejoining players are treated as unseen again and entries clean
+             * themselves up on logout.
+             */
+            private final WeakHashMap<Player, Boolean> visibilityState = new WeakHashMap<>();
+
             @Override
             public void run() {
                 if (!stand.isValid() || stand.isDead()) {
                     cancel();
                     return;
                 }
-                world.spawnParticle(Particle.DUST, stand.getLocation().add(0, 0.35, 0), 2, 0.3, 0.3, 0.3,
-                        PURPLE);
+                world.spawnParticle(Particle.DUST, stand.getLocation().add(0, 0.35, 0), 2, 0.3, 0.3, 0.3, PURPLE);
+                updateVisibility();
                 collectNearby();
             }
 
             /**
+             * Souls are only visible to players carrying a Soul Tome: everyone else gets
+             * the skull hidden via {@code Player#hideEntity}. Packets are only sent when a
+             * player's visibility actually changes.
+             */
+            private void updateVisibility() {
+                DMain plugin = DMain.getInstance();
+                if (plugin == null) {
+                    return;
+                }
+                for (Player player : Bukkit.getOnlinePlayers()) {
+                    boolean shouldSee = SoulTome.findTome(player) != null;
+                    Boolean known = visibilityState.get(player);
+                    if (known != null && known == shouldSee) {
+                        continue;
+                    }
+                    try {
+                        if (shouldSee) {
+                            player.showEntity(plugin, stand);
+                        } else {
+                            player.hideEntity(plugin, stand);
+                        }
+                        visibilityState.put(player, shouldSee);
+                    } catch (Exception ignored) {
+                    }
+                }
+            }
+
+            /**
              * Soul Collector passive: any tome-holding Support within
-             * {@link #COLLECT_RADIUS} collects the soul on contact. First
-             * eligible player wins; the skull is removed by a successful
-             * capture.
+             * {@link #COLLECT_RADIUS} collects the soul on contact. First eligible player
+             * wins; the skull is removed by a successful capture.
              */
             private void collectNearby() {
                 for (Entity entity : world.getNearbyEntities(stand.getLocation(), COLLECT_RADIUS, COLLECT_RADIUS,
@@ -120,10 +158,10 @@ public final class SoulSkull {
     }
 
     /**
-     * Attempts to store the skull's soul in the player's Soul Tome. Runs the
-     * full capture validation (Support class, tome present, tier gate,
-     * capacity). Returns {@code true} when the soul was captured (the skull is
-     * removed); {@code false} otherwise.
+     * Attempts to store the skull's soul in the player's Soul Tome. Runs the full
+     * capture validation (Support class, tome present, tier gate, capacity).
+     * Returns {@code true} when the soul was captured (the skull is removed);
+     * {@code false} otherwise.
      */
     public static boolean tryCapture(Player player, Entity skull) {
         SoulFragment fragment = getSoul(skull);
@@ -158,14 +196,13 @@ public final class SoulSkull {
         skull.remove();
         player.playSound(player.getLocation(), Sound.BLOCK_RESPAWN_ANCHOR_SET_SPAWN, 0.7f, 1.6f);
         player.sendMessage(ChatColor.GREEN + "Captured " + fragment.mobType().name().toLowerCase().replace('_', ' ')
-                + " soul (" + (fragment.tier().name().toLowerCase()) + "). "
-                + ChatColor.GRAY + SoulTome.countSouls(tome) + "/" + capacity + " souls held.");
+                + " soul (" + (fragment.tier().name().toLowerCase()) + "). " + ChatColor.GRAY
+                + SoulTome.countSouls(tome) + "/" + capacity + " souls held.");
         return true;
     }
 
     public static boolean isSoulSkull(Entity entity) {
-        return entity != null
-                && entity.getPersistentDataContainer().has(SOUL_KEY, PersistentDataType.STRING);
+        return entity != null && entity.getPersistentDataContainer().has(SOUL_KEY, PersistentDataType.STRING);
     }
 
     public static SoulFragment getSoul(Entity entity) {

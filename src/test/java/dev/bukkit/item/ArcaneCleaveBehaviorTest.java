@@ -36,6 +36,7 @@ import dev.core.stat.impl.CombatStat;
 import dev.core.stat.impl.ResourceStat;
 import dev.core.stat.modifier.StatModifier;
 import dev.core.item.ItemType;
+import dev.bukkit.utils.DamageUtils;
 
 public class ArcaneCleaveBehaviorTest {
 
@@ -151,6 +152,23 @@ public class ArcaneCleaveBehaviorTest {
         beh.setHitCount(0);
         assertEquals(0, beh.getHitCount());
         ActiveAbilityRegistry.getInstance().clear();
+    }
+
+    @Test
+    void chargeableDamage_acceptsRpgHandledSentinelOnManagedVictims() {
+        // Real swing on a vanilla target (setup/post-game): full damage counts.
+        assertTrue(DamageUtils.isChargeableDamage(5.0, false));
+        assertTrue(DamageUtils.isChargeableDamage(5.0, true));
+        // Swing on an RPG-managed victim (clear/boss): CombatListener applies the
+        // real damage via the RPG pipeline and stamps the event with the ~0
+        // sentinel — it must still count, but only for managed victims.
+        assertTrue(DamageUtils.isChargeableDamage(DamageUtils.RPG_HANDLED_ENTITY, true),
+                "RPG-handled swing on a dungeon mob/boss must charge the passives");
+        assertFalse(DamageUtils.isChargeableDamage(DamageUtils.RPG_HANDLED_ENTITY, false),
+                "sentinel noise on unmanaged victims (hurt pokes) must not count");
+        // True zero/negative noise never counts.
+        assertFalse(DamageUtils.isChargeableDamage(0.0, true));
+        assertFalse(DamageUtils.isChargeableDamage(-1.0, true));
     }
 
     @Test

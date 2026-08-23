@@ -25,7 +25,6 @@ import org.bukkit.event.entity.EntityDamageEvent;
 import org.bukkit.event.entity.EntityDamageEvent.DamageCause;
 import org.bukkit.persistence.PersistentDataType;
 import org.bukkit.plugin.Plugin;
-import org.bukkit.scheduler.BukkitRunnable;
 import org.bukkit.util.Transformation;
 
 import dev.bukkit.ability.behavior.ShadowWeaverBehavior;
@@ -37,6 +36,7 @@ import dev.bukkit.summon.SummonedMobRPGEntity;
 import dev.bukkit.utils.BackstabUtils;
 import dev.bukkit.utils.CombatRelation;
 import dev.bukkit.utils.DamageUtils;
+import dev.bukkit.utils.LifestealUtils;
 import dev.core.entity.EntityManager;
 import dev.core.entity.RPGDamageResult;
 import dev.core.event.EventAction;
@@ -215,8 +215,16 @@ public class CombatListener implements Listener {
         textDisplay.teleport(newLoc);
     }
 
-    // Method for healing indicators (bonus feature)
+    /**
+     * Healing indicator: mirrors the damage indicator pipeline (TickEvent-driven
+     * float animation with a late fade-out), but the text size and the on-screen
+     * duration grow with the healed amount so big heals read as such.
+     */
     public void showHealingIndicator(Location location, double healing) {
+        if (healing <= 0.001) {
+            return; // Don't show indicators for empty heals
+        }
+
         World world = location.getWorld();
         if (world == null)
             return;
@@ -224,53 +232,75 @@ public class CombatListener implements Listener {
         Location spawnLoc = location.clone().add(random.nextGaussian() * 0.3, 2.0 + random.nextDouble() * 0.3,
                 random.nextGaussian() * 0.3);
 
+        float scale = healIndicatorScale(healing);
+        int duration = healIndicatorDurationTicks(healing);
+
         TextDisplay textDisplay = world.spawn(spawnLoc, TextDisplay.class, display -> {
-            String healText = "§a+ " + String.format("%.0f", healing) + " ❤";
-            display.setText(healText);
+            display.setText(formatHealText(healing));
             display.setBillboard(Display.Billboard.CENTER);
             display.setSeeThrough(false);
             display.setGravity(false);
             display.setInvulnerable(true);
 
             Transformation transformation = display.getTransformation();
-            transformation.getScale().set(1.2f, 1.2f, 1.2f);
+            transformation.getScale().set(scale, scale, scale);
             display.setTransformation(transformation);
         });
 
-        animateHealing(textDisplay);
+        animateHealing(textDisplay, scale, duration);
     }
 
-    private void animateHealing(TextDisplay textDisplay) {
-        new BukkitRunnable() {
-            private int ticks = 0;
+    /** Display scale grows with the healed amount (~1.4 at 10 HP, capped at 2.4). */
+    private float healIndicatorScale(double healing) {
+        return (float) Math.min(2.4f, 1.0f + healing / 25.0);
+    }
+
+    /** Lifetime in ticks grows with the healed amount (30 at small heals, capped at 70). */
+    private int healIndicatorDurationTicks(double healing) {
+        return (int) Math.min(70, 30 + healing / 2);
+    }
+
+    private String formatHealText(double healing) {
+        String healStr = String.format("%.2f", healing);
+
+        if (healStr.indexOf('.') > 0) {
+            healStr = healStr.replaceAll("0+$", ""); // remove trailing zeros
+            healStr = healStr.replaceAll("\\.$", ""); // remove trailing decimal if left
+        }
+
+        return "§a+ " + healStr + " ❤";
+    }
+
+    private void animateHealing(TextDisplay textDisplay, float initialScale, int duration) {
+        EventAction<TickEvent> eventAction = new EventActionAbstract<>(TickEvent.class) {
+            private float ticks = 0;
             private final Location startLoc = textDisplay.getLocation().clone();
-            private final int duration = 30;
 
             @Override
-            public void run() {
+            public void onAction(TickEvent tickEvent) {
                 if (!textDisplay.isValid() || ticks >= duration) {
                     textDisplay.remove();
-                    this.cancel();
+                    BukkitEventBus.getInstance().unsubscribe(this);
                     return;
                 }
 
-                // Gentle upward float for healing
-                double y = ticks * 0.05;
-                Location newLoc = startLoc.clone().add(0, y, 0);
-                textDisplay.teleport(newLoc);
+                // Same gentle float as normal damage numbers
+                animateNormal(textDisplay, ticks, startLoc);
 
-                // Fade out in last third
-                if (ticks >= duration * 0.67) {
+                // Fade out effect in the last quarter of animation
+                int fadeStart = (int) (duration * 0.75);
+                if (ticks >= fadeStart) {
                     Transformation transformation = textDisplay.getTransformation();
-                    float fadeProgress = (float) (ticks - duration * 0.67) / (duration * 0.33f);
-                    float scale = 1.2f * (1.0f - fadeProgress * 0.8f);
+                    float fadeProgress = (float) (ticks - fadeStart) / (duration - fadeStart);
+                    float scale = initialScale * (1.0f - fadeProgress * 0.8f); // Fade to 20% size
                     transformation.getScale().set(scale, scale, scale);
                     textDisplay.setTransformation(transformation);
                 }
 
-                ticks++;
+                ticks += tickEvent.getTickDelta();
             }
-        }.runTaskTimer(plugin, 1L, 1L);
+        };
+        BukkitEventBus.getInstance().subscribe(eventAction);
     }
 
     // Damage spam prevention
@@ -375,7 +405,7 @@ public class CombatListener implements Listener {
             }
             RPGDamageResult rpgDamage = entity.dealRPGDamage(null, entity, event.getDamage(), DamageType.PHYSICAL);
             showPhysicalDamage(event.getEntity().getLocation(), rpgDamage.getDamage(), rpgDamage.getResult());
-            event.setDamage(0.001);
+            event.setDamage(DamageUtils.RPG_HANDLED_ENTITY);
         }, () -> {
 
             showPhysicalDamage(event.getEntity().getLocation(), event.getDamage(), DamageResult.NORMAL);
@@ -467,6 +497,13 @@ public class CombatListener implements Listener {
                 // 'entity' is the RPG entity receiving damage
                 RPGDamageResult rpgDamage = entity.dealRPGDamage(damager, entity, event.getDamage(),
                         DamageType.PHYSICAL);
+                // Lifesteal heals on landed melee auto-attacks only (never on
+                // ability/projectile damage).
+                if ((event.getCause() == DamageCause.ENTITY_ATTACK
+                        || event.getCause() == DamageCause.ENTITY_SWEEP_ATTACK)
+                        && rpgDamage.getResult() != DamageResult.DENY) {
+                    LifestealUtils.applyLifesteal(damager, rpgDamage.getDamage());
+                }
                 if (plungeStrike) {
                     showPhysicalDamage(event.getEntity().getLocation(), rpgDamage.getDamage(), DamageResult.CRIT);
                     spawnCritParticles(event.getEntity());
@@ -498,8 +535,10 @@ public class CombatListener implements Listener {
                 }
             });
 
-            // Prevent double damage; actual RPG system handles it
-            event.setDamage(0.001);
+            // Prevent double damage; actual RPG system handles it. The ~0 stamp
+            // is the RPG_HANDLED_ENTITY that passive-ability behaviors
+            // recognize as a genuine swing (see DamageUtils.isChargeableHit).
+            event.setDamage(DamageUtils.RPG_HANDLED_ENTITY);
 
         }, () -> {
             // Case 3: Victim is NOT an RPG entity (vanilla entity)
@@ -533,6 +572,15 @@ public class CombatListener implements Listener {
                         event.setDamage(event.getDamage() * plunge);
                         plungeActive = true;
                     }
+                }
+
+                // Lifesteal heals on landed melee auto-attacks against
+                // unregistered (vanilla) victims too; the vanilla pipeline owns
+                // the damage, so use its final amount.
+                if ((event.getCause() == DamageCause.ENTITY_ATTACK
+                        || event.getCause() == DamageCause.ENTITY_SWEEP_ATTACK)
+                        && !event.isCancelled()) {
+                    LifestealUtils.applyLifesteal(damager, event.getFinalDamage());
                 }
 
                 double critChance = damager.getStatEngineAdapter().getCurrentValue(StatType.CRIT_CHANCE,

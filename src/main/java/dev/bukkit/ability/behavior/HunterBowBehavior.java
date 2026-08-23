@@ -50,6 +50,10 @@ import dev.core.event.impl.RPGEntityDamageEvent.DamageType;
  * Bounce charges / explosive arming live in per-holder instance state tracked
  * via {@link ActiveAbilityRegistry}. One behavior instance per holder (shared
  * between BOUNCY_ARROWS and EXPLOSIVE_ARROWS abilities via holder cache).
+ *
+ * <p>The toggled state (bounce charges + shock bolt arm) deliberately survives
+ * item swaps — only logging out resets it; there is no configured duration, so
+ * it stays armed until fired, toggled off or quit.</p>
  */
 public class HunterBowBehavior implements AbilityBehavior {
 
@@ -112,7 +116,8 @@ public class HunterBowBehavior implements AbilityBehavior {
         int cnt = HOLDER_REFCNT.getOrDefault(uuid, 1) - 1;
         if (cnt <= 0) {
             HOLDER_REFCNT.remove(uuid);
-            HOLDER_STATE.remove(uuid);
+            // HOLDER_STATE intentionally kept: toggled state (bounce charges +
+            // shock bolt) outlives unequip until quit or consumption.
             hideHudForHolder();
         } else {
             HOLDER_REFCNT.put(uuid, cnt);
@@ -256,11 +261,8 @@ public class HunterBowBehavior implements AbilityBehavior {
     private void onQuit(PlayerQuitEvent e) {
         if (!e.getPlayer().getUniqueId().equals(ctx.getHolder().getUuid()))
             return;
-        HolderState s = HOLDER_STATE.get(ctx.getHolder().getUuid());
-        if (s != null) {
-            s.bounceCharges = 0;
-            s.explosiveArmed = false;
-        }
+        // session end: toggled state does not survive relogin
+        HOLDER_STATE.remove(ctx.getHolder().getUuid());
         hideHudForHolder();
     }
 

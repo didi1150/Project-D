@@ -1,6 +1,5 @@
 package dev.bukkit.entity.boss;
 
-import org.bukkit.ChatColor;
 import org.bukkit.Location;
 import org.bukkit.World;
 import org.bukkit.entity.Entity;
@@ -13,6 +12,7 @@ import dev.core.entity.EntityManager;
 import dev.core.entity.boss.BossDefinition;
 import dev.core.event.EventBusInterface;
 import dev.core.game.TaskScheduler;
+import dev.core.utils.ColorCodes;
 
 /**
  * Spawns the bukkit entity for a {@link BossDefinition} and wraps it in a
@@ -65,7 +65,7 @@ public class BukkitBossFactory {
     }
 
     private void applySetup(LivingEntity living, BossDefinition definition) {
-        living.setCustomName(ChatColor.translateAlternateColorCodes('&', definition.getDisplayName()));
+        living.setCustomName(ColorCodes.translate(definition.getDisplayName()));
         living.setCustomNameVisible(true);
         living.setRemoveWhenFarAway(false);
         living.setPersistent(true);

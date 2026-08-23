@@ -8,11 +8,13 @@ import org.bukkit.Bukkit;
 import org.bukkit.Color;
 import org.bukkit.Location;
 import org.bukkit.Material;
+import org.bukkit.NamespacedKey;
 import org.bukkit.Particle;
 import org.bukkit.Sound;
 import org.bukkit.World;
 import org.bukkit.entity.AbstractArrow;
 import org.bukkit.entity.Arrow;
+import org.bukkit.entity.Entity;
 import org.bukkit.entity.LivingEntity;
 import org.bukkit.entity.Player;
 import org.bukkit.event.entity.EntityShootBowEvent;
@@ -26,19 +28,17 @@ import org.bukkit.scheduler.BukkitTask;
 import org.bukkit.util.Vector;
 
 import dev.bukkit.DMain;
-import dev.bukkit.ability.BukkitTriVolleyEffect;
 import dev.bukkit.hud.HudOverlayService;
 import dev.bukkit.hud.TriHomingHudFormatter;
-import dev.bukkit.item.BukkitItemStackAdapter;
 import dev.bukkit.item.BowArrowManager;
+import dev.bukkit.item.BukkitItemStackAdapter;
 import dev.bukkit.utils.CombatRelation;
-import dev.bukkit.utils.DamageUtils;
 import dev.core.ability.AbilityBehavior;
 import dev.core.ability.ActiveAbility;
+import dev.core.ability.CooldownSink;
 import dev.core.entity.EntityManager;
 import dev.core.entity.RPGEntity;
 import dev.core.event.EventAction;
-import dev.core.event.impl.RPGEntityDamageEvent.DamageType;
 import dev.core.stat.StatType;
 
 /**
@@ -46,12 +46,20 @@ import dev.core.stat.StatType;
  * arrow and fans {@link #HOMING_ARROWS} homing arrows that steer toward the
  * nearest enemy within {@link #HOMING_RADIUS} blocks (same mob allowed, no
  * falloff, consumed on first hit — damage flows through the vanilla
- * EntityDamageByEntityEvent so CombatListener's impact sound plays). Also owns
- * the TRI_VOLLEY arrows' pierce resolution and the "tri:ready" HUD fragment.
+ * EntityDamageByEntityEvent so CombatListener's impact sound plays). Left click
+ * TOGGLES Scatter Volley: while armed, the next bow shot fans
+ * {@link #VOLLEY_ARROWS} arrows with vanilla piercing ({@code setPierceLevel})
+ * instead of the homing fan; clicking again cancels. The armed state survives
+ * item swaps (cleared on quit) and the TRI_VOLLEY cooldown only starts once the
+ * volley is actually fired — see {@link #toggleVolley}. Also owns the
+ * "tri:ready"/"tri:volley" HUD fragments.
  */
 public class TriVolleyBehavior implements AbilityBehavior {
 
     public static final String ITEM_ID = "TRI_HOMING_BOW";
+
+    public static final NamespacedKey HOMING_KEY = new NamespacedKey("project_d", "tri_homing");
+    public static final NamespacedKey VOLLEY_KEY = new NamespacedKey("project_d", "tri_volley");
 
     private static final int HOMING_ARROWS = 3;
     private static final double HOMING_RADIUS = 10.0;
@@ -59,6 +67,16 @@ public class TriVolleyBehavior implements AbilityBehavior {
     private static final float HOMING_SPEED = 2.3f; // fallback if vanilla velocity unavailable
     private static final float HOMING_SPREAD = 4.0f;
     private static final double FAN_STEP_DEG = 4.0;
+
+    // Scatter Volley: 5 arrows fanned ±28°, each pierces up to VOLLEY_PIERCE
+    // distinct foes via vanilla piercing; close-range design, despawns after a
+    // few seconds if nothing is hit.
+    private static final int VOLLEY_ARROWS = 5;
+    private static final int VOLLEY_PIERCE = 5;
+    private static final double VOLLEY_SPREAD_DEG = 14.0; // step between arrows => ±28°
+    private static final float VOLLEY_SPREAD = 6.0f;
+    private static final double VOLLEY_DAMAGE_SCALE = 0.85;
+    private static final int VOLLEY_LIFETIME_TICKS = 60;
     // Steering: vanilla arrows lose ~0.05 velocity-Y per tick to gravity; each
     // tick we may correct at most a fraction of the arrow's speed toward the
     // pursuit direction, relaxed near the target so terminal guidance connects
@@ -72,6 +90,16 @@ public class TriVolleyBehavior implements AbilityBehavior {
 
     // Arrow UUID -> steering task; self-cancels when the arrow dies/lands/expires
     private static final Map<UUID, BukkitTask> HOMING_TASKS = new ConcurrentHashMap<>();
+
+    // Holder UUID -> TRUE while Scatter Volley is armed for the next bow shot.
+    // Deliberately survives item swaps (feature: toggled states outlive
+    // unequip); only quit clears it.
+    private static final Map<UUID, Boolean> VOLLEY_ARMED = new ConcurrentHashMap<>();
+
+    // Holder UUID -> cooldown sink captured at the toggle cast; its
+    // startCooldown() fires only when the armed volley actually leaves the bow,
+    // so toggling never consumes the TRI_VOLLEY cooldown window.
+    private static final Map<UUID, CooldownSink> VOLLEY_SINKS = new ConcurrentHashMap<>();
 
     private ActiveAbility ctx;
 
@@ -90,7 +118,63 @@ public class TriVolleyBehavior implements AbilityBehavior {
 
     @Override
     public void onDeactivate(ActiveAbility ctx) {
+        // Armed state intentionally kept: re-equipping the bow restores the
+        // pending volley (see class javadoc).
         hideHudForHolder();
+    }
+
+    // ---- Ability entry points (called from effects) ----
+
+    /**
+     * Toggles Scatter Volley. Turning ON arms the holder's next tri-bow shot
+     * (no cooldown yet — that starts in {@code onShoot} when the volley is
+     * actually fired); turning OFF cancels a pending arm for free. Returns
+     * {@code true} when the toggle resulted in an ARMED state so callers can
+     * keep the cast cost, or refund it on disarm.
+     */
+    public boolean toggleVolley(Player player, CooldownSink cooldownSink) {
+        if (player == null || !isTriBow(player.getInventory().getItemInMainHand()))
+            return false;
+        UUID uuid = ctx.getHolder().getUuid();
+        boolean armed = !Boolean.TRUE.equals(VOLLEY_ARMED.get(uuid));
+        if (armed) {
+            VOLLEY_ARMED.put(uuid, Boolean.TRUE);
+            if (cooldownSink != null)
+                VOLLEY_SINKS.put(uuid, cooldownSink);
+            playArmFeedback(player);
+        } else {
+            VOLLEY_ARMED.remove(uuid);
+            VOLLEY_SINKS.remove(uuid);
+            playDisarmFeedback(player);
+        }
+        refreshHud(player, armed);
+        return armed;
+    }
+
+    private void playArmFeedback(Player player) {
+        Location loc = player.getLocation();
+        World world = player.getWorld();
+        world.playSound(loc, Sound.BLOCK_ENCHANTMENT_TABLE_USE, 0.8f, 1.4f);
+        world.playSound(loc, Sound.ENTITY_EXPERIENCE_ORB_PICKUP, 0.5f, 0.65f);
+        Location burstAt = player.getEyeLocation().add(0, -0.3, 0);
+        world.spawnParticle(Particle.WITCH, burstAt, 12, 0.35, 0.3, 0.35, 0.02);
+        world.spawnParticle(Particle.DUST, burstAt, 10, 0.3, 0.25, 0.3, 0, new Particle.DustOptions(TRI_COLOR, 1.4f));
+    }
+
+    private void playDisarmFeedback(Player player) {
+        Location loc = player.getLocation();
+        World world = player.getWorld();
+        world.playSound(loc, Sound.BLOCK_FIRE_EXTINGUISH, 0.55f, 0.9f);
+        world.playSound(loc, Sound.BLOCK_NOTE_BLOCK_HAT, 0.6f, 0.7f);
+        world.spawnParticle(Particle.SMOKE, player.getEyeLocation().add(0, -0.3, 0), 12, 0.35, 0.3, 0.35, 0.02);
+    }
+
+    private void refreshHud(Player player, boolean armed) {
+        HudOverlayService hud = HudOverlayService.getInstance();
+        if (armed)
+            hud.show(player, "tri:volley", TriHomingHudFormatter.formatVolleyReady(), 0, 10);
+        else
+            hud.hide(player, "tri:volley");
     }
 
     // ---- Shoot: replace vanilla arrow with a fan of homing arrows ----
@@ -119,11 +203,6 @@ public class TriVolleyBehavior implements AbilityBehavior {
             return;
 
         RPGEntity shooterRpg = EntityManager.getInstance().getEntity(player.getUniqueId()).orElse(null);
-        double baseDamage = 0;
-        if (shooterRpg != null) {
-            baseDamage = shooterRpg.getStatEngineAdapter().getCurrentValue(StatType.ATTACK_DAMAGE,
-                    System.currentTimeMillis()) * shooterRpg.getProjectileDamageMultiplier();
-        }
 
         // Use vanilla arrow velocity directly — matches bow draw (max at full draw, min
         // at tap)
@@ -140,6 +219,25 @@ public class TriVolleyBehavior implements AbilityBehavior {
         world.spawnParticle(Particle.ELECTRIC_SPARK, eye, 8, 0.2, 0.2, 0.2, 0.05);
         world.spawnParticle(Particle.WITCH, eye.clone().add(0, -0.2, 0), 10, 0.3, 0.3, 0.3, 0.02);
 
+        // armed Scatter Volley: this shot fires the piercing fan instead; the
+        // TRI_VOLLEY cooldown only begins now that a volley actually left the
+        // bow (toggling alone never starts it)
+        UUID shooterUuid = player.getUniqueId();
+        if (Boolean.TRUE.equals(VOLLEY_ARMED.remove(shooterUuid))) {
+            CooldownSink sink = VOLLEY_SINKS.remove(shooterUuid);
+            HudOverlayService.getInstance().hide(player, "tri:volley");
+            fireVolley(player, shooterRpg, baseDir, world, eye, drawSpeed);
+            if (sink != null)
+                sink.startCooldown();
+            return;
+        }
+
+        double baseDamage = 0;
+        if (shooterRpg != null) {
+            baseDamage = shooterRpg.getStatEngineAdapter().getCurrentValue(StatType.ATTACK_DAMAGE,
+                    System.currentTimeMillis()) * shooterRpg.getProjectileDamageMultiplier();
+        }
+
         for (int i = 0; i < HOMING_ARROWS; i++) {
             int offIdx = i - HOMING_ARROWS / 2; // -1,0,1
             double yawDeg = offIdx * FAN_STEP_DEG + (i == 1 ? 0 : (Math.random() - 0.5) * 2.0);
@@ -151,7 +249,7 @@ public class TriVolleyBehavior implements AbilityBehavior {
             arrow.setPickupStatus(AbstractArrow.PickupStatus.DISALLOWED);
             arrow.setGlowing(false);
             var pdc = arrow.getPersistentDataContainer();
-            pdc.set(BukkitTriVolleyEffect.HOMING_KEY, PersistentDataType.BOOLEAN, true);
+            pdc.set(HOMING_KEY, PersistentDataType.BOOLEAN, true);
             pdc.set(BowArrowManager.ARROW_DAMAGE_KEY, PersistentDataType.DOUBLE, baseDamage);
             pdc.set(BowArrowManager.BOUNCE_KEY, PersistentDataType.BOOLEAN, false);
             startTrail(arrow);
@@ -159,7 +257,61 @@ public class TriVolleyBehavior implements AbilityBehavior {
         }
     }
 
-    private void startTrail(Arrow arrow) {
+    /**
+     * Fires the Scatter Volley fan: {@link #VOLLEY_ARROWS} arrows spread ±28°
+     * around the shot direction at the bow's draw speed. Piercing is left to
+     * vanilla via {@code setPierceLevel} — each arrow passes through up to
+     * {@link #VOLLEY_PIERCE} foes, with per-entity RPG damage flowing through
+     * CombatListener via {@link BowArrowManager#ARROW_DAMAGE_KEY}.
+     */
+    private static void fireVolley(Player player, RPGEntity shooterRpg, Vector baseDir, World world, Location eye,
+            float drawSpeed) {
+        double baseDamage = 0;
+        if (shooterRpg != null) {
+            baseDamage = shooterRpg.getStatEngineAdapter().getCurrentValue(StatType.ATTACK_DAMAGE,
+                    System.currentTimeMillis()) * shooterRpg.getProjectileDamageMultiplier() * VOLLEY_DAMAGE_SCALE;
+        }
+
+        world.playSound(eye, Sound.ITEM_CROSSBOW_SHOOT, 0.6f, 1.4f);
+        world.spawnParticle(Particle.CRIT, eye.clone().add(baseDir.clone().multiply(0.6)), 12, 0.15, 0.15, 0.15, 0.2);
+
+        for (int i = 0; i < VOLLEY_ARROWS; i++) {
+            int offsetIndex = i - VOLLEY_ARROWS / 2; // -2..2
+            double yawDeg = offsetIndex * VOLLEY_SPREAD_DEG + (Math.random() - 0.5) * 6.0;
+            double pitchJitter = (Math.random() - 0.5) * 4.0;
+            Vector dir = rotateYawPitch(baseDir.clone(), yawDeg, pitchJitter).normalize();
+            double speed = drawSpeed + (Math.random() - 0.5) * 0.4;
+            Arrow arrow = world.spawnArrow(eye.clone().add(dir.clone().multiply(0.3)), dir, (float) speed,
+                    VOLLEY_SPREAD);
+            arrow.setShooter(player);
+            arrow.setCritical(false);
+            arrow.setPickupStatus(AbstractArrow.PickupStatus.DISALLOWED);
+            arrow.setGlowing(false);
+            // vanilla pierce: pass through up to VOLLEY_PIERCE entities, no
+            // custom hit bookkeeping needed
+            arrow.setPierceLevel(VOLLEY_PIERCE);
+            var pdc = arrow.getPersistentDataContainer();
+            pdc.set(VOLLEY_KEY, PersistentDataType.BOOLEAN, true);
+            pdc.set(BowArrowManager.ARROW_DAMAGE_KEY, PersistentDataType.DOUBLE, baseDamage);
+            startTrail(arrow);
+            despawnAfter(arrow, VOLLEY_LIFETIME_TICKS);
+        }
+    }
+
+    private static void despawnAfter(Arrow arrow, int ticks) {
+        Plugin plugin = DMain.getInstance();
+        if (plugin == null || !plugin.isEnabled())
+            return;
+        new BukkitRunnable() {
+            @Override
+            public void run() {
+                if (arrow.isValid() && !arrow.isDead())
+                    arrow.remove();
+            }
+        }.runTaskLater(plugin, ticks);
+    }
+
+    private static void startTrail(Arrow arrow) {
         Plugin plugin = DMain.getInstance();
         if (plugin == null || !plugin.isEnabled())
             return;
@@ -258,7 +410,7 @@ public class TriVolleyBehavior implements AbilityBehavior {
             return null;
         LivingEntity best = null;
         double bestDistSq = HOMING_RADIUS * HOMING_RADIUS;
-        for (org.bukkit.entity.Entity e : w.getNearbyEntities(loc, HOMING_RADIUS, HOMING_RADIUS, HOMING_RADIUS)) {
+        for (Entity e : w.getNearbyEntities(loc, HOMING_RADIUS, HOMING_RADIUS, HOMING_RADIUS)) {
             if (!(e instanceof LivingEntity le))
                 continue;
             if (le.getUniqueId().equals(shooter.getUniqueId()))
@@ -287,75 +439,55 @@ public class TriVolleyBehavior implements AbilityBehavior {
         return new Vector(x, dir.getY(), z);
     }
 
-    // ---- Projectile hit: consume homing arrows, resolve volley pierce ----
+    private static Vector rotateYawPitch(Vector dir, double yawDeg, double pitchDeg) {
+        Vector yawed = rotateYaw(dir, yawDeg);
+        // pitch: small vertical offset around the right vector
+        yawed.setY(yawed.getY() + Math.tan(Math.toRadians(pitchDeg)) * 0.1);
+        return yawed;
+    }
+
+    // ---- Projectile hit: consume homing arrows ----
 
     /**
-     * Global handler (registered once in DMain, independent of any holder's
-     * ability bindings): players routinely swap away from the bow while arrows
-     * are still in flight, which unbinds per-holder subscriptions — a
-     * bind-scoped hit handler would then never run, leaving homing arrows to
-     * steer (and visibly circle) until their expiry. Shooter context is
-     * resolved from the arrow itself instead.
+     * Global handler (registered once in DMain, independent of any holder's ability
+     * bindings): players routinely swap away from the bow while arrows are still in
+     * flight, which unbinds per-holder subscriptions — a bind-scoped hit handler
+     * would then never run, leaving homing arrows to steer (and visibly circle)
+     * until their expiry. Shooter context is resolved from the arrow itself
+     * instead.
+     *
+     * <p>
+     * Volley arrows need no handling here: their pierce is vanilla
+     * ({@code setPierceLevel}) and their RPG damage flows through CombatListener.
      */
     public static void onGlobalProjectileHit(ProjectileHitEvent event) {
         if (!(event.getEntity() instanceof Arrow arrow))
             return;
-        if (!(arrow.getShooter() instanceof Player p))
-            return;
-        var pdc = arrow.getPersistentDataContainer();
-        boolean isHoming = Boolean.TRUE.equals(pdc.get(BukkitTriVolleyEffect.HOMING_KEY, PersistentDataType.BOOLEAN));
-        boolean isVolley = Boolean.TRUE.equals(pdc.get(BukkitTriVolleyEffect.VOLLEY_KEY, PersistentDataType.BOOLEAN));
-        if (!isHoming && !isVolley)
+        boolean isHoming = Boolean.TRUE
+                .equals(arrow.getPersistentDataContainer().get(HOMING_KEY, PersistentDataType.BOOLEAN));
+        if (!isHoming)
             return;
 
         // homing arrows are consumed on any hit (block or entity); vanilla
         // damage still processes so the standard impact sound plays
-        if (isHoming) {
-            cancelHoming(arrow.getUniqueId());
-            BukkitTriVolleyEffect.cleanupPierce(arrow);
-            Plugin plugin = DMain.getInstance();
-            if (event.getHitEntity() != null) {
-                // keep arrow for one tick so damage processes, then remove;
-                // vanilla consumes it itself when the damage lands normally
-                if (plugin != null && plugin.isEnabled()) {
-                    new BukkitRunnable() {
-                        @Override
-                        public void run() {
-                            if (arrow.isValid())
-                                arrow.remove();
-                        }
-                    }.runTaskLater(plugin, 1L);
-                } else if (arrow.isValid()) {
-                    arrow.remove();
-                }
-            } else {
-                // block hit: remove immediately
+        cancelHoming(arrow.getUniqueId());
+        Plugin plugin = DMain.getInstance();
+        if (event.getHitEntity() != null) {
+            // keep arrow for one tick so damage processes, then remove;
+            // vanilla consumes it itself when the damage lands normally
+            if (plugin != null && plugin.isEnabled()) {
+                new BukkitRunnable() {
+                    @Override
+                    public void run() {
+                        if (arrow.isValid())
+                            arrow.remove();
+                    }
+                }.runTaskLater(plugin, 1L);
+            } else if (arrow.isValid()) {
                 arrow.remove();
             }
-            return;
-        }
-
-        // volley pierce: allow piercing up to VOLLEY_PIERCE entities
-        if (event.getHitEntity() instanceof LivingEntity hit) {
-            boolean shouldContinue = BukkitTriVolleyEffect.handlePierceHit(arrow, hit);
-            if (shouldContinue) {
-                event.setCancelled(true);
-                // push slightly forward to avoid immediate re-hit
-                RPGEntity rpg = EntityManager.getInstance().getEntity(p.getUniqueId()).orElse(null);
-                if (rpg != null) {
-                    double baseDamage = rpg.getStatEngineAdapter().getCurrentValue(StatType.ATTACK_DAMAGE,
-                            System.currentTimeMillis()) * rpg.getProjectileDamageMultiplier();
-                    DamageUtils.damageEntity(hit, baseDamage, rpg, DamageType.PHYSICAL);
-                }
-                arrow.setVelocity(arrow.getVelocity().clone().normalize().multiply(0.3));
-                // keep arrow alive
-            } else {
-                // pierce cap reached -> let it die
-                BukkitTriVolleyEffect.cleanupPierce(arrow);
-            }
-        } else if (event.getHitBlock() != null) {
-            // volley hits block -> remove
-            BukkitTriVolleyEffect.cleanupPierce(arrow);
+        } else {
+            // block hit: remove immediately
             arrow.remove();
         }
     }
@@ -374,6 +506,9 @@ public class TriVolleyBehavior implements AbilityBehavior {
                 if (p == null || !isTriBow(p.getInventory().getItemInMainHand()))
                     return;
                 HudOverlayService.getInstance().show(p, "tri:ready", TriHomingHudFormatter.formatReady(), 0, 10);
+                if (Boolean.TRUE.equals(VOLLEY_ARMED.get(uuid)))
+                    HudOverlayService.getInstance().show(p, "tri:volley", TriHomingHudFormatter.formatVolleyReady(),
+                            0, 10);
             } catch (Exception ignored) {
             }
         });
@@ -394,6 +529,9 @@ public class TriVolleyBehavior implements AbilityBehavior {
     private void onQuit(PlayerQuitEvent e) {
         if (!e.getPlayer().getUniqueId().equals(ctx.getHolder().getUuid()))
             return;
+        // session end: the armed volley does not survive relogin
+        VOLLEY_ARMED.remove(ctx.getHolder().getUuid());
+        VOLLEY_SINKS.remove(ctx.getHolder().getUuid());
         hideHudForHolder();
     }
 

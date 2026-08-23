@@ -1,6 +1,6 @@
 package dev.bukkit.hud;
 
-import org.bukkit.ChatColor;
+import dev.core.utils.ColorCodes;
 
 /**
  * Formatter for Trinity bow HUD. Loaded from HudConfig tri section.
@@ -22,15 +22,15 @@ public final class TriHomingHudFormatter {
     }
 
     public static String formatReady() {
-        return ChatColor.translateAlternateColorCodes('&', READY);
+        return ColorCodes.translate(READY);
     }
 
     public static String formatVolleyReady() {
-        return ChatColor.translateAlternateColorCodes('&', VOLLEY_READY);
+        return ColorCodes.translate(VOLLEY_READY);
     }
 
     public static String formatVolleyCd(long millis) {
         String sec = String.format("%.1f", millis/1000.0);
-        return ChatColor.translateAlternateColorCodes('&', VOLLEY_CD.replace("%cds", sec));
+        return ColorCodes.translate(VOLLEY_CD.replace("%cds", sec));
     }
 }

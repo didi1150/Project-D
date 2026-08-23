@@ -47,7 +47,7 @@ public final class HudResourceFeedback {
         String coloredResource = coloredResourceName(mode);
 
         String replaced = template.replace("<resource>", coloredResource);
-        String text = ChatColor.translateAlternateColorCodes('&', replaced);
+        String text = dev.core.utils.ColorCodes.translate(replaced);
 
         // If hud is disabled, fallback to chat (per requirement)
         if (!cfg.enabled()) {

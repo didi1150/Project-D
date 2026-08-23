@@ -12,6 +12,7 @@ import org.bukkit.event.entity.EntityDamageByEntityEvent;
 import org.bukkit.event.entity.EntityDamageEvent.DamageCause;
 
 import dev.bukkit.utils.CombatRelation;
+import dev.bukkit.utils.DamageUtils;
 import dev.core.ability.AbilityBehavior;
 import dev.core.ability.ActiveAbility;
 import dev.core.entity.EntityManager;
@@ -42,7 +43,11 @@ public class ArcaneManaRestoreBehavior implements AbilityBehavior {
     }
 
     private void onDamage(EntityDamageByEntityEvent event) {
-        if (event.isCancelled() || event.getDamage() <= 0.002) return;
+        if (event.isCancelled()) return;
+        // Same sentinel handling as ArcaneCleaveBehavior: hits on RPG-managed
+        // victims arrive stamped with DamageUtils.RPG_HANDLED_ENTITY once the
+        // RPG pipeline applied the real damage — count them as real swings.
+        if (!DamageUtils.isChargeableHit(event)) return;
         DamageCause cause = event.getCause();
         if (cause != DamageCause.ENTITY_ATTACK && cause != DamageCause.ENTITY_SWEEP_ATTACK) return;
 

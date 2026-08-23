@@ -18,17 +18,35 @@
 # formats.hunter — allow '&' color codes, placeholders %dots%, %bounces%.
 # formats.tri    — trinity bow: ready/volley strings, supports & codes.
 # messages.not-enough — must contain <resource> placeholder; auto-colored via StatType.
+# messages.on-cooldown  — shown when casting an ability on cooldown; supports the
+#                  <ability> and <seconds> placeholders. The line fades out via
+#                  text opacity across the trailing on-cooldown-fade-ms window.
+# messages.on-cooldown-duration-ms — how long the cooldown line stays visible.
 # max-keys       — maximum concurrent HUD fragments (TextDisplays) visible at
 #                  once. Each ability pushes a keyed fragment (e.g.
 #                  "hunter:bounce" prio10, "hunter:shock" prio20,
-#                  "hud:resource" prio100 for "Not enough <resource>").
+#                  "hud:resource"/"hud:cooldown" prio100 for warnings).
 #                  Fragments are priority-sorted (higher first) and culled to
 #                  this limit; excess lowest-priority keys are dropped until
-#                  they expire. Range 1–8, default 4. Hunter's Bow uses 2 keys
-#                  while held, leaving 2 slots for future abilities / resource
-#                  warnings. Increase if you plan 3+ simultaneous overlays;
-#                  decrease to force stricter stacking. Live-reloadable via
+#                  they expire. Range 1–8, default 4. Live-reloadable via
 #                  /hud reload.
+#
+# tracking       — real-time follow tuning. The server observes a moving player
+#                  ~1-2 ticks late, so plain per-tick teleports either stutter
+#                  (no interpolation) or trail behind (interpolation). The HUD
+#                  combines three techniques:
+#   velocity-lead-ticks — anchors ahead of the observed position along the
+#                  player's velocity to cancel that lag while moving
+#                  (clamped to 1 block). 0 disables leading.
+#   min-step    — movement delta below which no update is sent; avoids
+#                  restarting client interpolation every tick (micro-stutter).
+#   snap-distance — deltas beyond this are treated as teleports and hard-place
+#                  the HUD instantly instead of gliding across the world.
+#
+# COLOR SYNTAX (all config strings here and in lore/chat configs):
+#   legacy codes   &0-&9, &a-&f, &l &m &n &o &k &r
+#   hex            &#RRGGBB   {#RRGGBB}   (#RRGGBB / 0xRRGGBB for color values)
+#   rgb function   rgb(r,g,b) or &rgb(r,g,b), each component clamped 0-255
 enabled: true
 max-keys: 4
 display:
@@ -45,9 +63,13 @@ display:
     b: 0
   brightness: 15
   interpolation-duration: 1
-  teleport-duration: 0
+  teleport-duration: 2
   shadowed: true
   see-through: false
+tracking:
+  velocity-lead-ticks: 2.0
+  min-step: 0.004
+  snap-distance: 3.0
 formats:
   hunter:
     bounce-zero: "&6Hunter's Bow &8| &7Bouncy %dots% &8(0/3) &7— plain"
@@ -60,3 +82,7 @@ formats:
     volley-cd: "&cVolley &7%cds"
 messages:
   not-enough: "&cNot enough <resource>!"
+  # hex + rgb examples: "{#FFAA00}Volley" or "&#FF5555<ability> &8» rgb(255,85,85)On cooldown"
+  on-cooldown: "&7<ability> &8» &cOn cooldown &7(<seconds>s)"
+  on-cooldown-duration-ms: 1600
+  on-cooldown-fade-ms: 600

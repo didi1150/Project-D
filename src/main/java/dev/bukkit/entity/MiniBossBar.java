@@ -23,7 +23,7 @@ public final class MiniBossBar {
     private BukkitTask task;
 
     private MiniBossBar(String title, LivingEntity entity) {
-        String translated = ChatColor.translateAlternateColorCodes('&', title);
+        String translated = dev.core.utils.ColorCodes.translate(title);
         BossBarController controller = new BossBarController(translated);
         BossBarController.hideVanillaBossBar(entity);
 

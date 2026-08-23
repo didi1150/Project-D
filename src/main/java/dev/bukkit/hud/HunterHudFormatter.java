@@ -2,6 +2,8 @@ package dev.bukkit.hud;
 
 import org.bukkit.ChatColor;
 
+import dev.core.utils.ColorCodes;
+
 /**
  * Formats hunter bow state into HUD lines.
  * Two stacked displays:
@@ -29,15 +31,15 @@ public final class HunterHudFormatter {
         } else {
             template = fmt.bounce();
         }
-        // placeholders %dots% and %bounces% ; allow & color codes in config
+        // placeholders %dots% and %bounces% ; allow & codes, hex and rgb() in config
         String out = template.replace("%dots%", dots).replace("%bounces%", String.valueOf(bounces));
-        return ChatColor.translateAlternateColorCodes('&', out);
+        return ColorCodes.translate(out);
     }
 
     public static String formatShock(boolean armed) {
         HudConfig.HunterFormats fmt = cached;
         String template = armed ? fmt.shockArmed() : fmt.shockPlain();
-        return ChatColor.translateAlternateColorCodes('&', template);
+        return ColorCodes.translate(template);
     }
 
     /** Short form for shot summary (optional transient, not used for persistent held). */

@@ -76,6 +76,7 @@ import dev.core.ability.impl.SoulRecallShiftAbility;
 import dev.core.ability.impl.SoulSummonAbility;
 import dev.core.ability.impl.SpinjitzuAbility;
 import dev.core.ability.impl.SpiritSceptreAbility;
+import dev.core.ability.impl.StackerAbility;
 import dev.core.ability.impl.SwingBoneAbility;
 import dev.core.ability.impl.TriVolleyAbility;
 import dev.core.ability.passive.SetPassiveRegistry;
@@ -115,8 +116,10 @@ import dev.bukkit.ability.behavior.HealAuraBehavior;
 import dev.bukkit.ability.behavior.HunterBowBehavior;
 import dev.bukkit.ability.behavior.ManaDiscountBehavior;
 import dev.bukkit.ability.behavior.ShadowWeaverBehavior;
+import dev.bukkit.ability.behavior.StackerBehavior;
 import dev.bukkit.ability.behavior.ThreatBehavior;
 import dev.bukkit.ability.behavior.TriVolleyBehavior;
+import dev.bukkit.ability.behavior.VampirismBehavior;
 import dev.bukkit.game.boss.BossArenaManager;
 import dev.bukkit.hud.HudConfig;
 import dev.bukkit.hud.HudConfigLoader;
@@ -174,6 +177,8 @@ public final class DMain extends JavaPlugin {
         // Arcane Blade passives — PASSIVE abilities, runtime handled by per-holder behaviors
         AbilityRegistry.register(new ArcaneManaRestoreAbility());
         AbilityRegistry.register(new ArcaneCleaveAbility());
+        // Drain Blade passive — PASSIVE, flat ATTACK_DAMAGE stat modifier kept live by StackerBehavior
+        AbilityRegistry.register(new StackerAbility());
 
         // ---- Per-holder ability behaviors  ----
         AbilityBehaviorRegistry.register(ArcaneManaRestoreAbility.ID, ArcaneManaRestoreBehavior::new);
@@ -188,6 +193,8 @@ public final class DMain extends JavaPlugin {
         AbilityBehaviorRegistry.register(BackstabUtils.PASSIVE_ID, BackstabBehavior::new);
         AbilityBehaviorRegistry.register(ManaDiscountUtils.PASSIVE_ID, ManaDiscountBehavior::new);
         AbilityBehaviorRegistry.register("THREAT", ThreatBehavior::new);
+        AbilityBehaviorRegistry.register(VampirismBehavior.PASSIVE_ID, VampirismBehavior::new);
+        AbilityBehaviorRegistry.register(StackerAbility.ID, StackerBehavior::new);
 
         // Status effect behaviors: how each CC type plays out on the vanilla
         // entity (stat engine / potions / AI / velocity). Types without a
@@ -210,6 +217,7 @@ public final class DMain extends JavaPlugin {
         SetPassiveRegistry.register(BackstabUtils.MARKER);
         SetPassiveRegistry.register(HealAuraUtils.MARKER);
         SetPassiveRegistry.register(ManaDiscountUtils.MARKER);
+        SetPassiveRegistry.register(VampirismBehavior.MARKER);
 
         // ==============================================[ Load lore.yml
         // ]==================================================

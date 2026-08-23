@@ -318,12 +318,14 @@ abilities:
   TRI_VOLLEY:
     name: Scatter Volley
     description:
-      - "Left-click to fan <light_purple>5 piercing arrows</light_purple>"
-      - "in front of you."
+      - "Left-click to <light_purple>toggle</light_purple> the volley on or off."
       - ""
-      - "- Each arrow pierces up to <yellow>5</yellow> foes."
+      - "- While armed, your next bow shot fans"
+      - "  5 arrows; each pierces up to <yellow>5</yellow> foes."
+      - "- Click again to cancel (free). The"
+      - "  cooldown starts when it is fired."
       - "- No homing — close-range AoE burst."
-      - "- <gray>Trinity's close answer to the hunt.</gray>"
+      - "<gray>Trinity's close answer to the hunt.</gray>"
     triggerType: MANUAL
     action: LEFT_CLICK
     cooldownScope: ITEM
@@ -351,6 +353,16 @@ abilities:
       - "forward from the struck target in your look"
       - "direction, damaging enemies it passes through."
       - "<gray>Visualized with arcane particles.</gray>"
+    triggerType: PASSIVE
+    action: NONE
+    cooldownScope: PLAYER
+    cooldown: 0
+  STACKER:
+    name: Stacker
+    description:
+      - "Gain <gold>+1 Attack Damage</gold> for every"
+      - "<red>25 Max Health</red> you have."
+      - "<gray>Passive — active while Drain Blade is equipped.</gray>"
     triggerType: PASSIVE
     action: NONE
     cooldownScope: PLAYER

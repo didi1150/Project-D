@@ -21,6 +21,9 @@ public enum StatType {
     PROJECTILE_DAMAGE("Projectile Damage", "➶", TextColor.GOLD),
     HEAL_AND_SHIELD_POWER("Heal & Shield Power", "♥", TextColor.GREEN),
 
+    // Drain / sustain
+    LIFESTEAL("Lifesteal", "🩸", TextColor.DARK_RED),
+
     // Health Stats
     HEALTH_MAX("Max Health", "❤", TextColor.GOLD), HEALTH_RESOURCE("Health", "❤", TextColor.GOLD),
     HEALTH_REGEN("Health Regeneration", "♡", TextColor.GREEN),
@@ -111,7 +114,7 @@ public enum StatType {
 
         // Format value based on stat type
         String formattedValue;
-        if (this == CRIT_CHANCE || this == ATTACK_SPEED) {
+        if (this == CRIT_CHANCE || this == ATTACK_SPEED || this == LIFESTEAL) {
             // Percentage stats
             formattedValue = String.format("%.1f%%", this == CRIT_CHANCE ? value : value * 100);
         } else if (value == (long) value) {

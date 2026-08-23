@@ -6,7 +6,6 @@ import java.util.Optional;
 import java.util.Set;
 
 import org.bukkit.Bukkit;
-import org.bukkit.ChatColor;
 import org.bukkit.Location;
 import org.bukkit.Material;
 import org.bukkit.Particle;
@@ -30,8 +29,35 @@ import dev.core.entity.RPGDamageResult;
 import dev.core.entity.RPGEntity;
 import dev.core.event.impl.RPGEntityDamageEvent.DamageResult;
 import dev.core.event.impl.RPGEntityDamageEvent.DamageType;
+import dev.core.utils.ColorCodes;
 
 public class DamageUtils {
+
+    /**
+     * Damage value stamped onto Bukkit damage events whose real damage was
+     * already applied through the RPG pipeline ({@code CombatListener} rewrites
+     * hits on EntityManager-managed victims; {@link #damageMob} pokes vanilla
+     * mobs), so vanilla does not apply it a second time. Passive-ability
+     * behaviors must treat an event carrying this value for a managed victim as
+     * a genuine swing, not negligible noise.
+     */
+    public static final double RPG_HANDLED_ENTITY = 0.001;
+
+    /**
+     * Pure decision behind {@link #isChargeableHit}: Does this (not cancelled)
+     * damage event count as a real hit for passive-ability triggers? Normal
+     * damage always counts; sub-sentinel noise only counts when it is exactly
+     * the RPG-handled stamp on an {@link EntityManager}-managed victim.
+     */
+    public static boolean isChargeableDamage(double damage, boolean victimRpgManaged) {
+        return damage > 0.002 || (damage > 0 && damage <= RPG_HANDLED_ENTITY && victimRpgManaged);
+    }
+
+    /** {@link #isChargeableDamage} with the victim lookup done for the event. */
+    public static boolean isChargeableHit(EntityDamageByEntityEvent event) {
+        return isChargeableDamage(event.getDamage(),
+                EntityManager.getInstance().getEntity(event.getEntity().getUniqueId()).isPresent());
+    }
 
     /**
      * Deals damage to any {@link LivingEntity}, automatically choosing the correct
@@ -153,7 +179,7 @@ public class DamageUtils {
         }
 
         String typePart = meta.getDisplayName() != null
-                ? ChatColor.translateAlternateColorCodes('&', meta.getDisplayName())
+                ? ColorCodes.translate(meta.getDisplayName())
                 : entity.getType().name();
         String name = color + "[Lvl " + meta.getLevel() + "] " + typePart + " [❤] " + Math.round(health[0]) + "/"
                 + Math.round(health[1]);
