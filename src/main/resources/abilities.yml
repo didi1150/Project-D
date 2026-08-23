@@ -332,3 +332,26 @@ abilities:
     cost:
       mode: MANA
       amount: 20
+  ARCANE_MANA_RESTORE:
+    name: Arcane Siphon
+    description:
+      - "Restore <aqua>5% of max mana</aqua> on hit."
+      - "<gray>Passive — triggers on every melee hit</gray>"
+      - "<gray>while Arcane Blade is equipped.</gray>"
+    triggerType: PASSIVE
+    action: NONE
+    cooldownScope: PLAYER
+    cooldown: 0
+  ARCANE_CLEAVE:
+    name: Arcane Cleave
+    description:
+      - "Every <yellow>3rd direct hit</yellow> transforms the"
+      - "blade to diamond and unleashes a <light_purple>magic"
+      - "cleave</light_purple> — a half-circle wave that flies"
+      - "forward from the struck target in your look"
+      - "direction, damaging enemies it passes through."
+      - "<gray>Visualized with arcane particles.</gray>"
+    triggerType: PASSIVE
+    action: NONE
+    cooldownScope: PLAYER
+    cooldown: 0

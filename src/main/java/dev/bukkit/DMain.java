@@ -21,6 +21,8 @@ import dev.bukkit.ability.BukkitSoulRecallEffect;
 import dev.bukkit.ability.BukkitSoulStoreEffect;
 import dev.bukkit.ability.BukkitSoulSummonEffect;
 import dev.bukkit.ability.BukkitSpinjitzuEffect;
+import dev.bukkit.ability.behavior.ArcaneCleaveBehavior;
+import dev.bukkit.ability.behavior.ArcaneManaRestoreBehavior;
 import dev.bukkit.ability.BukkitSpiritSceptreBatEffect;
 import dev.bukkit.ability.BukkitSwingBoneEffect;
 import dev.bukkit.ability.ShadowWeaverManager;
@@ -59,10 +61,13 @@ import dev.bukkit.utils.BukkitMessageSender;
 import dev.bukkit.utils.HealAuraUtils;
 import dev.bukkit.utils.ManaDiscountUtils;
 import dev.core.ability.Ability;
+import dev.core.ability.AbilityBehaviorRegistry;
 import dev.core.ability.AbilityRegistry;
 import dev.core.ability.EffectManagerInterface;
 import dev.core.ability.impl.BouncyArrowAbility;
 import dev.core.ability.impl.ExplosiveArrowAbility;
+import dev.core.ability.impl.ArcaneCleaveAbility;
+import dev.core.ability.impl.ArcaneManaRestoreAbility;
 import dev.core.ability.impl.FocusBeamAbility;
 import dev.core.ability.impl.ParticleTestAbility;
 import dev.core.ability.impl.ShadowWeaverStaffAbility;
@@ -151,6 +156,13 @@ public final class DMain extends JavaPlugin {
         AbilityRegistry.register(new BouncyArrowAbility(), BukkitBouncyArrowEffect::new);
         AbilityRegistry.register(new ExplosiveArrowAbility(), BukkitExplosiveArrowEffect::new);
         AbilityRegistry.register(new TriVolleyAbility(), dev.bukkit.ability.BukkitTriVolleyEffect::new);
+        // Arcane Blade passives — PASSIVE abilities, runtime handled by per-holder behaviors
+        AbilityRegistry.register(new ArcaneManaRestoreAbility());
+        AbilityRegistry.register(new ArcaneCleaveAbility());
+
+        // ---- Per-holder ability behaviors  ----
+        AbilityBehaviorRegistry.register(ArcaneManaRestoreAbility.ID, ArcaneManaRestoreBehavior::new);
+        AbilityBehaviorRegistry.register(ArcaneCleaveAbility.ID, ArcaneCleaveBehavior::new);
 
         // Status effect behaviors: how each CC type plays out on the vanilla
         // entity (stat engine / potions / AI / velocity). Types without a

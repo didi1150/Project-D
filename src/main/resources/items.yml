@@ -962,6 +962,43 @@ items:
     abilities:
     - SHADOW_STAFF_PLACE
     - SHADOW_STAFF_DASH
+  ARCANE_BLADE:
+    # Arcane Blade — Iron Sword that hums with arcane energy.
+    # Stats: +20 Attack Damage (flat), +20% Attack Speed (additive), +100 Max Mana.
+    # Passives:
+    #   1) Restore 5% of max mana on every successful hit.
+    #   2) Every third hit the blade morphs to DIAMOND_SWORD and unleashes a
+    #      forward-traveling half-circle magic cleave that originates from the
+    #      struck target and flies in the player's look direction, visualized
+    #      with particles. The cleave damages enemies as the wave passes.
+    unlockLevel: 0
+    name: Arcane Blade
+    material: IRON_SWORD
+    slot: MAIN_HAND
+    itemType: SWORD
+    passive-stats: []
+    active-stats:
+    - amount: 20.0
+      statType: ATTACK_DAMAGE
+      modifierType: FLAT
+      statTarget: BOTH
+      policy: STACK
+    - amount: 0.2
+      statType: ATTACK_SPEED
+      modifierType: FLAT
+      statTarget: BOTH
+      policy: STACK
+    - amount: 100.0
+      statType: MANA_MAX
+      modifierType: FLAT
+      statTarget: BOTH
+      policy: STACK
+    description:
+    - "A blade humming with <aqua>arcane energy</aqua>."
+    - "<gray>Ancient runes pulse along its edge.</gray>"
+    abilities:
+    - ARCANE_MANA_RESTORE
+    - ARCANE_CLEAVE
 
 # ---- Basic Archer Set (item set bonus: full 4/4 set) -----------------------
 # Full set passive: +10% projectile damage dealt (arrows, projectiles and the

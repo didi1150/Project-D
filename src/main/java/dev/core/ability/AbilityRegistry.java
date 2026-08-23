@@ -4,6 +4,8 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
 
+import dev.core.ability.impl.ArcaneCleaveAbility;
+import dev.core.ability.impl.ArcaneManaRestoreAbility;
 import dev.core.ability.impl.FocusBeamAbility;
 import dev.core.ability.impl.ParticleTestAbility;
 import dev.core.ability.impl.ShieldBashAbility;
@@ -41,6 +43,8 @@ public class AbilityRegistry {
 		register(new ShieldBashAbility());
 		register(ShadowWeaverStaffAbility.place());
 		register(ShadowWeaverStaffAbility.dash());
+		register(new ArcaneManaRestoreAbility());
+		register(new ArcaneCleaveAbility());
 	}
 
 	/**
