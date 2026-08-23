@@ -28,7 +28,7 @@ import org.bukkit.plugin.Plugin;
 import org.bukkit.scheduler.BukkitRunnable;
 import org.bukkit.util.Transformation;
 
-import dev.bukkit.ability.ShadowWeaverManager;
+import dev.bukkit.ability.behavior.ShadowWeaverBehavior;
 import dev.bukkit.event.BukkitEventBus;
 import dev.bukkit.entity.MobRPGEntity;
 import dev.bukkit.item.BowArrowManager;
@@ -456,7 +456,7 @@ public class CombatListener implements Listener {
                     event.setDamage(event.getDamage() * BackstabUtils.backstabMultiplier(damager, event.getEntity()));
                     // Assassin staff synergy: 1.5x melee damage on the first hit
                     // within 3s of dropping off a shadow platform.
-                    double plunge = ShadowWeaverManager.getInstance().consumePlungeMultiplier(damager.getUuid());
+                    double plunge = ShadowWeaverBehavior.consumePlungeMultiplier(damager.getUuid());
                     if (plunge > 1.0) {
                         event.setDamage(event.getDamage() * plunge);
                         plungeStrike = true;
@@ -528,7 +528,7 @@ public class CombatListener implements Listener {
                     event.setDamage(event.getDamage() * BackstabUtils.backstabMultiplier(damager, event.getEntity()));
                     // Assassin staff synergy: 1.5x melee damage on the first hit
                     // within 3s of dropping off a shadow platform.
-                    double plunge = ShadowWeaverManager.getInstance().consumePlungeMultiplier(damager.getUuid());
+                    double plunge = ShadowWeaverBehavior.consumePlungeMultiplier(damager.getUuid());
                     if (plunge > 1.0) {
                         event.setDamage(event.getDamage() * plunge);
                         plungeActive = true;

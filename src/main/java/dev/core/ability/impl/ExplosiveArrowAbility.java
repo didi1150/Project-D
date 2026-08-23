@@ -6,7 +6,7 @@ import dev.core.ability.Ability;
  * Hunter's Bow - Explosive Arrows. Left-click while the bow is equipped to arm
  * the next arrow: it detonates once it has used up all of its bounces (or on
  * its first impact when uncharged). Runtime behavior lives in
- * {@code dev.bukkit.item.HunterBowManager}.
+ * {@code HunterBowBehavior}.
  */
 public class ExplosiveArrowAbility extends Ability {
 

@@ -13,6 +13,7 @@ import dev.core.entity.RPGEntity;
 import dev.core.event.EventAction;
 import dev.core.event.EventSubscriber;
 import dev.core.event.Subscribe;
+import dev.core.ability.ActiveAbilityRegistry;
 
 /**
  * Tank set passive ("THREAT"): when a mob picks a player as its target and a
@@ -45,6 +46,11 @@ public class ThreatPassiveSubscriber {
 
     @Subscribe(priority = EventAction.NORMAL_PRIORITY)
     public void onEntityTarget(EntityTargetLivingEntityEvent event) {
+        // Unified tracking guard: if any holder is tracked via ActiveAbilityRegistry (new per-holder
+        // ThreatBehavior path), let the per-holder behaviors handle the event to avoid double procs.
+        if (!ActiveAbilityRegistry.getInstance().holdersOf(PASSIVE_ID).isEmpty()) {
+            return;
+        }
         if (!(event.getEntity() instanceof Mob mob)) {
             return;
         }

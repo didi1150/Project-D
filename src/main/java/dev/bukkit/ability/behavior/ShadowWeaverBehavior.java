@@ -1,11 +1,11 @@
-package dev.bukkit.ability;
+package dev.bukkit.ability.behavior;
 
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
 
 import org.bukkit.Bukkit;
 import org.bukkit.Color;
@@ -18,11 +18,7 @@ import org.bukkit.World;
 import org.bukkit.entity.BlockDisplay;
 import org.bukkit.entity.Display;
 import org.bukkit.entity.Player;
-import org.bukkit.event.EventHandler;
-import org.bukkit.event.EventPriority;
-import org.bukkit.event.Listener;
 import org.bukkit.event.entity.PlayerDeathEvent;
-import org.bukkit.event.player.PlayerKickEvent;
 import org.bukkit.event.player.PlayerMoveEvent;
 import org.bukkit.event.player.PlayerQuitEvent;
 import org.bukkit.event.player.PlayerToggleSneakEvent;
@@ -37,15 +33,20 @@ import org.bukkit.util.Vector;
 import org.joml.AxisAngle4f;
 import org.joml.Vector3f;
 
+import dev.bukkit.DMain;
 import dev.bukkit.item.BukkitItemStackAdapter;
+import dev.core.ability.AbilityBehavior;
+import dev.core.ability.ActiveAbility;
+import dev.core.event.EventAction;
 
 /**
- * Owns every piece of the Shadow Weaver's Staff runtime that runs while the
- * assassin merely holds the item: the raycast placement preview, the platform
- * lifecycle (spawn, decay, despawn), the dash target lock, the interpolated
- * dash animation and the sticky "float on the platform" lock. Click actions are
- * delivered by the ability pipeline (see {@link BukkitShadowWeaverPlaceEffect}
- * and {@link BukkitShadowWeaverDashEffect}) which delegate here.
+ * Per-holder behavior for the Shadow Weaver's Staff. Owns every piece of the
+ * staff runtime that runs while the assassin merely holds the item: the
+ * raycast placement preview, the platform lifecycle (spawn, decay, despawn),
+ * the dash target lock, the interpolated dash animation and the sticky "float
+ * on the platform" lock. Click actions are delivered by the ability pipeline
+ * (see BukkitShadowWeaverPlaceEffect and BukkitShadowWeaverDashEffect) which
+ * forward here through the per-holder behavior.
  *
  * <p>
  * State is mapped by player UUID and kept entirely server-side; the only
@@ -55,8 +56,15 @@ import dev.bukkit.item.BukkitItemStackAdapter;
  * lifetime no matter how the player leaves them: only the 6-second duration (or
  * the 3-platform cap) removes them, so the assassin can hop freely between old
  * and new platforms.
+ *
+ * <p>
+ * One behavior instance per holder (shared between the PLACE and DASH
+ * abilities via {@link #HOLDER_CACHE}); a per-holder 1-tick loop starts on
+ * first activation. Unequipping the staff releases locks/preview but lets
+ * placed platforms fade out gracefully — the loop keeps advancing their decay
+ * until none remain. On server shutdown, state is disposed immediately.
  */
-public class ShadowWeaverManager implements Listener {
+public class ShadowWeaverBehavior implements AbilityBehavior {
 
     /** Item id the staff behaviors bind to (see items.yml). */
     public static final String ITEM_ID = "SHADOW_WEAVER_STAFF";
@@ -64,8 +72,6 @@ public class ShadowWeaverManager implements Listener {
     // ---- Raycast / placement ------------------------------------------------
     /** Maximum raycast range (blocks) for the placement preview. */
     public static final int RAYCAST_MAX_BLOCKS = 5;
-    /** Step size of the placement raycast. */
-//    private static final double RAYCAST_STEP = 0.25;
     /** Minimum separation between platforms (blocks), squared. */
     public static final double MIN_PLATFORM_DISTANCE_SQ = 2.0;
     /** Maximum number of platforms a single player may keep active. */
@@ -106,59 +112,115 @@ public class ShadowWeaverManager implements Listener {
      */
     private static final double DROP_MOVE_THRESHOLD = 0.2;
 
-    private final Map<UUID, PlayerState> states = new HashMap<>();
-    private boolean running;
-    private BukkitTask tickTask;
+    private static final Map<UUID, PlayerState> STATES = new ConcurrentHashMap<>();
+    private static final Map<UUID, BukkitTask> TICK_TASKS = new ConcurrentHashMap<>();
+    private static final Map<UUID, Integer> HOLDER_REFCNT = new ConcurrentHashMap<>();
+    // Holder-scoped cache so PLACE and DASH abilities share the same behavior per player
+    private static final Map<UUID, ShadowWeaverBehavior> HOLDER_CACHE = new ConcurrentHashMap<>();
 
-    private static ShadowWeaverManager instance;
+    private ActiveAbility ctx;
 
-    private ShadowWeaverManager() {
+    public ShadowWeaverBehavior(ActiveAbility ctx) {
+        this.ctx = ctx;
+        HOLDER_CACHE.put(ctx.getHolder().getUuid(), this);
+        HOLDER_REFCNT.merge(ctx.getHolder().getUuid(), 1, Integer::sum);
+        STATES.computeIfAbsent(ctx.getHolder().getUuid(), k -> new PlayerState());
     }
 
-    /**
-     * Singleton access; callers must not use the manager before
-     * {@link #start(Plugin)} is invoked.
-     */
-    public static ShadowWeaverManager getInstance() {
-        if (instance == null) {
-            instance = new ShadowWeaverManager();
+    public static ShadowWeaverBehavior forHolder(UUID uuid) {
+        return HOLDER_CACHE.get(uuid);
+    }
+
+    @Override
+    public void onActivate(ActiveAbility ctx) {
+        this.ctx = ctx;
+        UUID uuid = ctx.getHolder().getUuid();
+        HOLDER_CACHE.put(uuid, this);
+        STATES.computeIfAbsent(uuid, k -> new PlayerState());
+        boolean isFirst = HOLDER_REFCNT.getOrDefault(uuid, 0) == 1;
+        if (isFirst) {
+            ctx.getSubscriptions().subscribe(new EventAction<>(this::onMove, PlayerMoveEvent.class));
+            ctx.getSubscriptions().subscribe(new EventAction<>(this::onSneak, PlayerToggleSneakEvent.class));
+            ctx.getSubscriptions().subscribe(new EventAction<>(this::onQuit, PlayerQuitEvent.class));
+            ctx.getSubscriptions().subscribe(new EventAction<>(this::onDeath, PlayerDeathEvent.class));
+            startTickTask(uuid);
         }
-        return instance;
     }
 
-    /** Starts the per-tick runnable and registers listeners. Idempotent. */
-    public void start(Plugin plugin) {
-        if (running) {
+    @Override
+    public void onDeactivate(ActiveAbility ctx) {
+        UUID uuid = ctx.getHolder().getUuid();
+        int cnt = HOLDER_REFCNT.getOrDefault(uuid, 1) - 1;
+        if (cnt > 0) {
+            HOLDER_REFCNT.put(uuid, cnt);
             return;
         }
-        Bukkit.getPluginManager().registerEvents(this, plugin);
-        tickTask = new BukkitRunnable() {
-            @Override
-            public void run() {
-                tickAll();
+        HOLDER_REFCNT.remove(uuid);
+        HOLDER_CACHE.remove(uuid, this);
+        PlayerState state = STATES.get(uuid);
+        if (state == null) {
+            cancelTickTask(uuid);
+            return;
+        }
+        Plugin plugin = resolvePlugin();
+        Player player = Bukkit.getPlayer(uuid);
+        if (plugin != null && !plugin.isEnabled()) {
+            // Server shutting down: dispose immediately (parity with the
+            // legacy manager's stop() teardown).
+            if (player != null) {
+                state.releaseLock(player);
             }
-        }.runTaskTimer(plugin, 0L, 1L);
-        running = true;
-    }
-
-    /** Stops the runnable and tears down every player's state. */
-    public void stop() {
-        if (!running) {
+            state.disposeAll();
+            STATES.remove(uuid);
+            cancelTickTask(uuid);
             return;
         }
-        running = false;
-        if (tickTask != null) {
-            tickTask.cancel();
-            tickTask = null;
+        // Graceful fade: drop the sticky lock and preview now, but leave the
+        // platforms in place. The per-holder tick keeps advancing their decay
+        // until none remain (see tickHolder).
+        if (player != null) {
+            state.releaseLock(player);
         }
-        cleanupAll();
+        state.hideIndicator();
+        state.clearLockOn();
+    }
+
+    private void startTickTask(UUID uuid) {
+        if (TICK_TASKS.containsKey(uuid)) {
+            return;
+        }
+        Plugin plugin = resolvePlugin();
+        if (plugin == null) {
+            return; // headless (tests): no scheduler available
+        }
+        try {
+            BukkitTask task = new BukkitRunnable() {
+                @Override
+                public void run() {
+                    tickHolder(uuid);
+                }
+            }.runTaskTimer(plugin, 0L, 1L);
+            TICK_TASKS.put(uuid, task);
+        } catch (Exception ignored) {
+            // Server shutting down or scheduling unavailable
+        }
+    }
+
+    private void cancelTickTask(UUID uuid) {
+        BukkitTask task = TICK_TASKS.remove(uuid);
+        if (task != null) {
+            task.cancel();
+        }
     }
 
     // ============================================================== PLAYER CLICKS
 
     /** Right-click placement action, invoked by the place effect. */
     public void handlePlace(Player player) {
-        PlayerState state = state(player);
+        if (!player.getUniqueId().equals(ctx.getHolder().getUuid())) {
+            return;
+        }
+        PlayerState state = state(player.getUniqueId());
         if (state.isDashing()) {
             return;
         }
@@ -175,7 +237,10 @@ public class ShadowWeaverManager implements Listener {
 
     /** Left-click dash action, invoked by the dash effect. */
     public void handleDash(Player player) {
-        PlayerState state = state(player);
+        if (!player.getUniqueId().equals(ctx.getHolder().getUuid())) {
+            return;
+        }
+        PlayerState state = state(player.getUniqueId());
         if (state.isDashing()) {
             return;
         }
@@ -188,25 +253,36 @@ public class ShadowWeaverManager implements Listener {
 
     // ============================================================== PER-TICK LOOP
 
-    private void tickAll() {
-        long now = System.currentTimeMillis();
-        for (Player player : new ArrayList<>(Bukkit.getOnlinePlayers())) {
-            PlayerState state = state(player);
-            if (!holdsStaff(player)) {
-                // Put the staff away: hide the preview, release any lock/dash
-                // and let the platforms fade out on their own.
-                state.releaseLock(player);
-                state.hideIndicator();
-                state.clearLockOn();
-            } else {
-                tickState(player, state, now);
-            }
-            // Platform decay always advances so platforms never linger forever,
-            // even after the staff is sheathed.
-            tickPlatforms(player, state, now);
+    private void tickHolder(UUID uuid) {
+        PlayerState state = STATES.get(uuid);
+        if (state == null) {
+            // Nothing left to drain: stop ticking for this holder.
+            cancelTickTask(uuid);
+            return;
         }
-        // Garbage collect states for players who are gone.
-        states.entrySet().removeIf(e -> Bukkit.getPlayer(e.getKey()) == null);
+        Player player = Bukkit.getPlayer(uuid);
+        if (player == null) {
+            return;
+        }
+        long now = System.currentTimeMillis();
+        if (!holdsStaff(player)) {
+            // Put the staff away: hide the preview, release any lock/dash
+            // and let the platforms fade out on their own.
+            state.releaseLock(player);
+            state.hideIndicator();
+            state.clearLockOn();
+        } else {
+            tickState(player, state, now);
+        }
+        // Platform decay always advances so platforms never linger forever,
+        // even after the staff is sheathed or unequipped.
+        tickPlatforms(player, state, now);
+        // Graceful-fade completion: once deactivated and no platforms remain,
+        // drop the state and stop the per-holder task.
+        if (!HOLDER_REFCNT.containsKey(uuid) && state.platforms.isEmpty()) {
+            STATES.remove(uuid);
+            cancelTickTask(uuid);
+        }
     }
 
     private void tickState(Player player, PlayerState state, long now) {
@@ -218,7 +294,7 @@ public class ShadowWeaverManager implements Listener {
 
         updateIndicator(player, state);
         updateTargetLock(player, state, now);
-        // Platform decay is advanced for every tracked player in tickAll.
+        // Platform decay is advanced for every tracked player in tickHolder.
     }
 
     // ------------------------------------------------------------- preview
@@ -237,6 +313,27 @@ public class ShadowWeaverManager implements Listener {
         state.showIndicator(target, valid);
         state.target = target;
     }
+
+    // ============================================================== PLUNGE STRIKE
+
+    /**
+     * Consumes the assassin's armed Plunge Strike: the first melee hit within 3s of
+     * leaving a platform deals {@value #PLUNGE_MULTIPLIER}x damage. Returns the
+     * multiplier (1.0 when not armed) and clears the window once used.
+     */
+    public static double consumePlungeMultiplier(UUID attackerUuid) {
+        PlayerState state = STATES.get(attackerUuid);
+        if (state == null) {
+            return 1.0;
+        }
+        if (System.currentTimeMillis() > state.plungeExpiresAt) {
+            return 1.0;
+        }
+        state.plungeExpiresAt = 0;
+        return PLUNGE_MULTIPLIER;
+    }
+
+    // ------------------------------------------------------------- placement helpers
 
     /**
      * Steps along the eye ray until a non-passable block is met, returning the last
@@ -534,85 +631,65 @@ public class ShadowWeaverManager implements Listener {
         state(player.getUniqueId()).plungeExpiresAt = System.currentTimeMillis() + PLUNGE_WINDOW_MS;
     }
 
-    // ============================================================== PLUNGE STRIKE
-
-    /**
-     * Consumes the assassin's armed Plunge Strike: the first melee hit within 3s of
-     * leaving a platform deals {@value #PLUNGE_MULTIPLIER}x damage. Returns the
-     * multiplier (1.0 when not armed) and clears the window once used.
-     */
-    public double consumePlungeMultiplier(UUID attackerUuid) {
-        PlayerState state = states.get(attackerUuid);
-        if (state == null) {
-            return 1.0;
-        }
-        if (System.currentTimeMillis() > state.plungeExpiresAt) {
-            return 1.0;
-        }
-        state.plungeExpiresAt = 0;
-        return PLUNGE_MULTIPLIER;
-    }
-
-    // ============================================================== ENTITY
-    // LIFECYCLE
-
-    private PlayerState state(Player player) {
-        return states.computeIfAbsent(player.getUniqueId(), uuid -> new PlayerState());
-    }
+    // ============================================================== STATE ACCESS
 
     private PlayerState state(UUID uuid) {
-        return states.computeIfAbsent(uuid, key -> new PlayerState());
+        return STATES.computeIfAbsent(uuid, key -> new PlayerState());
     }
 
     private boolean holdsStaff(Player player) {
         return ITEM_ID.equals(BukkitItemStackAdapter.getRpgItemId(player.getInventory().getItemInMainHand()));
     }
 
-    /** Removes every display and restores gravity for all tracked players. */
-    private void cleanupAll() {
-        for (Map.Entry<UUID, PlayerState> entry : new HashMap<>(states).entrySet()) {
-            Player player = Bukkit.getPlayer(entry.getKey());
-            if (player != null) {
-                entry.getValue().releaseLock(player);
-            }
-            entry.getValue().disposeAll();
+    private static Plugin resolvePlugin() {
+        try {
+            return DMain.getInstance();
+        } catch (Exception e) {
+            return null;
         }
-        states.clear();
     }
 
     // ============================================================== EVENTS
 
-    @EventHandler(priority = EventPriority.MONITOR)
-    public void onMove(PlayerMoveEvent event) {
-        PlayerState state = states.get(event.getPlayer().getUniqueId());
+    private void onMove(PlayerMoveEvent event) {
+        if (!event.getPlayer().getUniqueId().equals(ctx.getHolder().getUuid())) {
+            return;
+        }
+        PlayerState state = STATES.get(event.getPlayer().getUniqueId());
         if (state != null && state.isLocked() && shouldDrop(event.getPlayer(), state)) {
             releasePlatform(event.getPlayer(), state);
         }
     }
 
-    @EventHandler(priority = EventPriority.MONITOR)
-    public void onSneak(PlayerToggleSneakEvent event) {
+    private void onSneak(PlayerToggleSneakEvent event) {
         if (!event.isSneaking()) {
             return;
         }
-        PlayerState state = states.get(event.getPlayer().getUniqueId());
+        if (!event.getPlayer().getUniqueId().equals(ctx.getHolder().getUuid())) {
+            return;
+        }
+        PlayerState state = STATES.get(event.getPlayer().getUniqueId());
         if (state != null && state.isLocked()) {
             releasePlatform(event.getPlayer(), state);
         }
     }
 
-    @EventHandler(priority = EventPriority.MONITOR)
-    public void onQuit(PlayerQuitEvent event) {
+    private void onQuit(PlayerQuitEvent event) {
+        if (!event.getPlayer().getUniqueId().equals(ctx.getHolder().getUuid())) {
+            return;
+        }
         cleanupPlayer(event.getPlayer());
     }
 
-    @EventHandler(priority = EventPriority.MONITOR)
-    public void onDeath(PlayerDeathEvent event) {
+    private void onDeath(PlayerDeathEvent event) {
+        if (!event.getEntity().getUniqueId().equals(ctx.getHolder().getUuid())) {
+            return;
+        }
         cleanupPlayer(event.getEntity());
     }
 
     private void cleanupPlayer(Player player) {
-        PlayerState state = states.remove(player.getUniqueId());
+        PlayerState state = STATES.remove(player.getUniqueId());
         if (state != null) {
             state.releaseLock(player);
             state.disposeAll();
@@ -706,10 +783,14 @@ public class ShadowWeaverManager implements Listener {
         return new AxisAngle4f(0f, 0f, 0f, 1f);
     }
 
+    public boolean isHolder(Player p) {
+        return p.getUniqueId().equals(ctx.getHolder().getUuid());
+    }
+
     // ============================================================== STATE TYPES
 
     /** One player's entire staff runtime state. */
-    static final class PlayerState {
+    private static final class PlayerState {
         final List<Platform> platforms = new ArrayList<>();
         BlockDisplay indicator;
         Location target;
@@ -812,7 +893,7 @@ public class ShadowWeaverManager implements Listener {
     }
 
     /** An active shadow platform: a BlockDisplay plus its anchor bookkeeping. */
-    static final class Platform {
+    private static final class Platform {
         final BlockDisplay display;
         final Location location;
         final long spawnedAt;

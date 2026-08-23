@@ -6,12 +6,16 @@ import dev.bukkit.entity.BukkitPlayerEntity;
 import dev.core.ability.CooldownSink;
 import dev.core.ability.Effect;
 import dev.core.entity.RPGEntity;
+import dev.bukkit.ability.behavior.ShadowWeaverBehavior;
+import dev.core.ability.ActiveAbility;
+import dev.core.ability.ActiveAbilityRegistry;
+import dev.core.ability.impl.ShadowWeaverStaffAbility;
 
 /**
  * Backs the {@code SHADOW_STAFF_PLACE} ability: a right-click with the Shadow
  * Weaver's Staff places a shadow platform at the crosshair. All of the actual
- * placement logic lives in {@link ShadowWeaverManager}; this effect is the thin
- * adapter between the ability pipeline and the manager's per-player state.
+ * placement logic lives in {@link ShadowWeaverBehavior}; this effect is the thin
+ * adapter between the ability pipeline and the per-holder behavior state.
  */
 public class BukkitShadowWeaverPlaceEffect extends Effect {
 
@@ -26,7 +30,11 @@ public class BukkitShadowWeaverPlaceEffect extends Effect {
 			return;
 		}
 		cooldownSink.startCooldown();
-		ShadowWeaverManager.getInstance().handlePlace(player);
+		ActiveAbility aa = ActiveAbilityRegistry.getInstance()
+				.get(caster, ShadowWeaverStaffAbility.PLACE_ID).orElse(null);
+		if (aa != null && aa.getBehavior() instanceof ShadowWeaverBehavior beh) {
+			beh.handlePlace(player);
+		}
 	}
 
 	@Override

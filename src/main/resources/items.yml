@@ -703,7 +703,7 @@ items:
   HUNTERS_BOW:
     # Sova-inspired hunter bow: shift while drawing to charge bounces (0..3, wraps),
     # left-click to arm a shock charge. The next arrow carries both modifiers:
-    #   - bouncy arrows ricochet off blocks (see HunterBowManager)
+    #   - bouncy arrows ricochet off blocks (see HunterBowBehavior)
     #   - shock bolts detonate after all bounces are spent, or on first impact
     #     when fired plain. Trails, sounds and action-bar feedback sell the state.
     unlockLevel: 0

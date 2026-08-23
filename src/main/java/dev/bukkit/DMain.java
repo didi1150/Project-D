@@ -21,11 +21,8 @@ import dev.bukkit.ability.BukkitSoulRecallEffect;
 import dev.bukkit.ability.BukkitSoulStoreEffect;
 import dev.bukkit.ability.BukkitSoulSummonEffect;
 import dev.bukkit.ability.BukkitSpinjitzuEffect;
-import dev.bukkit.ability.behavior.ArcaneCleaveBehavior;
-import dev.bukkit.ability.behavior.ArcaneManaRestoreBehavior;
 import dev.bukkit.ability.BukkitSpiritSceptreBatEffect;
 import dev.bukkit.ability.BukkitSwingBoneEffect;
-import dev.bukkit.ability.ShadowWeaverManager;
 import dev.bukkit.command.CommandManager;
 import dev.bukkit.entity.boss.BukkitBossStageTypeRegistry;
 import dev.bukkit.entity.boss.BukkitBossStrategyRegistry;
@@ -44,7 +41,6 @@ import dev.bukkit.game.states.PreLobbyState;
 import dev.bukkit.game.states.SelectClassState;
 import dev.bukkit.game.states.SelectItemState;
 import dev.bukkit.game.states.SetupState;
-import dev.bukkit.item.HunterBowManager;
 import dev.bukkit.item.display.LoreLabels;
 import dev.bukkit.status.BukkitStatusEffectManager;
 import dev.bukkit.status.StatusEffectBehaviorRegistry;
@@ -63,11 +59,12 @@ import dev.bukkit.utils.ManaDiscountUtils;
 import dev.core.ability.Ability;
 import dev.core.ability.AbilityBehaviorRegistry;
 import dev.core.ability.AbilityRegistry;
+import dev.core.ability.ActiveAbilityRegistry;
 import dev.core.ability.EffectManagerInterface;
-import dev.core.ability.impl.BouncyArrowAbility;
-import dev.core.ability.impl.ExplosiveArrowAbility;
 import dev.core.ability.impl.ArcaneCleaveAbility;
 import dev.core.ability.impl.ArcaneManaRestoreAbility;
+import dev.core.ability.impl.BouncyArrowAbility;
+import dev.core.ability.impl.ExplosiveArrowAbility;
 import dev.core.ability.impl.FocusBeamAbility;
 import dev.core.ability.impl.ParticleTestAbility;
 import dev.core.ability.impl.ShadowWeaverStaffAbility;
@@ -90,6 +87,7 @@ import dev.core.entity.mob.MobDefinitionLoader;
 import dev.core.entity.mob.MobDefinitionRegistry;
 import dev.core.entity.rpgclass.RPGClassType;
 import dev.core.event.EventBusInterface;
+import dev.core.event.EventAction;
 import dev.core.event.EventSubscriberScanner;
 import dev.core.game.GameStateController;
 import dev.core.game.settings.GameSettings;
@@ -109,6 +107,23 @@ import dev.core.storage.config.ConfigProvider;
 import dev.core.storage.database.ProgressionCacheStrategy;
 import dev.core.storage.database.ProgressionDatabaseStrategy;
 import dev.core.utils.MessageSenderInterface;
+import dev.bukkit.ability.BukkitTriVolleyEffect;
+import dev.bukkit.ability.behavior.ArcaneCleaveBehavior;
+import dev.bukkit.ability.behavior.ArcaneManaRestoreBehavior;
+import dev.bukkit.ability.behavior.BackstabBehavior;
+import dev.bukkit.ability.behavior.HealAuraBehavior;
+import dev.bukkit.ability.behavior.HunterBowBehavior;
+import dev.bukkit.ability.behavior.ManaDiscountBehavior;
+import dev.bukkit.ability.behavior.ShadowWeaverBehavior;
+import dev.bukkit.ability.behavior.ThreatBehavior;
+import dev.bukkit.ability.behavior.TriVolleyBehavior;
+import dev.bukkit.game.boss.BossArenaManager;
+import dev.bukkit.hud.HudConfig;
+import dev.bukkit.hud.HudConfigLoader;
+import dev.bukkit.hud.HudOverlayService;
+import dev.bukkit.hud.HunterHudFormatter;
+import dev.bukkit.hud.TriHomingHudFormatter;
+
 
 public final class DMain extends JavaPlugin {
     private EventBusInterface eventBusInterface;
@@ -122,7 +137,7 @@ public final class DMain extends JavaPlugin {
     private ClassProgressionService progressionService;
     private MessageSenderInterface messageSenderInterface;
     private GameStateController gameStateController;
-    private dev.bukkit.game.boss.BossArenaManager bossArenaManager;
+    private BossArenaManager bossArenaManager;
 
     private BuildAssetManager buildAssetManager;
 
@@ -155,7 +170,7 @@ public final class DMain extends JavaPlugin {
         AbilityRegistry.register(ShadowWeaverStaffAbility.dash(), BukkitShadowWeaverDashEffect::new);
         AbilityRegistry.register(new BouncyArrowAbility(), BukkitBouncyArrowEffect::new);
         AbilityRegistry.register(new ExplosiveArrowAbility(), BukkitExplosiveArrowEffect::new);
-        AbilityRegistry.register(new TriVolleyAbility(), dev.bukkit.ability.BukkitTriVolleyEffect::new);
+        AbilityRegistry.register(new TriVolleyAbility(), BukkitTriVolleyEffect::new);
         // Arcane Blade passives — PASSIVE abilities, runtime handled by per-holder behaviors
         AbilityRegistry.register(new ArcaneManaRestoreAbility());
         AbilityRegistry.register(new ArcaneCleaveAbility());
@@ -163,6 +178,16 @@ public final class DMain extends JavaPlugin {
         // ---- Per-holder ability behaviors  ----
         AbilityBehaviorRegistry.register(ArcaneManaRestoreAbility.ID, ArcaneManaRestoreBehavior::new);
         AbilityBehaviorRegistry.register(ArcaneCleaveAbility.ID, ArcaneCleaveBehavior::new);
+        AbilityBehaviorRegistry.register(BouncyArrowAbility.ID, HunterBowBehavior::new);
+        AbilityBehaviorRegistry.register(ExplosiveArrowAbility.ID, HunterBowBehavior::new);
+        AbilityBehaviorRegistry.register(TriVolleyAbility.ID, TriVolleyBehavior::new);
+        AbilityBehaviorRegistry.register(ShadowWeaverStaffAbility.PLACE_ID, ShadowWeaverBehavior::new);
+        AbilityBehaviorRegistry.register(ShadowWeaverStaffAbility.DASH_ID, ShadowWeaverBehavior::new);
+        // Set passives unified into same tracking surface
+        AbilityBehaviorRegistry.register(HealAuraUtils.PASSIVE_ID, HealAuraBehavior::new);
+        AbilityBehaviorRegistry.register(BackstabUtils.PASSIVE_ID, BackstabBehavior::new);
+        AbilityBehaviorRegistry.register(ManaDiscountUtils.PASSIVE_ID, ManaDiscountBehavior::new);
+        AbilityBehaviorRegistry.register("THREAT", ThreatBehavior::new);
 
         // Status effect behaviors: how each CC type plays out on the vanilla
         // entity (stat engine / potions / AI / velocity). Types without a
@@ -174,20 +199,10 @@ public final class DMain extends JavaPlugin {
 
         // HUD overlay config — create manager early so hud.yml is available before services start
         configManager = new BukkitConfigManager(this);
-        dev.bukkit.hud.HudConfig hudCfg = dev.bukkit.hud.HudConfigLoader.load(configManager.getProvider("hud.yml"));
-        dev.bukkit.hud.HudOverlayService.getInstance().init(this, hudCfg);
-        dev.bukkit.hud.HunterHudFormatter.load(hudCfg);
-        dev.bukkit.hud.TriHomingHudFormatter.load(hudCfg);
-
-        // Shadow Weaver's Staff: per-tick preview, platform decay, dash lock and
-        // sticky-lock runtime, plus its drop-off synergy listeners.
-        ShadowWeaverManager.getInstance().start(this);
-
-        // Hunter's Bow: bounce charges, shock arming, ricochet physics, detonations, trails
-        HunterBowManager.getInstance().start(this);
-
-        // Trinity Bow: 3 homing arrows + 5-arrow volley
-        dev.bukkit.item.TriHomingBowManager.getInstance().start(this);
+        HudConfig hudCfg = HudConfigLoader.load(configManager.getProvider("hud.yml"));
+        HudOverlayService.getInstance().init(this, hudCfg);
+        HunterHudFormatter.load(hudCfg);
+        TriHomingHudFormatter.load(hudCfg);
 
         // Item set passives: registered before items.yml loads so the loader can
         // resolve the "passives:" lists of set bonuses.
@@ -254,7 +269,7 @@ public final class DMain extends JavaPlugin {
         GameSettingsLoader gameSettingsLoader = new GameSettingsLoader(gameSettings, setupConfig);
         gameSettingsLoader.load();
         // Initialize boss arena manager from setup config
-        this.bossArenaManager = dev.bukkit.game.boss.BossArenaManager.createDefault(this);
+        this.bossArenaManager = BossArenaManager.createDefault(this);
         if (!gameSettings.isSetupMode() && gameSettings.getDungeonWorld() != null
                 && !gameSettings.getDungeonWorld().isBlank()) {
             File dungeonWorldFolder = new File(Bukkit.getWorldContainer(), gameSettings.getDungeonWorld());
@@ -281,6 +296,11 @@ public final class DMain extends JavaPlugin {
         // ]=============================================================
         eventBusInterface = BukkitEventBus.getInstance();
         EventBusRegistry.registerAll(instance);
+        // Trinity bow arrows resolve their hits globally (see
+        // TriVolleyBehavior.onGlobalProjectileHit): per-holder bindings detach
+        // when the player swaps away from the bow mid-flight.
+        eventBusInterface.subscribe(new EventAction<>(TriVolleyBehavior::onGlobalProjectileHit,
+                org.bukkit.event.entity.ProjectileHitEvent.class, EventAction.HIGHEST_PRIORITY));
 
         gameStateController = new GameStateController(new BukkitTaskScheduler(this), effectManagerInterface,
                 entityManager);
@@ -319,10 +339,13 @@ public final class DMain extends JavaPlugin {
         gameStateController.stop();
         effectManagerInterface.cancelAll();
         BukkitStatusEffectManager.getInstance().cancelAll();
-        dev.bukkit.hud.HudOverlayService.getInstance().shutdown();
-        ShadowWeaverManager.getInstance().stop();
-        HunterBowManager.getInstance().stop();
-        dev.bukkit.item.TriHomingBowManager.getInstance().stop();
+        HudOverlayService.getInstance().shutdown();
+        try {
+            ActiveAbilityRegistry.getInstance().clear();
+        } catch (Exception ignored) {}
+        try {
+            AbilityBehaviorRegistry.clear();
+        } catch (Exception ignored) {}
         combatListener.cleanup();
         configManager.saveAll();
         eventBusInterface.getSubscribed().clear();
@@ -332,7 +355,7 @@ public final class DMain extends JavaPlugin {
         return instance;
     }
 
-    public dev.bukkit.game.boss.BossArenaManager getBossArenaManager() {
+    public BossArenaManager getBossArenaManager() {
         return bossArenaManager;
     }
 

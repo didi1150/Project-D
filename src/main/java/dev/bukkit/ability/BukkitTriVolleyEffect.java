@@ -20,10 +20,11 @@ import org.bukkit.entity.Player;
 import org.bukkit.persistence.PersistentDataType;
 import org.bukkit.util.Vector;
 
+import org.bukkit.NamespacedKey;
+
 import dev.bukkit.DMain;
 import dev.bukkit.entity.BukkitPlayerEntity;
 import dev.bukkit.item.BowArrowManager;
-import dev.bukkit.item.TriHomingBowManager;
 import dev.core.ability.CooldownSink;
 import dev.core.ability.Effect;
 import dev.core.entity.RPGEntity;
@@ -42,6 +43,9 @@ public class BukkitTriVolleyEffect extends Effect {
     private static final double VOLLEY_SPREAD_DEG = 14.0; // step between arrows => ±28°
     private static final double VOLLEY_DAMAGE_SCALE = 0.85;
     private static final int VOLLEY_LIFETIME_TICKS = 30;
+
+    public static final NamespacedKey VOLLEY_KEY = new NamespacedKey("project_d", "tri_volley");
+    public static final NamespacedKey HOMING_KEY = new NamespacedKey("project_d", "tri_homing");
 
     // Per-arrow pierce tracking: arrow UUID -> set of hit entity UUIDs
     private static final Map<UUID, Set<UUID>> PIERCE_HITS = new HashMap<>();
@@ -94,15 +98,14 @@ public class BukkitTriVolleyEffect extends Effect {
             arrow.setPickupStatus(AbstractArrow.PickupStatus.DISALLOWED);
             arrow.setGlowing(false);
             // Mark as volley for pierce handling and to exempt from BowArrowManager bounce consume check
-            arrow.getPersistentDataContainer().set(TriHomingBowManager.VOLLEY_KEY, PersistentDataType.BOOLEAN, true);
+            arrow.getPersistentDataContainer().set(VOLLEY_KEY, PersistentDataType.BOOLEAN, true);
             arrow.getPersistentDataContainer().set(BowArrowManager.ARROW_DAMAGE_KEY, PersistentDataType.DOUBLE, baseDamage);
             arrow.getPersistentDataContainer().set(BowArrowManager.BOUNCE_KEY, PersistentDataType.BOOLEAN, false);
             // trail distinct from hunter (violet-pink)
             startVolleyTrail(arrow);
             // lifetime despawn
             scheduleDespawn(arrow, VOLLEY_LIFETIME_TICKS);
-            // piercing handled via follow-up ProjectileHitEvent subscription globally? Instead we handle via per-arrow bus?
-            // Register a one-off listener via Bukkit event is not via bus; we rely on TriHomingBowManager's ProjectileHitEvent to handle pierce.
+            // piercing handled via follow-up ProjectileHitEvent in TriVolleyBehavior
         }
     }
 
@@ -154,18 +157,18 @@ public class BukkitTriVolleyEffect extends Effect {
 
     public static boolean isVolleyArrow(Entity e) {
         if (!(e instanceof Arrow a)) return false;
-        Boolean v = a.getPersistentDataContainer().get(TriHomingBowManager.VOLLEY_KEY, PersistentDataType.BOOLEAN);
+        Boolean v = a.getPersistentDataContainer().get(VOLLEY_KEY, PersistentDataType.BOOLEAN);
         return Boolean.TRUE.equals(v);
     }
 
     public static boolean isTriArrow(Entity e) {
         if (!(e instanceof Arrow a)) return false;
-        Boolean h = a.getPersistentDataContainer().get(TriHomingBowManager.HOMING_KEY, PersistentDataType.BOOLEAN);
-        Boolean v = a.getPersistentDataContainer().get(TriHomingBowManager.VOLLEY_KEY, PersistentDataType.BOOLEAN);
+        Boolean h = a.getPersistentDataContainer().get(HOMING_KEY, PersistentDataType.BOOLEAN);
+        Boolean v = a.getPersistentDataContainer().get(VOLLEY_KEY, PersistentDataType.BOOLEAN);
         return Boolean.TRUE.equals(h) || Boolean.TRUE.equals(v);
     }
 
-    /** Called from TriHomingBowManager's ProjectileHitEvent to implement pierce. Returns true if arrow should continue. */
+    /** Called from TriVolleyBehavior's ProjectileHitEvent to implement pierce. Returns true if arrow should continue. */
     public static boolean handlePierceHit(Arrow arrow, LivingEntity hit) {
         if (arrow == null || hit == null) return false;
         UUID aid = arrow.getUniqueId();
