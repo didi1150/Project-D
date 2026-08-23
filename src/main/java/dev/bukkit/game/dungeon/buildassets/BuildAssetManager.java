@@ -1,4 +1,4 @@
-package dev.bukkit.game.dungeon.proceduralDungeon;
+package dev.bukkit.game.dungeon.buildassets;
 
 import dev.bukkit.command.CommandManager;
 import dev.bukkit.command.SubCommandBuilder;
@@ -185,83 +185,4 @@ public class BuildAssetManager {
             throw new IllegalArgumentException("Something went wrong when parsing the entities from a build asset file:\n" + e.getMessage());
         }
     }
-
-    private Vector3Int firstPos;
-    private Vector3Int secondPos;
-    private BuildAsset lastPreviewedAsset;
-    private Vector3Int lastPreviewStartPos;
-
-    private boolean checkPerm(org.bukkit.entity.Player player, String node) {
-        if (player.hasPermission(node) || player.hasPermission("projectd.admin") || player.isOp()) return true;
-        player.sendMessage("§cNo permission: " + node);
-        return false;
-    }
-
-    public void registerCommand(CommandManager cm) {
-        cm.addSubCommand("project-d", SubCommandBuilder.startBuilding("asset")
-                .setDescription("Build asset controls")
-                .setPlayerCommandAction(1, "firstPos", (player, args) -> {
-                    if (!checkPerm(player, "projectd.asset.use")) return;
-                    firstPos = new Vector3Int(player.getLocation().getBlockX(), player.getLocation().getBlockY(), player.getLocation().getBlockZ());
-                    player.sendMessage("Set firstPos to: " + firstPos);
-                })
-                .setPlayerCommandAction(1, "secondPos", (player, args) -> {
-                    if (!checkPerm(player, "projectd.asset.use")) return;
-                    secondPos = new Vector3Int(player.getLocation().getBlockX(), player.getLocation().getBlockY(), player.getLocation().getBlockZ());
-                    player.sendMessage("Set secondPos to: " + secondPos);
-                })
-                .setPlayerCommandAction(2, "save", (player, args) -> {
-                    if (!checkPerm(player, "projectd.asset.save")) return;
-                    String name = args[1];
-                    saveAsset(name, player.getWorld(), firstPos, secondPos);
-                    player.sendMessage("Saving asset from " + firstPos + " to " + secondPos + " as: " + name);
-                }).setCommandArgumentsList(1, "save", "name")
-                .setPlayerCommandAction(2, "load", (player, args) -> {
-                    if (!checkPerm(player, "projectd.asset.load")) return;
-                    String name = args[1];
-                    BuildAsset asset = getAsset(name);
-                    if (asset == null){
-                        player.sendMessage("No build asset found with name: " + name);
-                        return;
-                    }
-                    Vector3Int pos = new Vector3Int(player.getLocation().getBlockX(), player.getLocation().getBlockY(), player.getLocation().getBlockZ());
-                    asset.build(player.getServer(), player.getWorld(), pos);
-                    player.sendMessage("Loading " + name + " asset at " + pos + " with info:");
-                    player.sendMessage("firstPos=" + asset.startPos() + " secondPos=" + asset.endPos() + " blocks.size=" + asset.blocks().size() + " entities.size=" + asset.entities().size());
-                }).setCommandArgumentsList(1, "load", getAllAssetNames(), "name")
-                .setPlayerCommandAction(1, "reloadAssets", (player, args) -> {
-                    if (!checkPerm(player, "projectd.asset.reload")) return;
-                    loadAllAssets();
-                    player.sendMessage("Reloaded " + getAllAssetNames().size() + " build assets");
-                })
-                .setPlayerCommandAction(2, "showPreview", (player, args) -> {
-                    if (!checkPerm(player, "projectd.asset.preview")) return;
-                    String name = args[1];
-                    BuildAsset asset = getAsset(name);
-                    if (asset == null){
-                        player.sendMessage("No build asset found with name: " + name);
-                        return;
-                    }
-                    Vector3Int pos = new Vector3Int(player.getLocation().getBlockX(), player.getLocation().getBlockY(), player.getLocation().getBlockZ());
-                    lastPreviewedAsset = asset;
-                    lastPreviewStartPos = pos;
-                    asset.showPreview(player.getServer(), player.getWorld(), pos);
-                    player.sendMessage("Showing Preview of " + name + " asset at " + pos + " with info:");
-                    player.sendMessage("firstPos=" + asset.startPos() + " secondPos=" + asset.endPos() + " blocks.size=" + asset.blocks().size() + " entities.size=" + asset.entities().size());
-                }).setCommandArgumentsList(1, "showPreview", this::getAllAssetNames, "name")
-                .setPlayerCommandAction(1, "removeLastPreview", (player, args) -> {
-                    if (!checkPerm(player, "projectd.asset.preview")) return;
-                    if (lastPreviewedAsset == null){
-                        player.sendMessage("No last build asset found");
-                        return;
-                    }
-                    lastPreviewedAsset.removePreview(player.getWorld(), lastPreviewStartPos);
-                    player.sendMessage("Removing Preview of " + lastPreviewedAsset.name() + " asset at " + lastPreviewStartPos);
-                    lastPreviewedAsset = null;
-                    lastPreviewStartPos = null;
-                })
-                .setCommandArgumentsList(0, List.of("firstPos", "secondPos", "save", "load", "reloadAssets", "showPreview", "removeLastPreview"))
-        );
-    }
-
 }

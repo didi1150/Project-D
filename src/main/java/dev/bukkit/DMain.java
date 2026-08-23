@@ -4,6 +4,9 @@ import java.io.File;
 import java.io.IOException;
 import java.util.Map;
 
+import dev.bukkit.game.dungeon.buildassets.BuildAssetHelper;
+import dev.bukkit.game.dungeon.buildassets.BuildAssetManager;
+import dev.bukkit.utils.*;
 import org.bukkit.Bukkit;
 import org.bukkit.WorldCreator;
 import org.bukkit.plugin.java.JavaPlugin;
@@ -30,7 +33,6 @@ import dev.bukkit.event.BukkitEventBus;
 import dev.bukkit.event.bukkitListeners.CombatListener;
 import dev.bukkit.event.bukkitListeners.EventBusRegistry;
 import dev.bukkit.event.subscribers.ThreatPassiveSubscriber;
-import dev.bukkit.game.dungeon.proceduralDungeon.BuildAssetManager;
 import dev.bukkit.game.dungeon.proceduralDungeon.BukkitVoidWorldGenerator;
 import dev.bukkit.game.dungeon.proceduralDungeon.SimpleDungeonBuilderBukkit;
 import dev.bukkit.game.scheduler.BukkitTaskScheduler;
@@ -331,7 +333,11 @@ public final class DMain extends JavaPlugin {
         SimpleDungeonBuilderBukkit.initDungeonTestCommand(commandManager);
 
         buildAssetManager = new BuildAssetManager(this, "buildAssets/");
-        buildAssetManager.registerCommand(commandManager);
+        BuildAssetHelper buildAssetHelper = new BuildAssetHelper(buildAssetManager);
+//        BuildAssetHelper.getInstance().registerCommand(commandManager, (BukkitMessageSender) messageSenderInterface, buildAssetManager);
+//        BuildAssetHelper.getInstance().registerEvents(eventBusInterface, (BukkitMessageSender) messageSenderInterface);
+
+        SetupManager.getInstance().registerSetupHelpers(commandManager, eventBusInterface, (BukkitMessageSender) messageSenderInterface);
 
         commandManager.registerCommands(this);
         combatListener = new CombatListener(this);
@@ -357,6 +363,8 @@ public final class DMain extends JavaPlugin {
         combatListener.cleanup();
         configManager.saveAll();
         eventBusInterface.getSubscribed().clear();
+//        BuildAssetHelper.getInstance().cleanUp(this.getServer());
+        SetupManager.getInstance().cleanUpSetupHelpers(this.getServer());
     }
 
     public static DMain getInstance() {

@@ -1,4 +1,4 @@
-package dev.bukkit.game.dungeon.proceduralDungeon;
+package dev.bukkit.game.dungeon.buildassets;
 
 import dev.core.game.dungeon.proceduralDungeon.util.Vector3Int;
 import org.bukkit.Server;

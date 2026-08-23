@@ -1,5 +1,6 @@
 package dev.core.stat.descriptor;
 
+import java.util.Locale;
 import java.util.function.BiFunction;
 import org.jetbrains.annotations.NotNull;
 
@@ -96,11 +97,11 @@ public class StatDescriptor {
 
         String formattedValue;
         if (percent) {
-            formattedValue = String.format("%.1f%%", display * 100);
+            formattedValue = String.format(Locale.UK, "%.1f%%", display * 100);
         } else if (display == (long) display) {
-            formattedValue = String.format("%d", (long) display);
+            formattedValue = String.format(Locale.UK, "%d", (long) display);
         } else {
-            formattedValue = String.format("%.1f", display);
+            formattedValue = String.format(Locale.UK, "%.1f", display);
         }
 
         return symbol + " " + prefix + formattedValue + " " + displayName;

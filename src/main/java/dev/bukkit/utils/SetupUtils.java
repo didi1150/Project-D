@@ -3,14 +3,12 @@ package dev.bukkit.utils;
 import java.util.Arrays;
 import java.util.List;
 
-import org.bukkit.Bukkit;
-import org.bukkit.ChatColor;
-import org.bukkit.Location;
-import org.bukkit.Material;
-import org.bukkit.World;
-import org.bukkit.entity.Player;
+import dev.core.game.dungeon.proceduralDungeon.util.Vector3Int;
+import org.bukkit.*;
+import org.bukkit.entity.*;
 import org.bukkit.event.block.BlockPlaceEvent;
 import org.bukkit.event.player.PlayerInteractEvent;
+import org.bukkit.inventory.ItemFlag;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
 
@@ -22,6 +20,8 @@ import dev.core.game.coords.ViewPoint3D;
 import dev.core.game.settings.GameSettingsLoader;
 import dev.core.utils.MessageComponent;
 import dev.core.utils.MessageSenderInterface;
+import org.bukkit.util.Transformation;
+import org.joml.Vector3f;
 
 public class SetupUtils {
 
@@ -100,12 +100,68 @@ public class SetupUtils {
         return false;
     }
 
+    public static boolean hasItemInMainHand(Player player, String displayName) {
+        ItemStack item = player.getInventory().getItemInMainHand();
+        return item.getItemMeta() != null && item.getItemMeta().getDisplayName().contains(displayName);
+    }
+
     public static void setDungeonWorld(String world, GameSettingsLoader gameSettingsLoader) {
         gameSettingsLoader.setDungeonWorld(world);
     }
 
     public static void setBossWorld(String world, GameSettingsLoader gameSettingsLoader, int floor) {
         gameSettingsLoader.setBossWorld(world, floor);
+    }
+
+    public static ItemStack createSimpleItem(Material material, String name, List<ItemAbilityLore> lore) {
+        ItemStack itemStack = new ItemStack(material);
+        ItemMeta meta = itemStack.getItemMeta();
+        if (meta == null) {
+            return itemStack;
+        }
+        meta.setDisplayName(ChatColor.GOLD + name);
+        meta.setLore(lore.stream().flatMap(l -> l.getLore().stream()).toList());
+        meta.setUnbreakable(true);
+        meta.addItemFlags(ItemFlag.HIDE_UNBREAKABLE, ItemFlag.HIDE_ATTRIBUTES);
+        if (meta.getAttributeModifiers() != null) {
+            meta.getAttributeModifiers().clear();
+        }
+        itemStack.setItemMeta(meta);
+        return itemStack;
+    }
+
+    public static TextDisplay spawnTextDisplayInBlockCenter(World world, Vector3Int pos, String text) {
+        Vector3f spawnPoint = pos.toVector3f().add(0.5f, 0.3f, 0.5f);
+        Location loc = new Location(world, spawnPoint.x, spawnPoint.y, spawnPoint.z);
+        TextDisplay textDisplay = (TextDisplay) world.spawnEntity(loc, EntityType.TEXT_DISPLAY);
+        textDisplay.setBillboard(Display.Billboard.CENTER);
+        textDisplay.setText(text);
+        textDisplay.setSeeThrough(true);
+        textDisplay.setBackgroundColor(textDisplay.getBackgroundColor().setAlpha(0));
+        Transformation transformation = textDisplay.getTransformation();
+        transformation.getScale().set(new Vector3f(1.5f));
+        textDisplay.setTransformation(transformation);
+        return textDisplay;
+    }
+
+    public static BlockDisplay spawnGlowingBlockDisplay(World world, Vector3Int pos, Material material, Color glowColor) {
+        return spawnGlowingBlockDisplay(world, pos, pos, material, glowColor, 0.05f);
+    }
+
+    public static BlockDisplay spawnGlowingBlockDisplay(World world, Vector3Int firstPos, Vector3Int secondPos, Material material, Color glowColor, float offset) {
+        Vector3f spawnPoint = firstPos.toVector3f().sub(new Vector3f(offset));
+        Location loc = new Location(world, spawnPoint.x, spawnPoint.y, spawnPoint.z);
+        BlockDisplay blockDisplay = (BlockDisplay) world.spawnEntity(loc, EntityType.BLOCK_DISPLAY);
+        blockDisplay.setBlock(Bukkit.createBlockData(material));
+        blockDisplay.setBrightness(new Display.Brightness(15,15));
+        blockDisplay.setGlowing(true);
+        blockDisplay.setGlowColorOverride(glowColor);
+
+        Transformation transformation = blockDisplay.getTransformation();
+        Vector3f scaleVec = secondPos.sub(firstPos).add(1,1,1).toVector3f();
+        transformation.getScale().set(scaleVec.add(new Vector3f(offset * 2)));
+        blockDisplay.setTransformation(transformation);
+        return blockDisplay;
     }
 
 }

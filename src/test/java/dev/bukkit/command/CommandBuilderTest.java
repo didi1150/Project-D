@@ -30,6 +30,7 @@ public class CommandBuilderTest {
     @BeforeEach
     void setUp() {
         player = Mockito.mock(Player.class);
+        sender.setOp(true);
     }
 
     @AfterEach
