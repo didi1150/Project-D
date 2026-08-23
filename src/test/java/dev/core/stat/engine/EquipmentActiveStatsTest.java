@@ -20,6 +20,8 @@ import dev.core.stat.StatManager;
 import dev.core.stat.StatType;
 import dev.core.stat.modifier.StatModifier;
 import dev.core.stat.modifier.StatModifierType;
+import dev.core.ability.Ability;
+import dev.core.ability.Effect;
 
 /**
  * Verifies that active stats from every equipment slot (HEAD, CHEST, LEGS,
@@ -138,17 +140,17 @@ class EquipmentActiveStatsTest {
 
     private static final class NoopEffectManager implements EffectManagerInterface {
         @Override
-        public dev.core.ability.Effect cast(RPGEntity entity, dev.core.ability.Ability ability) {
+        public Effect cast(RPGEntity entity, Ability ability) {
             return null;
         }
 
         @Override
-        public boolean canActivate(RPGEntity entity, dev.core.ability.Ability ability) {
+        public boolean canActivate(RPGEntity entity, Ability ability) {
             return false;
         }
 
         @Override
-        public long remainingCooldown(RPGEntity entity, dev.core.ability.Ability ability) {
+        public long remainingCooldown(RPGEntity entity, Ability ability) {
             return 0;
         }
 

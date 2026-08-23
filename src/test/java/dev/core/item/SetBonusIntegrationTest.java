@@ -41,6 +41,7 @@ import dev.core.stat.modifier.StatModifier;
 import dev.core.stat.modifier.StatModifierType;
 import dev.core.storage.config.ConfigProvider;
 import dev.core.storage.config.ConfigSection;
+import dev.core.ability.Effect;
 
 /**
  * Item sets: config loading, attachment to pieces and the full-set bonus
@@ -323,17 +324,17 @@ class SetBonusIntegrationTest {
 
     private static final class NoopEffectManager implements EffectManagerInterface {
         @Override
-        public dev.core.ability.Effect cast(RPGEntity entity, dev.core.ability.Ability ability) {
+        public Effect cast(RPGEntity entity, Ability ability) {
             return null;
         }
 
         @Override
-        public boolean canActivate(RPGEntity entity, dev.core.ability.Ability ability) {
+        public boolean canActivate(RPGEntity entity, Ability ability) {
             return false;
         }
 
         @Override
-        public long remainingCooldown(RPGEntity entity, dev.core.ability.Ability ability) {
+        public long remainingCooldown(RPGEntity entity, Ability ability) {
             return 0;
         }
 

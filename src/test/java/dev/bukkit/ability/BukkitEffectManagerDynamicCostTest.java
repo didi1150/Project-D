@@ -22,6 +22,8 @@ import dev.core.stat.StatManager;
 import dev.core.stat.StatType;
 import dev.core.stat.impl.CombatStat;
 import dev.core.stat.impl.ResourceStat;
+import dev.core.ability.EffectManagerInterface;
+import dev.core.storage.config.ConfigSection;
 
 /**
  * Drives the real {@link BukkitEffectManager} with formula-driven ability
@@ -70,7 +72,7 @@ class BukkitEffectManagerDynamicCostTest {
         assertEquals(50, entity.getMana(), "a failed cost evaluation must not drain resources");
     }
 
-    private dev.core.ability.EffectManagerInterface manager() {
+    private EffectManagerInterface manager() {
         return BukkitEffectManager.getInstance();
     }
 
@@ -92,7 +94,7 @@ class BukkitEffectManagerDynamicCostTest {
     }
 
     /** Minimal config section exposing only {@code formula}. */
-    private static final class StaticFormulaSection implements dev.core.storage.config.ConfigSection {
+    private static final class StaticFormulaSection implements ConfigSection {
         private final String formula;
 
         StaticFormulaSection(String formula) {
@@ -125,12 +127,12 @@ class BukkitEffectManagerDynamicCostTest {
         }
 
         @Override
-        public dev.core.storage.config.ConfigSection getSection(String path) {
+        public ConfigSection getSection(String path) {
             return null;
         }
 
         @Override
-        public java.util.List<dev.core.storage.config.ConfigSection> getSectionList(String path) {
+        public java.util.List<ConfigSection> getSectionList(String path) {
             return java.util.List.of();
         }
 

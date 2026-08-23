@@ -11,6 +11,8 @@ import dev.core.ability.EffectManagerInterface;
 import dev.core.entity.EntityManager;
 import dev.core.event.EventBusInterface;
 import dev.core.event.impl.TickEvent;
+import dev.core.ability.Ability;
+import dev.core.entity.RPGEntity;
 
 /**
  * The effect/entity tick must be owned by the GameStateController and be active
@@ -90,17 +92,17 @@ class GameStateControllerTickLifecycleTest {
         }
 
         @Override
-        public Effect cast(dev.core.entity.RPGEntity entity, dev.core.ability.Ability ability) {
+        public Effect cast(RPGEntity entity, Ability ability) {
             return null;
         }
 
         @Override
-        public boolean canActivate(dev.core.entity.RPGEntity entity, dev.core.ability.Ability ability) {
+        public boolean canActivate(RPGEntity entity, Ability ability) {
             return false;
         }
 
         @Override
-        public long remainingCooldown(dev.core.entity.RPGEntity entity, dev.core.ability.Ability ability) {
+        public long remainingCooldown(RPGEntity entity, Ability ability) {
             return 0;
         }
 

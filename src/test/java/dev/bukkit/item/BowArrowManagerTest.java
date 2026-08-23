@@ -50,6 +50,9 @@ import dev.core.stat.StatManager;
 import dev.core.stat.StatType;
 import dev.core.stat.impl.CombatStat;
 import dev.core.stat.impl.ResourceStat;
+import dev.core.ability.Ability;
+import dev.core.ability.Effect;
+import org.mockito.Mockito;
 
 class BowArrowManagerTest {
 
@@ -282,7 +285,7 @@ class BowArrowManagerTest {
 
         BowArrowManager.onShoot(player, projectile);
 
-        verify(pdc, org.mockito.Mockito.never()).set(any(NamespacedKey.class), any(), any());
+        verify(pdc, Mockito.never()).set(any(NamespacedKey.class), any(), any());
     }
 
     @Test
@@ -367,7 +370,7 @@ class BowArrowManagerTest {
 
         BowArrowManager.onShoot(player, arrow);
 
-        verify(arrow, org.mockito.Mockito.never()).setPickupStatus(any());
+        verify(arrow, Mockito.never()).setPickupStatus(any());
     }
 
     @Test
@@ -415,17 +418,17 @@ class BowArrowManagerTest {
 
     private static final class NoopEffectManager implements EffectManagerInterface {
         @Override
-        public dev.core.ability.Effect cast(RPGEntity entity, dev.core.ability.Ability ability) {
+        public Effect cast(RPGEntity entity, Ability ability) {
             return null;
         }
 
         @Override
-        public boolean canActivate(RPGEntity entity, dev.core.ability.Ability ability) {
+        public boolean canActivate(RPGEntity entity, Ability ability) {
             return false;
         }
 
         @Override
-        public long remainingCooldown(RPGEntity entity, dev.core.ability.Ability ability) {
+        public long remainingCooldown(RPGEntity entity, Ability ability) {
             return 0;
         }
 

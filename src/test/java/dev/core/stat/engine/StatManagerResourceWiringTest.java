@@ -23,6 +23,8 @@ import dev.core.stat.loader.StatLoader;
 import dev.core.stat.modifier.StatModifier;
 import dev.core.stat.modifier.StatModifierType;
 import dev.core.stat.provider.adapter.ItemStatProvider;
+import dev.core.ability.Ability;
+import dev.core.ability.Effect;
 
 /**
  * Regression: class selection reinstalls a fresh stat set into the StatManager
@@ -81,17 +83,17 @@ class StatManagerResourceWiringTest {
 
     private static final class NoopEffectManager implements EffectManagerInterface {
         @Override
-        public dev.core.ability.Effect cast(RPGEntity entity, dev.core.ability.Ability ability) {
+        public Effect cast(RPGEntity entity, Ability ability) {
             return null;
         }
 
         @Override
-        public boolean canActivate(RPGEntity entity, dev.core.ability.Ability ability) {
+        public boolean canActivate(RPGEntity entity, Ability ability) {
             return false;
         }
 
         @Override
-        public long remainingCooldown(RPGEntity entity, dev.core.ability.Ability ability) {
+        public long remainingCooldown(RPGEntity entity, Ability ability) {
             return 0;
         }
 

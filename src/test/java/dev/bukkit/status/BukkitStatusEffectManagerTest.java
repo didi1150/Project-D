@@ -40,6 +40,7 @@ import dev.core.stat.StatManager;
 import dev.core.stat.StatType;
 import dev.core.status.StatusEffectType;
 import dev.core.stat.impl.CombatStat;
+import org.mockito.Mockito;
 
 /**
  * Headless smoke test for the Bukkit status manager: display spawn/stacking and
@@ -149,7 +150,7 @@ class BukkitStatusEffectManagerTest {
         RPGEntity entity = entityWithoutMoveSpeed();
 
         assertTrue(manager.apply(entity, StatusEffectType.ROOTED, 10_000));
-        verify(living, org.mockito.Mockito.never()).addPotionEffect(any());
+        verify(living, Mockito.never()).addPotionEffect(any());
 
         manager.remove(entity, StatusEffectType.ROOTED);
         assertFalse(entity.hasStatusEffect(StatusEffectType.ROOTED));

@@ -22,6 +22,8 @@ import dev.core.stat.Stat;
 import dev.core.stat.StatManager;
 import dev.core.stat.StatType;
 import dev.core.stat.impl.ResourceStat;
+import dev.core.ability.Ability;
+import dev.core.ability.Effect;
 
 /**
  * Kill credit: the last entity to land damage is carried into
@@ -111,17 +113,17 @@ class KillCreditDeathEventTest {
 
     private static final class NoopEffectManager implements EffectManagerInterface {
         @Override
-        public dev.core.ability.Effect cast(RPGEntity entity, dev.core.ability.Ability ability) {
+        public Effect cast(RPGEntity entity, Ability ability) {
             return null;
         }
 
         @Override
-        public boolean canActivate(RPGEntity entity, dev.core.ability.Ability ability) {
+        public boolean canActivate(RPGEntity entity, Ability ability) {
             return false;
         }
 
         @Override
-        public long remainingCooldown(RPGEntity entity, dev.core.ability.Ability ability) {
+        public long remainingCooldown(RPGEntity entity, Ability ability) {
             return 0;
         }
 
