@@ -52,8 +52,8 @@ import dev.core.stat.StatType;
 public class BukkitFocusBeamEffect extends Effect {
 
     private static final double MAX_RANGE = 30.0;
-    private static final int CHARGE_TICKS = 20; // 1s inward spiral charge
-    private static final int BEAM_TICKS = 40; // 2s discharge
+    private static final int CHARGE_TICKS = 20 * 3; // 1s inward spiral charge
+    private static final int BEAM_TICKS = 40 * 4; // 2s discharge
     private static final double BASE_DAMAGE_PER_TICK = 3.0;
     private static final Particle HELIX_PARTICLE = Particle.END_ROD;
     /** Ticks between magic damage indicators, so the channel doesn't spam text displays. */
