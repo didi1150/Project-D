@@ -264,6 +264,9 @@ abilities:
       - "seamlessly; dropping off grants"
       - "brief <aqua>Invisibility</aqua> and <aqua>Slow Falling</aqua>,"
       - "arming a <red>Plunge Strike</red> for 3 seconds."
+      - ""
+      - "Dashing through enemies deals"
+      - "<red>60% AD + 30% Lethality</red> physical damage."
     triggerType: MANUAL
     action: LEFT_CLICK
     cooldownScope: PLAYER

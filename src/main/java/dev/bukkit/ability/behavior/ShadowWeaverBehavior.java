@@ -4,6 +4,7 @@ import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -17,6 +18,8 @@ import org.bukkit.Sound;
 import org.bukkit.World;
 import org.bukkit.entity.BlockDisplay;
 import org.bukkit.entity.Display;
+import org.bukkit.entity.Entity;
+import org.bukkit.entity.LivingEntity;
 import org.bukkit.entity.Player;
 import org.bukkit.event.entity.PlayerDeathEvent;
 import org.bukkit.event.player.PlayerMoveEvent;
@@ -34,10 +37,20 @@ import org.joml.AxisAngle4f;
 import org.joml.Vector3f;
 
 import dev.bukkit.DMain;
+import dev.bukkit.event.bukkitListeners.CombatListener;
 import dev.bukkit.item.BukkitItemStackAdapter;
+import dev.bukkit.summon.SoulSkull;
+import dev.bukkit.utils.CombatRelation;
+import dev.bukkit.utils.DamageUtils;
 import dev.core.ability.AbilityBehavior;
 import dev.core.ability.ActiveAbility;
+import dev.core.entity.EntityManager;
+import dev.core.entity.RPGDamageResult;
+import dev.core.entity.RPGEntity;
 import dev.core.event.EventAction;
+import dev.core.event.impl.RPGEntityDamageEvent.DamageResult;
+import dev.core.event.impl.RPGEntityDamageEvent.DamageType;
+import dev.core.stat.StatType;
 
 /**
  * Per-holder behavior for the Shadow Weaver's Staff. Owns every piece of the
@@ -105,6 +118,14 @@ public class ShadowWeaverBehavior implements AbilityBehavior {
     public static final long PLUNGE_WINDOW_MS = 3000;
     /** Melee damage multiplier while Plunge Strike is armed. */
     public static final double PLUNGE_MULTIPLIER = 1.5;
+
+    // ---- Dash-through damage --------------------------------------------------
+    /** Ratio of attack damage dealt when dashing through an enemy. */
+    public static final double DASH_DAMAGE_AD_RATIO = 0.6;
+    /** Ratio of lethality dealt when dashing through an enemy. */
+    public static final double DASH_DAMAGE_LETHALITY_RATIO = 0.3;
+    /** Radius around the dash segment considered a "through" hit. */
+    public static final double DASH_DAMAGE_RADIUS = 1.5;
 
     /**
      * Horizontal displacement (blocks) from the snap point that counts as a manual
@@ -554,10 +575,12 @@ public class ShadowWeaverBehavior implements AbilityBehavior {
         state.dashStart = from;
         state.dashEnd = to;
         state.dashTarget = target;
+        state.dashHitEntities.clear();
         player.getWorld().playSound(player.getLocation(), Sound.ENTITY_ENDER_EYE_DEATH, 0.4f, 0.9f);
     }
 
     private void advanceDash(Player player, PlayerState state) {
+        Location previous = player.getLocation().clone();
         state.dashTick++;
         Location from = state.dashStart;
         Location to = state.dashEnd;
@@ -568,6 +591,7 @@ public class ShadowWeaverBehavior implements AbilityBehavior {
             arrival.setYaw(player.getLocation().getYaw());
             arrival.setPitch(player.getLocation().getPitch());
             player.teleport(arrival);
+            handleDashThroughDamage(player, state, previous, arrival);
             player.setGravity(false);
             player.setVelocity(new Vector());
             state.dashing = false;
@@ -583,7 +607,95 @@ public class ShadowWeaverBehavior implements AbilityBehavior {
         Location step = new Location(player.getWorld(), x, y, z, player.getLocation().getYaw(),
                 player.getLocation().getPitch());
         player.teleport(step);
+        handleDashThroughDamage(player, state, previous, step);
         player.getWorld().spawnParticle(Particle.SMOKE, step, 3, 0.1, 0.1, 0.1, 0.02);
+    }
+
+    /**
+     * Deals dash-through damage to every enemy whose hitbox the player's dash
+     * segment passes through. Raw damage is
+     * {@code 0.6 * ATTACK_DAMAGE + 0.3 * LETHALITY} as physical damage.
+     * Each enemy is hit at most once per dash.
+     */
+    private void handleDashThroughDamage(Player player, PlayerState state, Location segmentStart,
+            Location segmentEnd) {
+        if (segmentStart == null || segmentEnd == null || segmentStart.getWorld() == null
+                || segmentEnd.getWorld() == null) {
+            return;
+        }
+        if (!segmentStart.getWorld().equals(segmentEnd.getWorld())) {
+            return;
+        }
+        World world = segmentStart.getWorld();
+        var attackerOpt = EntityManager.getInstance().getEntity(player.getUniqueId());
+        if (attackerOpt.isEmpty()) {
+            return;
+        }
+        RPGEntity attacker = attackerOpt.get();
+        long now = System.currentTimeMillis();
+        double attackDamage = attacker.getStatEngineAdapter().getCurrentValue(StatType.ATTACK_DAMAGE, now);
+        double lethality = attacker.getStatEngineAdapter().getCurrentValue(StatType.LETHALITY, now);
+        double rawDamage = calculateDashThroughDamage(attackDamage, lethality);
+        if (rawDamage <= 0.001) {
+            return;
+        }
+        Vector midVec = segmentStart.toVector().add(segmentEnd.toVector()).multiply(0.5);
+        Location mid = new Location(world, midVec.getX(), midVec.getY(), midVec.getZ());
+        double segLength = segmentStart.distance(segmentEnd);
+        double searchRadius = segLength / 2.0 + DASH_DAMAGE_RADIUS + 0.5;
+        searchRadius = Math.max(searchRadius, DASH_DAMAGE_RADIUS + 0.5);
+        List<Entity> candidates = new ArrayList<>(world.getNearbyEntities(mid, searchRadius, searchRadius, searchRadius));
+        for (Entity entity : candidates) {
+            if (!(entity instanceof LivingEntity le)) {
+                continue;
+            }
+            if (le.getUniqueId().equals(player.getUniqueId())) {
+                continue;
+            }
+            if (le.isDead() || !le.isValid()) {
+                continue;
+            }
+            if (EntityManager.getInstance().isGhost(le.getUniqueId())) {
+                continue;
+            }
+            if (SoulSkull.isSoulSkull(le)) {
+                continue;
+            }
+            if (state.dashHitEntities.contains(le.getUniqueId())) {
+                continue;
+            }
+            if (!CombatRelation.isEnemy(attacker, le)) {
+                continue;
+            }
+            Location entityCenter = le.getLocation().clone().add(0, le.getHeight() * 0.5, 0);
+            double distSq = distanceToSegmentSquared(entityCenter, segmentStart, segmentEnd);
+            // Fallback to feet distance as well: some mobs have base at feet
+            double feetDistSq = distanceToSegmentSquared(le.getLocation(), segmentStart, segmentEnd);
+            double bestDistSq = Math.min(distSq, feetDistSq);
+            double hitRadius = DASH_DAMAGE_RADIUS + 0.5;
+            if (bestDistSq > hitRadius * hitRadius) {
+                continue;
+            }
+            state.dashHitEntities.add(le.getUniqueId());
+            EntityManager.getInstance().getEntity(le.getUniqueId()).ifPresentOrElse(targetRpg -> {
+                RPGDamageResult res = targetRpg.dealRPGDamage(attacker, targetRpg, rawDamage, DamageType.PHYSICAL);
+                if (res.getResult() != DamageResult.DENY) {
+                    try {
+                        CombatListener cl = DMain.getInstance() != null ? DMain.getInstance().getCombatListener() : null;
+                        if (cl != null) {
+                            cl.showPhysicalDamage(le.getLocation(), res.getDamage(), res.getResult());
+                        }
+                    } catch (Exception ignored) {
+                    }
+                    world.spawnParticle(Particle.CRIT, entityCenter, 8, 0.2, 0.2, 0.2, 0.1);
+                    world.playSound(entityCenter, Sound.ENTITY_PLAYER_ATTACK_CRIT, 0.6f, 1.1f);
+                }
+            }, () -> {
+                DamageUtils.damageMob(le, rawDamage, player);
+                world.spawnParticle(Particle.CRIT, entityCenter, 8, 0.2, 0.2, 0.2, 0.1);
+                world.playSound(entityCenter, Sound.ENTITY_PLAYER_ATTACK_CRIT, 0.6f, 1.1f);
+            });
+        }
     }
 
     // ------------------------------------------------------------- manual drop
@@ -779,6 +891,37 @@ public class ShadowWeaverBehavior implements AbilityBehavior {
         return (step + 1.0) / totalTicks;
     }
 
+    /**
+     * Raw physical damage dealt when dashing through an enemy: {@code 0.6 * ATTACK_DAMAGE + 0.3 * LETHALITY}.
+     */
+    public static double calculateDashThroughDamage(double attackDamage, double lethality) {
+        return attackDamage * DASH_DAMAGE_AD_RATIO + lethality * DASH_DAMAGE_LETHALITY_RATIO;
+    }
+
+    /**
+     * Squared distance from {@code point} to the closest point on the segment
+     * {@code segStart -> segEnd}.
+     */
+    public static double distanceToSegmentSquared(Location point, Location segStart, Location segEnd) {
+        Vector seg = segEnd.toVector().subtract(segStart.toVector());
+        Vector toPoint = point.toVector().subtract(segStart.toVector());
+        double segLenSq = seg.lengthSquared();
+        if (segLenSq == 0) {
+            return toPoint.lengthSquared();
+        }
+        double t = toPoint.dot(seg) / segLenSq;
+        t = Math.max(0, Math.min(1, t));
+        Vector projection = segStart.toVector().add(seg.clone().multiply(t));
+        return point.toVector().distanceSquared(projection);
+    }
+
+    /**
+     * Whether an entity position is within {@code radius} of the dash segment.
+     */
+    public static boolean isDashHit(Location point, Location segStart, Location segEnd, double radius) {
+        return distanceToSegmentSquared(point, segStart, segEnd) <= radius * radius;
+    }
+
     private static AxisAngle4f identityAxis() {
         return new AxisAngle4f(0f, 0f, 0f, 1f);
     }
@@ -804,6 +947,7 @@ public class ShadowWeaverBehavior implements AbilityBehavior {
         Location dashEnd;
         Platform dashTarget;
         long plungeExpiresAt;
+        final Set<UUID> dashHitEntities = ConcurrentHashMap.newKeySet();
 
         boolean isLocked() {
             return lockedPlatform != null;
@@ -869,6 +1013,7 @@ public class ShadowWeaverBehavior implements AbilityBehavior {
             }
             if (isDashing()) {
                 dashing = false;
+                dashHitEntities.clear();
                 player.setGravity(true);
             }
             clearLockOn();
@@ -886,6 +1031,7 @@ public class ShadowWeaverBehavior implements AbilityBehavior {
             lockedPlatform = null;
             lockedAt = null;
             dashing = false;
+            dashHitEntities.clear();
             dashStart = null;
             dashEnd = null;
             dashTarget = null;
