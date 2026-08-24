@@ -370,3 +370,43 @@ abilities:
     action: NONE
     cooldownScope: PLAYER
     cooldown: 0
+  BLADE_DANCE:
+    name: Blade Dance
+    description:
+      - "Stack floating <gray>iron swords</gray> around you"
+      - "(<yellow>1</yellow> per <yellow>5</yellow> seconds, up to <yellow>5</yellow>)."
+      - ""
+      - "<yellow>Right-click</yellow> to unleash all swords"
+      - "forward in a cone — each blade hits"
+      - "all enemies it passes through for"
+      - "<red>20 + 30% AD + 20% Lethality</red> physical damage."
+      - "<gray>ItemDisplays 0.6 scale, straight up orbit.</gray>"
+    triggerType: MANUAL
+    action: RIGHT_CLICK
+    cooldownScope: PLAYER
+    cooldown: 800
+    cooldownScaling: HASTE
+  SMOKE_SHROUD:
+    name: Smoke Shroud
+    description:
+      - "Place a <gray>smoke cloud</gray> (r=<yellow>5</yellow>) around you"
+      - "for <yellow>6</yellow> seconds."
+      - ""
+      - "Inside you are <aqua>invisible</aqua> to enemies;"
+      - "re-entering <green>clears aggro</green>."
+      - "Attacking or leaving reveals you briefly (<yellow>1.5s</yellow>)."
+    triggerType: MANUAL
+    action: RIGHT_CLICK
+    cooldownScope: PLAYER
+    cooldown: 18000
+    cooldownScaling: HASTE
+  ORB_STEALTH_PASSIVE:
+    name: Veiled Presence
+    description:
+      - "<gray>20% less likely</gray> to be noticed"
+      - "by enemy entities."
+      - "<gray>Passive while Orb of Stealth is held.</gray>"
+    triggerType: PASSIVE
+    action: NONE
+    cooldownScope: PLAYER
+    cooldown: 0

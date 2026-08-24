@@ -6,6 +6,7 @@ import org.bukkit.entity.LivingEntity;
 import org.bukkit.entity.Player;
 
 import dev.bukkit.utils.DamageUtils;
+import dev.bukkit.utils.StealthRegistry;
 import dev.bukkit.status.BukkitStatusEffectManager;
 import dev.core.ability.Ability;
 import dev.core.ability.AbilityAction;
@@ -189,6 +190,9 @@ public class MobRPGEntity extends RPGEntity {
             if (player.isDead() || !player.isOnline()
                     || EntityManager.getInstance().isGhost(player.getUniqueId())) {
                 continue; // skip ghost players (dead mid-game or registered spectators)
+            }
+            if (StealthRegistry.shouldHideFromMob(player)) {
+                continue; // orb stealth: 20% passive dodge or smoke shroud
             }
             if (!vanilla.hasLineOfSight(player)) {
                 continue; // player must be in line of sight to be targeted

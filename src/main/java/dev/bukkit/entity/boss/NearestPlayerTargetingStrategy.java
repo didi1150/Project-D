@@ -7,6 +7,7 @@ import java.util.Optional;
 import org.bukkit.Location;
 
 import dev.bukkit.entity.BukkitPlayerEntity;
+import dev.bukkit.utils.StealthRegistry;
 import dev.core.entity.EntityManager;
 import dev.core.entity.EntityType;
 import dev.core.entity.RPGEntity;
@@ -27,6 +28,8 @@ public class NearestPlayerTargetingStrategy implements TargetingStrategy {
         return EntityManager.getInstance().getAliveEntities().stream()
                 .filter(entity -> entity != mob && entity.getEntityType() == EntityType.PLAYER && entity.isAlive())
                 .filter(entity -> entity instanceof BukkitPlayerEntity)
+                .filter(entity -> ((BukkitPlayerEntity) entity).getPlayer()
+                        .map(p -> !StealthRegistry.shouldHideFromMob(p)).orElse(true))
                 .map(entity -> (BukkitPlayerEntity) entity)
                 .map(player -> Map.entry(player, player.getPlayer()
                         .map(target -> target.getLocation().distanceSquared(origin)).orElse(Double.MAX_VALUE)))

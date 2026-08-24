@@ -11,6 +11,7 @@ import org.bukkit.Bukkit;
 import org.bukkit.WorldCreator;
 import org.bukkit.plugin.java.JavaPlugin;
 
+import dev.bukkit.ability.BukkitBladeDanceEffect;
 import dev.bukkit.ability.BukkitBouncyArrowEffect;
 import dev.bukkit.ability.BukkitEffectManager;
 import dev.bukkit.ability.BukkitExplosiveArrowEffect;
@@ -65,13 +66,16 @@ import dev.core.ability.ActiveAbilityRegistry;
 import dev.core.ability.EffectManagerInterface;
 import dev.core.ability.impl.ArcaneCleaveAbility;
 import dev.core.ability.impl.ArcaneManaRestoreAbility;
+import dev.core.ability.impl.BladeDanceAbility;
 import dev.core.ability.impl.BouncyArrowAbility;
 import dev.core.ability.impl.ExplosiveArrowAbility;
 import dev.core.ability.impl.FocusBeamAbility;
+import dev.core.ability.impl.OrbStealthPassiveAbility;
 import dev.core.ability.impl.ParticleTestAbility;
 import dev.core.ability.impl.ShadowWeaverStaffAbility;
 import dev.core.ability.impl.ShieldBashAbility;
 import dev.core.ability.impl.SmashAbility;
+import dev.core.ability.impl.SmokeShroudAbility;
 import dev.core.ability.impl.SoulCollectorAbility;
 import dev.core.ability.impl.SoulRecallAbility;
 import dev.core.ability.impl.SoulRecallShiftAbility;
@@ -110,15 +114,18 @@ import dev.core.storage.config.ConfigProvider;
 import dev.core.storage.database.ProgressionCacheStrategy;
 import dev.core.storage.database.ProgressionDatabaseStrategy;
 import dev.core.utils.MessageSenderInterface;
+import dev.bukkit.ability.BukkitSmokeShroudEffect;
 import dev.bukkit.ability.BukkitTriVolleyEffect;
 import dev.bukkit.ability.behavior.ArcaneCleaveBehavior;
 import dev.bukkit.ability.behavior.ArcaneManaRestoreBehavior;
 import dev.bukkit.ability.behavior.BackstabBehavior;
+import dev.bukkit.ability.behavior.BladeDanceBehavior;
 import dev.bukkit.ability.behavior.HealAuraBehavior;
 import dev.bukkit.ability.behavior.HunterBowBehavior;
 import dev.bukkit.ability.behavior.ManaDiscountBehavior;
 import dev.bukkit.ability.behavior.ShadowWeaverBehavior;
 import dev.bukkit.ability.behavior.StackerBehavior;
+import dev.bukkit.ability.behavior.StealthPassiveBehavior;
 import dev.bukkit.ability.behavior.ThreatBehavior;
 import dev.bukkit.ability.behavior.TriVolleyBehavior;
 import dev.bukkit.ability.behavior.VampirismBehavior;
@@ -167,6 +174,7 @@ public final class DMain extends JavaPlugin {
         AbilityRegistry.register(new SpinjitzuAbility(), BukkitSpinjitzuEffect::new);
         AbilityRegistry.register(new SmashAbility(), BukkitSmashEffect::new);
         AbilityRegistry.register(new ShieldBashAbility(), BukkitShieldBashEffect::new);
+        AbilityRegistry.register(new SmokeShroudAbility(), BukkitSmokeShroudEffect::new);
         AbilityRegistry.register(new SoulSummonAbility(), BukkitSoulSummonEffect::new);
         AbilityRegistry.register(new SoulRecallAbility(), BukkitSoulRecallEffect::new);
         AbilityRegistry.register(new SoulRecallShiftAbility(), BukkitSoulStoreEffect::new);
@@ -181,10 +189,15 @@ public final class DMain extends JavaPlugin {
         AbilityRegistry.register(new ArcaneCleaveAbility());
         // Drain Blade passive — PASSIVE, flat ATTACK_DAMAGE stat modifier kept live by StackerBehavior
         AbilityRegistry.register(new StackerAbility());
+        // Assassin items — Blade Dance (active cone) & Orb of Stealth
+        AbilityRegistry.register(new BladeDanceAbility(), BukkitBladeDanceEffect::new);
+        AbilityRegistry.register(new OrbStealthPassiveAbility());
 
         // ---- Per-holder ability behaviors  ----
         AbilityBehaviorRegistry.register(ArcaneManaRestoreAbility.ID, ArcaneManaRestoreBehavior::new);
         AbilityBehaviorRegistry.register(ArcaneCleaveAbility.ID, ArcaneCleaveBehavior::new);
+        AbilityBehaviorRegistry.register(BladeDanceAbility.ID, BladeDanceBehavior::new);
+        AbilityBehaviorRegistry.register(OrbStealthPassiveAbility.ID, StealthPassiveBehavior::new);
         AbilityBehaviorRegistry.register(BouncyArrowAbility.ID, HunterBowBehavior::new);
         AbilityBehaviorRegistry.register(ExplosiveArrowAbility.ID, HunterBowBehavior::new);
         AbilityBehaviorRegistry.register(TriVolleyAbility.ID, TriVolleyBehavior::new);

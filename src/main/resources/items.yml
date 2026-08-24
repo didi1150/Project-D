@@ -1186,6 +1186,48 @@ items:
     - "<gray>as its wielder's vitality swells.</gray>"
     abilities:
     - STACKER
+  BLADE_DANCE:
+    # Assassin sword — floating orbit.
+    # Passive charge 1 per 5s to 5; release on next hit N* (20+0.3AD+0.2Leth) PHYSICAL.
+    unlockLevel: 0
+    name: Blade Dance
+    material: IRON_SWORD
+    slot: MAIN_HAND
+    itemType: SWORD
+    allowed-classes:
+    - ASSASSIN
+    passive-stats: []
+    active-stats:
+    - amount: 15.0
+      statType: ATTACK_DAMAGE
+      modifierType: FLAT
+      statTarget: BOTH
+      policy: STACK
+    - amount: 5.0
+      statType: LETHALITY
+      modifierType: FLAT
+      statTarget: BOTH
+      policy: STACK
+    description:
+    - "Dance with <gray>five blades</gray>."
+    abilities:
+    - BLADE_DANCE
+  ORB_OF_STEALTH:
+    # Orb — 20% passive dodge + active smoke r=5 6s, re-enter clears aggro, 1.5s reveal on attack/leave.
+    unlockLevel: 0
+    name: Orb of Stealth
+    material: HEART_OF_THE_SEA
+    slot: MAIN_HAND
+    itemType: ORB
+    allowed-classes:
+    - ASSASSIN
+    passive-stats: []
+    active-stats: []
+    description:
+    - "Vanish in <gray>smoke</gray>."
+    abilities:
+    - ORB_STEALTH_PASSIVE
+    - SMOKE_SHROUD
 
 # ---- Basic Archer Set (item set bonus: full 4/4 set) -----------------------
 # Full set passive: +10% projectile damage dealt (arrows, projectiles and the

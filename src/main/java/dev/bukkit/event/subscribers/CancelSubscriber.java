@@ -27,6 +27,7 @@ import dev.bukkit.ability.BukkitSpiritSceptreBatEffect;
 import dev.bukkit.entity.BukkitEntityFactory;
 import dev.bukkit.entity.VanillaEntityMeta;
 import dev.bukkit.utils.DamageUtils;
+import dev.bukkit.utils.StealthRegistry;
 import dev.core.entity.EntityManager;
 import dev.core.event.EventAction;
 import dev.core.event.EventSubscriber;
@@ -71,6 +72,9 @@ public class CancelSubscriber {
         // Prevent mobs from targeting other mobs
         if (target instanceof Player player) {
             if (EntityManager.getInstance().isDead(player.getUniqueId())) {
+                event.setCancelled(true);
+                mob.setTarget(null);
+            } else if (StealthRegistry.shouldHideFromMob(player)) {
                 event.setCancelled(true);
                 mob.setTarget(null);
             }
@@ -148,6 +152,23 @@ public class CancelSubscriber {
     public void onEntityDamageByEntity(EntityDamageByEntityEvent event) {
         Entity entity = event.getEntity();
         Entity damager = event.getDamager();
+
+        // Orb shroud: mobs (including vanilla hoglins) cannot damage shrouded players
+        if (entity instanceof Player player && damager instanceof Mob) {
+            if (StealthRegistry.isShrouded(player)) {
+                event.setCancelled(true);
+                return;
+            }
+        }
+        // also handle projectile shooters (skeletons etc.)
+        if (entity instanceof Player player2 && damager instanceof org.bukkit.entity.Projectile proj) {
+            if (proj.getShooter() instanceof LivingEntity shooter && !(shooter instanceof Player)) {
+                if (StealthRegistry.isShrouded(player2)) {
+                    event.setCancelled(true);
+                    return;
+                }
+            }
+        }
 
         if (entity.hasMetadata("DUNGEON") && damager.hasMetadata("DUNGEON")) {
             event.setCancelled(true);
