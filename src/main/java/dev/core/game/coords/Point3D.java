@@ -51,6 +51,6 @@ public class Point3D {
 
     @Override
     public String toString() {
-        return String.format("%d %d %d", x, y, z) + (world == null ? "" : world);
+        return String.format("%d %d %d", x, y, z) + (world == null ? "" : " (" + world + ")");
     }
 }

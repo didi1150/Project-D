@@ -75,15 +75,15 @@ public class CommandManager {
     private final BukkitMessageSender messageSender;
 
     // permission helpers
-    private boolean hasPerm(CommandSender sender, String node) {
+    private static boolean hasPerm(CommandSender sender, String node) {
         if (sender.hasPermission(node) || sender.hasPermission("projectd.admin") || sender.isOp()) return true;
         if (!(sender instanceof Player) && sender != null) return true; // console
         return false;
     }
-    private SubCommandBuilder.PlayerCommandAction perm(String node, SubCommandBuilder.PlayerCommandAction action) {
+    public static SubCommandBuilder.PlayerCommandAction perm(String node, SubCommandBuilder.PlayerCommandAction action) {
         return (player, args) -> {
             if (!hasPerm(player, node)) {
-                messageSender.sendMessage(player, MessageComponent.of("<red>No permission: %s</red>", node));
+                BukkitMessageSender.getInstance().sendMessage(player, MessageComponent.of("<red>No permission: %s</red>", node));
                 return;
             }
             action.perform(player, args);
@@ -109,152 +109,6 @@ public class CommandManager {
         createCommand(MainCommandBuilder.startBuilding("project-d").setDescription("Main command for Project-D")
                 .setUsage("/project-d <subcommand>").addAlias("d").addAlias("pd")
                 .build());
-
-        // ==============================================================
-        // setup tree -> /d setup <toggle|prelobby|selectionspawn|holecenter|classblock|dungeonworld|bossworld|minplayers|bossspawn|bossplayerspawn|loadbossworld|tpbossworld|savebossworld|quitbossworld|status>
-        // ==============================================================
-        addSubCommand("project-d", SubCommandBuilder.startBuilding("setup")
-                .setDescription("Setup controls")
-                .setPlayerCommandAction(1, "toggle", perm("projectd.setup.toggle", (player, args) -> {
-                    boolean mode = gameSettingsLoader.toggleSetup();
-                    messageSender.sendLine(player, "<red></red>");
-                    messageSender.sendCenteredMessage(player, MessageComponent.of("<yellow>In Setup: %s</yellow>", mode));
-                    messageSender.sendLine(player, "<red></red>");
-                })).addAlias("t")
-                .setPlayerCommandAction(1, "prelobby", perm("projectd.setup.set", (player, args) -> {
-                    SetupUtils.giveViewLocationSetter(gameSettingsLoader, player, GameSettingsLoader.LOCATIONS_PRELOBBYSPAWN, eventBus, messageSender);
-                }))
-                .setPlayerCommandAction(1, "selectionspawn", perm("projectd.setup.set", (player, args) -> {
-                    SetupUtils.giveViewLocationSetter(gameSettingsLoader, player, GameSettingsLoader.LOCATIONS_SELECTIONSPAWN, eventBus, messageSender);
-                }))
-                .setPlayerCommandAction(1, "holecenter", perm("projectd.setup.set", (player, args) -> {
-                    SetupUtils.giveBlockLocationSetter(gameSettingsLoader, player, GameSettingsLoader.LOCATIONS_HOLECENTER, eventBus, messageSender);
-                }))
-                .setPlayerCommandAction(2, "classblock", perm("projectd.setup.set", (player, args) -> {
-                    try {
-                        RPGClassType classType = RPGClassType.valueOf(args[1].toUpperCase());
-                        SetupUtils.giveBlockLocationSetter(gameSettingsLoader, player, GameSettingsLoader.LOCATIONS_SELECTIONCLASSES + "." + classType.toString(), eventBus, messageSender);
-                    } catch (Exception e) {
-                        messageSender.sendLine(player, "<red></red>");
-                        messageSender.sendCenteredMessage(player, MessageComponent.of("<red>The classType <yellow>%s</yellow> does not exist!</red>", args[1]));
-                        messageSender.sendLine(player, "<red></red>");
-                    }
-                }))
-                .setPlayerCommandAction(2, "dungeonworld", perm("projectd.setup.set", (player, args) -> {
-                    String world = args[1];
-                    SetupUtils.setDungeonWorld(world, gameSettingsLoader);
-                    messageSender.sendMessage(player, MessageComponent.of("<yellow>The world %s will now be used for dungeon exploration!</yellow> ", world));
-                }))
-                .setPlayerCommandAction(3, "bossworld", perm("projectd.setup.set", (player, args) -> {
-                    try {
-                        String world = args[1]; int floor = Integer.parseInt(args[2]);
-                        SetupUtils.setBossWorld(world, gameSettingsLoader, floor);
-                        messageSender.sendMessage(player, MessageComponent.of("<yellow>The world %s has been set as boss arena of floor %s.</yellow> ", world, floor));
-                    } catch (NumberFormatException e) {
-                        messageSender.sendLine(player, "<red></red>");
-                        messageSender.sendCenteredMessage(player, MessageComponent.of("<red>Invalid Number <yellow>%s</yellow></red>", args[1]));
-                        messageSender.sendLine(player, "<red></red>");
-                    }
-                }))
-                .setPlayerCommandAction(2, "minplayers", perm("projectd.setup.set", (player, args) -> {
-                    try {
-                        Integer count = Integer.valueOf(args[1]);
-                        gameSettingsLoader.setMinPlayers(count);
-                        messageSender.sendMessage(player, MessageComponent.of("<yellow>The game will now start at %s player!</yellow> ", args[1]));
-                    } catch (NumberFormatException e) {
-                        messageSender.sendLine(player, "<red></red>");
-                        messageSender.sendCenteredMessage(player, MessageComponent.of("<red>Invalid Number <yellow>%s</yellow></red>", args[1]));
-                        messageSender.sendLine(player, "<red></red>");
-                    }
-                }))
-                .setPlayerCommandAction(2, "bossspawn", perm("projectd.setup.set", (player, args) -> {
-                    try {
-                        int floor = Integer.parseInt(args[1]);
-                        Point3D point = new Point3D((int) Math.floor(player.getLocation().getX()), (int) Math.floor(player.getLocation().getY()), (int) Math.floor(player.getLocation().getZ()));
-                        gameSettingsLoader.setBossSpawnLocation(floor, point);
-                        messageSender.sendCenteredMessage(player, MessageComponent.of("<green>Boss spawn for floor %s has been set.</green>", floor));
-                    } catch (NumberFormatException e) {
-                        messageSender.sendLine(player, "<red></red>");
-                        messageSender.sendCenteredMessage(player, MessageComponent.of("<red>Invalid Number <yellow>%s</yellow></red>", args[1]));
-                        messageSender.sendLine(player, "<red></red>");
-                    }
-                }))
-                .setPlayerCommandAction(2, "bossplayerspawn", perm("projectd.setup.set", (player, args) -> {
-                    try {
-                        int floor = Integer.parseInt(args[1]);
-                        Point3D point = new Point3D((int) Math.floor(player.getLocation().getX()), (int) Math.floor(player.getLocation().getY()), (int) Math.floor(player.getLocation().getZ()));
-                        gameSettingsLoader.setBossPlayerSpawnLocation(floor, point);
-                        messageSender.sendCenteredMessage(player, MessageComponent.of("<green>Boss player spawn for floor %s has been set.</green>", floor));
-                    } catch (NumberFormatException e) {
-                        messageSender.sendLine(player, "<red></red>");
-                        messageSender.sendCenteredMessage(player, MessageComponent.of("<red>Invalid Number <yellow>%s</yellow></red>", args[1]));
-                        messageSender.sendLine(player, "<red></red>");
-                    }
-                }))
-                .setPlayerCommandAction(2, "loadbossworld", perm("projectd.setup.set", (player, args) -> {
-                    String worldId = args[1];
-                    DMain.getInstance().getBossArenaManager().loadTemplateEditWorld(worldId).whenComplete((world, throwable) -> {
-                        if (throwable != null) {
-                            messageSender.sendCenteredMessage(player, MessageComponent.of("<red>Could not load boss template world <yellow>%s</yellow>.Traceback: %s</red>", worldId, throwable.getMessage()));
-                            return;
-                        }
-                        messageSender.sendCenteredMessage(player, MessageComponent.of("<green>Boss template world <yellow>%s</yellow> loaded.</green>", worldId));
-                        player.teleport(world.getSpawnLocation());
-                    });
-                }))
-                .setPlayerCommandAction(2, "tpbossworld", perm("projectd.setup.set", (player, args) -> {
-                    String worldId = args[1]; String worldName = "boss_template_edit_" + worldId.replaceAll("[^A-Za-z0-9_-]", "_");
-                    org.bukkit.World world = Bukkit.getWorld(worldName);
-                    if (world == null) {
-                        messageSender.sendCenteredMessage(player, MessageComponent.of("<red>Boss template world <yellow>%s</yellow> is not loaded.</red>", worldId));
-                        return;
-                    }
-                    player.teleport(world.getSpawnLocation());
-                    messageSender.sendCenteredMessage(player, MessageComponent.of("<green>Teleported to boss template world <yellow>%s</yellow>.</green>", worldId));
-                }))
-                .setPlayerCommandAction(2, "savebossworld", perm("projectd.setup.set", (player, args) -> {
-                    String worldId = args[1];
-                    DMain.getInstance().getBossArenaManager().saveTemplateEditWorld(worldId).whenComplete((ignored, throwable) -> {
-                        if (throwable != null) {
-                            messageSender.sendCenteredMessage(player, MessageComponent.of("<red>Could not save boss template world <yellow>%s</yellow>.</red>", worldId));
-                            return;
-                        }
-                        messageSender.sendCenteredMessage(player, MessageComponent.of("<green>Boss template world <yellow>%s</yellow> saved back to template.</green>", worldId));
-                    });
-                }))
-                .setPlayerCommandAction(2, "quitbossworld", perm("projectd.setup.set", (player, args) -> {
-                    String worldId = args[1];
-                    DMain.getInstance().getBossArenaManager().quitTemplateEditWorld(worldId, Bukkit.getWorlds().get(0)).whenComplete((ignored, throwable) -> {
-                        if (throwable != null) {
-                            messageSender.sendCenteredMessage(player, MessageComponent.of("<red>Could not save boss template world <yellow>%s</yellow>.</red>", worldId));
-                            return;
-                        }
-                        messageSender.sendCenteredMessage(player, MessageComponent.of("<green>Boss template world <yellow>%s</yellow> saved back to template.</green>", worldId));
-                    });
-                }))
-                .setPlayerCommandAction(1, "status", perm("projectd.setup.status", (player, args) -> {
-                    GameSettings settings = GameSettings.getCurrentSettings();
-                    int floor = settings.getFloor();
-                    boolean hasDungeonWorld = settings.getDungeonWorld() != null && !settings.getDungeonWorld().isBlank();
-                    boolean hasPreLobby = settings.getPreLobbySpawn() != null && settings.getPreLobbySpawn().getWorld() != null;
-                    boolean hasSelectionSpawn = settings.getSelectionSpawn() != null && settings.getSelectionSpawn().getWorld() != null;
-                    boolean hasHoleCenter = settings.getHoleCenter() != null && settings.getHoleCenter().getWorld() != null;
-                    boolean hasBossWorld = settings.getBossWorld() != null && !settings.getBossWorld().isBlank();
-                    boolean hasBossSpawn = settings.getBossSpawnLocation(floor) != null;
-                    boolean hasBossPlayerSpawn = settings.getBossPlayerSpawnLocation(floor) != null;
-                    messageSender.sendLine(player, "<gold>==== Setup Status ====");
-                    messageSender.sendCenteredMessage(player, MessageComponent.of("<yellow>Pre-lobby spawn:</yellow> %s", hasPreLobby ? "SET" : "MISSING"));
-                    messageSender.sendCenteredMessage(player, MessageComponent.of("<yellow>Selection spawn:</yellow> %s", hasSelectionSpawn ? "SET" : "MISSING"));
-                    messageSender.sendCenteredMessage(player, MessageComponent.of("<yellow>Selection hole center:</yellow> %s", hasHoleCenter ? "SET" : "MISSING"));
-                    messageSender.sendCenteredMessage(player, MessageComponent.of("<yellow>Dungeon world:</yellow> %s", hasDungeonWorld ? "SET" : "MISSING"));
-                    messageSender.sendCenteredMessage(player, MessageComponent.of("<yellow>Boss world for floor %s:</yellow> %s", floor, hasBossWorld ? "SET" : "MISSING"));
-                    messageSender.sendCenteredMessage(player, MessageComponent.of("<yellow>Boss spawn for floor %s:</yellow> %s", floor, hasBossSpawn ? "SET" : "MISSING"));
-                    messageSender.sendCenteredMessage(player, MessageComponent.of("<yellow>Boss player spawn for floor %s:</yellow> %s", floor, hasBossPlayerSpawn ? "SET" : "MISSING"));
-                    messageSender.sendLine(player, "<gold>======================");
-                }))
-                .setCommandArgumentsList(0, Arrays.asList("toggle","prelobby","selectionspawn","holecenter","classblock","dungeonworld","bossworld","minplayers","bossspawn","bossplayerspawn","loadbossworld","tpbossworld","savebossworld","quitbossworld","status"))
-                .setCommandArgumentsList(1, "classblock", Arrays.asList(RPGClassType.validTypes()).stream().map(type -> type.toString()).toList())
-        );
 
         // ==============================================================
         // item tree -> /d item <give|save|reload|open>

@@ -144,8 +144,17 @@ public class SetupUtils {
         return textDisplay;
     }
 
+    public static void repositionTextDisplay(World world, Vector3Int pos, TextDisplay textDisplay) {
+        Location location = new Location(world, pos.x + 0.5f, pos.y + 0.3f, pos.z + 0.5f);
+        textDisplay.teleport(location);
+    }
+
     public static BlockDisplay spawnGlowingBlockDisplay(World world, Vector3Int pos, Material material, Color glowColor) {
         return spawnGlowingBlockDisplay(world, pos, pos, material, glowColor, 0.05f);
+    }
+
+    public static BlockDisplay spawnGlowingBlockDisplay(World world, Vector3Int firstPos, Vector3Int secondPos, Material material, Color glowColor) {
+        return spawnGlowingBlockDisplay(world, firstPos, secondPos, material, glowColor, 0.05f);
     }
 
     public static BlockDisplay spawnGlowingBlockDisplay(World world, Vector3Int firstPos, Vector3Int secondPos, Material material, Color glowColor, float offset) {
@@ -164,4 +173,8 @@ public class SetupUtils {
         return blockDisplay;
     }
 
+    public static void repositionBlockDisplay(World world, Vector3Int pos, BlockDisplay blockDisplay) {
+        Location location = new Location(world, pos.x - 0.05f, pos.y - 0.05f, pos.z - 0.05f);
+        blockDisplay.teleport(location);
+    }
 }

@@ -97,9 +97,9 @@ public class BuildAssetHelper extends SetupHelper {
 
     private ItemStack getBoxSelectionTool() {
         return SetupUtils.createSimpleItem(Material.NETHERITE_AXE, "Box Selection Tool",
-                List.of(new ItemAbilityLore(InterActionType.LEFT_CLICK, "Select 1. Position", ""),
+                List.of(new ItemAbilityLore(InterActionType.LEFT_CLICK_BLOCK, "Select 1. Position", ""),
                         new ItemAbilityLore(InterActionType.LEFT_CLICK_AIR, "Clear 1. Pos Selection", ""),
-                        new ItemAbilityLore(InterActionType.RIGHT_CLICK, "Select 2. Position", ""),
+                        new ItemAbilityLore(InterActionType.RIGHT_CLICK_BLOCK, "Select 2. Position", ""),
                         new ItemAbilityLore(InterActionType.RIGHT_CLICK_AIR, "Clear 2. Pos Selection", "")));
     }
 
@@ -205,7 +205,9 @@ public class BuildAssetHelper extends SetupHelper {
                     }
                 })
                 .setPlayerCommandAction(1, "toggleBuildMode", (player, args) -> {
-                    if (!removePlayerFromMode(player)) {
+                    if (isPlayerInMode(player, ms, false)) {
+                        removePlayerFromMode(player);
+                    } else {
                         setPlayerInMode(ms, player);
                     }
                 })
@@ -215,12 +217,6 @@ public class BuildAssetHelper extends SetupHelper {
 
     @Override
     public void registerEvents(EventBusInterface eventBus, BukkitMessageSender ms) {
-        EventAction<PlayerQuitEvent> playerLeave = new EventAction<>(event -> {
-            Player player = event.getPlayer();
-            removePlayerFromMode(player);
-        }, PlayerQuitEvent.class);
-        eventBus.subscribe(playerLeave);
-
         EventAction<PlayerInteractEvent> blockSelection = new EventAction<PlayerInteractEvent>(event -> {
             Player player = event.getPlayer();
             if (event.getHand() == EquipmentSlot.HAND && isPlayerInMode(player, ms, false) && SetupUtils.hasItemInMainHand(player, "Box Selection Tool")) {

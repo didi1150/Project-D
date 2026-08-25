@@ -3,6 +3,7 @@ package dev.bukkit.game.states;
 import java.util.Optional;
 import java.util.UUID;
 
+import dev.core.game.coords.ViewPoint3D;
 import org.bukkit.Bukkit;
 import org.bukkit.GameMode;
 import org.bukkit.Location;
@@ -161,12 +162,12 @@ public class BossState extends GameState {
         complete(GameStateResult.COMPLETE);
     }
 
-    private void teleportPlayersToBossSpawn(World world, Point3D spawnPoint) {
+    private void teleportPlayersToBossSpawn(World world, ViewPoint3D spawnPoint) {
         if (spawnPoint == null) {
             return;
         }
         Location teleportLocation = new Location(world, spawnPoint.getX() + 0.5, spawnPoint.getY(),
-                spawnPoint.getZ() + 0.5);
+                spawnPoint.getZ() + 0.5, spawnPoint.getYaw(), spawnPoint.getPitch());
         for (Player player : Bukkit.getOnlinePlayers()) {
             if (EntityManager.getInstance().isSpectator(player.getUniqueId())) {
                 continue;
@@ -213,7 +214,7 @@ public class BossState extends GameState {
                 return;
             }
 
-            Point3D bossSpawnPoint = settings.getBossSpawnLocation(settings.getFloor());
+            ViewPoint3D bossSpawnPoint = settings.getBossSpawnLocation(settings.getFloor());
             if (bossSpawnPoint == null) {
                 Bukkit.broadcastMessage(
                         "§cBossState failed: no boss spawn configured for floor " + settings.getFloor());
@@ -221,7 +222,7 @@ public class BossState extends GameState {
                 return;
             }
 
-            Point3D playerSpawnPoint = settings.getBossPlayerSpawnLocation(settings.getFloor());
+            ViewPoint3D playerSpawnPoint = settings.getBossPlayerSpawnLocation(settings.getFloor());
             if (playerSpawnPoint == null) {
                 Bukkit.broadcastMessage(
                         "§cBossState failed: no boss player spawn configured for floor " + settings.getFloor());
@@ -231,7 +232,7 @@ public class BossState extends GameState {
 
             teleportPlayersToBossSpawn(world, playerSpawnPoint);
             Location bossSpawn = new Location(world, bossSpawnPoint.getX() + 0.5, bossSpawnPoint.getY(),
-                    bossSpawnPoint.getZ() + 0.5);
+                    bossSpawnPoint.getZ() + 0.5, bossSpawnPoint.getYaw(), bossSpawnPoint.getPitch());
             if (!spawnBoss(world, bossSpawn)) {
                 Bukkit.broadcastMessage("§cBossState failed: could not spawn boss.");
                 complete(GameStateResult.COMPLETE);

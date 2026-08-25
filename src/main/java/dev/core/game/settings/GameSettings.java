@@ -23,9 +23,9 @@ public class GameSettings {
     private ViewPoint3D selectionSpawn;
     private Map<RPGClassType, Point3D> selectionLocations;
     private Point3D holeCenter;
-    private Map<Integer, Point3D> bossSpawnLocations = new HashMap<>();
+    private Map<Integer, ViewPoint3D> bossSpawnLocations = new HashMap<>();
     private Map<Integer, String> bossWorlds = new HashMap<>();
-    private Map<Integer, Point3D> bossPlayerSpawnLocations = new HashMap<>();
+    private Map<Integer, ViewPoint3D> bossPlayerSpawnLocations = new HashMap<>();
     private int minPlayers;
     private boolean setupMode;
 
@@ -44,19 +44,19 @@ public class GameSettings {
         this.selectionLocations = selectionLocations;
     }
 
-    public Map<Integer, Point3D> getBossSpawnLocations() {
+    public Map<Integer, ViewPoint3D> getBossSpawnLocations() {
         return bossSpawnLocations;
     }
 
-    public void setBossSpawnLocations(Map<Integer, Point3D> bossSpawnLocations) {
+    public void setBossSpawnLocations(Map<Integer, ViewPoint3D> bossSpawnLocations) {
         this.bossSpawnLocations = bossSpawnLocations;
     }
 
-    public Point3D getBossSpawnLocation(int floorLevel) {
+    public ViewPoint3D getBossSpawnLocation(int floorLevel) {
         return bossSpawnLocations.get(floorLevel);
     }
 
-    public void setBossSpawnLocation(int floorLevel, Point3D point3D) {
+    public void setBossSpawnLocation(int floorLevel, ViewPoint3D point3D) {
         bossSpawnLocations.put(floorLevel, point3D);
     }
 
@@ -80,19 +80,19 @@ public class GameSettings {
         bossWorlds.put(floorLevel, world);
     }
 
-    public Point3D getBossPlayerSpawnLocation(int floorLevel) {
+    public ViewPoint3D getBossPlayerSpawnLocation(int floorLevel) {
         return bossPlayerSpawnLocations.get(floorLevel);
     }
 
-    public void setBossPlayerSpawnLocation(int floorLevel, Point3D point3D) {
+    public void setBossPlayerSpawnLocation(int floorLevel, ViewPoint3D point3D) {
         bossPlayerSpawnLocations.put(floorLevel, point3D);
     }
 
-    public Map<Integer, Point3D> getBossPlayerSpawnLocations() {
+    public Map<Integer, ViewPoint3D> getBossPlayerSpawnLocations() {
         return bossPlayerSpawnLocations;
     }
 
-    public void setBossPlayerSpawnLocations(Map<Integer, Point3D> locations) {
+    public void setBossPlayerSpawnLocations(Map<Integer, ViewPoint3D> locations) {
         this.bossPlayerSpawnLocations = locations;
     }
 

@@ -347,9 +347,7 @@ public final class DMain extends JavaPlugin {
 
         buildAssetManager = new BuildAssetManager(this, "buildAssets/");
         BuildAssetHelper buildAssetHelper = new BuildAssetHelper(buildAssetManager);
-//        BuildAssetHelper.getInstance().registerCommand(commandManager, (BukkitMessageSender) messageSenderInterface, buildAssetManager);
-//        BuildAssetHelper.getInstance().registerEvents(eventBusInterface, (BukkitMessageSender) messageSenderInterface);
-
+        GameSetupHelper gameSetupHelper = new GameSetupHelper(gameSettingsLoader);
         SetupManager.getInstance().registerSetupHelpers(commandManager, eventBusInterface, (BukkitMessageSender) messageSenderInterface);
 
         commandManager.registerCommands(this);
@@ -376,7 +374,6 @@ public final class DMain extends JavaPlugin {
         combatListener.cleanup();
         configManager.saveAll();
         eventBusInterface.getSubscribed().clear();
-//        BuildAssetHelper.getInstance().cleanUp(this.getServer());
         SetupManager.getInstance().cleanUpSetupHelpers(this.getServer());
     }
 

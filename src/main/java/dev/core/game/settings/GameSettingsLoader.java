@@ -39,12 +39,12 @@ public class GameSettingsLoader {
             selectionClasses.put(classType, coord);
         }
 
-        Map<Integer, Point3D> bossSpawns = new HashMap<>();
+        Map<Integer, ViewPoint3D> bossSpawns = new HashMap<>();
         ConfigSection bossSpawnSection = configProvider.getSection(LOCATIONS_BOSSSPAWN);
         for (String key : bossSpawnSection.getKeys()) {
             try {
                 int floorIndex = Integer.parseInt(key);
-                bossSpawns.put(floorIndex, loadBlockCoords(bossSpawnSection.getSection(key)));
+                bossSpawns.put(floorIndex, loadViewCoords(bossSpawnSection.getSection(key)));
             } catch (NumberFormatException ignored) {
             }
         }
@@ -59,12 +59,12 @@ public class GameSettingsLoader {
             }
         }
 
-        Map<Integer, Point3D> bossPlayerSpawns = new HashMap<>();
+        Map<Integer, ViewPoint3D> bossPlayerSpawns = new HashMap<>();
         ConfigSection bossPlayerSpawnSection = configProvider.getSection("locations.bossplayrespawn");
         for (String key : bossPlayerSpawnSection.getKeys()) {
             try {
                 int floorIndex = Integer.parseInt(key);
-                bossPlayerSpawns.put(floorIndex, loadBlockCoords(bossPlayerSpawnSection.getSection(key)));
+                bossPlayerSpawns.put(floorIndex, loadViewCoords(bossPlayerSpawnSection.getSection(key)));
             } catch (NumberFormatException ignored) {
             }
         }
@@ -102,6 +102,7 @@ public class GameSettingsLoader {
         section.set("pitch", viewPoint3D.getPitch());
         section.set("world", viewPoint3D.getWorld());
         configProvider.save();
+        load(); //TODO tmp fix
     }
 
     public void setLocation(String path, Point3D point3D) {
@@ -111,6 +112,7 @@ public class GameSettingsLoader {
         section.set("z", point3D.getZ());
         section.set("world", point3D.getWorld());
         configProvider.save();
+        load(); //TODO tmp fix
     }
 
     private Point3D loadBlockCoords(ConfigSection configSection) {
@@ -145,21 +147,37 @@ public class GameSettingsLoader {
         configProvider.save();
     }
 
-    public void setBossSpawnLocation(int floorLevel, Point3D point3D) {
-        gameSettings.setBossSpawnLocation(floorLevel, point3D);
-        ConfigSection section = configProvider.getSection(LOCATIONS_BOSSSPAWN + "." + floorLevel);
+    public void setClassBlockLocation(RPGClassType classType, Point3D point3D) {
+        gameSettings.getSelectionLocations().put(classType, point3D);
+        ConfigSection section = configProvider.getSection(LOCATIONS_SELECTIONCLASSES + "." + classType);
         section.set("x", point3D.getX());
         section.set("y", point3D.getY());
         section.set("z", point3D.getZ());
+        section.set("world", point3D.getWorld());
         configProvider.save();
     }
 
-    public void setBossPlayerSpawnLocation(int floorLevel, Point3D point3D) {
-        gameSettings.setBossPlayerSpawnLocation(floorLevel, point3D);
+    public void setBossSpawnLocation(int floorLevel, ViewPoint3D viewPoint3D) {
+        gameSettings.setBossSpawnLocation(floorLevel, viewPoint3D);
+        ConfigSection section = configProvider.getSection(LOCATIONS_BOSSSPAWN + "." + floorLevel);
+        section.set("x", viewPoint3D.getX());
+        section.set("y", viewPoint3D.getY());
+        section.set("z", viewPoint3D.getZ());
+        section.set("yaw", viewPoint3D.getYaw());
+        section.set("pitch", viewPoint3D.getPitch());
+        section.set("world", viewPoint3D.getWorld());
+        configProvider.save();
+    }
+
+    public void setBossPlayerSpawnLocation(int floorLevel, ViewPoint3D viewPoint3D) {
+        gameSettings.setBossPlayerSpawnLocation(floorLevel, viewPoint3D);
         ConfigSection section = configProvider.getSection("locations.bossplayrespawn." + floorLevel);
-        section.set("x", point3D.getX());
-        section.set("y", point3D.getY());
-        section.set("z", point3D.getZ());
+        section.set("x", viewPoint3D.getX());
+        section.set("y", viewPoint3D.getY());
+        section.set("z", viewPoint3D.getZ());
+        section.set("yaw", viewPoint3D.getYaw());
+        section.set("pitch", viewPoint3D.getPitch());
+        section.set("world", viewPoint3D.getWorld());
         configProvider.save();
     }
 

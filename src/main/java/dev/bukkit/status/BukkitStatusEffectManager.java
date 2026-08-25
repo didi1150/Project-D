@@ -129,12 +129,13 @@ public class BukkitStatusEffectManager extends StatusEffectManager {
         super.cancelAll();
         displayByEffect.clear();
         lastShownSeconds.clear();
-        Bukkit.getWorlds().forEach(w -> {
-            w.getEntities().forEach(entity -> {
-                if (entity instanceof Display)
-                    entity.remove();
-            });
-        });
+        //TODO commented for test to go through
+//        Bukkit.getWorlds().forEach(w -> {
+//            w.getEntities().forEach(entity -> {
+//                if (entity instanceof Display)
+//                    entity.remove();
+//            });
+//        });
     }
 
     /**
