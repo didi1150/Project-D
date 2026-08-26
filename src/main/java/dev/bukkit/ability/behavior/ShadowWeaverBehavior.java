@@ -152,6 +152,28 @@ public class ShadowWeaverBehavior implements AbilityBehavior {
         return HOLDER_CACHE.get(uuid);
     }
 
+    // ---- Test hooks (statics live for the whole JVM) -------------------------
+
+    static int refCountForTest(UUID uuid) {
+        return HOLDER_REFCNT.getOrDefault(uuid, 0);
+    }
+
+    static boolean hasStateForTest(UUID uuid) {
+        return STATES.containsKey(uuid);
+    }
+
+    static boolean hasTickTaskForTest(UUID uuid) {
+        return TICK_TASKS.containsKey(uuid);
+    }
+
+    /** Clears all per-holder state; tests must call this between scenarios. */
+    static void resetForTest() {
+        STATES.clear();
+        TICK_TASKS.clear();
+        HOLDER_REFCNT.clear();
+        HOLDER_CACHE.clear();
+    }
+
     @Override
     public void onActivate(ActiveAbility ctx) {
         this.ctx = ctx;
@@ -164,8 +186,11 @@ public class ShadowWeaverBehavior implements AbilityBehavior {
             ctx.getSubscriptions().subscribe(new EventAction<>(this::onSneak, PlayerToggleSneakEvent.class));
             ctx.getSubscriptions().subscribe(new EventAction<>(this::onQuit, PlayerQuitEvent.class));
             ctx.getSubscriptions().subscribe(new EventAction<>(this::onDeath, PlayerDeathEvent.class));
-            startTickTask(uuid);
         }
+        // Always make sure the render loop is running while the staff is bound;
+        // startTickTask dedupes via TICK_TASKS, so this is a no-op when the
+        // first activation already scheduled it.
+        startTickTask(uuid);
     }
 
     @Override
@@ -241,6 +266,9 @@ public class ShadowWeaverBehavior implements AbilityBehavior {
         if (!player.getUniqueId().equals(ctx.getHolder().getUuid())) {
             return;
         }
+        if (!HOLDER_REFCNT.containsKey(player.getUniqueId())) {
+            return; // torn down: don't spawn a platform with no render loop
+        }
         PlayerState state = state(player.getUniqueId());
         if (state.isDashing()) {
             return;
@@ -261,6 +289,9 @@ public class ShadowWeaverBehavior implements AbilityBehavior {
         if (!player.getUniqueId().equals(ctx.getHolder().getUuid())) {
             return;
         }
+        if (!HOLDER_REFCNT.containsKey(player.getUniqueId())) {
+            return; // torn down: no live lock-on can exist
+        }
         PlayerState state = state(player.getUniqueId());
         if (state.isDashing()) {
             return;
@@ -277,9 +308,14 @@ public class ShadowWeaverBehavior implements AbilityBehavior {
     private void tickHolder(UUID uuid) {
         PlayerState state = STATES.get(uuid);
         if (state == null) {
-            // Nothing left to drain: stop ticking for this holder.
-            cancelTickTask(uuid);
-            return;
+            if (!HOLDER_REFCNT.containsKey(uuid)) {
+                // Torn down and nothing left to drain: stop ticking.
+                cancelTickTask(uuid);
+                return;
+            }
+            // Still bound but the runtime vanished (missed-teardown ordering):
+            // rebuild it instead of killing the render loop.
+            state = STATES.computeIfAbsent(uuid, k -> new PlayerState());
         }
         Player player = Bukkit.getPlayer(uuid);
         if (player == null) {
@@ -800,12 +836,26 @@ public class ShadowWeaverBehavior implements AbilityBehavior {
         cleanupPlayer(event.getEntity());
     }
 
+    /**
+     * Full per-holder session teardown (quit/death). Every step is idempotent:
+     * a zombie generation firing this again after a rejoin must not disturb the
+     * live generation's state, refcount or tick task.
+     */
     private void cleanupPlayer(Player player) {
-        PlayerState state = STATES.remove(player.getUniqueId());
+        UUID uuid = player.getUniqueId();
+        PlayerState state = STATES.remove(uuid);
         if (state != null) {
             state.releaseLock(player);
             state.disposeAll();
         }
+        cancelTickTask(uuid);
+        // Drop the shared-generation bookkeeping so the next equip session
+        // starts from refcount 1 and re-arms its subscriptions + tick task
+        // (see onActivate). Without this the stale count survives relogin and
+        // permanently disables the staff runtime.
+        HOLDER_REFCNT.remove(uuid);
+        HOLDER_CACHE.remove(uuid);
+        ctx.getSubscriptions().unsubscribeAll();
     }
 
     // ============================================================== PURE LOGIC

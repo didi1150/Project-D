@@ -360,6 +360,18 @@ public class PlayerSubscriber {
         BowArrowManager.onCleanup(event.getPlayer());
     }
 
+    /**
+     * Releases every ability binding held by the disconnecting player's entity
+     * (behavior deactivation + registry untrack + listener unsubscribe), so
+     * stale entries don't accumulate under discarded RPGEntity instances across
+     * rejoins. Idempotent with the per-behavior quit cleanups.
+     */
+    @Subscribe
+    public void onAbilityQuit(PlayerQuitEvent event) {
+        EntityManager.getInstance().getEntity(event.getPlayer().getUniqueId())
+                .ifPresent(entity -> entity.getEquipmentManager().cleanupBindings());
+    }
+
     @Subscribe
     public void onBowDeath(PlayerDeathEvent event) {
         if (event.getEntity() instanceof Player player) {

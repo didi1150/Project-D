@@ -389,7 +389,7 @@ abilities:
   SMOKE_SHROUD:
     name: Smoke Shroud
     description:
-      - "Place a <gray>smoke cloud</gray> (r=<yellow>5</yellow>) around you"
+      - "Place a <gray>smoke cloud</gray> (r=<yellow>7</yellow>) around you"
       - "for <yellow>6</yellow> seconds."
       - ""
       - "Inside you are <aqua>invisible</aqua> to enemies;"

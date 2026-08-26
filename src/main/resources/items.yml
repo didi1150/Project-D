@@ -1213,7 +1213,7 @@ items:
     abilities:
     - BLADE_DANCE
   ORB_OF_STEALTH:
-    # Orb — 20% passive dodge + active smoke r=5 6s, re-enter clears aggro, 1.5s reveal on attack/leave.
+    # Orb — 20% passive dodge + active smoke r=7 6s, re-enter clears aggro, 1.5s reveal on attack/leave.
     unlockLevel: 0
     name: Orb of Stealth
     material: HEART_OF_THE_SEA

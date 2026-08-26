@@ -19,6 +19,11 @@ public class MeleeAttackPattern implements AttackPattern {
         if (!mob.canAttack()) {
             return;
         }
+        // Platform-level veto hook: pattern damage bypasses Bukkit events, so
+        // event-level guards never see these hits.
+        if (mob.shouldSkipAttack(target)) {
+            return;
+        }
 
         double baseDamage = mob.getStatEngineAdapter().getCurrentValue(StatType.ATTACK_DAMAGE, now);
         mob.dealRPGDamage(mob, target, baseDamage, DamageType.PHYSICAL);

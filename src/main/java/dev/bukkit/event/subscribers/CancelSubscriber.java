@@ -73,10 +73,10 @@ public class CancelSubscriber {
         if (target instanceof Player player) {
             if (EntityManager.getInstance().isDead(player.getUniqueId())) {
                 event.setCancelled(true);
-                mob.setTarget(null);
+                StealthRegistry.detachMob(mob, player.getUniqueId());
             } else if (StealthRegistry.shouldHideFromMob(player)) {
                 event.setCancelled(true);
-                mob.setTarget(null);
+                StealthRegistry.detachMob(mob, player.getUniqueId());
             }
 
         } else {
@@ -153,22 +153,8 @@ public class CancelSubscriber {
         Entity entity = event.getEntity();
         Entity damager = event.getDamager();
 
-        // Orb shroud: mobs (including vanilla hoglins) cannot damage shrouded players
-        if (entity instanceof Player player && damager instanceof Mob) {
-            if (StealthRegistry.isShrouded(player)) {
-                event.setCancelled(true);
-                return;
-            }
-        }
-        // also handle projectile shooters (skeletons etc.)
-        if (entity instanceof Player player2 && damager instanceof org.bukkit.entity.Projectile proj) {
-            if (proj.getShooter() instanceof LivingEntity shooter && !(shooter instanceof Player)) {
-                if (StealthRegistry.isShrouded(player2)) {
-                    event.setCancelled(true);
-                    return;
-                }
-            }
-        }
+        // Orb shroud blocks AGGRO only, not damage — no cancellation here for
+        // shrouded victims; hits that connect despite untargetability land.
 
         if (entity.hasMetadata("DUNGEON") && damager.hasMetadata("DUNGEON")) {
             event.setCancelled(true);

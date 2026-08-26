@@ -157,6 +157,16 @@ public abstract class RPGEntity {
         return !statusEffects.hasHardCc(this) && attackTracker.canAttack();
     }
 
+    /**
+     * Whether this entity's attack pattern must skip the given target on this
+     * attempt. Default: never. Platform subclasses may override for vetoes on
+     * damage that bypasses Bukkit events entirely, which is the case for every
+     * {@code AttackPattern} hit.
+     */
+    public boolean shouldSkipAttack(RPGEntity target) {
+        return false;
+    }
+
     public long getLastValidAttack() {
         return attackTracker.getLastValidAttack();
     }

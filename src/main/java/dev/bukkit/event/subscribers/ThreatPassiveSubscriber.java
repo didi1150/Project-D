@@ -7,6 +7,7 @@ import org.bukkit.entity.Mob;
 import org.bukkit.entity.Player;
 import org.bukkit.event.entity.EntityTargetLivingEntityEvent;
 
+import dev.bukkit.utils.StealthRegistry;
 import dev.core.ability.passive.SetPassive;
 import dev.core.entity.EntityManager;
 import dev.core.entity.RPGEntity;
@@ -79,6 +80,11 @@ public class ThreatPassiveSubscriber {
             Optional<RPGEntity> rpg = EntityManager.getInstance().getEntity(player.getUniqueId());
             if (rpg.isEmpty() || !rpg.get().isAlive()
                     || !rpg.get().getEquipmentManager().hasSetPassive(PASSIVE_ID)) {
+                continue;
+            }
+            // Orb stealth: shrouded tanks must not pull aggro to themselves
+            // (deterministic check — the 20% passive roll is targeting's business).
+            if (StealthRegistry.isShroudedDeterministic(player)) {
                 continue;
             }
             double distSq = player.getLocation().distanceSquared(mob.getLocation());

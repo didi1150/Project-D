@@ -95,6 +95,18 @@ public class HunterBowBehavior implements AbilityBehavior {
         return null;
     }
 
+    // ---- Test hooks (statics live for the whole JVM) -------------------------
+
+    static int refCountForTest(UUID uuid) {
+        return HOLDER_REFCNT.getOrDefault(uuid, 0);
+    }
+
+    /** Clears all per-holder state; tests must call this between scenarios. */
+    static void resetForTest() {
+        HOLDER_STATE.clear();
+        HOLDER_REFCNT.clear();
+    }
+
     @Override
     public void onActivate(ActiveAbility ctx) {
         this.ctx = ctx;
@@ -264,6 +276,12 @@ public class HunterBowBehavior implements AbilityBehavior {
         // session end: toggled state does not survive relogin
         HOLDER_STATE.remove(ctx.getHolder().getUuid());
         hideHudForHolder();
+        // Drop the refcount and release this generation's listeners so the
+        // next equip session starts from refcount 1 and re-arms its
+        // subscriptions (see onActivate) instead of staying dead after a
+        // rejoin. Idempotent: a zombie generation firing again is a no-op.
+        HOLDER_REFCNT.remove(ctx.getHolder().getUuid());
+        ctx.getSubscriptions().unsubscribeAll();
     }
 
     /**

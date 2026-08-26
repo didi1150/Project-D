@@ -420,6 +420,9 @@ public class CombatListener implements Listener {
             event.setCancelled(true);
             return;
         }
+        // Orb shroud blocks AGGRO only, not damage (design decision): a shrouded
+        // player is untargetable, but any hit that still connects — AoE splash,
+        // an already-swung melee — lands normally.
         if (event.getDamage() <= 0.002) {
             return;
         }
