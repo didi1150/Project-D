@@ -1,6 +1,7 @@
 package dev.core.game.settings;
 
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 import dev.core.entity.rpgclass.RPGClassType;
@@ -16,6 +17,7 @@ public class GameSettingsLoader {
     public static final String LOCATIONS_SELECTIONSPAWN = "locations.selectionspawn";
     public static final String LOCATIONS_SELECTIONCLASSES = "locations.selectionclasses";
     public static final String LOCATIONS_BOSSSPAWN = "locations.bossspawn";
+    public static final String LOCATIONS_BOSSPLAYERSPAWN = "locations.bossplayrespawn";
     public static final String MINPLAYERS = "minplayers";
     private GameSettings gameSettings;
     private ConfigProvider configProvider;
@@ -72,6 +74,8 @@ public class GameSettingsLoader {
         Point3D holeCenter = loadBlockCoords(configProvider.getSection(LOCATIONS_HOLECENTER));
         int minPlayers = configProvider.getRoot().getInt(MINPLAYERS, 1);
 
+        configProvider.save();
+
         gameSettings.setMinPlayers(minPlayers);
         gameSettings.setDungeonWorld(dungeonWorld);
         gameSettings.setBossWorld(bossWorld);
@@ -91,6 +95,16 @@ public class GameSettingsLoader {
         configProvider.getRoot().set("setup", !currentSetup);
         configProvider.save();
         return !currentSetup;
+    }
+
+    public void deleteLocation(String path) {
+        String parentPath = path.substring(0, path.lastIndexOf("."));
+        String childString = path.substring(path.lastIndexOf(".") + 1);
+        ConfigSection section = configProvider.getSection(parentPath);
+        section.set(childString, null);
+//        section.getSection(childString);
+        configProvider.save();
+        load();
     }
 
     public void setViewLocation(String path, ViewPoint3D viewPoint3D) {
@@ -171,7 +185,7 @@ public class GameSettingsLoader {
 
     public void setBossPlayerSpawnLocation(int floorLevel, ViewPoint3D viewPoint3D) {
         gameSettings.setBossPlayerSpawnLocation(floorLevel, viewPoint3D);
-        ConfigSection section = configProvider.getSection("locations.bossplayrespawn." + floorLevel);
+        ConfigSection section = configProvider.getSection(LOCATIONS_BOSSPLAYERSPAWN + "." + floorLevel);
         section.set("x", viewPoint3D.getX());
         section.set("y", viewPoint3D.getY());
         section.set("z", viewPoint3D.getZ());
