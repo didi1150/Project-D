@@ -12,8 +12,10 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import java.util.HashMap;
 import java.util.List;
 import java.util.UUID;
+import java.util.function.Consumer;
 
 import org.bukkit.Location;
 import org.bukkit.World;
@@ -27,6 +29,7 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
+import org.mockito.Mockito;
 
 import dev.bukkit.status.behavior.AirborneStatusEffectBehavior;
 import dev.bukkit.status.behavior.RootedStatusEffectBehavior;
@@ -38,9 +41,8 @@ import dev.core.entity.RPGEntity;
 import dev.core.entity.rpgclass.RPGClassType;
 import dev.core.stat.StatManager;
 import dev.core.stat.StatType;
-import dev.core.status.StatusEffectType;
 import dev.core.stat.impl.CombatStat;
-import org.mockito.Mockito;
+import dev.core.status.StatusEffectType;
 
 /**
  * Headless smoke test for the Bukkit status manager: display spawn/stacking and
@@ -66,21 +68,20 @@ class BukkitStatusEffectManagerTest {
         when(display.isValid()).thenReturn(true);
         when(display.getText()).thenReturn("stub");
         when(display.getTransformation())
-                .thenReturn(new Transformation(new Vector3f(), new Quaternionf(), new Vector3f(),
-                        new Quaternionf()));
+                .thenReturn(new Transformation(new Vector3f(), new Quaternionf(), new Vector3f(), new Quaternionf()));
         when(living.getWorld()).thenReturn(world);
         when(living.getHeight()).thenReturn(1.8);
         // Each spawn call adds its own vertical offset: return a fresh Location
         // carrying the requested y so stacking tests can compare offsets.
         when(location.add(anyDouble(), anyDouble(), anyDouble())).thenAnswer(inv -> {
             double y = inv.getArgument(1);
-            return new Location(null, 0, y, 0);
+            return new Location(world, 0, y, 0);
         });
         when(living.getLocation()).thenReturn(location);
         // Run the spawn consumer so the display actually gets configured
         // (text, billboard, transformation) like on a live server.
         when(world.spawn(any(), eq(TextDisplay.class), any())).thenAnswer(inv -> {
-            java.util.function.Consumer<TextDisplay> consumer = inv.getArgument(2);
+            Consumer<TextDisplay> consumer = inv.getArgument(2);
             consumer.accept(display);
             return display;
         });
@@ -123,8 +124,7 @@ class BukkitStatusEffectManagerTest {
         verify(world, times(2)).spawn(spawnLocations.capture(), eq(TextDisplay.class), any());
         List<Location> locations = spawnLocations.getAllValues();
         assertEquals(2, locations.size());
-        assertTrue(locations.get(1).getY() > locations.get(0).getY(),
-                "the second display must stack above the first");
+        assertTrue(locations.get(1).getY() > locations.get(0).getY(), "the second display must stack above the first");
     }
 
     @Test
@@ -132,8 +132,7 @@ class BukkitStatusEffectManagerTest {
         RPGEntity entity = entityWithMoveSpeed();
 
         manager.apply(entity, StatusEffectType.SLOWED, 10_000);
-        double slowed = entity.getStatEngineAdapter().getCurrentValue(StatType.MOVE_SPEED,
-                System.currentTimeMillis());
+        double slowed = entity.getStatEngineAdapter().getCurrentValue(StatType.MOVE_SPEED, System.currentTimeMillis());
         assertTrue(slowed < 100, "the MOVE_SPEED stat must drop below its base of 100, was " + slowed);
         assertEquals(60.0, slowed, 0.001, "slowed keeps 60% of the base speed");
 
@@ -220,13 +219,13 @@ class BukkitStatusEffectManagerTest {
     }
 
     private RPGEntity entityWithMoveSpeed(TestStatusEffectManager statusManager) {
-        StatManager stats = new StatManager(new java.util.HashMap<>());
+        StatManager stats = new StatManager(new HashMap<>());
         stats.getStats().put(StatType.MOVE_SPEED, new CombatStat("MOVE_SPEED", 100));
         return new TestRPGEntity(stats, statusManager);
     }
 
     private RPGEntity entityWithoutMoveSpeed() {
-        return new TestRPGEntity(new StatManager(new java.util.HashMap<>()), manager);
+        return new TestRPGEntity(new StatManager(new HashMap<>()), manager);
     }
 
     private static final class TestRPGEntity extends RPGEntity {
@@ -237,9 +236,8 @@ class BukkitStatusEffectManagerTest {
     }
 
     /**
-     * Manager bound to a mocked vanilla entity: the server registry can't
-     * resolve anything headless, so display/behavior code resolves this mock
-     * instead.
+     * Manager bound to a mocked vanilla entity: the server registry can't resolve
+     * anything headless, so display/behavior code resolves this mock instead.
      */
     private static final class TestStatusEffectManager extends BukkitStatusEffectManager {
         private final LivingEntity living;

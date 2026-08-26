@@ -30,6 +30,7 @@ import dev.bukkit.ability.BukkitSwingBoneEffect;
 import dev.bukkit.command.CommandManager;
 import dev.bukkit.entity.boss.BukkitBossStageTypeRegistry;
 import dev.bukkit.entity.boss.BukkitBossStrategyRegistry;
+import dev.bukkit.entity.boss.BukkitDisplayEntityRegistry;
 import dev.bukkit.event.BukkitEventBus;
 import dev.bukkit.event.bukkitListeners.CombatListener;
 import dev.bukkit.event.bukkitListeners.EventBusRegistry;
@@ -136,7 +137,6 @@ import dev.bukkit.hud.HudOverlayService;
 import dev.bukkit.hud.HunterHudFormatter;
 import dev.bukkit.hud.TriHomingHudFormatter;
 
-
 public final class DMain extends JavaPlugin {
     private EventBusInterface eventBusInterface;
     private EffectManagerInterface effectManagerInterface;
@@ -153,6 +153,8 @@ public final class DMain extends JavaPlugin {
 
     private BuildAssetManager buildAssetManager;
 
+    private BukkitDisplayEntityRegistry bukkitDisplayEntityRegistry;
+
     @Override
     public void onEnable() {
         instance = this;
@@ -161,6 +163,7 @@ public final class DMain extends JavaPlugin {
 
         entityManager = EntityManager.getInstance();
         effectManagerInterface = BukkitEffectManager.getInstance();
+        bukkitDisplayEntityRegistry = BukkitDisplayEntityRegistry.getInstance();
         itemRegistry = RPGItemRegistry.getInstance();
         messageSenderInterface = BukkitMessageSender.getInstance();
         // ---- Register abilities together with their Bukkit effects ----
@@ -184,16 +187,18 @@ public final class DMain extends JavaPlugin {
         AbilityRegistry.register(new BouncyArrowAbility(), BukkitBouncyArrowEffect::new);
         AbilityRegistry.register(new ExplosiveArrowAbility(), BukkitExplosiveArrowEffect::new);
         AbilityRegistry.register(new TriVolleyAbility(), BukkitTriVolleyEffect::new);
-        // Arcane Blade passives — PASSIVE abilities, runtime handled by per-holder behaviors
+        // Arcane Blade passives — PASSIVE abilities, runtime handled by per-holder
+        // behaviors
         AbilityRegistry.register(new ArcaneManaRestoreAbility());
         AbilityRegistry.register(new ArcaneCleaveAbility());
-        // Drain Blade passive — PASSIVE, flat ATTACK_DAMAGE stat modifier kept live by StackerBehavior
+        // Drain Blade passive — PASSIVE, flat ATTACK_DAMAGE stat modifier kept live by
+        // StackerBehavior
         AbilityRegistry.register(new StackerAbility());
         // Assassin items — Blade Dance (active cone) & Orb of Stealth
         AbilityRegistry.register(new BladeDanceAbility(), BukkitBladeDanceEffect::new);
         AbilityRegistry.register(new OrbStealthPassiveAbility());
 
-        // ---- Per-holder ability behaviors  ----
+        // ---- Per-holder ability behaviors ----
         AbilityBehaviorRegistry.register(ArcaneManaRestoreAbility.ID, ArcaneManaRestoreBehavior::new);
         AbilityBehaviorRegistry.register(ArcaneCleaveAbility.ID, ArcaneCleaveBehavior::new);
         AbilityBehaviorRegistry.register(BladeDanceAbility.ID, BladeDanceBehavior::new);
@@ -219,7 +224,8 @@ public final class DMain extends JavaPlugin {
         StatusEffectBehaviorRegistry.register(StatusEffectType.STUNNED, new StunnedStatusEffectBehavior());
         StatusEffectBehaviorRegistry.register(StatusEffectType.AIRBORNE, new AirborneStatusEffectBehavior());
 
-        // HUD overlay config — create manager early so hud.yml is available before services start
+        // HUD overlay config — create manager early so hud.yml is available before
+        // services start
         configManager = new BukkitConfigManager(this);
         HudConfig hudCfg = HudConfigLoader.load(configManager.getProvider("hud.yml"));
         HudOverlayService.getInstance().init(this, hudCfg);
@@ -280,10 +286,9 @@ public final class DMain extends JavaPlugin {
         // ==============================================[ Load dungeon-mobs.yml
         // ]=============================================
         ConfigProvider dungeonMobsConfig = configManager.getProvider("dungeon-mobs.yml");
-        MobDefinitionRegistry.getInstance()
-                .registerAll(MobDefinitionLoader.loadAll(dungeonMobsConfig).values());
-        Bukkit.getConsoleSender().sendMessage(
-                "Loaded " + MobDefinitionRegistry.getInstance().size() + " dungeon mob definition(s).");
+        MobDefinitionRegistry.getInstance().registerAll(MobDefinitionLoader.loadAll(dungeonMobsConfig).values());
+        Bukkit.getConsoleSender()
+                .sendMessage("Loaded " + MobDefinitionRegistry.getInstance().size() + " dungeon mob definition(s).");
 
         // ==============================================[ Setup Settings
         // ]=====================================================
@@ -297,8 +302,8 @@ public final class DMain extends JavaPlugin {
                 && !gameSettings.getDungeonWorld().isBlank()) {
             File dungeonWorldFolder = new File(Bukkit.getWorldContainer(), gameSettings.getDungeonWorld());
             if (dungeonWorldFolder.exists()) {
-                Bukkit.getLogger().info("Resetting dungeon world '" + gameSettings.getDungeonWorld()
-                        + "' for a new run.");
+                Bukkit.getLogger()
+                        .info("Resetting dungeon world '" + gameSettings.getDungeonWorld() + "' for a new run.");
                 deleteWorld(dungeonWorldFolder);
             }
         }
@@ -335,8 +340,8 @@ public final class DMain extends JavaPlugin {
         gameStateController.addState(new SelectClassState(gameSettings.getHoleCenter(),
                 gameSettings.getSelectionSpawn(), gameSettings.getSelectionLocations(), eventBusInterface));
         gameStateController.addState(new SelectItemState(eventBusInterface));
-        gameStateController.addState(new ClearState(gameSettings.getHoleCenter(), eventBusInterface,
-                progressionService, messageSenderInterface, this));
+        gameStateController.addState(new ClearState(gameSettings.getHoleCenter(), eventBusInterface, progressionService,
+                messageSenderInterface, this));
         gameStateController.addState(new BossState(eventBusInterface, progressionService));
         gameStateController.addState(new PostGameState(eventBusInterface, progressionService, this));
         gameStateController.start();
@@ -348,7 +353,8 @@ public final class DMain extends JavaPlugin {
         buildAssetManager = new BuildAssetManager(this, "buildAssets/");
         BuildAssetHelper buildAssetHelper = new BuildAssetHelper(buildAssetManager);
         GameSetupHelper gameSetupHelper = new GameSetupHelper(gameSettingsLoader);
-        SetupManager.getInstance().registerSetupHelpers(commandManager, eventBusInterface, (BukkitMessageSender) messageSenderInterface);
+        SetupManager.getInstance().registerSetupHelpers(commandManager, eventBusInterface,
+                (BukkitMessageSender) messageSenderInterface);
 
         commandManager.registerCommands(this);
         combatListener = new CombatListener(this);
@@ -364,13 +370,16 @@ public final class DMain extends JavaPlugin {
         gameStateController.stop();
         effectManagerInterface.cancelAll();
         BukkitStatusEffectManager.getInstance().cancelAll();
+        bukkitDisplayEntityRegistry.removeAllDisplays();
         HudOverlayService.getInstance().shutdown();
         try {
             ActiveAbilityRegistry.getInstance().clear();
-        } catch (Exception ignored) {}
+        } catch (Exception ignored) {
+        }
         try {
             AbilityBehaviorRegistry.clear();
-        } catch (Exception ignored) {}
+        } catch (Exception ignored) {
+        }
         combatListener.cleanup();
         configManager.saveAll();
         eventBusInterface.getSubscribed().clear();
@@ -400,9 +409,9 @@ public final class DMain extends JavaPlugin {
     /**
      * Deletes a world folder recursively, but only when the folder is a direct
      * child of the server's world container and its name exactly matches the
-     * dungeon world configured in setup.yml. Children whose canonical path
-     * resolves outside the world folder (e.g. symlinks) are skipped, so a
-     * misconfiguration can never delete anything but the intended dungeon world.
+     * dungeon world configured in setup.yml. Children whose canonical path resolves
+     * outside the world folder (e.g. symlinks) are skipped, so a misconfiguration
+     * can never delete anything but the intended dungeon world.
      */
     public boolean deleteWorld(File path) {
         if (path == null || !path.exists()) {
@@ -425,8 +434,8 @@ public final class DMain extends JavaPlugin {
             return worldFolder.getParentFile() != null && worldFolder.getParentFile().equals(worldContainer)
                     && worldFolder.getName().equals(expectedName);
         } catch (IOException e) {
-            Bukkit.getLogger().warning("Could not resolve world folder " + folder.getAbsolutePath() + ": "
-                    + e.getMessage());
+            Bukkit.getLogger()
+                    .warning("Could not resolve world folder " + folder.getAbsolutePath() + ": " + e.getMessage());
             return false;
         }
     }
@@ -437,8 +446,8 @@ public final class DMain extends JavaPlugin {
         }
         try {
             if (!isWithinCanonical(root, file)) {
-                Bukkit.getLogger().warning("Skipping " + file.getAbsolutePath()
-                        + ": it resolves outside the dungeon world folder.");
+                Bukkit.getLogger().warning(
+                        "Skipping " + file.getAbsolutePath() + ": it resolves outside the dungeon world folder.");
                 return false;
             }
         } catch (IOException e) {

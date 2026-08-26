@@ -27,6 +27,7 @@ import org.bukkit.scheduler.BukkitRunnable;
 import dev.bukkit.DMain;
 import dev.bukkit.command.CommandManager;
 import dev.bukkit.command.SubCommandBuilder;
+import dev.bukkit.entity.boss.BukkitDisplayEntityRegistry;
 import dev.core.game.dungeon.BoundingBox;
 import dev.core.game.dungeon.proceduralDungeon.AbstractDungeonGenerator;
 import dev.core.game.dungeon.proceduralDungeon.DungeonGenerationParameters;
@@ -236,14 +237,16 @@ public class SimpleDungeonBuilderBukkit {
                     Location loc = new Location(world, p.getX() + 0.5, p.getY() + 2.25, p.getZ() + 0.5);
                     if (spawnPosition.isMiniBossSpawn()) {
                         spawnBlockDisplay(world, Vector3Int.fromPoint3D(p), Vector3Int.fromPoint3D(p).add(0,1,0), Material.PINK_STAINED_GLASS);
-                        TextDisplay name = (TextDisplay) world.spawnEntity(loc, EntityType.TEXT_DISPLAY);
-                        name.setText("MiniBoss");
-                        name.setBillboard(Display.Billboard.CENTER);
+                        BukkitDisplayEntityRegistry.getInstance().spawnDisplayEntity(loc, TextDisplay.class, d -> {
+                            d.setText("MiniBoss");
+                            d.setBillboard(Display.Billboard.CENTER);
+                        });
                     } else if (spawnPosition.isEliteSpawn()) {
                         spawnBlockDisplay(world, Vector3Int.fromPoint3D(p), Vector3Int.fromPoint3D(p).add(0,1,0), Material.MAGENTA_STAINED_GLASS);
-                        TextDisplay name = (TextDisplay) world.spawnEntity(loc, EntityType.TEXT_DISPLAY);
-                        name.setText("Elite");
-                        name.setBillboard(Display.Billboard.CENTER);
+                        BukkitDisplayEntityRegistry.getInstance().spawnDisplayEntity(loc, TextDisplay.class, d -> {
+                            d.setText("Elite");
+                            d.setBillboard(Display.Billboard.CENTER);
+                        });
                     } else {
                         spawnBlockDisplay(world, Vector3Int.fromPoint3D(p), Vector3Int.fromPoint3D(p).add(0,1,0), Material.PURPLE_STAINED_GLASS);
                     }
@@ -457,23 +460,25 @@ public class SimpleDungeonBuilderBukkit {
 
     private void spawnBlockDisplay(World world, Vector3Int point, Material material) {
         Location loc = new Location(world, point.x, point.y, point.z);
-        BlockDisplay blockDisplay = (BlockDisplay) world.spawnEntity(loc, EntityType.BLOCK_DISPLAY);
-        blockDisplay.setBlock(Bukkit.createBlockData(material));
-        blockDisplay.setBrightness(new Display.Brightness(15,15));
-        }
+        BukkitDisplayEntityRegistry.getInstance().spawnDisplayEntity(loc, BlockDisplay.class, d -> {
+            d.setBlock(Bukkit.createBlockData(material));
+            d.setBrightness(new Display.Brightness(15,15));
+        });
+    }
 
     private void spawnBlockDisplay(World world, Vector3Int minPoint, Vector3Int maxPoint, Material material) {
         Vector3f scaleVec = maxPoint.sub(minPoint).add(1,1,1).toVector3f().mul(1);
 //        Vector3f middlePoint = minPoint.toVector3f().add(scaleVec.mul(0.25f));
         Vector3f spawnPoint = minPoint.toVector3f().sub(0.05f,0.05f,0.05f);
         Location loc = new Location(world, spawnPoint.x, spawnPoint.y, spawnPoint.z);
-        BlockDisplay blockDisplay = (BlockDisplay) world.spawnEntity(loc, EntityType.BLOCK_DISPLAY);
-        blockDisplay.setBlock(Bukkit.createBlockData(material));
-        blockDisplay.setBrightness(new Display.Brightness(15,15));
+        BukkitDisplayEntityRegistry.getInstance().spawnDisplayEntity(loc, BlockDisplay.class, d -> {
+            d.setBlock(Bukkit.createBlockData(material));
+            d.setBrightness(new Display.Brightness(15,15));
 
-        Transformation transformation = blockDisplay.getTransformation();
-        transformation.getScale().set(scaleVec.add(0.1f,0.1f,0.1f));
-        blockDisplay.setTransformation(transformation);
+            Transformation transformation = d.getTransformation();
+            transformation.getScale().set(scaleVec.add(0.1f,0.1f,0.1f));
+            d.setTransformation(transformation);
+        });
     }
 
     private void setBlock(Vector3Int point, Material material) {

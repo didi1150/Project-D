@@ -6,7 +6,6 @@ import java.util.Map;
 
 import org.bukkit.Bukkit;
 import org.bukkit.Location;
-import org.bukkit.World;
 import org.bukkit.entity.Display;
 import org.bukkit.entity.Entity;
 import org.bukkit.entity.LivingEntity;
@@ -16,6 +15,7 @@ import org.bukkit.util.Transformation;
 
 import dev.bukkit.DMain;
 import dev.bukkit.entity.BukkitPlayerEntity;
+import dev.bukkit.entity.boss.BukkitDisplayEntityRegistry;
 import dev.core.entity.EntityManager;
 import dev.core.entity.RPGEntity;
 import dev.core.status.ActiveStatusEffect;
@@ -129,13 +129,6 @@ public class BukkitStatusEffectManager extends StatusEffectManager {
         super.cancelAll();
         displayByEffect.clear();
         lastShownSeconds.clear();
-        //TODO commented for test to go through
-//        Bukkit.getWorlds().forEach(w -> {
-//            w.getEntities().forEach(entity -> {
-//                if (entity instanceof Display)
-//                    entity.remove();
-//            });
-//        });
     }
 
     /**
@@ -155,11 +148,10 @@ public class BukkitStatusEffectManager extends StatusEffectManager {
     }
 
     private TextDisplay spawnDisplay(LivingEntity living, RPGEntity entity, ActiveStatusEffect effect) {
-        World world = living.getWorld();
         int index = Math.max(0, getActive(entity).indexOf(effect));
         Location spawnLoc = living.getLocation().add(0, living.getHeight() + 0.55 + index * DISPLAY_SPACING, 0);
 
-        return world.spawn(spawnLoc, TextDisplay.class, d -> {
+        return BukkitDisplayEntityRegistry.getInstance().spawnDisplayEntity(spawnLoc, TextDisplay.class, d -> {
             d.setText(formatText(effect, effect.remaining(System.currentTimeMillis())));
             d.setBillboard(Display.Billboard.CENTER);
             d.setSeeThrough(false);

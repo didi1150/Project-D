@@ -14,6 +14,7 @@ import org.bukkit.event.entity.EntityDamageByEntityEvent;
 import org.bukkit.event.entity.EntityDamageEvent;
 import org.bukkit.event.entity.EntityDeathEvent;
 import org.bukkit.event.entity.EntityExplodeEvent;
+import org.bukkit.event.entity.EntityRemoveEvent;
 import org.bukkit.event.entity.EntityPickupItemEvent;
 import org.bukkit.event.entity.EntityPortalEvent;
 import org.bukkit.event.entity.EntityRegainHealthEvent;
@@ -85,6 +86,7 @@ public class EventBusRegistry {
             new Reg(PortalCreateEvent.class, EventPriority.NORMAL, false),
             new Reg(EntityPortalEvent.class, EventPriority.NORMAL, false),
             new Reg(EntityShootBowEvent.class, EventPriority.NORMAL, false),
+            new Reg(EntityRemoveEvent.class, EventPriority.NORMAL, false),
             new Reg(ProjectileHitEvent.class, EventPriority.NORMAL, false),
             new Reg(PlayerPickupArrowEvent.class, EventPriority.NORMAL, false),
             new Reg(AsyncPlayerChatEvent.class, EventPriority.NORMAL, false));

@@ -23,6 +23,7 @@ import org.joml.Vector3f;
 
 import dev.bukkit.DMain;
 import dev.bukkit.entity.BukkitPlayerEntity;
+import dev.bukkit.entity.boss.BukkitDisplayEntityRegistry;
 import dev.bukkit.event.bukkitListeners.CombatListener;
 import dev.bukkit.utils.CombatRelation;
 import dev.bukkit.utils.DamageUtils;
@@ -390,7 +391,7 @@ public class BukkitSmashEffect extends Effect {
     private void spawnPillar(PillarSpec spec) {
         // Center alignment offset (-0.5 on X/Z) keeps block display centered on column
         Location loc = new Location(world, spec.x - 0.5, spec.groundY + 1.0, spec.z - 0.5);
-        BlockDisplay display = world.spawn(loc, BlockDisplay.class, d -> {
+        BlockDisplay display = BukkitDisplayEntityRegistry.getInstance().spawnDisplayEntity(loc, BlockDisplay.class, d -> {
             d.setBlock(spec.block);
         });
 

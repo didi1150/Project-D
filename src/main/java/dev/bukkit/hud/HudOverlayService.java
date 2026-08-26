@@ -22,6 +22,9 @@ import org.bukkit.util.RayTraceResult;
 import org.bukkit.util.Transformation;
 import org.bukkit.util.Vector;
 import org.joml.Vector3f;
+
+import dev.bukkit.entity.boss.BukkitDisplayEntityRegistry;
+
 import org.joml.AxisAngle4f;
 
 /**
@@ -30,10 +33,11 @@ import org.joml.AxisAngle4f;
  * ({@code BukkitPlayerEntity}); this service is purely for extra ability info
  * like the hunter bow.
  *
- * <p>Each {@code key} gets its own display (stacked vertically). Persistent
- * fragments (duration 0) stay until explicit {@code hide} — used for
- * "while hunter bow held". Transient fragments expire automatically.
- * Privacy is MVP via {@code Player#hideEntity} for all non-owners.
+ * <p>
+ * Each {@code key} gets its own display (stacked vertically). Persistent
+ * fragments (duration 0) stay until explicit {@code hide} — used for "while
+ * hunter bow held". Transient fragments expire automatically. Privacy is MVP
+ * via {@code Player#hideEntity} for all non-owners.
  */
 public final class HudOverlayService {
 
@@ -51,7 +55,8 @@ public final class HudOverlayService {
     private final Map<UUID, Map<String, OverlayFragment>> fragmentsByPlayer = new HashMap<>();
     private final Map<UUID, Map<String, DisplayEntry>> displaysByPlayer = new HashMap<>();
 
-    private HudOverlayService() {}
+    private HudOverlayService() {
+    }
 
     public static synchronized HudOverlayService getInstance() {
         if (instance == null) {
@@ -98,9 +103,11 @@ public final class HudOverlayService {
     }
 
     public void init(Plugin owningPlugin, HudConfig cfg) {
-        if (owningPlugin == null) return;
+        if (owningPlugin == null)
+            return;
         plugin = owningPlugin;
-        if (cfg != null) config = cfg;
+        if (cfg != null)
+            config = cfg;
         if (tickTask != null) {
             tickTask.cancel();
         }
@@ -108,17 +115,24 @@ public final class HudOverlayService {
     }
 
     public void reload(HudConfig cfg) {
-        if (cfg != null) config = cfg;
-        // reposition live displays with new geometry on next tick; force immediate for snappy reload
+        if (cfg != null)
+            config = cfg;
+        // reposition live displays with new geometry on next tick; force immediate for
+        // snappy reload
         for (UUID uuid : new HashSet<>(fragmentsByPlayer.keySet())) {
             Player p = Bukkit.getPlayer(uuid);
-            if (p != null && p.isOnline()) reposition(p);
+            if (p != null && p.isOnline())
+                reposition(p);
         }
     }
 
-    public HudConfig getConfig() { return config; }
+    public HudConfig getConfig() {
+        return config;
+    }
 
-    public boolean isEnabled() { return config.enabled(); }
+    public boolean isEnabled() {
+        return config.enabled();
+    }
 
     public void shutdown() {
         if (tickTask != null) {
@@ -129,7 +143,10 @@ public final class HudOverlayService {
         for (Map<String, DisplayEntry> map : new ArrayList<>(displaysByPlayer.values())) {
             for (DisplayEntry entry : new ArrayList<>(map.values())) {
                 if (entry.entity != null && entry.entity.isValid()) {
-                    try { entry.entity.remove(); } catch (Exception ignored) {}
+                    try {
+                        entry.entity.remove();
+                    } catch (Exception ignored) {
+                    }
                 }
             }
         }
@@ -147,13 +164,15 @@ public final class HudOverlayService {
     }
 
     /**
-     * Show or update a HUD fragment with an optional trailing fade-out. The
-     * line stays fully opaque for {@code durationMs - fadeOutMs} and then
-     * linearly fades to invisible across the final {@code fadeOutMs} window.
+     * Show or update a HUD fragment with an optional trailing fade-out. The line
+     * stays fully opaque for {@code durationMs - fadeOutMs} and then linearly fades
+     * to invisible across the final {@code fadeOutMs} window.
      */
     public void show(Player player, String key, String legacyText, long durationMs, int priority, long fadeOutMs) {
-        if (player == null || key == null || legacyText == null) return;
-        if (!player.isOnline()) return;
+        if (player == null || key == null || legacyText == null)
+            return;
+        if (!player.isOnline())
+            return;
         // ensure on main thread
         if (!Bukkit.isPrimaryThread()) {
             Bukkit.getScheduler().runTask(plugin, () -> show(player, key, legacyText, durationMs, priority, fadeOutMs));
@@ -163,7 +182,8 @@ public final class HudOverlayService {
         boolean persistent = durationMs <= 0;
         long expiresAt = persistent ? Long.MAX_VALUE : now + durationMs;
         long fade = persistent || fadeOutMs <= 0 ? 0L : Math.min(fadeOutMs, durationMs);
-        Map<String, OverlayFragment> map = fragmentsByPlayer.computeIfAbsent(player.getUniqueId(), k -> new HashMap<>());
+        Map<String, OverlayFragment> map = fragmentsByPlayer.computeIfAbsent(player.getUniqueId(),
+                k -> new HashMap<>());
         OverlayFragment existing = map.get(key);
         if (existing != null) {
             existing.text = legacyText;
@@ -174,7 +194,8 @@ public final class HudOverlayService {
         } else {
             map.put(key, new OverlayFragment(key, legacyText, expiresAt, priority, persistent, fade));
         }
-        // ensure display exists/updated on next tick; do immediate reposition for snappy feedback
+        // ensure display exists/updated on next tick; do immediate reposition for
+        // snappy feedback
         reposition(player);
     }
 
@@ -183,7 +204,8 @@ public final class HudOverlayService {
     }
 
     public void hide(Player player, String key) {
-        if (player == null || key == null) return;
+        if (player == null || key == null)
+            return;
         if (!Bukkit.isPrimaryThread()) {
             Bukkit.getScheduler().runTask(plugin, () -> hide(player, key));
             return;
@@ -210,7 +232,8 @@ public final class HudOverlayService {
     }
 
     public void clear(Player player) {
-        if (player == null) return;
+        if (player == null)
+            return;
         if (!Bukkit.isPrimaryThread()) {
             Bukkit.getScheduler().runTask(plugin, () -> clear(player));
             return;
@@ -220,18 +243,23 @@ public final class HudOverlayService {
         Map<String, DisplayEntry> dispMap = displaysByPlayer.remove(uuid);
         if (dispMap != null) {
             for (DisplayEntry entry : dispMap.values()) {
-                if (entry.entity != null && entry.entity.isValid()) entry.entity.remove();
+                if (entry.entity != null && entry.entity.isValid())
+                    entry.entity.remove();
             }
         }
     }
 
     /** Hide all existing displays from a newly joined player (MVP privacy). */
     public void hideAllFrom(Player viewer) {
-        if (viewer == null || plugin == null) return;
+        if (viewer == null || plugin == null)
+            return;
         for (Map<String, DisplayEntry> map : displaysByPlayer.values()) {
             for (DisplayEntry entry : map.values()) {
                 if (entry.entity != null && entry.entity.isValid()) {
-                    try { viewer.hideEntity(plugin, entry.entity); } catch (Exception ignored) {}
+                    try {
+                        viewer.hideEntity(plugin, entry.entity);
+                    } catch (Exception ignored) {
+                    }
                 }
             }
         }
@@ -289,7 +317,8 @@ public final class HudOverlayService {
                     List<OverlayFragment> sorted = new ArrayList<>(remaining.values());
                     sorted.sort(Comparator.comparingInt((OverlayFragment f) -> f.priority).reversed());
                     Set<String> keep = new HashSet<>();
-                    for (int i = 0; i < maxKeys; i++) keep.add(sorted.get(i).key);
+                    for (int i = 0; i < maxKeys; i++)
+                        keep.add(sorted.get(i).key);
                     // remove low-priority beyond max along with their displays
                     remaining.keySet().retainAll(keep);
                     if (dispMap != null) {
@@ -304,7 +333,8 @@ public final class HudOverlayService {
                 }
                 reposition(player);
             } else if (dispMap != null) {
-                // no frag but display exists (edge) -> reposition still to move, but will be cleared next loop
+                // no frag but display exists (edge) -> reposition still to move, but will be
+                // cleared next loop
                 reposition(player);
             }
         }
@@ -313,7 +343,10 @@ public final class HudOverlayService {
     /** Removes a display entity server-side; never leaves ghosts behind. */
     private static void removeSafely(DisplayEntry entry) {
         if (entry != null && entry.entity != null && entry.entity.isValid()) {
-            try { entry.entity.remove(); } catch (Exception ignored) {}
+            try {
+                entry.entity.remove();
+            } catch (Exception ignored) {
+            }
         }
     }
 
@@ -381,10 +414,12 @@ public final class HudOverlayService {
             applyFade(entry, frag, now);
             moveDisplay(entry, loc, config.teleportDuration(), tracking.minStep(), tracking.snapDistance());
         }
-        // if more displays than fragments (should not happen due to the sweep above), remove extras
+        // if more displays than fragments (should not happen due to the sweep above),
+        // remove extras
         if (dispMap.size() > sorted.size()) {
             Set<String> keepKeys = new HashSet<>();
-            for (OverlayFragment f : sorted) keepKeys.add(f.key);
+            for (OverlayFragment f : sorted)
+                keepKeys.add(f.key);
             dispMap.entrySet().removeIf(e -> {
                 if (!keepKeys.contains(e.getKey())) {
                     removeSafely(e.getValue());
@@ -398,20 +433,20 @@ public final class HudOverlayService {
     /**
      * Real-time follow update for one display. Three regimes:
      * <ol>
-     * <li><b>SNAP</b> — delta beyond snap-distance (player teleport, world
-     * change, raytrace jump): hard-place with teleport-duration 0 so the line
-     * never glides across the world.</li>
+     * <li><b>SNAP</b> — delta beyond snap-distance (player teleport, world change,
+     * raytrace jump): hard-place with teleport-duration 0 so the line never glides
+     * across the world.</li>
      * <li><b>SKIP</b> — delta below min-step: send nothing. Re-teleporting on
-     * sub-perceptual deltas restarts the client interpolation every tick and
-     * is what makes an un-interpolated HUD look like it is stuttering/lagging
-     * behind player movement.</li>
+     * sub-perceptual deltas restarts the client interpolation every tick and is
+     * what makes an un-interpolated HUD look like it is stuttering/lagging behind
+     * player movement.</li>
      * <li><b>SMOOTH</b> — normal per-tick follow; combined with a non-zero
-     * teleport-duration and the velocity lead in {@link #calcHudTarget} this
-     * reads as glued to the camera without visible stepping.</li>
+     * teleport-duration and the velocity lead in {@link #calcHudTarget} this reads
+     * as glued to the camera without visible stepping.</li>
      * </ol>
      */
-    private void moveDisplay(DisplayEntry entry, Location target, int smoothDuration,
-                             double minStep, double snapDistance) {
+    private void moveDisplay(DisplayEntry entry, Location target, int smoothDuration, double minStep,
+            double snapDistance) {
         Location current = entry.entity.getLocation();
         double dx = target.getX() - current.getX();
         double dy = target.getY() - current.getY();
@@ -423,7 +458,10 @@ public final class HudOverlayService {
         }
         int wantedDuration = move == HudTracking.Move.SNAP ? 0 : smoothDuration;
         if (entry.appliedTeleportDuration != wantedDuration) {
-            try { entry.entity.setTeleportDuration(wantedDuration); } catch (Exception ignored) {}
+            try {
+                entry.entity.setTeleportDuration(wantedDuration);
+            } catch (Exception ignored) {
+            }
             entry.appliedTeleportDuration = wantedDuration;
         }
         entry.entity.teleport(target);
@@ -431,14 +469,17 @@ public final class HudOverlayService {
 
     /**
      * Drives the trailing fade-out of transient fragments via text opacity.
-     * Persistent fragments and fragments outside their fade window are forced
-     * back to fully opaque (covers show()-refreshes of a fading line).
+     * Persistent fragments and fragments outside their fade window are forced back
+     * to fully opaque (covers show()-refreshes of a fading line).
      */
     private void applyFade(DisplayEntry entry, OverlayFragment frag, long now) {
         long remaining = frag.persistent ? Long.MAX_VALUE : frag.expiresAt - now;
         int opacity = HudTracking.fadeOpacityByte(remaining, frag.fadeOutMs);
         if (entry.appliedOpacity != opacity) {
-            try { entry.entity.setTextOpacity((byte) opacity); } catch (Exception ignored) {}
+            try {
+                entry.entity.setTextOpacity((byte) opacity);
+            } catch (Exception ignored) {
+            }
             entry.appliedOpacity = opacity;
         }
     }
@@ -459,7 +500,8 @@ public final class HudOverlayService {
                 double hitDist = eye.distance(hitLoc);
                 dist = Math.max(0.4, hitDist - 0.22);
             }
-        } catch (Exception ignored) {}
+        } catch (Exception ignored) {
+        }
         Location loc = eye.clone().add(dir.multiply(dist));
         loc.add(0, config.verticalOffset(), 0);
         // Predictive lead: the server observes a moving player ~1-2 ticks late
@@ -481,8 +523,9 @@ public final class HudOverlayService {
 
     private TextDisplay spawnDisplay(Player owner, String text, Location loc) {
         World world = loc.getWorld();
-        if (world == null) world = owner.getWorld();
-        return world.spawn(loc, TextDisplay.class, d -> {
+        if (world == null)
+            world = owner.getWorld();
+        return BukkitDisplayEntityRegistry.getInstance().spawnDisplayEntity(loc, TextDisplay.class, d -> {
             d.setText(text);
             d.setBillboard(Display.Billboard.CENTER);
             d.setSeeThrough(config.seeThrough());
@@ -492,17 +535,35 @@ public final class HudOverlayService {
             d.setPersistent(false);
             d.setLineWidth(config.lineWidth());
             d.setAlignment(TextDisplay.TextAlignment.CENTER);
-            try { d.setTextOpacity((byte) HudTracking.OPAQUE); } catch (Exception ignored) {}
+            try {
+                d.setTextOpacity((byte) HudTracking.OPAQUE);
+            } catch (Exception ignored) {
+            }
             // background with alpha
             try {
                 d.setBackgroundColor(config.bgColor());
             } catch (Exception ignored) {
-                try { d.setBackgroundColor(Color.fromARGB(96, 0, 0, 0)); } catch (Exception e2) {}
+                try {
+                    d.setBackgroundColor(Color.fromARGB(96, 0, 0, 0));
+                } catch (Exception e2) {
+                }
             }
-            try { d.setBrightness(new Display.Brightness(config.brightness(), config.brightness())); } catch (Exception ignored) {}
-            try { d.setViewRange(config.viewRange()); } catch (Exception ignored) {}
-            try { d.setInterpolationDuration(config.interpolationDuration()); } catch (Exception ignored) {}
-            try { d.setTeleportDuration(config.teleportDuration()); } catch (Exception ignored) {}
+            try {
+                d.setBrightness(new Display.Brightness(config.brightness(), config.brightness()));
+            } catch (Exception ignored) {
+            }
+            try {
+                d.setViewRange(config.viewRange());
+            } catch (Exception ignored) {
+            }
+            try {
+                d.setInterpolationDuration(config.interpolationDuration());
+            } catch (Exception ignored) {
+            }
+            try {
+                d.setTeleportDuration(config.teleportDuration());
+            } catch (Exception ignored) {
+            }
             Transformation tf = d.getTransformation();
             tf.getScale().set(config.scale(), config.scale(), config.scale());
             // ensure translation zero
@@ -514,14 +575,21 @@ public final class HudOverlayService {
     }
 
     private void hideFromOthers(Player owner, TextDisplay display) {
-        if (plugin == null || display == null || !display.isValid()) return;
+        if (plugin == null || display == null || !display.isValid())
+            return;
         for (Player other : Bukkit.getOnlinePlayers()) {
             if (other.equals(owner)) {
                 // ensure owner can see
-                try { other.showEntity(plugin, display); } catch (Exception ignored) {}
+                try {
+                    other.showEntity(plugin, display);
+                } catch (Exception ignored) {
+                }
                 continue;
             }
-            try { other.hideEntity(plugin, display); } catch (Exception ignored) {}
+            try {
+                other.hideEntity(plugin, display);
+            } catch (Exception ignored) {
+            }
         }
     }
 

@@ -37,6 +37,7 @@ import org.joml.AxisAngle4f;
 import org.joml.Vector3f;
 
 import dev.bukkit.DMain;
+import dev.bukkit.entity.boss.BukkitDisplayEntityRegistry;
 import dev.bukkit.event.bukkitListeners.CombatListener;
 import dev.bukkit.item.BukkitItemStackAdapter;
 import dev.bukkit.summon.SoulSkull;
@@ -54,12 +55,12 @@ import dev.core.stat.StatType;
 
 /**
  * Per-holder behavior for the Shadow Weaver's Staff. Owns every piece of the
- * staff runtime that runs while the assassin merely holds the item: the
- * raycast placement preview, the platform lifecycle (spawn, decay, despawn),
- * the dash target lock, the interpolated dash animation and the sticky "float
- * on the platform" lock. Click actions are delivered by the ability pipeline
- * (see BukkitShadowWeaverPlaceEffect and BukkitShadowWeaverDashEffect) which
- * forward here through the per-holder behavior.
+ * staff runtime that runs while the assassin merely holds the item: the raycast
+ * placement preview, the platform lifecycle (spawn, decay, despawn), the dash
+ * target lock, the interpolated dash animation and the sticky "float on the
+ * platform" lock. Click actions are delivered by the ability pipeline (see
+ * BukkitShadowWeaverPlaceEffect and BukkitShadowWeaverDashEffect) which forward
+ * here through the per-holder behavior.
  *
  * <p>
  * State is mapped by player UUID and kept entirely server-side; the only
@@ -71,11 +72,11 @@ import dev.core.stat.StatType;
  * and new platforms.
  *
  * <p>
- * One behavior instance per holder (shared between the PLACE and DASH
- * abilities via {@link #HOLDER_CACHE}); a per-holder 1-tick loop starts on
- * first activation. Unequipping the staff releases locks/preview but lets
- * placed platforms fade out gracefully — the loop keeps advancing their decay
- * until none remain. On server shutdown, state is disposed immediately.
+ * One behavior instance per holder (shared between the PLACE and DASH abilities
+ * via {@link #HOLDER_CACHE}); a per-holder 1-tick loop starts on first
+ * activation. Unequipping the staff releases locks/preview but lets placed
+ * platforms fade out gracefully — the loop keeps advancing their decay until
+ * none remain. On server shutdown, state is disposed immediately.
  */
 public class ShadowWeaverBehavior implements AbilityBehavior {
 
@@ -136,7 +137,8 @@ public class ShadowWeaverBehavior implements AbilityBehavior {
     private static final Map<UUID, PlayerState> STATES = new ConcurrentHashMap<>();
     private static final Map<UUID, BukkitTask> TICK_TASKS = new ConcurrentHashMap<>();
     private static final Map<UUID, Integer> HOLDER_REFCNT = new ConcurrentHashMap<>();
-    // Holder-scoped cache so PLACE and DASH abilities share the same behavior per player
+    // Holder-scoped cache so PLACE and DASH abilities share the same behavior per
+    // player
     private static final Map<UUID, ShadowWeaverBehavior> HOLDER_CACHE = new ConcurrentHashMap<>();
 
     private ActiveAbility ctx;
@@ -390,7 +392,8 @@ public class ShadowWeaverBehavior implements AbilityBehavior {
         return PLUNGE_MULTIPLIER;
     }
 
-    // ------------------------------------------------------------- placement helpers
+    // ------------------------------------------------------------- placement
+    // helpers
 
     /**
      * Steps along the eye ray until a non-passable block is met, returning the last
@@ -446,20 +449,20 @@ public class ShadowWeaverBehavior implements AbilityBehavior {
                 despawn(oldest);
             }
         }
-        World world = target.getWorld();
         Location center = target.clone();
 
         // Scaled, flattened core display that glows brilliantly inside the particle
         // cloud
-        BlockDisplay display = world.spawn(center, BlockDisplay.class, d -> {
-            d.setBlock(Material.PEARLESCENT_FROGLIGHT.createBlockData());
-            d.setBrightness(new Display.Brightness(15, 15));
-            d.setGlowing(true);
-            d.setGlowColorOverride(Color.fromRGB(0xFF, 0xD7, 0x00)); // Golden aura
-            d.setTeleportDuration(1);
-            d.setTransformation(new Transformation(new Vector3f(-0.35f, -0.05f, -0.35f), identityAxis(),
-                    new Vector3f(0.7f, 0.1f, 0.7f), identityAxis()));
-        });
+        BlockDisplay display = BukkitDisplayEntityRegistry.getInstance().spawnDisplayEntity(center, BlockDisplay.class,
+                d -> {
+                    d.setBlock(Material.PEARLESCENT_FROGLIGHT.createBlockData());
+                    d.setBrightness(new Display.Brightness(15, 15));
+                    d.setGlowing(true);
+                    d.setGlowColorOverride(Color.fromRGB(0xFF, 0xD7, 0x00)); // Golden aura
+                    d.setTeleportDuration(1);
+                    d.setTransformation(new Transformation(new Vector3f(-0.35f, -0.05f, -0.35f), identityAxis(),
+                            new Vector3f(0.7f, 0.1f, 0.7f), identityAxis()));
+                });
         Platform platform = new Platform(display, center, System.currentTimeMillis());
         state.platforms.add(platform);
     }
@@ -650,11 +653,10 @@ public class ShadowWeaverBehavior implements AbilityBehavior {
     /**
      * Deals dash-through damage to every enemy whose hitbox the player's dash
      * segment passes through. Raw damage is
-     * {@code 0.6 * ATTACK_DAMAGE + 0.3 * LETHALITY} as physical damage.
-     * Each enemy is hit at most once per dash.
+     * {@code 0.6 * ATTACK_DAMAGE + 0.3 * LETHALITY} as physical damage. Each enemy
+     * is hit at most once per dash.
      */
-    private void handleDashThroughDamage(Player player, PlayerState state, Location segmentStart,
-            Location segmentEnd) {
+    private void handleDashThroughDamage(Player player, PlayerState state, Location segmentStart, Location segmentEnd) {
         if (segmentStart == null || segmentEnd == null || segmentStart.getWorld() == null
                 || segmentEnd.getWorld() == null) {
             return;
@@ -680,7 +682,8 @@ public class ShadowWeaverBehavior implements AbilityBehavior {
         double segLength = segmentStart.distance(segmentEnd);
         double searchRadius = segLength / 2.0 + DASH_DAMAGE_RADIUS + 0.5;
         searchRadius = Math.max(searchRadius, DASH_DAMAGE_RADIUS + 0.5);
-        List<Entity> candidates = new ArrayList<>(world.getNearbyEntities(mid, searchRadius, searchRadius, searchRadius));
+        List<Entity> candidates = new ArrayList<>(
+                world.getNearbyEntities(mid, searchRadius, searchRadius, searchRadius));
         for (Entity entity : candidates) {
             if (!(entity instanceof LivingEntity le)) {
                 continue;
@@ -717,7 +720,8 @@ public class ShadowWeaverBehavior implements AbilityBehavior {
                 RPGDamageResult res = targetRpg.dealRPGDamage(attacker, targetRpg, rawDamage, DamageType.PHYSICAL);
                 if (res.getResult() != DamageResult.DENY) {
                     try {
-                        CombatListener cl = DMain.getInstance() != null ? DMain.getInstance().getCombatListener() : null;
+                        CombatListener cl = DMain.getInstance() != null ? DMain.getInstance().getCombatListener()
+                                : null;
                         if (cl != null) {
                             cl.showPhysicalDamage(le.getLocation(), res.getDamage(), res.getResult());
                         }
@@ -837,9 +841,9 @@ public class ShadowWeaverBehavior implements AbilityBehavior {
     }
 
     /**
-     * Full per-holder session teardown (quit/death). Every step is idempotent:
-     * a zombie generation firing this again after a rejoin must not disturb the
-     * live generation's state, refcount or tick task.
+     * Full per-holder session teardown (quit/death). Every step is idempotent: a
+     * zombie generation firing this again after a rejoin must not disturb the live
+     * generation's state, refcount or tick task.
      */
     private void cleanupPlayer(Player player) {
         UUID uuid = player.getUniqueId();
@@ -942,7 +946,8 @@ public class ShadowWeaverBehavior implements AbilityBehavior {
     }
 
     /**
-     * Raw physical damage dealt when dashing through an enemy: {@code 0.6 * ATTACK_DAMAGE + 0.3 * LETHALITY}.
+     * Raw physical damage dealt when dashing through an enemy:
+     * {@code 0.6 * ATTACK_DAMAGE + 0.3 * LETHALITY}.
      */
     public static double calculateDashThroughDamage(double attackDamage, double lethality) {
         return attackDamage * DASH_DAMAGE_AD_RATIO + lethality * DASH_DAMAGE_LETHALITY_RATIO;
@@ -1013,16 +1018,16 @@ public class ShadowWeaverBehavior implements AbilityBehavior {
             Material displayBlock = valid ? Material.LIME_STAINED_GLASS : Material.RED_STAINED_GLASS;
 
             if (indicator == null) {
-                World world = at.getWorld();
-                indicator = world.spawn(center, BlockDisplay.class, d -> {
-                    d.setBlock(displayBlock.createBlockData());
-                    d.setBrightness(new Display.Brightness(15, 15));
-                    d.setGlowing(true);
-                    d.setGlowColorOverride(glowColor);
-                    d.setTeleportDuration(1);
-                    d.setTransformation(new Transformation(new Vector3f(-0.35f, -0.05f, -0.35f), identityAxis(),
-                            new Vector3f(0.7f, 0.1f, 0.7f), identityAxis()));
-                });
+                indicator = BukkitDisplayEntityRegistry.getInstance().spawnDisplayEntity(center, BlockDisplay.class,
+                        d -> {
+                            d.setBlock(displayBlock.createBlockData());
+                            d.setBrightness(new Display.Brightness(15, 15));
+                            d.setGlowing(true);
+                            d.setGlowColorOverride(glowColor);
+                            d.setTeleportDuration(1);
+                            d.setTransformation(new Transformation(new Vector3f(-0.35f, -0.05f, -0.35f), identityAxis(),
+                                    new Vector3f(0.7f, 0.1f, 0.7f), identityAxis()));
+                        });
             } else {
                 indicator.setBlock(displayBlock.createBlockData());
                 indicator.setGlowColorOverride(glowColor);

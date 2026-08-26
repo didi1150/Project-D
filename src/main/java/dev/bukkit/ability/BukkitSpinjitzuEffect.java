@@ -20,6 +20,7 @@ import org.joml.AxisAngle4f;
 import org.joml.Vector3f;
 
 import dev.bukkit.entity.BukkitPlayerEntity;
+import dev.bukkit.entity.boss.BukkitDisplayEntityRegistry;
 import dev.bukkit.utils.CombatRelation;
 import dev.core.ability.CooldownSink;
 import dev.core.ability.Effect;
@@ -39,9 +40,9 @@ public class BukkitSpinjitzuEffect extends Effect {
 
     private static final float SPIN_PER_TICK = 18.0f;
     private static final float RING_YAW_OFFSET = 9.0f;
-    
-    /** 
-     * Teleport duration set to 1 tick ensures smooth 60 FPS client-side lerp 
+
+    /**
+     * Teleport duration set to 1 tick ensures smooth 60 FPS client-side lerp
      * between server updates without introducing matrix rotation warping.
      */
     private static final int TELEPORT_DURATION_TICKS = 1;
@@ -88,8 +89,8 @@ public class BukkitSpinjitzuEffect extends Effect {
         this.lastCenter = null;
         spawnCyclone(casterEntity);
         casterEntity.getWorld().playSound(casterEntity.getLocation(), Sound.ENTITY_ENDER_DRAGON_FLAP, 0.6f, 0.8f);
-        caster.getStatEngineAdapter().addStatModifier(new StatModifier(20, StatModifierType.MULTIPLY, StatType.MOVE_SPEED,
-                getCooldownKey() + ":spinjitzu", System.currentTimeMillis()));
+        caster.getStatEngineAdapter().addStatModifier(new StatModifier(20, StatModifierType.MULTIPLY,
+                StatType.MOVE_SPEED, getCooldownKey() + ":spinjitzu", System.currentTimeMillis()));
     }
 
     @Override
@@ -149,20 +150,20 @@ public class BukkitSpinjitzuEffect extends Effect {
         for (int j = 0; j < segmentCount; j++) {
             double angle = Math.toRadians(yawOffset + j * (360.0 / segmentCount));
             Location loc = center.clone().add(Math.cos(angle) * radius, y, Math.sin(angle) * radius);
-            
-            segments.add(world.spawn(loc, BlockDisplay.class, display -> {
-                display.setBlock(Material.WHITE_STAINED_GLASS.createBlockData());
-                display.setBrightness(new Display.Brightness(15, 15));
-                display.setTeleportDuration(TELEPORT_DURATION_TICKS);
-                // Transformation handles only scaling and static alignment; 
-                // world positions handle exact circular movement.
-                display.setTransformation(new Transformation(
-                        new Vector3f(0f, 0f, 0f), 
-                        new AxisAngle4f(0f, 0f, 0f, 0f),
-                        new Vector3f(SEGMENT_LENGTH, SEGMENT_THICKNESS, SEGMENT_THICKNESS),
-                        new AxisAngle4f(0f, 0f, 0f, 0f)
-                ));
-            }));
+
+            segments.add(
+                    BukkitDisplayEntityRegistry.getInstance().spawnDisplayEntity(loc, BlockDisplay.class, display -> {
+
+                        display.setBlock(Material.WHITE_STAINED_GLASS.createBlockData());
+                        display.setBrightness(new Display.Brightness(15, 15));
+                        display.setTeleportDuration(TELEPORT_DURATION_TICKS);
+                        // Transformation handles only scaling and static alignment;
+                        // world positions handle exact circular movement.
+                        display.setTransformation(
+                                new Transformation(new Vector3f(0f, 0f, 0f), new AxisAngle4f(0f, 0f, 0f, 0f),
+                                        new Vector3f(SEGMENT_LENGTH, SEGMENT_THICKNESS, SEGMENT_THICKNESS),
+                                        new AxisAngle4f(0f, 0f, 0f, 0f)));
+                    }));
         }
     }
 
@@ -179,7 +180,8 @@ public class BukkitSpinjitzuEffect extends Effect {
         if (lastCenter == null) {
             lastCenter = center.clone();
         } else {
-            // Calculated position delta tracks key movement correctly (unlike casterEntity.getVelocity())
+            // Calculated position delta tracks key movement correctly (unlike
+            // casterEntity.getVelocity())
             Vector delta = center.toVector().subtract(lastCenter.toVector());
             double distSq = delta.lengthSquared();
 
@@ -194,7 +196,7 @@ public class BukkitSpinjitzuEffect extends Effect {
             // Snap only on instant teleports or massive dashes
             snap = distSq > SNAP_DISTANCE * SNAP_DISTANCE;
         }
-        
+
         lastCenter = center.clone();
         center.add(lead);
 
@@ -207,16 +209,12 @@ public class BukkitSpinjitzuEffect extends Effect {
 
             for (int j = 0; j < count; j++) {
                 double angle = Math.toRadians(ringYaw + j * (360.0 / count));
-                
+
                 double xOffset = Math.cos(angle) * radius;
                 double zOffset = Math.sin(angle) * radius;
 
-                Location loc = new Location(
-                        center.getWorld(),
-                        center.getX() + xOffset,
-                        center.getY() + y,
-                        center.getZ() + zOffset
-                );
+                Location loc = new Location(center.getWorld(), center.getX() + xOffset, center.getY() + y,
+                        center.getZ() + zOffset);
 
                 // Safe yaw calculation preventing NaN crashes
                 float calculatedYaw = (float) Math.toDegrees(angle) + 90.0f;
@@ -227,9 +225,9 @@ public class BukkitSpinjitzuEffect extends Effect {
                 if (snap) {
                     display.setTeleportDuration(0);
                 }
-                
+
                 display.teleport(loc);
-                
+
                 if (snap) {
                     display.setTeleportDuration(TELEPORT_DURATION_TICKS);
                 }
@@ -254,7 +252,7 @@ public class BukkitSpinjitzuEffect extends Effect {
         double radius = PULL_RADIUS * (0.55 + 0.35 * random.nextDouble());
         double y = 0.2 + random.nextDouble() * 1.5;
         Location start = center.clone().add(Math.cos(angle) * radius, y, Math.sin(angle) * radius);
-        dustMotes.add(center.getWorld().spawn(start, BlockDisplay.class, mote -> {
+        dustMotes.add(BukkitDisplayEntityRegistry.getInstance().spawnDisplayEntity(start, BlockDisplay.class, mote -> {
             mote.setBlock(Material.WHITE_STAINED_GLASS.createBlockData());
             mote.setBrightness(new Display.Brightness(15, 15));
             mote.setTeleportDuration(TELEPORT_DURATION_TICKS);

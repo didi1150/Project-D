@@ -12,6 +12,7 @@ import org.bukkit.inventory.ItemFlag;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
 
+import dev.bukkit.entity.boss.BukkitDisplayEntityRegistry;
 import dev.bukkit.game.coords.LocToPoint;
 import dev.core.event.EventAction;
 import dev.core.event.EventBusInterface;
@@ -133,15 +134,15 @@ public class SetupUtils {
     public static TextDisplay spawnTextDisplayInBlockCenter(World world, Vector3Int pos, String text) {
         Vector3f spawnPoint = pos.toVector3f().add(0.5f, 0.3f, 0.5f);
         Location loc = new Location(world, spawnPoint.x, spawnPoint.y, spawnPoint.z);
-        TextDisplay textDisplay = (TextDisplay) world.spawnEntity(loc, EntityType.TEXT_DISPLAY);
-        textDisplay.setBillboard(Display.Billboard.CENTER);
-        textDisplay.setText(text);
-        textDisplay.setSeeThrough(true);
-        textDisplay.setBackgroundColor(textDisplay.getBackgroundColor().setAlpha(0));
-        Transformation transformation = textDisplay.getTransformation();
-        transformation.getScale().set(new Vector3f(1.5f));
-        textDisplay.setTransformation(transformation);
-        return textDisplay;
+        return BukkitDisplayEntityRegistry.getInstance().spawnDisplayEntity(loc, TextDisplay.class, d -> {
+            d.setBillboard(Display.Billboard.CENTER);
+            d.setText(text);
+            d.setSeeThrough(true);
+            d.setBackgroundColor(d.getBackgroundColor().setAlpha(0));
+            Transformation transformation = d.getTransformation();
+            transformation.getScale().set(new Vector3f(1.5f));
+            d.setTransformation(transformation);
+        });
     }
 
     public static void repositionTextDisplay(World world, Vector3Int pos, TextDisplay textDisplay) {
@@ -160,17 +161,17 @@ public class SetupUtils {
     public static BlockDisplay spawnGlowingBlockDisplay(World world, Vector3Int firstPos, Vector3Int secondPos, Material material, Color glowColor, float offset) {
         Vector3f spawnPoint = firstPos.toVector3f().sub(new Vector3f(offset));
         Location loc = new Location(world, spawnPoint.x, spawnPoint.y, spawnPoint.z);
-        BlockDisplay blockDisplay = (BlockDisplay) world.spawnEntity(loc, EntityType.BLOCK_DISPLAY);
-        blockDisplay.setBlock(Bukkit.createBlockData(material));
-        blockDisplay.setBrightness(new Display.Brightness(15,15));
-        blockDisplay.setGlowing(true);
-        blockDisplay.setGlowColorOverride(glowColor);
+        return BukkitDisplayEntityRegistry.getInstance().spawnDisplayEntity(loc, BlockDisplay.class, d -> {
+            d.setBlock(Bukkit.createBlockData(material));
+            d.setBrightness(new Display.Brightness(15,15));
+            d.setGlowing(true);
+            d.setGlowColorOverride(glowColor);
 
-        Transformation transformation = blockDisplay.getTransformation();
-        Vector3f scaleVec = secondPos.sub(firstPos).add(1,1,1).toVector3f();
-        transformation.getScale().set(scaleVec.add(new Vector3f(offset * 2)));
-        blockDisplay.setTransformation(transformation);
-        return blockDisplay;
+            Transformation transformation = d.getTransformation();
+            Vector3f scaleVec = secondPos.sub(firstPos).add(1,1,1).toVector3f();
+            transformation.getScale().set(scaleVec.add(new Vector3f(offset * 2)));
+            d.setTransformation(transformation);
+        });
     }
 
     public static void repositionBlockDisplay(World world, Vector3Int pos, BlockDisplay blockDisplay) {

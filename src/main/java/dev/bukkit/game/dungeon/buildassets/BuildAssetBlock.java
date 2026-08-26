@@ -1,5 +1,6 @@
 package dev.bukkit.game.dungeon.buildassets;
 
+import dev.bukkit.entity.boss.BukkitDisplayEntityRegistry;
 import dev.core.game.dungeon.proceduralDungeon.util.Vector3Int;
 import org.bukkit.Location;
 import org.bukkit.Material;
@@ -9,7 +10,6 @@ import org.bukkit.block.Block;
 import org.bukkit.block.data.BlockData;
 import org.bukkit.entity.BlockDisplay;
 import org.bukkit.entity.Display;
-import org.bukkit.entity.EntityType;
 
 public class BuildAssetBlock {
 
@@ -36,13 +36,14 @@ public class BuildAssetBlock {
     public void placePreview(Server server, World world, Vector3Int startPos) {
         Vector3Int position = startPos.add(pos);
         Location loc = new Location(world, position.x, position.y, position.z);
-        BlockDisplay display = (BlockDisplay) world.spawnEntity(loc, EntityType.BLOCK_DISPLAY);
-        display.setBrightness(new Display.Brightness(15,15));
-        if (!nbt.equalsIgnoreCase("none")) {
-            BlockData data = server.createBlockData(nbt);
-            display.setBlock(data);
-        } else {
-            display.setBlock(material.createBlockData());
-        }
+        BukkitDisplayEntityRegistry.getInstance().spawnDisplayEntity(loc, BlockDisplay.class, d -> {
+            d.setBrightness(new Display.Brightness(15,15));
+            if (!nbt.equalsIgnoreCase("none")) {
+                BlockData data = server.createBlockData(nbt);
+                d.setBlock(data);
+            } else {
+                d.setBlock(material.createBlockData());
+            }
+        });
     }
 }

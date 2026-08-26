@@ -432,58 +432,6 @@ public class BukkitEntityFactory {
         return getRelation(entity.getType());
     }
 
-    // Utility method to spawn multiple mobs at a spawn location based on spawn
-    // chance
-//    public static boolean trySpawnAtLocation(SpawnLocation spawnLocation, World world) {
-//        // Check spawn chance
-//        if (Math.random() > spawnLocation.getSpawnChance()) {
-//            return false; // Failed spawn chance roll
-//        }
-//
-//        // Determine mob type based on spawn tier and location
-//        EntityType mobType = selectMobTypeForTier(spawnLocation);
-//        if (mobType == null) {
-//            return false; // No suitable mob type found
-//        }
-//
-//        // Determine level within the spawn location's range
-//        int level = (int) (spawnLocation.getTier().getMinLevel()
-//                + Math.random() * (spawnLocation.getMaxEnemyLevel() - spawnLocation.getTier().getMinLevel() + 1));
-//
-//        // Spawn the mob
-//        Entity spawnedEntity = spawnVanillaDungeonMob(mobType, level, spawnLocation, world);
-//        return spawnedEntity != null;
-//    }
-//
-//    private static EntityType selectMobTypeForTier(SpawnLocation spawnLocation) {
-//        switch (spawnLocation.getTier()) {
-//        case BASIC:
-//            return getRandomMobFromArray(
-//                    new EntityType[] { EntityType.ZOMBIE, EntityType.SKELETON, EntityType.SPIDER, EntityType.CREEPER });
-//
-//        case ADVANCED:
-//            return getRandomMobFromArray(
-//                    new EntityType[] { EntityType.HUSK, EntityType.STRAY, EntityType.CAVE_SPIDER, EntityType.WITCH,
-//                            EntityType.ZOMBIE, EntityType.SKELETON, EntityType.VINDICATOR, EntityType.PILLAGER });
-//
-//        case ELITE:
-//            return getRandomMobFromArray(new EntityType[] { EntityType.WITHER_SKELETON, EntityType.BLAZE,
-//                    EntityType.ENDERMAN, EntityType.EVOKER, EntityType.RAVAGER, EntityType.PHANTOM });
-//
-//        case BOSS:
-//            return getRandomMobFromArray(new EntityType[] { EntityType.WITHER_SKELETON, EntityType.ELDER_GUARDIAN,
-//                    EntityType.EVOKER, EntityType.RAVAGER // Note: Actual boss mobs like Wither/Dragon need special
-//                                                          // handling
-//            });
-//
-//        default:
-//            return EntityType.ZOMBIE;
-//        }
-//    }
-
-    private static EntityType getRandomMobFromArray(EntityType[] mobTypes) {
-        if (mobTypes.length == 0)
-            return null;
-        return mobTypes[(int) (Math.random() * mobTypes.length)];
-    }
+    
+    
 }

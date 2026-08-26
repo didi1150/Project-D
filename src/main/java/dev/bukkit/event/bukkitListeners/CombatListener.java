@@ -30,6 +30,7 @@ import org.bukkit.util.Transformation;
 import dev.bukkit.ability.behavior.ShadowWeaverBehavior;
 import dev.bukkit.event.BukkitEventBus;
 import dev.bukkit.entity.MobRPGEntity;
+import dev.bukkit.entity.boss.BukkitDisplayEntityRegistry;
 import dev.bukkit.item.BowArrowManager;
 import dev.bukkit.summon.SoulSkull;
 import dev.bukkit.summon.SummonedMobRPGEntity;
@@ -75,19 +76,21 @@ public class CombatListener implements Listener {
                 random.nextGaussian() * 0.5);
 
         // Create Text Display entity
-        TextDisplay textDisplay = world.spawn(spawnLoc, TextDisplay.class, display -> {
-            display.setText(formatDamageText(damage, type, result));
-            display.setBillboard(Display.Billboard.CENTER);
-            display.setSeeThrough(false);
-            display.setGravity(false);
-            display.setInvulnerable(true);
+        TextDisplay textDisplay = BukkitDisplayEntityRegistry.getInstance().spawnDisplayEntity(spawnLoc,
+                TextDisplay.class, display -> {
+                    display.setText(formatDamageText(damage, type, result));
+                    display.setBillboard(Display.Billboard.CENTER);
+                    display.setSeeThrough(false);
+                    display.setGravity(false);
+                    display.setInvulnerable(true);
 
-            // Set size based on damage type
-            Transformation transformation = display.getTransformation();
-            float scale = result == DamageResult.CRIT ? 2.0f : 1.5f;
-            transformation.getScale().set(scale, scale, scale);
-            display.setTransformation(transformation);
-        });
+                    // Set size based on damage type
+                    Transformation transformation = display.getTransformation();
+                    float scale = result == DamageResult.CRIT ? 2.0f : 1.5f;
+                    transformation.getScale().set(scale, scale, scale);
+                    display.setTransformation(transformation);
+
+                });
 
         // Animate the damage indicator
         animateTextDisplay(textDisplay, result);
@@ -235,27 +238,34 @@ public class CombatListener implements Listener {
         float scale = healIndicatorScale(healing);
         int duration = healIndicatorDurationTicks(healing);
 
-        TextDisplay textDisplay = world.spawn(spawnLoc, TextDisplay.class, display -> {
-            display.setText(formatHealText(healing));
-            display.setBillboard(Display.Billboard.CENTER);
-            display.setSeeThrough(false);
-            display.setGravity(false);
-            display.setInvulnerable(true);
+        TextDisplay textDisplay = BukkitDisplayEntityRegistry.getInstance().spawnDisplayEntity(spawnLoc,
+                TextDisplay.class, display -> {
+                    display.setText(formatHealText(healing));
+                    display.setBillboard(Display.Billboard.CENTER);
+                    display.setSeeThrough(false);
+                    display.setGravity(false);
+                    display.setInvulnerable(true);
 
-            Transformation transformation = display.getTransformation();
-            transformation.getScale().set(scale, scale, scale);
-            display.setTransformation(transformation);
-        });
+                    Transformation transformation = display.getTransformation();
+                    transformation.getScale().set(scale, scale, scale);
+                    display.setTransformation(transformation);
+
+                });
 
         animateHealing(textDisplay, scale, duration);
     }
 
-    /** Display scale grows with the healed amount (~1.4 at 10 HP, capped at 2.4). */
+    /**
+     * Display scale grows with the healed amount (~1.4 at 10 HP, capped at 2.4).
+     */
     private float healIndicatorScale(double healing) {
         return (float) Math.min(2.4f, 1.0f + healing / 25.0);
     }
 
-    /** Lifetime in ticks grows with the healed amount (30 at small heals, capped at 70). */
+    /**
+     * Lifetime in ticks grows with the healed amount (30 at small heals, capped at
+     * 70).
+     */
     private int healIndicatorDurationTicks(double healing) {
         return (int) Math.min(70, 30 + healing / 2);
     }
@@ -341,7 +351,7 @@ public class CombatListener implements Listener {
      */
     public void playProjectileHitSound(Entity victim, DamageResult result) {
         Location loc = victim.getLocation();
-        if(victim instanceof Player) {
+        if (victim instanceof Player) {
             return;
         }
         loc.getWorld().playSound(loc, Sound.ENTITY_ARROW_HIT_PLAYER, 1.0f, 0.79f + random.nextFloat(0.1f));
@@ -368,10 +378,9 @@ public class CombatListener implements Listener {
     }
 
     /**
-     * Whether the given projectile/melee damager and victim are both on the
-     * player team (players or player-owned summons), i.e. an allied hit that
-     * must never land. A non-living damager (e.g. a block update) is not an
-     * allied attacker.
+     * Whether the given projectile/melee damager and victim are both on the player
+     * team (players or player-owned summons), i.e. an allied hit that must never
+     * land. A non-living damager (e.g. a block update) is not an allied attacker.
      */
     private static boolean isPlayerTeamDamage(Entity damager, Entity victim) {
         Entity effective = damager;
@@ -520,10 +529,8 @@ public class CombatListener implements Listener {
                 // retargets onto it, so summons can actually tank: otherwise the
                 // mob's vanilla AI keeps chasing the nearest player and never
                 // acknowledges the summon attacking it.
-                if (damager instanceof SummonedMobRPGEntity summon
-                        && entity instanceof MobRPGEntity mobRpg
-                        && mobRpg.getVanilla() instanceof Mob vanillaMob
-                        && summon.getVanilla().isValid()) {
+                if (damager instanceof SummonedMobRPGEntity summon && entity instanceof MobRPGEntity mobRpg
+                        && mobRpg.getVanilla() instanceof Mob vanillaMob && summon.getVanilla().isValid()) {
                     vanillaMob.setTarget(summon.getVanilla());
                 }
             }, () -> {
@@ -581,8 +588,7 @@ public class CombatListener implements Listener {
                 // unregistered (vanilla) victims too; the vanilla pipeline owns
                 // the damage, so use its final amount.
                 if ((event.getCause() == DamageCause.ENTITY_ATTACK
-                        || event.getCause() == DamageCause.ENTITY_SWEEP_ATTACK)
-                        && !event.isCancelled()) {
+                        || event.getCause() == DamageCause.ENTITY_SWEEP_ATTACK) && !event.isCancelled()) {
                     LifestealUtils.applyLifesteal(damager, event.getFinalDamage());
                 }
 

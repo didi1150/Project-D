@@ -1,7 +1,6 @@
 package dev.bukkit.ability.behavior;
 
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -19,11 +18,14 @@ import org.bukkit.entity.Player;
 import org.bukkit.event.player.PlayerQuitEvent;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.plugin.Plugin;
+import org.bukkit.scheduler.BukkitTask;
 import org.bukkit.util.Transformation;
-import org.joml.AxisAngle4f;
+import org.bukkit.util.Vector;
+import org.joml.Quaternionf;
 import org.joml.Vector3f;
 
 import dev.bukkit.DMain;
+import dev.bukkit.entity.boss.BukkitDisplayEntityRegistry;
 import dev.bukkit.item.BukkitItemStackAdapter;
 import dev.core.ability.AbilityBehavior;
 import dev.core.ability.ActiveAbility;
@@ -31,12 +33,12 @@ import dev.core.event.EventAction;
 import dev.core.event.impl.TickEvent;
 
 /**
- * Per-holder behavior for Blade Dance (IRON_SWORD).
- * Passive charge: 1 blade / 5s, up to 5, floating ItemDisplay swords orbit chest.
- * Active (right-click cone) is handled by BukkitBladeDanceEffect — this behavior
- * owns the stack/orbit state and exposes consume helpers.
- * ItemDisplays 0.6 scale, FIXED billboard, point straight up while orbiting,
- * persist across hotbar swaps until quit or consumed.
+ * Per-holder behavior for Blade Dance (IRON_SWORD). Passive charge: 1 blade /
+ * 5s, up to 5, floating ItemDisplay swords orbit chest. Active (right-click
+ * cone) is handled by BukkitBladeDanceEffect — this behavior owns the
+ * stack/orbit state and exposes consume helpers. ItemDisplays 0.6 scale, FIXED
+ * billboard, point straight up while orbiting, persist across hotbar swaps
+ * until quit or consumed.
  */
 public class BladeDanceBehavior implements AbilityBehavior {
 
@@ -51,8 +53,9 @@ public class BladeDanceBehavior implements AbilityBehavior {
     public static final double DAMAGE_AD_RATIO = 0.3;
     public static final double DAMAGE_LETH_RATIO = 0.2;
 
-    // global orbit task that keeps ItemDisplays spinning even while blade dance is not held (persist)
-    private static org.bukkit.scheduler.BukkitTask GLOBAL_ORBIT_TASK = null;
+    // global orbit task that keeps ItemDisplays spinning even while blade dance is
+    // not held (persist)
+    private static BukkitTask GLOBAL_ORBIT_TASK = null;
 
     static final class HolderState {
         int blades = 0;
@@ -79,39 +82,51 @@ public class BladeDanceBehavior implements AbilityBehavior {
     }
 
     private static synchronized void ensureGlobalOrbitTask() {
-        if (GLOBAL_ORBIT_TASK != null) return;
+        if (GLOBAL_ORBIT_TASK != null)
+            return;
         Plugin plugin = resolvePlugin();
-        if (plugin == null) return;
+        if (plugin == null)
+            return;
         GLOBAL_ORBIT_TASK = Bukkit.getScheduler().runTaskTimer(plugin, () -> {
             // tick all holders' orbits regardless of equipped state (persist)
             for (Map.Entry<UUID, HolderState> en : STATES.entrySet()) {
                 UUID uuid = en.getKey();
                 HolderState st = en.getValue();
-                if (st.displays.isEmpty()) continue;
+                if (st.displays.isEmpty())
+                    continue;
                 Player p = Bukkit.getPlayer(uuid);
-                if (p == null || !p.isOnline() || p.isDead()) continue;
+                if (p == null || !p.isOnline() || p.isDead())
+                    continue;
                 // orbit tick
                 st.spinYaw = (st.spinYaw + SPIN_DEG_PER_TICK) % 360f;
                 Location center = p.getLocation().clone().add(0, Y_OFFSET, 0);
                 World world = p.getWorld();
-                if (world == null) continue;
+                if (world == null)
+                    continue;
                 int count = st.displays.size();
                 for (int i = 0; i < count; i++) {
                     ItemDisplay d = st.displays.get(i);
-                    if (d == null || !d.isValid()) continue;
+                    if (d == null || !d.isValid())
+                        continue;
                     double ang = Math.toRadians(st.spinYaw + i * 360.0 / count);
-                    Location loc = new Location(world,
-                            center.getX() + Math.cos(ang) * RADIUS,
-                            center.getY(),
+                    Location loc = new Location(world, center.getX() + Math.cos(ang) * RADIUS, center.getY(),
                             center.getZ() + Math.sin(ang) * RADIUS);
+
+                    Vector dir = loc.clone().subtract(p.getLocation()).toVector();
+                    setDirectionToYaw(loc, dir);
                     // blades point straight upwards
-                    loc.setYaw(0f);
                     loc.setPitch(0f);
                     boolean snap = false;
-                    try { double distSq = d.getLocation().distanceSquared(loc); snap = distSq > 6.25; } catch (Exception ignored) {}
-                    if (snap) d.setTeleportDuration(0);
+                    try {
+                        double distSq = d.getLocation().distanceSquared(loc);
+                        snap = distSq > 6.25;
+                    } catch (Exception ignored) {
+                    }
+                    if (snap)
+                        d.setTeleportDuration(0);
                     d.teleport(loc);
-                    if (snap) d.setTeleportDuration(1);
+                    if (snap)
+                        d.setTeleportDuration(1);
                 }
             }
         }, 1L, 1L);
@@ -127,7 +142,8 @@ public class BladeDanceBehavior implements AbilityBehavior {
             return nh;
         });
         // ensure lastGenMs initialized
-        if (hs.lastGenMs == 0) hs.lastGenMs = System.currentTimeMillis();
+        if (hs.lastGenMs == 0)
+            hs.lastGenMs = System.currentTimeMillis();
         ensureGlobalOrbitTask();
         boolean isFirst = REFCNT.getOrDefault(uuid, 0) == 1;
         if (isFirst) {
@@ -154,9 +170,11 @@ public class BladeDanceBehavior implements AbilityBehavior {
     private void onTick(TickEvent e) {
         UUID uuid = ctx.getHolder().getUuid();
         HolderState state = STATES.get(uuid);
-        if (state == null) return;
+        if (state == null)
+            return;
         Player player = Bukkit.getPlayer(uuid);
-        if (player == null || !player.isOnline() || player.isDead()) return;
+        if (player == null || !player.isOnline() || player.isDead())
+            return;
         // generate charge (only while blade dance is held — pause otherwise)
         long now = System.currentTimeMillis();
         if (state.blades < MAX_BLADES && now - state.lastGenMs >= GEN_INTERVAL_MS) {
@@ -165,25 +183,26 @@ public class BladeDanceBehavior implements AbilityBehavior {
                 state.lastGenMs = now;
                 spawnOrbital(player, state);
                 player.playSound(player.getLocation(), Sound.BLOCK_NOTE_BLOCK_CHIME, 0.6f, 1.2f + state.blades * 0.12f);
-                player.spawnParticle(Particle.ENCHANTED_HIT, player.getLocation().clone().add(0, 1.0, 0), 5, 0.3, 0.3, 0.3, 0.02);
+                player.spawnParticle(Particle.ENCHANTED_HIT, player.getLocation().clone().add(0, 1.0, 0), 5, 0.3, 0.3,
+                        0.3, 0.02);
             }
         }
-        // orbit is now handled by global task; no need to orbit here (kept for generation-only tick)
+        // orbit is now handled by global task; no need to orbit here (kept for
+        // generation-only tick)
     }
 
     private void spawnOrbital(Player player, HolderState state) {
         World world = player.getWorld();
-        if (world == null) return;
+        if (world == null)
+            return;
         Location center = player.getLocation().clone().add(0, Y_OFFSET, 0);
         double angle = Math.toRadians(state.spinYaw + (state.displays.size() * 360.0 / MAX_BLADES));
-        Location loc = new Location(world,
-                center.getX() + Math.cos(angle) * RADIUS,
-                center.getY(),
+        Location loc = new Location(world, center.getX() + Math.cos(angle) * RADIUS, center.getY(),
                 center.getZ() + Math.sin(angle) * RADIUS);
         // blades point straight upwards
         loc.setYaw(0f);
         loc.setPitch(0f);
-        ItemDisplay disp = world.spawn(loc, ItemDisplay.class, d -> {
+        ItemDisplay disp = BukkitDisplayEntityRegistry.getInstance().spawnDisplayEntity(loc, ItemDisplay.class, d -> {
             d.setItemStack(new ItemStack(Material.IRON_SWORD));
             d.setItemDisplayTransform(ItemDisplay.ItemDisplayTransform.FIXED);
             d.setBillboard(Display.Billboard.FIXED);
@@ -193,59 +212,47 @@ public class BladeDanceBehavior implements AbilityBehavior {
             d.setViewRange(32);
             d.setShadowStrength(0f);
             // point straight upwards, scale 0.6
-            d.setTransformation(new Transformation(
-                    new Vector3f(0f, 0f, 0f),
-                    new AxisAngle4f(0f, 0f, 0f, 1f),
-                    new Vector3f(SCALE, SCALE, SCALE),
-                    new AxisAngle4f(0f, 0f, 0f, 1f)
-            ));
+            double pitchRad = Math.toRadians(45);
+            Transformation transformation = new Transformation(new Vector3f(0, 0, 0), // translation
+                    new Quaternionf(), new Vector3f(0.6f), // scale
+                    new Quaternionf().rotationZ((float) pitchRad) // rightRotation identity
+            );
+
+            d.setTransformation(transformation);
         });
         state.displays.add(disp);
     }
 
-    private void orbitTick(Player player, HolderState state) {
-        // legacy single-holder orbit (now superseded by global task, kept for fallback)
-        if (state.displays.isEmpty()) return;
-        World world = player.getWorld();
-        if (world == null) return;
-        state.spinYaw = (state.spinYaw + SPIN_DEG_PER_TICK) % 360f;
-        Location center = player.getLocation().clone().add(0, Y_OFFSET, 0);
-        int count = state.displays.size();
-        for (int i = 0; i < count; i++) {
-            ItemDisplay d = state.displays.get(i);
-            if (d == null || !d.isValid()) continue;
-            double ang = Math.toRadians(state.spinYaw + i * 360.0 / count);
-            Location loc = new Location(world,
-                    center.getX() + Math.cos(ang) * RADIUS,
-                    center.getY(),
-                    center.getZ() + Math.sin(ang) * RADIUS);
-            loc.setYaw(0f);
-            loc.setPitch(0f);
-            boolean snap = false;
-            try {
-                double distSq = d.getLocation().distanceSquared(loc);
-                snap = distSq > 6.25;
-            } catch (Exception ignored) {}
-            if (snap) d.setTeleportDuration(0);
-            d.teleport(loc);
-            if (snap) d.setTeleportDuration(1);
-        }
-    }
-
     // ---- helpers exposed for active cone effect ----
     /**
-     * Snapshot and consume all stacked blades for a cone launch.
-     * Resets stack count and generation timer.
-     * @return list of orbiting ItemDisplays to be repurposed as projectiles, or empty if none.
+     * Snapshot and consume all stacked blades for a cone launch. Resets stack count
+     * and generation timer.
+     * 
+     * @return list of orbiting ItemDisplays to be repurposed as projectiles, or
+     *         empty if none.
      */
     public static List<ItemDisplay> consumeBlades(UUID holderUuid) {
         HolderState st = STATES.get(holderUuid);
-        if (st == null || st.blades <= 0 || st.displays.isEmpty()) return List.of();
+        if (st == null || st.blades <= 0 || st.displays.isEmpty())
+            return List.of();
         List<ItemDisplay> list = new ArrayList<>(st.displays);
         st.displays.clear();
         st.blades = 0;
         st.lastGenMs = System.currentTimeMillis();
         return list;
+    }
+
+    private static void setDirectionToYaw(Location loc, Vector dir) {
+        // Normalize the vector to ensure accurate calculations
+        dir.normalize();
+
+        double dx = dir.getX();
+        double dz = dir.getZ();
+
+        // Calculate yaw
+        double yaw = Math.atan2(-dx, dz) * (180 / Math.PI);
+
+        loc.setYaw((float) yaw);
     }
 
     public static int getBladeCount(UUID holderUuid) {
@@ -254,11 +261,16 @@ public class BladeDanceBehavior implements AbilityBehavior {
     }
 
     private void onQuit(PlayerQuitEvent e) {
-        if (!e.getPlayer().getUniqueId().equals(ctx.getHolder().getUuid())) return;
+        if (!e.getPlayer().getUniqueId().equals(ctx.getHolder().getUuid()))
+            return;
         HolderState state = STATES.remove(ctx.getHolder().getUuid());
         if (state != null) {
             for (ItemDisplay d : state.displays) {
-                try { if (d != null && d.isValid()) d.remove(); } catch (Exception ignored) {}
+                try {
+                    if (d != null && d.isValid())
+                        d.remove();
+                } catch (Exception ignored) {
+                }
             }
             state.displays.clear();
         }
@@ -266,21 +278,27 @@ public class BladeDanceBehavior implements AbilityBehavior {
     }
 
     public static boolean isBladeDance(ItemStack stack) {
-        if (stack == null || stack.getType() == Material.AIR) return false;
+        if (stack == null || stack.getType() == Material.AIR)
+            return false;
         String id = BukkitItemStackAdapter.getRpgItemId(stack);
         return ITEM_ID.equals(id);
     }
 
     private boolean isBladeDanceEquipped(Player player) {
-        // persist check: actual equipped main hand must be blade dance to trigger release/generation gate
+        // persist check: actual equipped main hand must be blade dance to trigger
+        // release/generation gate
         ItemStack main = player.getInventory().getItemInMainHand();
-        if (isBladeDance(main)) return true;
-        // also allow offhand? spec says iron_sword main hand; keep main only
+        if (isBladeDance(main))
+            return true;
         return false;
     }
 
     private static Plugin resolvePlugin() {
-        try { return DMain.getInstance(); } catch (Exception e) { return null; }
+        try {
+            return DMain.getInstance();
+        } catch (Exception e) {
+            return null;
+        }
     }
 
     // ---- pure logic for tests ----
@@ -301,6 +319,12 @@ public class BladeDanceBehavior implements AbilityBehavior {
 
     public static void clearState(UUID uuid) {
         HolderState s = STATES.remove(uuid);
-        if (s != null) for (ItemDisplay d : s.displays) try { if (d != null && d.isValid()) d.remove(); } catch (Exception ignored) {}
+        if (s != null)
+            for (ItemDisplay d : s.displays)
+                try {
+                    if (d != null && d.isValid())
+                        d.remove();
+                } catch (Exception ignored) {
+                }
     }
 }

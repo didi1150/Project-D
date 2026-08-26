@@ -3,6 +3,7 @@ package dev.bukkit.utils;
 import dev.bukkit.DMain;
 import dev.bukkit.command.CommandManager;
 import dev.bukkit.command.SubCommandBuilder;
+import dev.bukkit.entity.boss.BukkitDisplayEntityRegistry;
 import dev.bukkit.game.coords.LocToPoint;
 import dev.bukkit.game.coords.PointToLocation;
 import dev.core.entity.rpgclass.RPGClassType;
@@ -604,7 +605,7 @@ public class GameSetupHelper extends SetupHelper {
     public static ItemDisplay spawnDirectionArrowItemDisplay(World world, Location location) {
         location.add(0.5,1.5,0.5);
 
-        ItemDisplay display = world.spawn(location, ItemDisplay.class);
+        ItemDisplay display = BukkitDisplayEntityRegistry.getInstance().spawnDisplayEntity(location, ItemDisplay.class);
         display.setItemStack(new ItemStack(Material.ARROW));
 
         double yawRad = Math.toRadians(90 - location.getYaw());
