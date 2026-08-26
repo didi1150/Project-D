@@ -4,9 +4,10 @@ import java.io.File;
 import java.io.IOException;
 import java.util.Map;
 
-import dev.bukkit.game.dungeon.buildassets.BuildAssetHelper;
+import dev.bukkit.utils.setup.BuildAssetHelper;
 import dev.bukkit.game.dungeon.buildassets.BuildAssetManager;
-import dev.bukkit.utils.*;
+import dev.bukkit.utils.setup.GameSetupHelper;
+import dev.bukkit.utils.setup.SetupManager;
 import org.bukkit.Bukkit;
 import org.bukkit.WorldCreator;
 import org.bukkit.plugin.java.JavaPlugin;

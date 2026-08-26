@@ -1,7 +1,9 @@
-package dev.bukkit.game.dungeon.buildassets;
+package dev.bukkit.utils.setup;
 
 import dev.bukkit.command.CommandManager;
 import dev.bukkit.command.SubCommandBuilder;
+import dev.bukkit.game.dungeon.buildassets.BuildAsset;
+import dev.bukkit.game.dungeon.buildassets.BuildAssetManager;
 import dev.bukkit.utils.*;
 import dev.core.event.EventAction;
 import dev.core.event.EventBusInterface;
@@ -10,7 +12,6 @@ import dev.core.utils.MessageComponent;
 import org.bukkit.*;
 import org.bukkit.entity.*;
 import org.bukkit.event.player.PlayerInteractEvent;
-import org.bukkit.event.player.PlayerQuitEvent;
 import org.bukkit.inventory.EquipmentSlot;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.util.Transformation;
@@ -20,51 +21,14 @@ import java.util.*;
 
 public class BuildAssetHelper extends SetupHelper {
 
-//    private static final BuildAssetHelper INSTANCE = new BuildAssetHelper();
-//
-//    public static BuildAssetHelper getInstance() {
-//        return INSTANCE;
-//    }
-
-//    private final List<UUID> playersInBuildMode;
     private final Map<UUID, PlayerBuildAssetData> playerData;
     private final BuildAssetManager buildAssetManager;
 
     public BuildAssetHelper(BuildAssetManager buildAssetManager) {
         super("BuildAssetMode");
         this.buildAssetManager = buildAssetManager;
-//        playersInBuildMode = new LinkedList<>();
         playerData = new HashMap<>();
     }
-
-//    public boolean isPlayerInBuildMode(Player player, BukkitMessageSender ms, boolean sendErrorMessage) {
-//        if (!playersInBuildMode.contains(player.getUniqueId())) {
-//            if (sendErrorMessage)
-//                ms.sendMessage(player, MessageComponent.of(ChatColor.RED + "You can't use this command, without being in BuildMode!"));
-//            return false;
-//        }
-//        return true;
-//    }
-//
-//    public void setPlayerInBuildMode(BukkitMessageSender ms, Player player) {
-//        if (playersInBuildMode.contains(player.getUniqueId()))
-//            return;
-//        playersInBuildMode.add(player.getUniqueId());
-//        playerData.put(player.getUniqueId(), new PlayerBuildAssetData());
-//
-//        ItemStack item = getBoxSelectionTool();
-//        player.getInventory().addItem(item);
-//        ms.sendMessage(player, MessageComponent.of(ChatColor.GREEN + "You received a " + item.getItemMeta().getDisplayName()));
-//    }
-//
-//    public boolean removePlayerFromBuildMode(Player player) {
-//        if (playersInBuildMode.contains(player.getUniqueId())) {
-//            cleanUpBlockDisplaysForPlayer(player.getUniqueId(), player);
-//            player.getInventory().remove(getBoxSelectionTool());
-//        }
-//        return playersInBuildMode.remove(player.getUniqueId());
-//    }
-
 
     @Override
     public boolean setPlayerInMode(BukkitMessageSender ms, Player player) {

@@ -1,6 +1,7 @@
-package dev.bukkit.utils;
+package dev.bukkit.utils.setup;
 
 import dev.bukkit.command.CommandManager;
+import dev.bukkit.utils.BukkitMessageSender;
 import dev.core.event.EventAction;
 import dev.core.event.EventBusInterface;
 import org.bukkit.Server;

@@ -1,20 +1,23 @@
-package dev.bukkit.utils;
+package dev.bukkit.utils.setup;
 
-import static dev.bukkit.command.CommandManager.perm;
-
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.List;
-import java.util.UUID;
-import java.util.stream.Collectors;
-
-import org.bukkit.Bukkit;
-import org.bukkit.ChatColor;
-import org.bukkit.Color;
-import org.bukkit.Location;
-import org.bukkit.Material;
-import org.bukkit.Server;
-import org.bukkit.World;
+import dev.bukkit.DMain;
+import dev.bukkit.command.CommandManager;
+import dev.bukkit.command.SubCommandBuilder;
+import dev.bukkit.game.coords.LocToPoint;
+import dev.bukkit.game.coords.PointToLocation;
+import dev.bukkit.utils.BukkitMessageSender;
+import dev.bukkit.utils.InterActionType;
+import dev.bukkit.utils.ItemAbilityLore;
+import dev.core.entity.rpgclass.RPGClassType;
+import dev.core.event.EventAction;
+import dev.core.event.EventBusInterface;
+import dev.core.game.coords.Point3D;
+import dev.core.game.coords.ViewPoint3D;
+import dev.core.game.dungeon.proceduralDungeon.util.Vector3Int;
+import dev.core.game.settings.GameSettings;
+import dev.core.game.settings.GameSettingsLoader;
+import dev.core.utils.MessageComponent;
+import org.bukkit.*;
 import org.bukkit.entity.BlockDisplay;
 import org.bukkit.entity.ItemDisplay;
 import org.bukkit.entity.Player;
@@ -31,22 +34,10 @@ import org.jetbrains.annotations.Nullable;
 import org.joml.Quaternionf;
 import org.joml.Vector3f;
 
-import dev.bukkit.DMain;
-import dev.bukkit.command.CommandManager;
-import dev.bukkit.command.SubCommandBuilder;
-import dev.bukkit.entity.boss.BukkitDisplayEntityRegistry;
-import dev.bukkit.game.coords.LocToPoint;
-import dev.bukkit.game.coords.PointToLocation;
-import dev.bukkit.utils.setup.SetupHelper;
-import dev.core.entity.rpgclass.RPGClassType;
-import dev.core.event.EventAction;
-import dev.core.event.EventBusInterface;
-import dev.core.game.coords.Point3D;
-import dev.core.game.coords.ViewPoint3D;
-import dev.core.game.dungeon.proceduralDungeon.util.Vector3Int;
-import dev.core.game.settings.GameSettings;
-import dev.core.game.settings.GameSettingsLoader;
-import dev.core.utils.MessageComponent;
+import java.util.*;
+import java.util.stream.Collectors;
+
+import static dev.bukkit.command.CommandManager.perm;
 
 public class GameSetupHelper extends SetupHelper {
 
@@ -393,21 +384,21 @@ public class GameSetupHelper extends SetupHelper {
                 if (newItem != null && newItem.hasItemMeta() && newItem.getItemMeta().hasDisplayName()) {
                     if (newItem.getItemMeta().getDisplayName().contains(DISPLAY_NAME_PRE_LOBBY)) {
                         ViewPoint3D point = gameSettings.getPreLobbySpawn();
-                        if (point != null) {
+                        if (point != null && point.getWorld() != null) {
                             Vector3Int pos = Vector3Int.fromPoint3D(point);
                             Location loc = PointToLocation.viewToLoc(point);
                             preLobbySpawnDisplay.updateDisplays(loc.getWorld(), pos, loc);
                         }
                     } else if (newItem.getItemMeta().getDisplayName().contains(DISPLAY_NAME_CLASS_SELECTION)) {
                         ViewPoint3D point = gameSettings.getSelectionSpawn();
-                        if (point != null) {
+                        if (point != null && point.getWorld() != null) {
                             Vector3Int pos = Vector3Int.fromPoint3D(point);
                             Location loc = PointToLocation.viewToLoc(point);
                             classSelectionSpawnDisplay.updateDisplays(loc.getWorld(), pos, loc);
                         }
                     } else if (newItem.getItemMeta().getDisplayName().contains(DISPLAY_NAME_HOLE_CENTER)) {
                         Point3D point = gameSettings.getHoleCenter();
-                        if (point != null) {
+                        if (point != null && point.getWorld() != null) {
                             Vector3Int pos = Vector3Int.fromPoint3D(point);
                             Location loc = PointToLocation.blockToLoc(point);
                             holeCenterDisplay.updateDisplays(loc.getWorld(), pos);
@@ -416,7 +407,7 @@ public class GameSetupHelper extends SetupHelper {
                         RPGClassType classType = getClassFromItemLore(newItem);
                         int index = getClassIndex(classType);
                         Point3D point = gameSettings.getSelectionLocations().get(classType);
-                        if (point != null) {
+                        if (point != null && point.getWorld() != null) {
                             Vector3Int pos = Vector3Int.fromPoint3D(point);
                             Location loc = PointToLocation.blockToLoc(point);
                             classBlockDisplays[index].updateDisplays(loc.getWorld(), pos);
@@ -424,7 +415,7 @@ public class GameSetupHelper extends SetupHelper {
                     } else if (newItem.getItemMeta().getDisplayName().contains(DISPLAY_NAME_BOSS)) {
                         int floor = getFloorFromItemLore(newItem);
                         ViewPoint3D point = gameSettings.getBossSpawnLocation(floor);
-                        if (point != null) {
+                        if (point != null && point.getWorld() != null) {
                             Vector3Int pos = Vector3Int.fromPoint3D(point);
                             Location loc = PointToLocation.viewToLoc(point);
                             bossSpawnDisplays[floor - 1].updateDisplays(loc.getWorld(), pos, loc);
@@ -432,7 +423,7 @@ public class GameSetupHelper extends SetupHelper {
                     } else if (newItem.getItemMeta().getDisplayName().contains(DISPLAY_NAME_BOSS_PLAYER)) {
                         int floor = getFloorFromItemLore(newItem);
                         ViewPoint3D point = gameSettings.getBossPlayerSpawnLocation(floor);
-                        if (point != null) {
+                        if (point != null && point.getWorld() != null) {
                             Vector3Int pos = Vector3Int.fromPoint3D(point);
                             Location loc = PointToLocation.viewToLoc(point);
                             bossPlayerSpawnDisplays[floor - 1].updateDisplays(loc.getWorld(), pos, loc);
@@ -445,8 +436,10 @@ public class GameSetupHelper extends SetupHelper {
             Player player = event.getPlayer();
             if (event.getHand() == EquipmentSlot.HAND && isPlayerInMode(player, ms, false)) {
                 event.setCancelled(true);
-                if (event.getAction() == Action.LEFT_CLICK_AIR || event.getAction() == Action.LEFT_CLICK_BLOCK) {
 
+                //any left click
+                if (event.getAction() == Action.LEFT_CLICK_AIR || event.getAction() == Action.LEFT_CLICK_BLOCK) {
+                    //sneak left click
                     if (player.isSneaking()) {
                         if (SetupUtils.hasItemInMainHand(player, DISPLAY_NAME_BOSS) || SetupUtils.hasItemInMainHand(player, DISPLAY_NAME_BOSS_PLAYER)) {
                             int prevFloor = getFloorFromItemLore(event.getItem());
@@ -457,7 +450,7 @@ public class GameSetupHelper extends SetupHelper {
                             if (SetupUtils.hasItemInMainHand(player, DISPLAY_NAME_BOSS)) {
                                 bossSpawnDisplays[prevFloor - 1].clearDisplays(false, player);
                                 ViewPoint3D point = gameSettings.getBossSpawnLocation(newFloor);
-                                if (point != null) {
+                                if (point != null && point.getWorld() != null) {
                                     Vector3Int pos = Vector3Int.fromPoint3D(point);
                                     Location loc = PointToLocation.viewToLoc(point);
                                     bossSpawnDisplays[newFloor - 1].updateDisplays(loc.getWorld(), pos, loc);
@@ -465,7 +458,7 @@ public class GameSetupHelper extends SetupHelper {
                             } else {
                                 bossPlayerSpawnDisplays[prevFloor - 1].clearDisplays(false, player);
                                 ViewPoint3D point = gameSettings.getBossPlayerSpawnLocation(newFloor);
-                                if (point != null) {
+                                if (point != null && point.getWorld() != null) {
                                     Vector3Int pos = Vector3Int.fromPoint3D(point);
                                     Location loc = PointToLocation.viewToLoc(point);
                                     bossPlayerSpawnDisplays[newFloor - 1].updateDisplays(loc.getWorld(), pos, loc);
@@ -484,7 +477,7 @@ public class GameSetupHelper extends SetupHelper {
 
                             classBlockDisplays[index].clearDisplays(false, player);
                             Point3D point = gameSettings.getSelectionLocations().get(newClass);
-                            if (point != null) {
+                            if (point != null && point.getWorld() != null) {
                                 Vector3Int pos = Vector3Int.fromPoint3D(point);
                                 Location loc = PointToLocation.blockToLoc(point);
                                 classBlockDisplays[newIndex].updateDisplays(loc.getWorld(), pos);
@@ -523,17 +516,41 @@ public class GameSetupHelper extends SetupHelper {
                         return;
                     }
                 }
+                //any right click
                 if (event.getAction() == Action.RIGHT_CLICK_AIR || event.getAction() == Action.RIGHT_CLICK_BLOCK) {
-                    ViewPoint3D resetPoint = new ViewPoint3D(0, 64, 0, "", 0, 0);
                     if (SetupUtils.hasItemInMainHand(player, DISPLAY_NAME_PRE_LOBBY)) {
-                        gameSettingsLoader.setViewLocation(GameSettingsLoader.LOCATIONS_PRELOBBYSPAWN, resetPoint);
-                        ms.sendMessage(player, MessageComponent.of("<yellow>Selection %s has been reset</yellow>", "prelobbyspawn"));
+                        gameSettingsLoader.deleteLocation(GameSettingsLoader.LOCATIONS_PRELOBBYSPAWN);
+                        ms.sendMessage(player, MessageComponent.of("<yellow>Selection %s has been cleared</yellow>", preLobbySpawnDisplay.name));
                         preLobbySpawnDisplay.clearDisplays(true, player);
                         return;
                     } else if (SetupUtils.hasItemInMainHand(player, DISPLAY_NAME_CLASS_SELECTION)) {
-                        gameSettingsLoader.setViewLocation(GameSettingsLoader.LOCATIONS_SELECTIONSPAWN, resetPoint);
-                        ms.sendMessage(player, MessageComponent.of("<yellow>Selection %s has been reset</yellow>", "prelobbyspawn"));
+                        gameSettingsLoader.deleteLocation(GameSettingsLoader.LOCATIONS_SELECTIONSPAWN);
+                        ms.sendMessage(player, MessageComponent.of("<yellow>Selection %s has been cleared</yellow>", classSelectionSpawnDisplay.name));
                         classSelectionSpawnDisplay.clearDisplays(true, player);
+                        return;
+                    } else if (SetupUtils.hasItemInMainHand(player, DISPLAY_NAME_HOLE_CENTER)) {
+                        gameSettingsLoader.deleteLocation(GameSettingsLoader.LOCATIONS_HOLECENTER);
+                        ms.sendMessage(player, MessageComponent.of("<yellow>Selection %s has been cleared</yellow>", holeCenterDisplay.name));
+                        holeCenterDisplay.clearDisplays(true, player);
+                        return;
+                    } else if (SetupUtils.hasItemInMainHand(player, DISPLAY_NAME_CLASS_BLOCK)) {
+                        RPGClassType classType = getClassFromItemLore(event.getItem());
+                        int index = getClassIndex(classType);
+                        gameSettingsLoader.deleteLocation(GameSettingsLoader.LOCATIONS_SELECTIONCLASSES + "." + classType);
+                        ms.sendMessage(player, MessageComponent.of("<yellow>Selection %s has been cleared</yellow>", classBlockDisplays[index].name));
+                        classBlockDisplays[index].clearDisplays(true, player);
+                        return;
+                    } else if (SetupUtils.hasItemInMainHand(player, DISPLAY_NAME_BOSS)) {
+                        int floor = getFloorFromItemLore(event.getItem());
+                        gameSettingsLoader.deleteLocation(GameSettingsLoader.LOCATIONS_BOSSSPAWN + "." + floor);
+                        ms.sendMessage(player, MessageComponent.of("<yellow>Selection %s has been cleared</yellow>", bossSpawnDisplays[floor - 1].name));
+                        bossSpawnDisplays[floor - 1].clearDisplays(true, player);
+                        return;
+                    } else if (SetupUtils.hasItemInMainHand(player, DISPLAY_NAME_BOSS_PLAYER)) {
+                        int floor = getFloorFromItemLore(event.getItem());
+                        gameSettingsLoader.deleteLocation(GameSettingsLoader.LOCATIONS_BOSSPLAYERSPAWN + "." + floor);
+                        ms.sendMessage(player, MessageComponent.of("<yellow>Selection %s has been cleared</yellow>", bossPlayerSpawnDisplays[floor - 1].name));
+                        bossPlayerSpawnDisplays[floor - 1].clearDisplays(true, player);
                         return;
                     }
                 }
@@ -616,7 +633,7 @@ public class GameSetupHelper extends SetupHelper {
     public static ItemDisplay spawnDirectionArrowItemDisplay(World world, Location location) {
         location.add(0.5,1.5,0.5);
 
-        ItemDisplay display = BukkitDisplayEntityRegistry.getInstance().spawnDisplayEntity(location, ItemDisplay.class);
+        ItemDisplay display = world.spawn(location, ItemDisplay.class);
         display.setItemStack(new ItemStack(Material.ARROW));
 
         double yawRad = Math.toRadians(90 - location.getYaw());

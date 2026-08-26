@@ -1,6 +1,7 @@
-package dev.bukkit.utils;
+package dev.bukkit.utils.setup;
 
 import dev.bukkit.command.CommandManager;
+import dev.bukkit.utils.BukkitMessageSender;
 import dev.core.event.EventBusInterface;
 import dev.core.utils.MessageComponent;
 import org.bukkit.ChatColor;
