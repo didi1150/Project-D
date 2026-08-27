@@ -11,7 +11,9 @@ public enum StatusEffectType {
 	ROOTED("⛓", "Rooted", "§d", CcCategory.SOFT, true),
 	STUNNED("⚡", "Stunned", "§e", CcCategory.HARD, false),
 	AIRBORNE("↑", "Airborne", "§7", CcCategory.HARD, false),
-	CC_IMMUNE("✦", "CC Immune", "§6", CcCategory.IMMUNITY, false);
+	CC_IMMUNE("✦", "CC Immune", "§6", CcCategory.IMMUNITY, false),
+	WITHER("☠", "Wither", "§8", CcCategory.DEBUFF, true),
+	ABSORPTION("♥", "Absorption", "§e", CcCategory.BUFF, false);
 
 	private final String icon;
 	private final String displayName;

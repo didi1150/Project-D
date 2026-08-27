@@ -1,5 +1,7 @@
 package dev.core.status;
 
+import java.util.UUID;
+
 /**
  * One active status-effect instance on an entity. Instances are created by
  * {@link StatusEffectManager} on apply and are immutable; a re-apply replaces
@@ -13,13 +15,20 @@ public final class ActiveStatusEffect {
 	private final long endTime; // -1 when infinite
 	private final boolean fadeOut;
 	private final double potency;
+	private final UUID casterUuid;
 
 	public ActiveStatusEffect(StatusEffectType type, long startTime, long endTime, boolean fadeOut, double potency) {
+		this(type, startTime, endTime, fadeOut, potency, null);
+	}
+
+	public ActiveStatusEffect(StatusEffectType type, long startTime, long endTime, boolean fadeOut, double potency,
+			UUID casterUuid) {
 		this.type = type;
 		this.startTime = startTime;
 		this.endTime = endTime;
 		this.fadeOut = fadeOut;
 		this.potency = potency;
+		this.casterUuid = casterUuid;
 	}
 
 	/**
@@ -63,5 +72,14 @@ public final class ActiveStatusEffect {
 	 */
 	public double getPotency() {
 		return potency;
+	}
+
+	/**
+	 * The UUID of the entity that applied this effect, or {@code null} for
+	 * environment/applied effects. Used by damage-over-time behaviors (e.g.
+	 * WITHER) to scale damage with the caster's stats.
+	 */
+	public UUID getCasterUuid() {
+		return casterUuid;
 	}
 }

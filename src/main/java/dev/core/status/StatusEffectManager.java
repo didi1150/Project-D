@@ -5,6 +5,7 @@ import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 
 import dev.core.entity.RPGEntity;
 
@@ -34,6 +35,12 @@ public class StatusEffectManager implements StatusEffectManagerInterface {
 
 	@Override
 	public boolean apply(RPGEntity entity, StatusEffectType type, long durationMillis, boolean fadeOut, double potency) {
+		return apply(entity, type, durationMillis, fadeOut, potency, null);
+	}
+
+	@Override
+	public boolean apply(RPGEntity entity, StatusEffectType type, long durationMillis, boolean fadeOut, double potency,
+			UUID casterUuid) {
 		List<ActiveStatusEffect> effects = activeEffects.computeIfAbsent(entity, k -> new ArrayList<>());
 		long now = System.currentTimeMillis();
 
@@ -41,7 +48,28 @@ public class StatusEffectManager implements StatusEffectManagerInterface {
 			// Cleanses everything (including any prior immunity) before landing.
 			effects.removeIf(e -> !e.getType().equals(type) && removeAfterNotify(entity, e));
 			effects.removeIf(e -> e.getType().equals(type) && removeAfterNotify(entity, e));
-			return addEffect(entity, effects, type, now, durationMillis, fadeOut, potency);
+			return addEffect(entity, effects, type, now, durationMillis, fadeOut, potency, casterUuid);
+		}
+
+		// Debuffs bypass CC immunity but follow same-type refresh rules.
+		if (type.getCategory() == CcCategory.DEBUFF) {
+			if (effects.stream().anyMatch(e -> e.getType().equals(type))) {
+				effects.removeIf(e -> e.getType().equals(type) && removeAfterNotify(entity, e));
+			}
+			return addEffect(entity, effects, type, now, durationMillis, fadeOut, potency, casterUuid);
+		}
+
+		// Buffs coexist with everything, bypass CC immunity, and stack potency on
+		// re-application (e.g. re-applying absorption adds to the existing amount).
+		if (type.getCategory() == CcCategory.BUFF) {
+			List<ActiveStatusEffect> existing = effects.stream().filter(e -> e.getType().equals(type))
+					.collect(java.util.stream.Collectors.toList());
+			double combinedPotency = potency;
+			for (ActiveStatusEffect e : existing) {
+				combinedPotency += e.getPotency();
+			}
+			effects.removeIf(e -> e.getType().equals(type) && removeAfterNotify(entity, e));
+			return addEffect(entity, effects, type, now, durationMillis, fadeOut, combinedPotency, casterUuid);
 		}
 
 		if (isCcImmune(entity)) {
@@ -51,7 +79,7 @@ public class StatusEffectManager implements StatusEffectManagerInterface {
 		if (effects.stream().anyMatch(e -> e.getType().equals(type))) {
 			// Same-type re-apply: replace with a fresh duration.
 			effects.removeIf(e -> e.getType().equals(type) && removeAfterNotify(entity, e));
-			return addEffect(entity, effects, type, now, durationMillis, fadeOut, potency);
+			return addEffect(entity, effects, type, now, durationMillis, fadeOut, potency, casterUuid);
 		}
 
 		if (type.getCategory() == CcCategory.HARD) {
@@ -62,11 +90,11 @@ public class StatusEffectManager implements StatusEffectManagerInterface {
 			}
 			// Hard CC overrides soft CC.
 			effects.removeIf(e -> e.getType().getCategory() == CcCategory.SOFT && removeAfterNotify(entity, e));
-			return addEffect(entity, effects, type, now, durationMillis, fadeOut, potency);
+			return addEffect(entity, effects, type, now, durationMillis, fadeOut, potency, casterUuid);
 		}
 
 		// Soft CC: coexists with other soft CC (slowed + rooted stack).
-		return addEffect(entity, effects, type, now, durationMillis, fadeOut, potency);
+		return addEffect(entity, effects, type, now, durationMillis, fadeOut, potency, casterUuid);
 	}
 
 	@Override
@@ -157,9 +185,9 @@ public class StatusEffectManager implements StatusEffectManagerInterface {
 	}
 
 	private boolean addEffect(RPGEntity entity, List<ActiveStatusEffect> effects, StatusEffectType type, long now,
-			long durationMillis, boolean fadeOut, double potency) {
+			long durationMillis, boolean fadeOut, double potency, UUID casterUuid) {
 		ActiveStatusEffect effect = new ActiveStatusEffect(type, now,
-				durationMillis <= 0 ? -1 : now + durationMillis, fadeOut, potency);
+				durationMillis <= 0 ? -1 : now + durationMillis, fadeOut, potency, casterUuid);
 		effects.add(effect);
 		onEffectApplied(entity, effect);
 		return true;

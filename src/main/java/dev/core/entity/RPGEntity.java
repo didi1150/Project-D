@@ -43,6 +43,7 @@ public abstract class RPGEntity {
     private double abilityDamageMultiplier = 1.0;
     private EventBusInterface eventBusInterface;
     private RPGClassType classType;
+    private double absorptionAmount = 0;
     private RPGEntityAttackTracker attackTracker;
     /**
      * The last entity that landed damage on this entity, recorded just before a
@@ -71,8 +72,8 @@ public abstract class RPGEntity {
     }
 
     public RPGEntity(StatManager statManager, UUID uuid, String name, EntityType entityType,
-            EffectManagerInterface effectManagerInterface, EventBusInterface eventBusInterface,
-            RPGClassType classType, StatusEffectManagerInterface statusEffects) {
+            EffectManagerInterface effectManagerInterface, EventBusInterface eventBusInterface, RPGClassType classType,
+            StatusEffectManagerInterface statusEffects) {
         this.statManager = statManager;
         this.effectManagerInterface = effectManagerInterface;
         this.eventBusInterface = eventBusInterface;
@@ -271,7 +272,18 @@ public abstract class RPGEntity {
         if (attacker != null && reducedDamage > 0) {
             target.lastAttacker = attacker;
         }
-        target.setHealth(target.getHealth() - reducedDamage);
+        // Absorption shield absorbs damage before real HP is hit.
+        double damageToHp = reducedDamage;
+        if (target.absorptionAmount > 0 && reducedDamage > 0) {
+            if (target.absorptionAmount >= reducedDamage) {
+                target.absorptionAmount -= reducedDamage;
+                damageToHp = 0;
+            } else {
+                damageToHp = reducedDamage - target.absorptionAmount;
+                target.absorptionAmount = 0;
+            }
+        }
+        target.setHealth(target.getHealth() - damageToHp);
         target.checkAlive();
 
         // Step 6: Central hurt reaction (flash + sound + small knockback) on the
@@ -288,12 +300,11 @@ public abstract class RPGEntity {
 
     /**
      * Hook for extra effect on a landed RPG hit (particles, sounds, ...).
-     * Overridden by Bukkit subclasses. IMPORTANT: implementations must NOT
-     * apply vanilla damage to the backing entity — a reentrant hurt re-seeds
-     * Minecraft's damage-immunity window (invulnerableTime/lastHurt) while the
-     * outer hit is still resolving, so the outer hit's own denial check then
-     * fails and projectiles bounce off the target. Only called when the target
-     * is not immune.
+     * Overridden by Bukkit subclasses. IMPORTANT: implementations must NOT apply
+     * vanilla damage to the backing entity — a reentrant hurt re-seeds Minecraft's
+     * damage-immunity window (invulnerableTime/lastHurt) while the outer hit is
+     * still resolving, so the outer hit's own denial check then fails and
+     * projectiles bounce off the target. Only called when the target is not immune.
      */
     protected void playHitReaction(RPGEntity attacker) {
     }
@@ -359,26 +370,27 @@ public abstract class RPGEntity {
         if (event.isCancelled())
             return;
 
-        double boosted = applyHealPower(event.getAmount(), target);
+        double boosted = applyHealPower(healer, event.getAmount(), target);
 
         target.setHealth(Math.min(target.getMaxHealth(), target.getHealth() + boosted));
 
 //		eventBusInterface.sendEvent(new RPGHealAppliedEvent(healer, target, boosted));
     }
 
-    private double applyHealPower(double amount, RPGEntity target) {
+    private double applyHealPower(RPGEntity source, double amount, RPGEntity target) {
         double healPower = target.getStatEngineAdapter().getCurrentValue(StatType.HEAL_AND_SHIELD_POWER,
                 System.currentTimeMillis());
-
-        return amount * (1.0 + (healPower / 100.0));
+        double sourceHealPower = source.getStatEngineAdapter().getCurrentValue(StatType.HEAL_AND_SHIELD_POWER,
+                System.currentTimeMillis());
+        return (amount * (1.0 + (sourceHealPower / 100.0))) * (1.0 + (healPower / 100.0));
     }
 
     // =========================- Abilities ==========================
 
     /**
      * Trigger manual abilities based on player action. No-op while the entity is
-     * under hard CC (stunned/airborne): casting is part of the CC'd entity's
-     * lost control. Applies to players AND mobs (mob casts route through here).
+     * under hard CC (stunned/airborne): casting is part of the CC'd entity's lost
+     * control. Applies to players AND mobs (mob casts route through here).
      */
     public void triggerAbility(AbilityAction abilityAction) {
         if (statusEffects.hasHardCc(this)) {
@@ -415,8 +427,8 @@ public abstract class RPGEntity {
 
     /**
      * Apply a status effect (slowed, stunned, ...) to this entity. Multiple
-     * different effects can be active at once; re-applying the same type
-     * refreshes its duration.
+     * different effects can be active at once; re-applying the same type refreshes
+     * its duration.
      *
      * @return false when the apply was rejected (CC immunity, another hard CC).
      */
@@ -425,9 +437,9 @@ public abstract class RPGEntity {
     }
 
     /**
-     * Apply a status effect with an explicit fade-out choice. {@code fadeOut}
-     * true fades the display out over the final moments instead of removing it
-     * abruptly when the duration ends.
+     * Apply a status effect with an explicit fade-out choice. {@code fadeOut} true
+     * fades the display out over the final moments instead of removing it abruptly
+     * when the duration ends.
      *
      * @return false when the apply was rejected (CC immunity, another hard CC).
      */
@@ -490,6 +502,14 @@ public abstract class RPGEntity {
 
     public void setHealth(double value) {
         statManager.setCurrentValue(StatType.HEALTH_RESOURCE, value);
+    }
+
+    public double getAbsorptionAmount() {
+        return absorptionAmount;
+    }
+
+    public void setAbsorptionAmount(double absorptionAmount) {
+        this.absorptionAmount = Math.max(0, absorptionAmount);
     }
 
     /**

@@ -79,7 +79,11 @@ public class BukkitBossEntity extends RPGBossEntity {
     private void updateName() {
         getLivingEntity().ifPresent(living -> {
             String base = ColorCodes.translate(getName());
-            living.setCustomName(base + " [❤] " + Math.round(getHealth()) + "/" + Math.round(getMaxHealth()));
+            double current = getHealth();
+            double max = getMaxHealth();
+            double absorption = getAbsorptionAmount();
+            String color = absorption > 0 ? "§e" : "";
+            living.setCustomName(color + base + " [❤] " + Math.round(current + absorption) + "/" + Math.round(max));
             living.setCustomNameVisible(true);
         });
     }

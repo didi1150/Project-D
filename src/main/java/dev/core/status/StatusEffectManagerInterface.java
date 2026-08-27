@@ -1,6 +1,7 @@
 package dev.core.status;
 
 import java.util.List;
+import java.util.UUID;
 
 import dev.core.entity.RPGEntity;
 
@@ -19,6 +20,13 @@ public interface StatusEffectManagerInterface {
 	 *         another hard CC already active).
 	 */
 	boolean apply(RPGEntity entity, StatusEffectType type, long durationMillis, boolean fadeOut, double potency);
+
+	/**
+	 * Apply with caster tracking: the caster UUID is stored on the effect so
+	 * damage-over-time behaviors can scale damage with the caster's stats.
+	 */
+	boolean apply(RPGEntity entity, StatusEffectType type, long durationMillis, boolean fadeOut, double potency,
+			UUID casterUuid);
 
 	/**
 	 * Apply (or refresh) with the type's default fade behavior and full potency.

@@ -149,6 +149,8 @@ public class RPGItemLoader {
             requiresArrows = section.getBoolean("requiresArrows", requiresArrows);
         }
 
+        List<String> description = section.getStringList("description");
+
         return RPGItem.builder(id, name, slot).withMaterial(material).withPassiveStats(passive).withActiveStats(active)
                 .withAbilities(abilities).withRpgClassType(classType).withUnlockLevel(unlockLevel)
                 .withAllowedClasses(allowedClasses).usage(usage)
@@ -156,6 +158,7 @@ public class RPGItemLoader {
                 .withLeatherColor(RPGItem.parseRgbColor(section.getString("leather-color", null)))
                 .withSkullOwner(section.getString("skull-owner", null))
                 .withSkullTexture(section.getString("skull-texture", null))
+                .withDescription(description)
                 .build();
     }
 

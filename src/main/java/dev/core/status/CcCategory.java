@@ -14,5 +14,5 @@ package dev.core.status;
  * </ul>
  */
 public enum CcCategory {
-	SOFT, HARD, IMMUNITY
+	SOFT, HARD, IMMUNITY, DEBUFF, BUFF
 }

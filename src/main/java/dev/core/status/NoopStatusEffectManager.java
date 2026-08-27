@@ -2,6 +2,7 @@ package dev.core.status;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.UUID;
 
 import dev.core.entity.RPGEntity;
 
@@ -24,6 +25,12 @@ public final class NoopStatusEffectManager implements StatusEffectManagerInterfa
 	@Override
 	public boolean apply(RPGEntity entity, StatusEffectType type, long durationMillis, boolean fadeOut,
 			double potency) {
+		return true;
+	}
+
+	@Override
+	public boolean apply(RPGEntity entity, StatusEffectType type, long durationMillis, boolean fadeOut, double potency,
+			UUID casterUuid) {
 		return true;
 	}
 
