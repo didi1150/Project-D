@@ -33,6 +33,7 @@ public final class LoreLabels {
     public static final String COOLDOWN_SCOPE_ITEM_NOTE = "cooldown-scope-item-note";
     public static final String ITEM_SET_LINE = "item-set-line";
     public static final String SET_BONUS_LABEL = "set-bonus-label";
+    public static final String ITEM_DESCRIPTION = "item-description";
     public static final String LEVEL_LINE = "level-line";
 
     /** Built-in fallbacks, mirroring the pre-config rendering exactly. */
@@ -52,6 +53,7 @@ public final class LoreLabels {
             Map.entry(COOLDOWN_SCOPE_ITEM_NOTE, "<dark_gray/>Per-item cooldown"),
             Map.entry(ITEM_SET_LINE, "<dark_purple/>Part of the {set} Set"),
             Map.entry(SET_BONUS_LABEL, "<gray/>{pieces}-Piece Bonus: "),
+            Map.entry(ITEM_DESCRIPTION, "<gray/>Description:"),
             Map.entry(LEVEL_LINE, "<gold/><bold/>LEVEL {level}: {type} ITEM"));
 
     private static final StyleTagParser PARSER = new StyleTagParser(TextColor.GRAY);

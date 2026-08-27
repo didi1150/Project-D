@@ -27,6 +27,12 @@ lore:
   # Section headers
   passive-stats-header: "<gray/>Passive Stats:"
   active-stats-header: "<gray/>Active Stats (Only applied when held):"
+  
+  # Item description block — list of styled lines shown between stats and
+  # abilities.  The content is per-item (defined under each item's description
+  # key in items.yml); this label controls the section header rendered above it.
+  item-description: "<gray/>Description:"
+  
   abilities-header: "<gold/>Item Abilities:"
 
   # Ability entries ({name} = display name, {action} = e.g. RIGHT CLICK)

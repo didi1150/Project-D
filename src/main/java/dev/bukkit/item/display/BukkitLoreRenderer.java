@@ -62,6 +62,7 @@ public class BukkitLoreRenderer implements RPGItemLoreRenderer {
         StyleTagParser descriptionParser = new StyleTagParser(TextColor.GRAY);
         List<String> itemDescription = item.getDescription();
         if (!itemDescription.isEmpty()) {
+            lore.add(LoreLabels.format(LoreLabels.ITEM_DESCRIPTION));
             for (String line : itemDescription) {
                 if (line == null) {
                     continue;
