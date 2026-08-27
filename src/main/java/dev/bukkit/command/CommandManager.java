@@ -15,6 +15,7 @@ import org.bukkit.ChatColor;
 import org.bukkit.command.CommandMap;
 import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
+import org.bukkit.inventory.ItemStack;
 import org.bukkit.plugin.java.JavaPlugin;
 import org.jetbrains.annotations.Nullable;
 
@@ -41,6 +42,7 @@ import dev.core.game.GameState;
 import dev.core.game.GameStateController;
 import dev.core.game.settings.GameSettingsLoader;
 import dev.core.item.RPGItem;
+import dev.core.item.RPGItemSet;
 import dev.core.item.equipment.EquipmentSlot;
 import dev.core.item.loader.RPGItemLoader;
 import dev.core.item.loader.RPGItemRegistry;
@@ -79,19 +81,25 @@ public class CommandManager {
 
     // permission helpers
     private static boolean hasPerm(CommandSender sender, String node) {
-        if (sender.hasPermission(node) || sender.hasPermission("projectd.admin") || sender.isOp()) return true;
-        if (!(sender instanceof Player) && sender != null) return true; // console
+        if (sender.hasPermission(node) || sender.hasPermission("projectd.admin") || sender.isOp())
+            return true;
+        if (!(sender instanceof Player) && sender != null)
+            return true; // console
         return false;
     }
-    public static SubCommandBuilder.PlayerCommandAction perm(String node, SubCommandBuilder.PlayerCommandAction action) {
+
+    public static SubCommandBuilder.PlayerCommandAction perm(String node,
+            SubCommandBuilder.PlayerCommandAction action) {
         return (player, args) -> {
             if (!hasPerm(player, node)) {
-                BukkitMessageSender.getInstance().sendMessage(player, MessageComponent.of("<red>No permission: %s</red>", node));
+                BukkitMessageSender.getInstance().sendMessage(player,
+                        MessageComponent.of("<red>No permission: %s</red>", node));
                 return;
             }
             action.perform(player, args);
         };
     }
+
     private SubCommandBuilder.CommandAction permAny(String node, SubCommandBuilder.CommandAction action) {
         return (sender, args) -> {
             if (!hasPerm(sender, node)) {
@@ -102,22 +110,70 @@ public class CommandManager {
         };
     }
 
+    private static void giveItemSetToPlayer(Player player, String setId) {
+        EntityManager.getInstance().getEntity(player.getUniqueId()).ifPresent(p -> {
+            RPGItemRegistry registry = RPGItemRegistry.getInstance();
+            Optional<RPGItemSet> optSet = registry.getItemSet(setId);
+            if (optSet.isEmpty()) {
+                optSet = registry.allItemSets().entrySet().stream().filter(e -> e.getKey().equalsIgnoreCase(setId))
+                        .map(Map.Entry::getValue).findFirst();
+            }
+            if (optSet.isEmpty()) {
+                player.sendMessage("§cItem set '" + setId + "' does not exist");
+                return;
+            }
+            RPGItemSet set = optSet.get();
+            List<String> pieceIds = set.getPieceIds();
+            if (pieceIds == null || pieceIds.isEmpty()) {
+                player.sendMessage("§cItem set '" + set.getId() + "' has no pieces");
+                return;
+            }
+            int given = 0;
+            List<String> missing = new ArrayList<>();
+            for (String pieceId : pieceIds) {
+                Optional<RPGItem> optItem = registry.getItem(pieceId);
+                if (optItem.isEmpty()) {
+                    optItem = registry.allItems().entrySet().stream().filter(e -> e.getKey().equalsIgnoreCase(pieceId))
+                            .map(Map.Entry::getValue).findFirst();
+                }
+                if (optItem.isEmpty()) {
+                    missing.add(pieceId);
+                    continue;
+                }
+                RPGItem item = optItem.get();
+                org.bukkit.inventory.ItemStack stack = BukkitItemStackAdapter.toItemStack(item, p);
+                Map<Integer, ItemStack> leftover = player.getInventory().addItem(stack);
+                for (ItemStack left : leftover.values()) {
+                    player.getWorld().dropItemNaturally(player.getLocation(), left);
+                }
+                given++;
+            }
+            BukkitInventorySync.syncInventory(p, player);
+            player.sendMessage("§aSuccess! You received item set §e" + set.getName() + " §a(" + given + "/"
+                    + pieceIds.size() + " pieces)");
+            if (!missing.isEmpty()) {
+                player.sendMessage("§cMissing pieces (not registered): " + String.join(", ", missing));
+            }
+            Bukkit.getLogger().info("[give itemset] " + player.getName() + " received set " + set.getId() + " (" + given
+                    + "/" + pieceIds.size() + ")");
+        });
+    }
+
     private CommandManager(ConfigProvider configProvider, ClassProgressionService classProgressionService) {
 
         messageSender = BukkitMessageSender.getInstance();
 
         commandMap = new HashMap<>();
 
-        // Strict absolute: only one MainCommand — project-d (alias d, pd). All trees extend from it.
+        // Strict absolute: only one MainCommand — project-d (alias d, pd). All trees
+        // extend from it.
         createCommand(MainCommandBuilder.startBuilding("project-d").setDescription("Main command for Project-D")
-                .setUsage("/project-d <subcommand>").addAlias("d").addAlias("pd")
-                .build());
+                .setUsage("/project-d <subcommand>").addAlias("d").addAlias("pd").build());
 
         // ==============================================================
         // item tree -> /d item <give|save|reload|open>
         // ==============================================================
-        addSubCommand("project-d", SubCommandBuilder.startBuilding("item")
-                .setDescription("Item controls")
+        addSubCommand("project-d", SubCommandBuilder.startBuilding("item").setDescription("Item controls")
                 .setPlayerCommandAction(1, "give", perm("projectd.item.give", (player, args) -> {
                     EntityManager.getInstance().getEntity(player.getUniqueId()).ifPresent(p -> {
                         String id = args[1];
@@ -127,8 +183,7 @@ public class CommandManager {
                         }, () -> player.sendMessage("This item does not exist"));
                         BukkitInventorySync.syncInventory(p, player);
                     });
-                }))
-                .setPlayerCommandAction(2, "give", perm("projectd.item.give", (player, args) -> {
+                })).setPlayerCommandAction(2, "give", perm("projectd.item.give", (player, args) -> {
                     // alias handled via give above with 1 arg; keep 2-arg variant for tab
                     EntityManager.getInstance().getEntity(player.getUniqueId()).ifPresent(p -> {
                         String id = args[1];
@@ -138,9 +193,15 @@ public class CommandManager {
                         }, () -> player.sendMessage("This item does not exist"));
                         BukkitInventorySync.syncInventory(p, player);
                     });
-                }))
-                .setPlayerCommandAction(1, "save", perm("projectd.item.save", (player, args) -> {
-                    // /d item save [<id>] -> 0 extra args means save held item, 1 means give as before? Keep both behaviors for compat
+                })).setPlayerCommandAction(3, "give", perm("projectd.item.give", (player, args) -> {
+                    if (!args[1].equalsIgnoreCase("itemset")) {
+                        player.sendMessage("This item does not exist");
+                        return;
+                    }
+                    giveItemSetToPlayer(player, args[2]);
+                })).setPlayerCommandAction(1, "save", perm("projectd.item.save", (player, args) -> {
+                    // /d item save [<id>] -> 0 extra args means save held item, 1 means give as
+                    // before? Keep both behaviors for compat
                     // This branch for 1 arg after item save -> treat as item id to give
                     EntityManager.getInstance().getEntity(player.getUniqueId()).ifPresent(p -> {
                         String id = args[1];
@@ -149,77 +210,96 @@ public class CommandManager {
                         }, () -> player.sendMessage("This item does not exist"));
                         BukkitInventorySync.syncInventory(p, player);
                     });
-                }))
-                .setPlayerCommandAction(0, "save", perm("projectd.item.save", (player, args) -> {
+                })).setPlayerCommandAction(0, "save", perm("projectd.item.save", (player, args) -> {
                     EntityManager.getInstance().getEntity(player.getUniqueId()).ifPresent(p -> {
                         RPGItem item = p.getEquipmentManager().getEquippedItem(EquipmentSlot.MAIN_HAND);
-                        if (item == null) player.sendMessage("You need to hold the item in your main hand");
+                        if (item == null)
+                            player.sendMessage("You need to hold the item in your main hand");
                         else {
                             RPGItemLoader.saveItem(configProvider, item);
-                            player.sendMessage(ChatColor.YELLOW + item.getId() + ChatColor.GREEN + " has been successfully saved to the config.");
+                            player.sendMessage(ChatColor.YELLOW + item.getId() + ChatColor.GREEN
+                                    + " has been successfully saved to the config.");
                         }
                     });
-                }))
-                .setCommandAction(1, "reload", permAny("projectd.item.reload", (sender, args) -> {
+                })).setCommandAction(1, "reload", permAny("projectd.item.reload", (sender, args) -> {
                     try {
                         long t0 = System.currentTimeMillis();
-                        BukkitMessageSender.getInstance().sendMessage(sender, MessageComponent.of("<yellow>Reloading items/abilities...</yellow>"));
+                        BukkitMessageSender.getInstance().sendMessage(sender,
+                                MessageComponent.of("<yellow>Reloading items/abilities...</yellow>"));
                         var r = ItemsAbilitiesReloadService.reload(DMain.getInstance().getConfigManager());
                         if (r.success) {
-                            BukkitMessageSender.getInstance().sendMessage(sender, MessageComponent.of("<green>Reloaded: %s</green>", r.message));
+                            BukkitMessageSender.getInstance().sendMessage(sender,
+                                    MessageComponent.of("<green>Reloaded: %s</green>", r.message));
                             Bukkit.getLogger().info("[items reload] " + r.message + " by " + sender.getName());
                         } else {
-                            BukkitMessageSender.getInstance().sendMessage(sender, MessageComponent.of("<red>Reload failed: %s</red>", r.message));
-                            if (r.error != null) r.error.printStackTrace();
+                            BukkitMessageSender.getInstance().sendMessage(sender,
+                                    MessageComponent.of("<red>Reload failed: %s</red>", r.message));
+                            if (r.error != null)
+                                r.error.printStackTrace();
                         }
                     } catch (Exception e) {
-                        BukkitMessageSender.getInstance().sendMessage(sender, MessageComponent.of("<red>Items reload failed: %s</red>", e.getMessage()));
+                        BukkitMessageSender.getInstance().sendMessage(sender,
+                                MessageComponent.of("<red>Items reload failed: %s</red>", e.getMessage()));
                         e.printStackTrace();
                     }
-                }))
-                .setPlayerCommandAction(0, "open", perm("projectd.item.open", (player, args) -> {
+                })).setPlayerCommandAction(0, "open", perm("projectd.item.open", (player, args) -> {
                     GameState current = gameStateController.getCurrentState();
                     if (current instanceof SelectItemState select) {
                         select.openShop(player);
                         player.sendMessage("§eOpening the item shop...");
-                    } else player.sendMessage("§cThe item shop is only available during item selection.");
-                }))
-                .setCommandArgumentsList(0, Arrays.asList("give","save","reload","open"))
-                .setCommandArgumentsList(1, "give", () -> RPGItemRegistry.getInstance().allItems().values().stream().map(RPGItem::getId).toList(), "itemName")
-                .setCommandArgumentsList(1, "save", () -> RPGItemRegistry.getInstance().allItems().values().stream().map(RPGItem::getId).toList(), "itemName")
-        );
+                    } else
+                        player.sendMessage("§cThe item shop is only available during item selection.");
+                })).setCommandArgumentsList(0, Arrays.asList("give", "save", "reload", "open"))
+                .setCommandArgumentsList(1, "give", () -> {
+                    List<String> ids = new ArrayList<>(
+                            RPGItemRegistry.getInstance().allItems().values().stream().map(RPGItem::getId).toList());
+                    ids.add("itemset");
+                    return ids;
+                }, "itemName|itemset")
+                .setCommandArgumentsList(2, "give",
+                        () -> RPGItemRegistry.getInstance().allItemSets().keySet().stream().toList(), "itemSetName")
+                .setCommandArgumentsList(1, "save",
+                        () -> RPGItemRegistry.getInstance().allItems().values().stream().map(RPGItem::getId).toList(),
+                        "itemName"));
 
         // ==============================================================
         // player tree -> /d player <showProgress|showStats|selectActive|setXp|revive>
         // ==============================================================
-        addSubCommand("project-d", SubCommandBuilder.startBuilding("player")
-                .setDescription("Player controls")
+        addSubCommand("project-d", SubCommandBuilder.startBuilding("player").setDescription("Player controls")
                 .setPlayerCommandAction(1, "showProgress", perm("projectd.player.showprogress", (player, args) -> {
                     Optional<RPGEntity> optional = EntityManager.getInstance().getEntity(player.getUniqueId());
-                    if (optional.isEmpty()) player.sendMessage(ChatColor.RED + "Could not find profile");
+                    if (optional.isEmpty())
+                        player.sendMessage(ChatColor.RED + "Could not find profile");
                     else {
                         BukkitPlayerEntity playerEntity = (BukkitPlayerEntity) optional.get();
                         RPGClassType activeClass = playerEntity.getPlayerProgression().getActiveClass();
                         player.sendMessage(ChatColor.GOLD + "═══════════════════════════════════");
-                        player.sendMessage(ChatColor.YELLOW + "Active Class: " + ChatColor.GREEN + (activeClass != null ? activeClass.name() : "None"));
+                        player.sendMessage(ChatColor.YELLOW + "Active Class: " + ChatColor.GREEN
+                                + (activeClass != null ? activeClass.name() : "None"));
                         player.sendMessage(ChatColor.GOLD + "═══════════════════════════════════");
-                        for (Map.Entry<RPGClassType, PlayerClassProgression> entry : playerEntity.getPlayerProgression().getAllProgressions().entrySet()) {
-                            RPGClassType classType = entry.getKey(); PlayerClassProgression progression = entry.getValue();
-                            String classPrefix = classType.equals(activeClass) ? ChatColor.AQUA + "★ " : ChatColor.GRAY + "  ";
+                        for (Map.Entry<RPGClassType, PlayerClassProgression> entry : playerEntity.getPlayerProgression()
+                                .getAllProgressions().entrySet()) {
+                            RPGClassType classType = entry.getKey();
+                            PlayerClassProgression progression = entry.getValue();
+                            String classPrefix = classType.equals(activeClass) ? ChatColor.AQUA + "★ "
+                                    : ChatColor.GRAY + "  ";
                             player.sendMessage(classPrefix + ChatColor.WHITE + classType.name() + ":");
-                            player.sendMessage(ChatColor.GRAY + "  Level: " + ChatColor.YELLOW + progression.getLevel());
+                            player.sendMessage(
+                                    ChatColor.GRAY + "  Level: " + ChatColor.YELLOW + progression.getLevel());
                             player.sendMessage(ChatColor.GRAY + "  XP: " + ChatColor.GREEN + progression.getXp());
-                            player.sendMessage(ChatColor.GRAY + "  XP til next level: " + ChatColor.GREEN + progression.getXpToNextLevel());
-                            player.sendMessage(ChatColor.GRAY + "  Usable Items: " + ChatColor.LIGHT_PURPLE + progression.getUsableItems());
+                            player.sendMessage(ChatColor.GRAY + "  XP til next level: " + ChatColor.GREEN
+                                    + progression.getXpToNextLevel());
+                            player.sendMessage(ChatColor.GRAY + "  Usable Items: " + ChatColor.LIGHT_PURPLE
+                                    + progression.getUsableItems());
                             player.sendMessage("");
                         }
                         player.sendMessage(ChatColor.GOLD + "═══════════════════════════════════");
                         player.sendMessage(ChatColor.GRAY + "★ = Active Class");
                     }
-                }))
-                .setPlayerCommandAction(1, "showStats", perm("projectd.player.showstats", (player, args) -> {
+                })).setPlayerCommandAction(1, "showStats", perm("projectd.player.showstats", (player, args) -> {
                     Optional<RPGEntity> optional = EntityManager.getInstance().getEntity(player.getUniqueId());
-                    if (optional.isEmpty()) player.sendMessage(ChatColor.RED + "Could not find profile");
+                    if (optional.isEmpty())
+                        player.sendMessage(ChatColor.RED + "Could not find profile");
                     else {
                         BukkitPlayerEntity playerEntity = (BukkitPlayerEntity) optional.get();
                         player.sendMessage(ChatColor.GOLD + "═══════════════════════════════════");
@@ -230,90 +310,107 @@ public class CommandManager {
                         }
                         player.sendMessage(ChatColor.GOLD + "═══════════════════════════════════");
                     }
-                }))
-                .setPlayerCommandAction(2, "selectActive", perm("projectd.player.select", (player, args) -> {
+                })).setPlayerCommandAction(2, "selectActive", perm("projectd.player.select", (player, args) -> {
                     Optional<RPGEntity> optional = EntityManager.getInstance().getEntity(player.getUniqueId());
-                    if (optional.isEmpty()) player.sendMessage(ChatColor.RED + "Could not find profile");
+                    if (optional.isEmpty())
+                        player.sendMessage(ChatColor.RED + "Could not find profile");
                     else {
                         BukkitPlayerEntity playerEntity = (BukkitPlayerEntity) optional.get();
-                        playerEntity.getPlayerProgression().setActiveClass(RPGClassType.valueOf(args[1]), playerEntity.getStatManager());
+                        playerEntity.getPlayerProgression().setActiveClass(RPGClassType.valueOf(args[1]),
+                                playerEntity.getStatManager());
                         classProgressionService.setActiveClass(playerEntity.getPlayerProgression());
-                        messageSender.sendMessage(MessageComponent.of(MessageLevel.INFO_LEVEL, "Selected the %s-Class", RPGClassType.valueOf(args[1])));
+                        messageSender.sendMessage(MessageComponent.of(MessageLevel.INFO_LEVEL, "Selected the %s-Class",
+                                RPGClassType.valueOf(args[1])));
                     }
-                }))
-                .setPlayerCommandAction(3, "setXp", perm("projectd.player.setxp", (player, args) -> {
+                })).setPlayerCommandAction(3, "setXp", perm("projectd.player.setxp", (player, args) -> {
                     Optional<RPGEntity> optional = EntityManager.getInstance().getEntity(player.getUniqueId());
-                    if (optional.isEmpty()) player.sendMessage(ChatColor.RED + "Could not find profile");
+                    if (optional.isEmpty())
+                        player.sendMessage(ChatColor.RED + "Could not find profile");
                     else {
                         BukkitPlayerEntity playerEntity = (BukkitPlayerEntity) optional.get();
                         try {
-                            RPGClassType targetClass = RPGClassType.valueOf(args[1]); int newXp = Integer.valueOf(args[2]);
+                            RPGClassType targetClass = RPGClassType.valueOf(args[1]);
+                            int newXp = Integer.valueOf(args[2]);
                             playerEntity.getPlayerProgression().getProgression(targetClass).setXp(newXp);
-                            classProgressionService.saveClassProgression(playerEntity.getUuid(), playerEntity.getPlayerProgression().getProgression(targetClass));
-                            messageSender.sendMessage(MessageComponent.of(MessageLevel.INFO_LEVEL, "Set the %s-Class-XP to %s", RPGClassType.valueOf(args[1]), newXp));
-                        } catch (Exception e) { player.sendMessage("/d player setXp <class> <xp>"); }
+                            classProgressionService.saveClassProgression(playerEntity.getUuid(),
+                                    playerEntity.getPlayerProgression().getProgression(targetClass));
+                            messageSender.sendMessage(MessageComponent.of(MessageLevel.INFO_LEVEL,
+                                    "Set the %s-Class-XP to %s", RPGClassType.valueOf(args[1]), newXp));
+                        } catch (Exception e) {
+                            player.sendMessage("/d player setXp <class> <xp>");
+                        }
                     }
-                }))
-                .setPlayerCommandAction(1, "revive", perm("projectd.player.revive", (player, args) -> {
+                })).setPlayerCommandAction(1, "revive", perm("projectd.player.revive", (player, args) -> {
                     Optional<RPGEntity> optional = EntityManager.getInstance().getEntity(player.getUniqueId());
-                    if (optional.isEmpty()) player.sendMessage(ChatColor.RED + "Could not find profile");
+                    if (optional.isEmpty())
+                        player.sendMessage(ChatColor.RED + "Could not find profile");
                     else {
                         BukkitPlayerEntity playerEntity = (BukkitPlayerEntity) optional.get();
-                        if (playerEntity.isAlive()) return;
+                        if (playerEntity.isAlive())
+                            return;
                         EntityManager.getInstance().revive(playerEntity.getUuid());
                     }
-                }))
-                .setPlayerCommandAction(2, "revive", perm("projectd.player.revive", (player, args) -> {
-                    String name = args[2]; Player target = Bukkit.getPlayer(name);
-                    if (target == null) player.sendMessage(ChatColor.RED + "This player is not online.");
+                })).setPlayerCommandAction(2, "revive", perm("projectd.player.revive", (player, args) -> {
+                    String name = args[2];
+                    Player target = Bukkit.getPlayer(name);
+                    if (target == null)
+                        player.sendMessage(ChatColor.RED + "This player is not online.");
                     else {
                         Optional<RPGEntity> optional = EntityManager.getInstance().getEntity(target.getUniqueId());
-                        if (optional.isEmpty()) player.sendMessage(ChatColor.RED + "Could not find profile");
-                        else EntityManager.getInstance().revive(target.getUniqueId());
+                        if (optional.isEmpty())
+                            player.sendMessage(ChatColor.RED + "Could not find profile");
+                        else
+                            EntityManager.getInstance().revive(target.getUniqueId());
                     }
                 }))
-                .setCommandArgumentsList(0, Arrays.asList("showProgress","showStats","selectActive","setXp","revive"))
-                .setCommandArgumentsList(1, "selectActive", Arrays.stream(RPGClassType.values()).filter(c->c!=RPGClassType.NONE).map(Enum::name).toList(), "className")
-                .setCommandArgumentsList(1, "setXp", Arrays.stream(RPGClassType.values()).filter(c->c!=RPGClassType.NONE).map(Enum::name).toList(), "className")
-                .setCommandArgumentsList(2, "setXp", "xpNumber(Integer)")
-                .setCommandArgumentsList(1, "revive", Bukkit.getOnlinePlayers().stream().filter(p->EntityManager.getInstance().isDead(p.getUniqueId())).map(p->p.getName()).toList())
-        );
+                .setCommandArgumentsList(0,
+                        Arrays.asList("showProgress", "showStats", "selectActive", "setXp", "revive"))
+                .setCommandArgumentsList(1, "selectActive",
+                        Arrays.stream(RPGClassType.values()).filter(c -> c != RPGClassType.NONE).map(Enum::name)
+                                .toList(),
+                        "className")
+                .setCommandArgumentsList(1, "setXp",
+                        Arrays.stream(RPGClassType.values()).filter(c -> c != RPGClassType.NONE).map(Enum::name)
+                                .toList(),
+                        "className")
+                .setCommandArgumentsList(2, "setXp", "xpNumber(Integer)").setCommandArgumentsList(1, "revive",
+                        Bukkit.getOnlinePlayers().stream()
+                                .filter(p -> EntityManager.getInstance().isDead(p.getUniqueId())).map(p -> p.getName())
+                                .toList()));
 
         // ==============================================================
         // gamestate tree -> /d gamestate <next|current>
         // ==============================================================
-        addSubCommand("project-d", SubCommandBuilder.startBuilding("gamestate")
-                .setDescription("Game state controls")
+        addSubCommand("project-d", SubCommandBuilder.startBuilding("gamestate").setDescription("Game state controls")
                 .setCommandAction(1, "next", permAny("projectd.gamestate.next", (sender, args) -> {
-                    if (sender instanceof Player p) messageSender.sendMessage(p, MessageComponent.of("<yellow>Skipping to next state...</yellow>"));
+                    if (sender instanceof Player p)
+                        messageSender.sendMessage(p, MessageComponent.of("<yellow>Skipping to next state...</yellow>"));
                     gameStateController.skipCurrentState();
-                }))
-                .setCommandAction(1, "current", permAny("projectd.gamestate.current", (sender, args) -> {
-                    if (sender instanceof Player p) messageSender.sendCenteredDebugMessage(p, MessageComponent.of("<yellow>Current State: %s</yellow>", gameStateController.getCurrentState().getName()));
-                    else sender.sendMessage("Current State: " + gameStateController.getCurrentState().getName());
-                }))
-                .setCommandArgumentsList(0, Arrays.asList("next","current"))
-        );
+                })).setCommandAction(1, "current", permAny("projectd.gamestate.current", (sender, args) -> {
+                    if (sender instanceof Player p)
+                        messageSender.sendCenteredDebugMessage(p, MessageComponent.of(
+                                "<yellow>Current State: %s</yellow>", gameStateController.getCurrentState().getName()));
+                    else
+                        sender.sendMessage("Current State: " + gameStateController.getCurrentState().getName());
+                })).setCommandArgumentsList(0, Arrays.asList("next", "current")));
 
         // ==============================================================
         // build tree -> /d build createHole ...
         // ==============================================================
-        addSubCommand("project-d", SubCommandBuilder.startBuilding("build")
-                .setDescription("Build controls")
+        addSubCommand("project-d", SubCommandBuilder.startBuilding("build").setDescription("Build controls")
                 .setPlayerCommandAction(1, "createHole", perm("projectd.build.createhole", (player, args) -> {
-                    DamageUtils.playEpicHoleAnimation(DMain.getInstance(), player.getLocation(), 5, 5, new HashSet<Player>(Bukkit.getOnlinePlayers()));
-                }))
-                .setPlayerCommandAction(5, "createHole", perm("projectd.build.createhole", (player, args) -> {
-                    DamageUtils.playEpicHoleAnimation(DMain.getInstance(), player.getLocation(), Integer.parseInt(args[1]), Integer.parseInt(args[2]), Integer.parseInt(args[3]), Integer.parseInt(args[4]), new HashSet<Player>(Bukkit.getOnlinePlayers()));
-                }))
-                .setCommandArgumentsList(0, Arrays.asList("createHole"))
-        );
+                    DamageUtils.playEpicHoleAnimation(DMain.getInstance(), player.getLocation(), 5, 5,
+                            new HashSet<Player>(Bukkit.getOnlinePlayers()));
+                })).setPlayerCommandAction(5, "createHole", perm("projectd.build.createhole", (player, args) -> {
+                    DamageUtils.playEpicHoleAnimation(DMain.getInstance(), player.getLocation(),
+                            Integer.parseInt(args[1]), Integer.parseInt(args[2]), Integer.parseInt(args[3]),
+                            Integer.parseInt(args[4]), new HashSet<Player>(Bukkit.getOnlinePlayers()));
+                })).setCommandArgumentsList(0, Arrays.asList("createHole")));
 
         // ==============================================================
-        // hud tree -> /d hud reload  (strict absolute, replaces top-level hud)
+        // hud tree -> /d hud reload (strict absolute, replaces top-level hud)
         // ==============================================================
-        addSubCommand("project-d", SubCommandBuilder.startBuilding("hud")
-                .setDescription("HUD overlay controls")
+        addSubCommand("project-d", SubCommandBuilder.startBuilding("hud").setDescription("HUD overlay controls")
                 .setCommandAction(1, "reload", permAny("projectd.hud.reload", (sender, args) -> {
                     try {
                         ConfigProvider reloaded = DMain.getInstance().getConfigManager().reloadProvider("hud.yml");
@@ -322,15 +419,27 @@ public class CommandManager {
                         HunterHudFormatter.load(n);
                         TriHomingHudFormatter.load(n);
                         StaffHudFormatter.load(n);
-                        BukkitMessageSender.getInstance().sendMessage(sender, dev.core.utils.MessageComponent.of("<green>HUD reloaded.</green>"));
+                        BukkitMessageSender.getInstance().sendMessage(sender,
+                                dev.core.utils.MessageComponent.of("<green>HUD reloaded.</green>"));
                     } catch (Exception e) {
-                       BukkitMessageSender.getInstance().sendMessage(sender, dev.core.utils.MessageComponent.of("<red>HUD reload failed: %s</red>", e.getMessage()));
+                        BukkitMessageSender.getInstance().sendMessage(sender,
+                                dev.core.utils.MessageComponent.of("<red>HUD reload failed: %s</red>", e.getMessage()));
                     }
-                }))
-                .setCommandArgumentsList(0, Arrays.asList("reload"))
-        );
+                })).setCommandArgumentsList(0, Arrays.asList("reload")));
 
-        // Note: BuildAssetManager and SimpleDungeonBuilderBukkit add their own "asset"/"dungeon" branches under project-d via DMain hooks (already unified, not separate mains).
+        // ==============================================================
+        // give tree -> /d give itemset <setName>
+        // Drops all armor pieces of an item set into the executor's inventory.
+        // ==============================================================
+        addSubCommand("project-d", SubCommandBuilder.startBuilding("give").setDescription("Give commands")
+                .setPlayerCommandAction(2, "itemset",
+                        perm("projectd.item.give", (player, args) -> giveItemSetToPlayer(player, args[1])))
+                .setCommandArgumentsList(0, Arrays.asList("itemset")).setCommandArgumentsList(1, "itemset",
+                        () -> RPGItemRegistry.getInstance().allItemSets().keySet().stream().toList(), "itemSetName"));
+
+        // Note: BuildAssetManager and SimpleDungeonBuilderBukkit add their own
+        // "asset"/"dungeon" branches under project-d via DMain hooks (already unified,
+        // not separate mains).
 
     }
 
