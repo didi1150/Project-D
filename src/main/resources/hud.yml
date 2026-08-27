@@ -80,6 +80,10 @@ formats:
     ready: "&5Trinity Bow &8| &dHoming ready &7(3 &8× &7homing)"
     volley-ready: "&5Trinity &8| &dVolley ready"
     volley-cd: "&cVolley &7%cds"
+  staff:
+    mode1: "&2Utility Staff &8| &aMending Touch"
+    mode2: "&2Utility Staff &8| &eAegis Ward"
+    mode3: "&2Utility Staff &8| &bTempest Gust"
 messages:
   not-enough: "&cNot enough <resource>!"
   # hex + rgb examples: "{#FFAA00}Volley" or "&#FF5555<ability> &8» rgb(255,85,85)On cooldown"

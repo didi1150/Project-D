@@ -21,9 +21,15 @@ import org.jetbrains.annotations.Nullable;
 import dev.bukkit.DMain;
 import dev.bukkit.entity.BukkitPlayerEntity;
 import dev.bukkit.game.states.SelectItemState;
+import dev.bukkit.hud.HudConfig;
+import dev.bukkit.hud.HudOverlayService;
+import dev.bukkit.hud.HunterHudFormatter;
+import dev.bukkit.hud.StaffHudFormatter;
+import dev.bukkit.hud.TriHomingHudFormatter;
 import dev.bukkit.item.BukkitInventorySync;
 import dev.bukkit.item.BukkitItemStackAdapter;
 import dev.bukkit.item.display.BukkitTextColorAdapter;
+import dev.bukkit.reload.ItemsAbilitiesReloadService;
 import dev.bukkit.storage.progression.ClassProgressionService;
 import dev.bukkit.utils.BukkitMessageSender;
 import dev.bukkit.utils.DamageUtils;
@@ -157,17 +163,17 @@ public class CommandManager {
                 .setCommandAction(1, "reload", permAny("projectd.item.reload", (sender, args) -> {
                     try {
                         long t0 = System.currentTimeMillis();
-                        dev.bukkit.utils.BukkitMessageSender.getInstance().sendMessage(sender, MessageComponent.of("<yellow>Reloading items/abilities...</yellow>"));
-                        var r = dev.bukkit.reload.ItemsAbilitiesReloadService.reload(DMain.getInstance().getConfigManager());
+                        BukkitMessageSender.getInstance().sendMessage(sender, MessageComponent.of("<yellow>Reloading items/abilities...</yellow>"));
+                        var r = ItemsAbilitiesReloadService.reload(DMain.getInstance().getConfigManager());
                         if (r.success) {
-                            dev.bukkit.utils.BukkitMessageSender.getInstance().sendMessage(sender, MessageComponent.of("<green>Reloaded: %s</green>", r.message));
+                            BukkitMessageSender.getInstance().sendMessage(sender, MessageComponent.of("<green>Reloaded: %s</green>", r.message));
                             Bukkit.getLogger().info("[items reload] " + r.message + " by " + sender.getName());
                         } else {
-                            dev.bukkit.utils.BukkitMessageSender.getInstance().sendMessage(sender, MessageComponent.of("<red>Reload failed: %s</red>", r.message));
+                            BukkitMessageSender.getInstance().sendMessage(sender, MessageComponent.of("<red>Reload failed: %s</red>", r.message));
                             if (r.error != null) r.error.printStackTrace();
                         }
                     } catch (Exception e) {
-                        dev.bukkit.utils.BukkitMessageSender.getInstance().sendMessage(sender, MessageComponent.of("<red>Items reload failed: %s</red>", e.getMessage()));
+                        BukkitMessageSender.getInstance().sendMessage(sender, MessageComponent.of("<red>Items reload failed: %s</red>", e.getMessage()));
                         e.printStackTrace();
                     }
                 }))
@@ -310,14 +316,15 @@ public class CommandManager {
                 .setDescription("HUD overlay controls")
                 .setCommandAction(1, "reload", permAny("projectd.hud.reload", (sender, args) -> {
                     try {
-                        dev.core.storage.config.ConfigProvider reloaded = DMain.getInstance().getConfigManager().reloadProvider("hud.yml");
-                        dev.bukkit.hud.HudConfig n = dev.bukkit.hud.HudConfigLoader.load(reloaded);
-                        dev.bukkit.hud.HudOverlayService.getInstance().reload(n);
-                        dev.bukkit.hud.HunterHudFormatter.load(n);
-                        dev.bukkit.hud.TriHomingHudFormatter.load(n);
-                        dev.bukkit.utils.BukkitMessageSender.getInstance().sendMessage(sender, dev.core.utils.MessageComponent.of("<green>HUD reloaded.</green>"));
+                        ConfigProvider reloaded = DMain.getInstance().getConfigManager().reloadProvider("hud.yml");
+                        HudConfig n = dev.bukkit.hud.HudConfigLoader.load(reloaded);
+                        HudOverlayService.getInstance().reload(n);
+                        HunterHudFormatter.load(n);
+                        TriHomingHudFormatter.load(n);
+                        StaffHudFormatter.load(n);
+                        BukkitMessageSender.getInstance().sendMessage(sender, dev.core.utils.MessageComponent.of("<green>HUD reloaded.</green>"));
                     } catch (Exception e) {
-                        dev.bukkit.utils.BukkitMessageSender.getInstance().sendMessage(sender, dev.core.utils.MessageComponent.of("<red>HUD reload failed: %s</red>", e.getMessage()));
+                       BukkitMessageSender.getInstance().sendMessage(sender, dev.core.utils.MessageComponent.of("<red>HUD reload failed: %s</red>", e.getMessage()));
                     }
                 }))
                 .setCommandArgumentsList(0, Arrays.asList("reload"))

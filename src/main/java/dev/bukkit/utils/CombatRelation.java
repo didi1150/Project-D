@@ -4,6 +4,7 @@ import org.bukkit.entity.Entity;
 import org.bukkit.entity.LivingEntity;
 import org.bukkit.entity.Player;
 
+import dev.core.entity.CombatTeamUtils;
 import dev.core.entity.RPGEntity;
 import dev.core.entity.SummonRegistry;
 
@@ -26,7 +27,7 @@ public final class CombatRelation {
     }
 
     public static boolean isPlayerTeam(RPGEntity entity) {
-        return dev.core.entity.CombatTeamUtils.isPlayerTeam(entity);
+        return CombatTeamUtils.isPlayerTeam(entity);
     }
 
     /**

@@ -16,8 +16,8 @@ import dev.core.event.impl.RPGEntityHealEvent.HealReason;
 
 /**
  * Support set passive ("HEAL_AURA"): every second the wearer heals nearby
- * non-ghost teammates. Invoked from {@code BukkitPlayerEntity.tick} so the aura
- * only ticks while the wearer is alive and stops as soon as the set is broken.
+ * non-ghost teammates. Invoked from {@code HealAuraBehavior} which subscribes
+ * to TickEvent while the set passive is live.
  */
 public class HealAuraUtils {
 
@@ -47,9 +47,9 @@ public class HealAuraUtils {
 
         double radiusSq = HEAL_RADIUS * HEAL_RADIUS;
         for (Player player : holderPlayer.get().getWorld().getPlayers()) {
-            if (player.getUniqueId().equals(holder.getUuid())) {
-                continue; // aura heals teammates, not the wearer
-            }
+//            if (player.getUniqueId().equals(holder.getUuid())) {
+//                continue; // aura heals teammates, not the wearer
+//            }
             if (player.isDead() || !player.isOnline()
                     || EntityManager.getInstance().isGhost(player.getUniqueId())) {
                 continue;

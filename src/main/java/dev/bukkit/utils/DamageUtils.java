@@ -169,20 +169,27 @@ public class DamageUtils {
         VanillaEntityMeta meta = (VanillaEntityMeta) entity.getMetadata("VANILLA_META").get(0).value();
 
         double[] health = rpgHealthOf(entity);
+        double displayCurrent = health[0];
+        double displayMax = health[1];
+        boolean hasAbsorption = health.length > 2 && health[2] > 0;
 
         String color;
-        switch (meta.getRelation()) {
-        case FRIENDLY -> color = "§a"; // green
-        case NEUTRAL -> color = "§e"; // yellow
-        case HOSTILE -> color = "§c"; // red
-        default -> color = "§f";
+        if (hasAbsorption) {
+            color = "§e"; // yellow when absorption is active
+        } else {
+            switch (meta.getRelation()) {
+            case FRIENDLY -> color = "§a"; // green
+            case NEUTRAL -> color = "§e"; // yellow
+            case HOSTILE -> color = "§c"; // red
+            default -> color = "§f";
+            }
         }
 
         String typePart = meta.getDisplayName() != null
                 ? ColorCodes.translate(meta.getDisplayName())
                 : entity.getType().name();
-        String name = color + "[Lvl " + meta.getLevel() + "] " + typePart + " [❤] " + Math.round(health[0]) + "/"
-                + Math.round(health[1]);
+        String name = color + "[Lvl " + meta.getLevel() + "] " + typePart + " [❤] " + Math.round(displayCurrent) + "/"
+                + Math.round(displayMax);
 
         entity.setCustomName(name);
         entity.setCustomNameVisible(true);
@@ -193,14 +200,18 @@ public class DamageUtils {
      * {@code HEALTH_RESOURCE}/{@code HEALTH_MAX} when one is registered for this
      * entity's uuid (bosses, RPG-managed mobs), otherwise the vanilla entity's
      * health. Shown in the {@code [❤] current/max} name format.
+     *
+     * @return double array: [currentWithAbsorption, max, absorptionAmount]
      */
     private static double[] rpgHealthOf(LivingEntity entity) {
         double maxHp = entity.getAttribute(Attribute.MAX_HEALTH).getValue();
         Optional<RPGEntity> rpg = EntityManager.getInstance().getEntity(entity.getUniqueId());
         if (rpg.isPresent()) {
-            return new double[] { rpg.get().getHealth(), rpg.get().getMaxHealth() };
+            RPGEntity rpgEntity = rpg.get();
+            double absorption = rpgEntity.getAbsorptionAmount();
+            return new double[] { rpgEntity.getHealth() + absorption, rpgEntity.getMaxHealth(), absorption };
         }
-        return new double[] { entity.getHealth(), maxHp };
+        return new double[] { entity.getHealth(), maxHp, 0 };
     }
 
     public static void playEpicHoleAnimation(Plugin plugin, Location center, int baseRadius, int depth,

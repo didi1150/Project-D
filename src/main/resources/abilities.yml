@@ -410,3 +410,44 @@ abilities:
     action: NONE
     cooldownScope: PLAYER
     cooldown: 0
+  WITHER_SKULL_ORBIT:
+    name: Wither Skull Orbit
+    description:
+      - "<dark_gray/>Orbiting wither skulls guard you."
+      - "<gray/>Skulls regenerate over time."
+      - "<dark_gray/>Up to 5 skulls may orbit at once."
+    triggerType: PASSIVE
+    action: NONE
+    cooldownScope: PLAYER
+    cooldown: 0
+  WITHER_SKULL_LAUNCH:
+    name: Wither Skull Launch
+    description:
+      - "<dark_gray/>Launch a wither skull toward your target."
+      - "<gray/>Left-click to fire the nearest skull."
+      - "<gray/>Explodes on impact, dealing AoE magic damage"
+      - "<gray/>and applying a wither DoT that scales with"
+      - "<gray/>Heal & Shield Power."
+    triggerType: MANUAL
+    action: LEFT_CLICK
+    cooldownScope: PLAYER
+    cooldown: 0
+  STAFF_USE:
+    name: "Utility Cast"
+    description:
+      - ""
+      - "<dark_gray/>Mending Touch <gray/>- Heal allies"
+      - "<dark_gray/>Aegis Ward <gray/>- Shield allies"
+      - "<dark_gray/>Tempest Gust <gray/>- Push back mobs"
+    triggerType: MANUAL
+    action: LEFT_CLICK
+    cooldownScope: PLAYER
+    cooldown: 0
+  STAFF_TOGGLE:
+    name: "Utility Cycle"
+    description:
+      - "<gray/>Cycle staff mode."
+    triggerType: MANUAL
+    action: SHIFT_LEFT_CLICK
+    cooldownScope: PLAYER
+    cooldown: 0

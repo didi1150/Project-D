@@ -178,7 +178,7 @@ public class PlayerSubscriber {
                 if (event.getAction().toString().contains("LEFT_CLICK")) {
                     if (event.getPlayer().isSneaking()) {
                         optional.get().triggerAbility(AbilityAction.SHIFT_LEFT_CLICK);
-                        optional.get().triggerAbility(AbilityAction.LEFT_CLICK);
+//                        optional.get().triggerAbility(AbilityAction.LEFT_CLICK);
                     } else {
                         optional.get().triggerAbility(AbilityAction.LEFT_CLICK);
                     }
@@ -362,9 +362,9 @@ public class PlayerSubscriber {
 
     /**
      * Releases every ability binding held by the disconnecting player's entity
-     * (behavior deactivation + registry untrack + listener unsubscribe), so
-     * stale entries don't accumulate under discarded RPGEntity instances across
-     * rejoins. Idempotent with the per-behavior quit cleanups.
+     * (behavior deactivation + registry untrack + listener unsubscribe), so stale
+     * entries don't accumulate under discarded RPGEntity instances across rejoins.
+     * Idempotent with the per-behavior quit cleanups.
      */
     @Subscribe
     public void onAbilityQuit(PlayerQuitEvent event) {

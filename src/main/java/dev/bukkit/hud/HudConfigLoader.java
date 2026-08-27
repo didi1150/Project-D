@@ -76,6 +76,20 @@ public final class HudConfigLoader {
                 triVolleyReady != null ? triVolleyReady : defaultsT.volleyReady(),
                 triVolleyCd != null ? triVolleyCd : defaultsT.volleyCd());
 
+        // formats.staff
+        ConfigSection staffSec = root.getSection("formats.staff");
+        String staffMode1 = null, staffMode2 = null, staffMode3 = null;
+        if (staffSec != null) {
+            staffMode1 = trim(staffSec.getString("mode1", null));
+            staffMode2 = trim(staffSec.getString("mode2", null));
+            staffMode3 = trim(staffSec.getString("mode3", null));
+        }
+        HudConfig.StaffFormats defaultsS = HudConfig.defaults().staffFormats();
+        HudConfig.StaffFormats staffFormats = new HudConfig.StaffFormats(
+                staffMode1 != null ? staffMode1 : defaultsS.mode1(),
+                staffMode2 != null ? staffMode2 : defaultsS.mode2(),
+                staffMode3 != null ? staffMode3 : defaultsS.mode3());
+
         ConfigSection msgs = root.getSection("messages");
         HudConfig.Messages defMsgs = HudConfig.defaults().messages();
         String notEnough = null, onCooldown = null;
@@ -94,7 +108,7 @@ public final class HudConfigLoader {
 
         return new HudConfig(enabled, maxKeys, distance, vOff, spacing, scale, viewRange, lineWidth, bg,
                 brightness, interp, teleport, shadowed, seeThrough, tracking, formats, triFormats,
-                messages);
+                staffFormats, messages);
     }
 
     private static Color loadBackground(ConfigSection disp) {

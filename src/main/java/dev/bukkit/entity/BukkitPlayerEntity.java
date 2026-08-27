@@ -20,7 +20,6 @@ import dev.bukkit.entity.boss.BukkitBossEntity;
 import dev.bukkit.event.BukkitEventBus;
 import dev.bukkit.stat.BukkitStatManager;
 import dev.bukkit.status.BukkitStatusEffectManager;
-import dev.bukkit.utils.HealAuraUtils;
 import dev.core.entity.EntityManager;
 import dev.core.entity.EntityType;
 import dev.core.entity.RPGEntity;
@@ -33,9 +32,6 @@ public class BukkitPlayerEntity extends RPGEntity {
     private PlayerProgression playerProgression;
     private BukkitStatManager bukkitStatManager;
     private ItemStack[] inventoryContents;
-    // Support set passive ("HEAL_AURA"): next tick at which the aura heals
-    // nearby teammates.
-    private long nextAuraHealAt = 0;
 
     public BukkitPlayerEntity(Player player) {
         super(player.getUniqueId(), player.getName(), EntityType.PLAYER, BukkitEffectManager.getInstance(),
@@ -56,15 +52,6 @@ public class BukkitPlayerEntity extends RPGEntity {
             bukkitStatManager.tick(now, this::onDeath, getHealth(), getMaxHealth());
 //            BukkitInventorySync.syncInventoryDiff(this, player);
             this.inventoryContents = getPlayer().get().getInventory().getContents();
-            if (getEquipmentManager().hasSetPassive(HealAuraUtils.PASSIVE_ID)) {
-                // Ring is rendered every tick so the aura radius is always
-                // visible; the heal itself only fires on the 1s interval.
-                HealAuraUtils.renderRing(this);
-                if (now >= nextAuraHealAt) {
-                    nextAuraHealAt = now + HealAuraUtils.HEAL_INTERVAL_MS;
-                    HealAuraUtils.tick(this);
-                }
-            }
         }
     }
 
@@ -155,8 +142,13 @@ public class BukkitPlayerEntity extends RPGEntity {
     }
 
     private void updateDisplay() {
-        String combinedText = String.format("§c %,.0f§7/§c%,.0f ❤   §b %,.0f§7/§b%,.0f ✦", getHealth(), getMaxHealth(),
-                getMana(), getMaxMana());
+        String healthPart;
+        if (getAbsorptionAmount() > 0) {
+            healthPart = String.format("§e %,.0f§7/§e%,.0f ❤", getHealth() + getAbsorptionAmount(), getMaxHealth());
+        } else {
+            healthPart = String.format("§c %,.0f§7/§c%,.0f ❤", getHealth(), getMaxHealth());
+        }
+        String combinedText = healthPart + String.format("   §b %,.0f§7/§b%,.0f ✦", getMana(), getMaxMana());
         getPlayer().ifPresent(
                 player -> player.spigot().sendMessage(ChatMessageType.ACTION_BAR, new TextComponent(combinedText)));
     }

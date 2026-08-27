@@ -4,10 +4,6 @@ import java.io.File;
 import java.io.IOException;
 import java.util.Map;
 
-import dev.bukkit.utils.setup.BuildAssetHelper;
-import dev.bukkit.game.dungeon.buildassets.BuildAssetManager;
-import dev.bukkit.utils.setup.GameSetupHelper;
-import dev.bukkit.utils.setup.SetupManager;
 import org.bukkit.Bukkit;
 import org.bukkit.WorldCreator;
 import org.bukkit.plugin.java.JavaPlugin;
@@ -22,12 +18,32 @@ import dev.bukkit.ability.BukkitShadowWeaverDashEffect;
 import dev.bukkit.ability.BukkitShadowWeaverPlaceEffect;
 import dev.bukkit.ability.BukkitShieldBashEffect;
 import dev.bukkit.ability.BukkitSmashEffect;
+import dev.bukkit.ability.BukkitSmokeShroudEffect;
 import dev.bukkit.ability.BukkitSoulRecallEffect;
+import dev.bukkit.ability.BukkitSupportStaffUseEffect;
+import dev.bukkit.ability.BukkitSupportStaffToggleEffect;
 import dev.bukkit.ability.BukkitSoulStoreEffect;
 import dev.bukkit.ability.BukkitSoulSummonEffect;
 import dev.bukkit.ability.BukkitSpinjitzuEffect;
 import dev.bukkit.ability.BukkitSpiritSceptreBatEffect;
 import dev.bukkit.ability.BukkitSwingBoneEffect;
+import dev.bukkit.ability.BukkitTriVolleyEffect;
+import dev.bukkit.ability.BukkitWitherSkullLaunchEffect;
+import dev.bukkit.ability.behavior.ArcaneCleaveBehavior;
+import dev.bukkit.ability.behavior.ArcaneManaRestoreBehavior;
+import dev.bukkit.ability.behavior.BackstabBehavior;
+import dev.bukkit.ability.behavior.BladeDanceBehavior;
+import dev.bukkit.ability.behavior.HealAuraBehavior;
+import dev.bukkit.ability.behavior.HunterBowBehavior;
+import dev.bukkit.ability.behavior.ManaDiscountBehavior;
+import dev.bukkit.ability.behavior.ShadowWeaverBehavior;
+import dev.bukkit.ability.behavior.StackerBehavior;
+import dev.bukkit.ability.behavior.StealthPassiveBehavior;
+import dev.bukkit.ability.behavior.ThreatBehavior;
+import dev.bukkit.ability.behavior.TriVolleyBehavior;
+import dev.bukkit.ability.behavior.VampirismBehavior;
+import dev.bukkit.ability.behavior.WitherSkullOrbitBehavior;
+import dev.bukkit.ability.behavior.SupportStaffBehavior;
 import dev.bukkit.command.CommandManager;
 import dev.bukkit.entity.boss.BukkitBossStageTypeRegistry;
 import dev.bukkit.entity.boss.BukkitBossStrategyRegistry;
@@ -36,6 +52,8 @@ import dev.bukkit.event.BukkitEventBus;
 import dev.bukkit.event.bukkitListeners.CombatListener;
 import dev.bukkit.event.bukkitListeners.EventBusRegistry;
 import dev.bukkit.event.subscribers.ThreatPassiveSubscriber;
+import dev.bukkit.game.boss.BossArenaManager;
+import dev.bukkit.game.dungeon.buildassets.BuildAssetManager;
 import dev.bukkit.game.dungeon.proceduralDungeon.BukkitVoidWorldGenerator;
 import dev.bukkit.game.dungeon.proceduralDungeon.SimpleDungeonBuilderBukkit;
 import dev.bukkit.game.scheduler.BukkitTaskScheduler;
@@ -46,6 +64,12 @@ import dev.bukkit.game.states.PreLobbyState;
 import dev.bukkit.game.states.SelectClassState;
 import dev.bukkit.game.states.SelectItemState;
 import dev.bukkit.game.states.SetupState;
+import dev.bukkit.hud.HudConfig;
+import dev.bukkit.hud.HudConfigLoader;
+import dev.bukkit.hud.HudOverlayService;
+import dev.bukkit.hud.HunterHudFormatter;
+import dev.bukkit.hud.TriHomingHudFormatter;
+import dev.bukkit.hud.StaffHudFormatter;
 import dev.bukkit.item.display.LoreLabels;
 import dev.bukkit.status.BukkitStatusEffectManager;
 import dev.bukkit.status.StatusEffectBehaviorRegistry;
@@ -53,6 +77,8 @@ import dev.bukkit.status.behavior.AirborneStatusEffectBehavior;
 import dev.bukkit.status.behavior.RootedStatusEffectBehavior;
 import dev.bukkit.status.behavior.SlowedStatusEffectBehavior;
 import dev.bukkit.status.behavior.StunnedStatusEffectBehavior;
+import dev.bukkit.status.behavior.WitherStatusEffectBehavior;
+import dev.bukkit.status.behavior.AbsorptionStatusEffectBehavior;
 import dev.bukkit.storage.BukkitConfigManager;
 import dev.bukkit.storage.progression.BukkitConfigProgressionDatabase;
 import dev.bukkit.storage.progression.ClassProgressionService;
@@ -61,6 +87,9 @@ import dev.bukkit.utils.BackstabUtils;
 import dev.bukkit.utils.BukkitMessageSender;
 import dev.bukkit.utils.HealAuraUtils;
 import dev.bukkit.utils.ManaDiscountUtils;
+import dev.bukkit.utils.setup.BuildAssetHelper;
+import dev.bukkit.utils.setup.GameSetupHelper;
+import dev.bukkit.utils.setup.SetupManager;
 import dev.core.ability.Ability;
 import dev.core.ability.AbilityBehaviorRegistry;
 import dev.core.ability.AbilityRegistry;
@@ -87,6 +116,9 @@ import dev.core.ability.impl.SpiritSceptreAbility;
 import dev.core.ability.impl.StackerAbility;
 import dev.core.ability.impl.SwingBoneAbility;
 import dev.core.ability.impl.TriVolleyAbility;
+import dev.core.ability.impl.WitherSkullLaunchAbility;
+import dev.core.ability.impl.WitherSkullOrbitAbility;
+import dev.core.ability.impl.SupportStaffAbility;
 import dev.core.ability.passive.SetPassiveRegistry;
 import dev.core.ability.storage.AbilityLoader;
 import dev.core.entity.EntityManager;
@@ -95,8 +127,8 @@ import dev.core.entity.boss.BossDefinitionRegistry;
 import dev.core.entity.mob.MobDefinitionLoader;
 import dev.core.entity.mob.MobDefinitionRegistry;
 import dev.core.entity.rpgclass.RPGClassType;
-import dev.core.event.EventBusInterface;
 import dev.core.event.EventAction;
+import dev.core.event.EventBusInterface;
 import dev.core.event.EventSubscriberScanner;
 import dev.core.game.GameStateController;
 import dev.core.game.settings.GameSettings;
@@ -112,31 +144,11 @@ import dev.core.stat.adapter.StatTypeAdapter;
 import dev.core.stat.loader.StatLoader;
 import dev.core.stat.loader.StatMetadataLoader;
 import dev.core.status.StatusEffectType;
+import fr.skytasul.glowingentities.GlowingEntities;
 import dev.core.storage.config.ConfigProvider;
 import dev.core.storage.database.ProgressionCacheStrategy;
 import dev.core.storage.database.ProgressionDatabaseStrategy;
 import dev.core.utils.MessageSenderInterface;
-import dev.bukkit.ability.BukkitSmokeShroudEffect;
-import dev.bukkit.ability.BukkitTriVolleyEffect;
-import dev.bukkit.ability.behavior.ArcaneCleaveBehavior;
-import dev.bukkit.ability.behavior.ArcaneManaRestoreBehavior;
-import dev.bukkit.ability.behavior.BackstabBehavior;
-import dev.bukkit.ability.behavior.BladeDanceBehavior;
-import dev.bukkit.ability.behavior.HealAuraBehavior;
-import dev.bukkit.ability.behavior.HunterBowBehavior;
-import dev.bukkit.ability.behavior.ManaDiscountBehavior;
-import dev.bukkit.ability.behavior.ShadowWeaverBehavior;
-import dev.bukkit.ability.behavior.StackerBehavior;
-import dev.bukkit.ability.behavior.StealthPassiveBehavior;
-import dev.bukkit.ability.behavior.ThreatBehavior;
-import dev.bukkit.ability.behavior.TriVolleyBehavior;
-import dev.bukkit.ability.behavior.VampirismBehavior;
-import dev.bukkit.game.boss.BossArenaManager;
-import dev.bukkit.hud.HudConfig;
-import dev.bukkit.hud.HudConfigLoader;
-import dev.bukkit.hud.HudOverlayService;
-import dev.bukkit.hud.HunterHudFormatter;
-import dev.bukkit.hud.TriHomingHudFormatter;
 
 public final class DMain extends JavaPlugin {
     private EventBusInterface eventBusInterface;
@@ -155,6 +167,7 @@ public final class DMain extends JavaPlugin {
     private BuildAssetManager buildAssetManager;
 
     private BukkitDisplayEntityRegistry bukkitDisplayEntityRegistry;
+    private GlowingEntities glowingEntities;
 
     @Override
     public void onEnable() {
@@ -188,6 +201,7 @@ public final class DMain extends JavaPlugin {
         AbilityRegistry.register(new BouncyArrowAbility(), BukkitBouncyArrowEffect::new);
         AbilityRegistry.register(new ExplosiveArrowAbility(), BukkitExplosiveArrowEffect::new);
         AbilityRegistry.register(new TriVolleyAbility(), BukkitTriVolleyEffect::new);
+
         // Arcane Blade passives — PASSIVE abilities, runtime handled by per-holder
         // behaviors
         AbilityRegistry.register(new ArcaneManaRestoreAbility());
@@ -198,6 +212,12 @@ public final class DMain extends JavaPlugin {
         // Assassin items — Blade Dance (active cone) & Orb of Stealth
         AbilityRegistry.register(new BladeDanceAbility(), BukkitBladeDanceEffect::new);
         AbilityRegistry.register(new OrbStealthPassiveAbility());
+        // Wither Guard set abilities (orbit + launch)
+        AbilityRegistry.register(new WitherSkullOrbitAbility()); // PASSIVE, no effect factory
+        AbilityRegistry.register(new WitherSkullLaunchAbility(), BukkitWitherSkullLaunchEffect::new);
+        // Support Staff abilities
+        AbilityRegistry.register(SupportStaffAbility.use(), BukkitSupportStaffUseEffect::new);
+        AbilityRegistry.register(SupportStaffAbility.toggle(), BukkitSupportStaffToggleEffect::new);
 
         // ---- Per-holder ability behaviors ----
         AbilityBehaviorRegistry.register(ArcaneManaRestoreAbility.ID, ArcaneManaRestoreBehavior::new);
@@ -216,6 +236,9 @@ public final class DMain extends JavaPlugin {
         AbilityBehaviorRegistry.register("THREAT", ThreatBehavior::new);
         AbilityBehaviorRegistry.register(VampirismBehavior.PASSIVE_ID, VampirismBehavior::new);
         AbilityBehaviorRegistry.register(StackerAbility.ID, StackerBehavior::new);
+        AbilityBehaviorRegistry.register(WitherSkullOrbitAbility.ID, WitherSkullOrbitBehavior::new);
+        AbilityBehaviorRegistry.register(SupportStaffAbility.USE_ID, SupportStaffBehavior::new);
+        AbilityBehaviorRegistry.register(SupportStaffAbility.TOGGLE_ID, SupportStaffBehavior::new);
 
         // Status effect behaviors: how each CC type plays out on the vanilla
         // entity (stat engine / potions / AI / velocity). Types without a
@@ -224,6 +247,8 @@ public final class DMain extends JavaPlugin {
         StatusEffectBehaviorRegistry.register(StatusEffectType.ROOTED, new RootedStatusEffectBehavior());
         StatusEffectBehaviorRegistry.register(StatusEffectType.STUNNED, new StunnedStatusEffectBehavior());
         StatusEffectBehaviorRegistry.register(StatusEffectType.AIRBORNE, new AirborneStatusEffectBehavior());
+        StatusEffectBehaviorRegistry.register(StatusEffectType.WITHER, new WitherStatusEffectBehavior());
+        StatusEffectBehaviorRegistry.register(StatusEffectType.ABSORPTION, new AbsorptionStatusEffectBehavior());
 
         // HUD overlay config — create manager early so hud.yml is available before
         // services start
@@ -232,6 +257,17 @@ public final class DMain extends JavaPlugin {
         HudOverlayService.getInstance().init(this, hudCfg);
         HunterHudFormatter.load(hudCfg);
         TriHomingHudFormatter.load(hudCfg);
+        StaffHudFormatter.load(hudCfg);
+
+        // GlowingEntities for per-player glow indicators (used by Support Staff)
+        try {
+            glowingEntities = new GlowingEntities(this);
+//            glowingEntities.enable();
+            Bukkit.getConsoleSender().sendMessage("[DMain] GlowingEntities enabled.");
+        } catch (Exception e) {
+            Bukkit.getConsoleSender().sendMessage("[DMain] GlowingEntities failed to start: " + e.getMessage());
+            glowingEntities = null;
+        }
 
         // Item set passives: registered before items.yml loads so the loader can
         // resolve the "passives:" lists of set bonuses.
@@ -373,6 +409,12 @@ public final class DMain extends JavaPlugin {
         BukkitStatusEffectManager.getInstance().cancelAll();
         bukkitDisplayEntityRegistry.removeAllDisplays();
         HudOverlayService.getInstance().shutdown();
+        if (glowingEntities != null) {
+            try {
+                glowingEntities.disable();
+            } catch (Exception ignored) {
+            }
+        }
         try {
             ActiveAbilityRegistry.getInstance().clear();
         } catch (Exception ignored) {
@@ -397,6 +439,14 @@ public final class DMain extends JavaPlugin {
 
     public CombatListener getCombatListener() {
         return combatListener;
+    }
+
+    /**
+     * Returns the GlowingEntities instance, or null if the library failed to load.
+     * Used by {@link SupportStaffBehavior} for per-player glow indicators.
+     */
+    public GlowingEntities getGlowingEntities() {
+        return glowingEntities;
     }
 
     public ClassProgressionService getProgressionService() {

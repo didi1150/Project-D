@@ -10,10 +10,8 @@ class HudCooldownFeedbackTest {
     private static final char S = '\u00A7';
 
     private static HudConfig cfg(String onCooldown) {
-        return new HudConfig(true, 4, 1.85, -0.35, 0.28, 0.65f, 0.9f, 300,
-                null, 15, 1, 2, true, false,
-                HudConfig.defaultTracking(), null, null,
-                new HudConfig.Messages(null, onCooldown, 1600, 600));
+        return new HudConfig(true, 4, 1.85, -0.35, 0.28, 0.65f, 0.9f, 300, null, 15, 1, 2, true, false,
+                HudConfig.defaultTracking(), null, null, null, new HudConfig.Messages(null, onCooldown, 1600, 600));
     }
 
     @Test
@@ -36,8 +34,7 @@ class HudCooldownFeedbackTest {
 
     @Test
     void hexAndRgbColorSyntaxSupported() {
-        String out = HudCooldownFeedback.format(
-                cfg("{#FF8000}<ability> &8» rgb(255,85,85)<seconds>"), "Blink", 400);
+        String out = HudCooldownFeedback.format(cfg("{#FF8000}<ability> &8» rgb(255,85,85)<seconds>"), "Blink", 400);
         String expected = dev.core.utils.ColorCodes.toLegacy("FF8000") + "Blink " + S + "8» "
                 + dev.core.utils.ColorCodes.toLegacy("FF5555") + "0.4";
         assertEquals(expected, out);

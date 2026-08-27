@@ -1228,6 +1228,147 @@ items:
     abilities:
     - ORB_STEALTH_PASSIVE
     - SMOKE_SHROUD
+  UTILITY_STAFF:
+    allowed-classes:
+    - SUPPORT
+    name: Utility Staff
+    unlockLevel: 0
+    material: STICK
+    slot: MAIN_HAND
+    itemType: STAFF
+    description:
+      - "<gray>A multi-purpose staff.</gray>"
+      - "<gray>Modes: Heal, Shield, Pushback </gray>"
+      - ""
+      - "<yellow><bold>[SHIFT] </bold></yellow><gray>Cycle Mode</gray>"
+      - "<yellow><bold>[LEFT]  </bold></yellow><gray>Use Ability</gray>"
+    passive-stats: []
+    active-stats: 
+    - amount: 5.0
+      statType: ATTACK_DAMAGE
+      modifierType: FLAT
+      statTarget: BOTH
+      policy: STACK
+    - amount: 15.0
+      statType: HEAL_AND_SHIELD_POWER
+      modifierType: FLAT
+      statTarget: BOTH
+      policy: STACK
+    - amount: 15.0
+      statType: ABILITY_HASTE
+      modifierType: FLAT
+      statTarget: BOTH
+      policy: STACK
+    abilities:
+    - STAFF_USE
+    - STAFF_TOGGLE
+
+# ---- Wither Guard Set (Support armor set) -----------------------------------
+# Support armor set with wither skull orbit/launch as the set bonus ability.
+# Orbiting skulls guard the wearer; left-click to launch a skull at enemies.
+# Skulls explode on impact, dealing AoE magic damage and applying a wither DoT
+# that scales with Heal & Shield Power.
+  SUPPORT_WITHER_HELMET:
+    name: Wither Guard Hood
+    material: LEATHER_HELMET
+    leather-color: 0x2D1B4E
+    slot: HEAD
+    itemType: HELMET
+    unlockLevel: 0
+    allowed-classes:
+    - SUPPORT
+    description:
+    - "<dark_gray/>A hood wreathed in soul energy."
+    - "<gray/>Grants wither skulls when worn"
+    - "<gray/>as a full set."
+    passive-stats: []
+    active-stats:
+    - amount: 3.0
+      statType: HEAL_AND_SHIELD_POWER
+      modifierType: FLAT
+      statTarget: BOTH
+      policy: STACK
+    - amount: 15.0
+      statType: MANA_MAX
+      modifierType: FLAT
+      statTarget: BOTH
+      policy: STACK
+    abilities: []
+  SUPPORT_WITHER_CHESTPLATE:
+    name: Wither Guard Tunic
+    material: LEATHER_CHESTPLATE
+    leather-color: 0x3D2B5E
+    slot: CHEST
+    itemType: CHESTPLATE
+    unlockLevel: 0
+    allowed-classes:
+    - SUPPORT
+    description:
+    - "<dark_gray/>A tunic infused with wither essence."
+    - "<gray/>Channels protective skull energy."
+    passive-stats: []
+    active-stats:
+    - amount: 4.0
+      statType: HEAL_AND_SHIELD_POWER
+      modifierType: FLAT
+      statTarget: BOTH
+      policy: STACK
+    - amount: 20.0
+      statType: HEALTH_MAX
+      modifierType: FLAT
+      statTarget: BOTH
+      policy: STACK
+    abilities: []
+  SUPPORT_WITHER_LEGGINGS:
+    name: Wither Guard Leggings
+    material: LEATHER_LEGGINGS
+    leather-color: 0x4D3B6E
+    slot: LEGS
+    itemType: LEGGINGS
+    unlockLevel: 0
+    allowed-classes:
+    - SUPPORT
+    description:
+    - "<dark_gray/>Leggings threaded with spectral threads."
+    - "<gray/>Sustain mana for prolonged battles."
+    passive-stats: []
+    active-stats:
+    - amount: 3.0
+      statType: HEAL_AND_SHIELD_POWER
+      modifierType: FLAT
+      statTarget: BOTH
+      policy: STACK
+    - amount: 0.8
+      statType: MANA_REGEN
+      modifierType: FLAT
+      statTarget: BOTH
+      policy: STACK
+    abilities: []
+  SUPPORT_WITHER_BOOTS:
+    name: Wither Guard Boots
+    material: LEATHER_BOOTS
+    leather-color: 0x5D4B7E
+    slot: FEET
+    itemType: BOOTS
+    unlockLevel: 0
+    allowed-classes:
+    - SUPPORT
+    description:
+    - "<dark_gray/>Boots that tread between worlds."
+    - "<gray/>Swift movement to reach allies."
+    passive-stats: []
+    active-stats:
+    - amount: 0.8
+      statType: MANA_REGEN
+      modifierType: FLAT
+      statTarget: BOTH
+      policy: STACK
+    - amount: 4.0
+      statType: MOVE_SPEED
+      modifierType: FLAT
+      statTarget: BOTH
+      policy: STACK
+    abilities: []
 
 # ---- Basic Archer Set (item set bonus: full 4/4 set) -----------------------
 # Full set passive: +10% projectile damage dealt (arrows, projectiles and the
@@ -1418,3 +1559,38 @@ item-sets:
         passives:
         - HEAL_AURA
         abilities: []
+
+  # ---- Wither Guard Set (Support armor set) ----------------------------------
+  # Full set grants wither skull orbit/launch abilities: orbiting skulls guard
+  # the wearer; left-click to launch a skull at enemies. Skulls explode on
+  # impact, dealing AoE magic damage and applying a wither DoT that scales
+  # with Heal & Shield Power. Plus support stats.
+  SUPPORT_WITHER_SET:
+    name: Wither Guard Set
+    pieces:
+    - SUPPORT_WITHER_HELMET
+    - SUPPORT_WITHER_CHESTPLATE
+    - SUPPORT_WITHER_LEGGINGS
+    - SUPPORT_WITHER_BOOTS
+    bonuses:
+      '4':
+        description: |-
+          Full Wither Guard Set (4/4):
+          +15 Heal & Shield Power, +30 Mana,
+          wither skulls orbit and protect you;
+          left-click to launch skulls at enemies
+        stat-modifiers:
+        - amount: 15.0
+          statType: HEAL_AND_SHIELD_POWER
+          modifierType: FLAT
+          statTarget: BOTH
+          policy: STACK
+        - amount: 30.0
+          statType: MANA_MAX
+          modifierType: FLAT
+          statTarget: BOTH
+          policy: STACK
+        passives: []
+        abilities:
+        - WITHER_SKULL_ORBIT
+        - WITHER_SKULL_LAUNCH

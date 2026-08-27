@@ -48,6 +48,7 @@ public final class HudConfig {
     private final Tracking tracking;
     private final HunterFormats hunterFormats;
     private final TriFormats triFormats;
+    private final StaffFormats staffFormats;
     private final Messages messages;
 
     /** Real-time tracking tuning (see hud.yml {@code tracking} section). */
@@ -55,6 +56,7 @@ public final class HudConfig {
 
     public record HunterFormats(String bounceZero, String bounce, String shockArmed, String shockPlain) {}
     public record TriFormats(String ready, String volleyReady, String volleyCd) {}
+    public record StaffFormats(String mode1, String mode2, String mode3) {}
     /**
      * Feedback messages. {@code onCooldown} supports the {@code <ability>} and
      * {@code <seconds>} placeholders; the line stays visible for
@@ -67,7 +69,7 @@ public final class HudConfig {
                      float scale, float viewRange, int lineWidth, Color bgColor, int brightness,
                      int interpolationDuration, int teleportDuration, boolean shadowed, boolean seeThrough,
                      Tracking tracking, HunterFormats hunterFormats, TriFormats triFormats,
-                     Messages messages) {
+                     StaffFormats staffFormats, Messages messages) {
         this.enabled = enabled;
         this.maxKeys = clampInt(maxKeys, 1, 8, DEFAULT_MAX_KEYS);
         this.distance = clamp(distance, 0.4, 5.0, DEFAULT_DISTANCE);
@@ -85,6 +87,7 @@ public final class HudConfig {
         this.tracking = sanitizeTracking(tracking);
         this.hunterFormats = hunterFormats != null ? hunterFormats : defaultHunterFormats();
         this.triFormats = triFormats != null ? triFormats : defaultTriFormats();
+        this.staffFormats = staffFormats != null ? staffFormats : defaultStaffFormats();
         this.messages = messages != null ? sanitizeMessages(messages) : defaultMessages();
     }
 
@@ -114,7 +117,7 @@ public final class HudConfig {
                 DEFAULT_SPACING, DEFAULT_SCALE, DEFAULT_VIEW_RANGE, DEFAULT_LINE_WIDTH, DEFAULT_BG_COLOR,
                 DEFAULT_BRIGHTNESS, DEFAULT_INTERP, DEFAULT_TELEPORT, DEFAULT_SHADOWED, DEFAULT_SEE_THROUGH,
                 defaultTracking(), defaultHunterFormats(), defaultTriFormats(),
-                defaultMessages());
+                defaultStaffFormats(), defaultMessages());
     }
 
     private static HunterFormats defaultHunterFormats() {
@@ -130,6 +133,13 @@ public final class HudConfig {
                 "&5Trinity Bow &8| &dHoming ready &7(3 &8× &7homing)",
                 "&5Trinity &8| &dVolley ready",
                 "&cVolley &7%cds");
+    }
+
+    private static StaffFormats defaultStaffFormats() {
+        return new StaffFormats(
+                "&2Utility Staff &8| &aMending Touch",
+                "&2Utility Staff &8| &eAegis Ward",
+                "&2Utility Staff &8| &bTempest Gust");
     }
 
     private static Messages defaultMessages() {
@@ -168,5 +178,6 @@ public final class HudConfig {
     public Tracking tracking() { return tracking; }
     public HunterFormats hunterFormats() { return hunterFormats; }
     public TriFormats triFormats() { return triFormats; }
+    public StaffFormats staffFormats() { return staffFormats; }
     public Messages messages() { return messages; }
 }

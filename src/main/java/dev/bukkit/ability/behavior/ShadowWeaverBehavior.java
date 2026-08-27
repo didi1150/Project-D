@@ -402,8 +402,10 @@ public class ShadowWeaverBehavior implements AbilityBehavior {
      */
     private static Location raycastTarget(Location eye, Vector dir, int maxBlocks) {
         World world = eye.getWorld();
-        // Raytrace collidable block surfaces
-        RayTraceResult result = world.rayTraceBlocks(eye, dir, maxBlocks, FluidCollisionMode.NEVER, true);
+        // Raytrace collidable block surfaces, ignoring entities so mobs/players
+        // standing between the caster and the target cannot block the trace.
+        RayTraceResult result = world.rayTrace(eye, dir, maxBlocks, FluidCollisionMode.NEVER, true, 0,
+                e -> false);
 
         if (result != null && result.getHitPosition() != null) {
             return result.getHitPosition().toLocation(world);

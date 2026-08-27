@@ -53,6 +53,10 @@
                             <shadedPattern>${project.name}.taskchain</shadedPattern> <!--
                             Replace this -->
                         </relocation>
+                        <relocation>
+                            <pattern>fr.skytasul.glowing</pattern>
+                            <shadedPattern>${project.name}.glowing</shadedPattern>
+                        </relocation>
                     </relocations>
                 </configuration>
                 <executions>
@@ -124,6 +128,12 @@
             <artifactId>ProtocolLib</artifactId>
             <version>5.4.0</version>
             <scope>provided</scope>
+        </dependency>
+        <dependency>
+            <groupId>fr.skytasul</groupId>
+            <artifactId>glowingentities</artifactId>
+            <version>1.4.11</version>
+            <scope>compile</scope>
         </dependency>
         <dependency>
             <groupId>co.aikar</groupId>
