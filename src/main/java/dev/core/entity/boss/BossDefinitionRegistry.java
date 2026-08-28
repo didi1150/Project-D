@@ -30,8 +30,8 @@ public class BossDefinitionRegistry {
     public synchronized void registerAll(Collection<BossDefinition> definitions) {
         for (BossDefinition definition : definitions) {
             byFloor.computeIfAbsent(definition.getFloor(), floor -> new ArrayList<>()).add(definition);
-            byFloorAndId.computeIfAbsent(definition.getFloor(), floor -> new LinkedHashMap<>())
-                    .put(definition.getId(), definition);
+            byFloorAndId.computeIfAbsent(definition.getFloor(), floor -> new LinkedHashMap<>()).put(definition.getId(),
+                    definition);
         }
     }
 
@@ -42,8 +42,7 @@ public class BossDefinitionRegistry {
 
     public Optional<BossDefinition> getForFloor(int floor) {
         List<BossDefinition> definitions = byFloor.get(floor);
-        return definitions == null || definitions.isEmpty() ? Optional.empty()
-                : Optional.of(definitions.get(0));
+        return definitions == null || definitions.isEmpty() ? Optional.empty() : Optional.of(definitions.get(0));
     }
 
     public Optional<BossDefinition> get(int floor, String id) {
@@ -53,5 +52,21 @@ public class BossDefinitionRegistry {
 
     public List<BossDefinition> getAllForFloor(int floor) {
         return Collections.unmodifiableList(byFloor.getOrDefault(floor, List.of()));
+    }
+
+    public synchronized int size() {
+        int total = 0;
+        for (List<BossDefinition> list : byFloor.values()) {
+            total += list.size();
+        }
+        return total;
+    }
+
+    public synchronized Map<Integer, List<BossDefinition>> snapshot() {
+        Map<Integer, List<BossDefinition>> copy = new HashMap<>();
+        for (Map.Entry<Integer, List<BossDefinition>> e : byFloor.entrySet()) {
+            copy.put(e.getKey(), List.copyOf(e.getValue()));
+        }
+        return Collections.unmodifiableMap(copy);
     }
 }

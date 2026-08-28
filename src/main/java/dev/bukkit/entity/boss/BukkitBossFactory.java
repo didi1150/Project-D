@@ -10,6 +10,8 @@ import org.bukkit.metadata.FixedMetadataValue;
 import dev.bukkit.DMain;
 import dev.core.entity.EntityManager;
 import dev.core.entity.boss.BossDefinition;
+import dev.core.entity.boss.FloorData;
+import dev.core.entity.boss.FloorDataRegistry;
 import dev.core.event.EventBusInterface;
 import dev.core.game.TaskScheduler;
 import dev.core.utils.ColorCodes;
@@ -29,6 +31,11 @@ public class BukkitBossFactory {
     }
 
     public BukkitBossEntity spawn(BossDefinition definition, World world, Location location) {
+        FloorData fd = FloorDataRegistry.getInstance().getOrEmpty(definition.getFloor());
+        return spawn(definition, world, location, fd);
+    }
+
+    public BukkitBossEntity spawn(BossDefinition definition, World world, Location location, FloorData floorData) {
         EntityType bukkitType;
         try {
             bukkitType = EntityType.valueOf(definition.getEntityType().toUpperCase());
@@ -50,7 +57,8 @@ public class BukkitBossFactory {
         BukkitBossEntity boss = new BukkitBossEntity(living.getUniqueId(), definition.getDisplayName(), eventBus,
                 scheduler);
         boss.configure(definition,
-                new BukkitBossEntityContext(() -> boss.getBukkitEntity().map(Entity::getLocation).orElse(null)));
+                new BukkitBossEntityContext(() -> boss.getBukkitEntity().map(Entity::getLocation).orElse(null)),
+                floorData);
         boss.onSpawn(location);
         return boss;
     }

@@ -28,6 +28,8 @@ import dev.core.entity.EntityManager;
 import dev.core.entity.RPGEntity;
 import dev.core.entity.boss.BossDefinition;
 import dev.core.entity.boss.BossDefinitionRegistry;
+import dev.core.entity.boss.FloorData;
+import dev.core.entity.boss.FloorDataRegistry;
 import dev.core.entity.rpgclass.RPGClassType;
 import dev.core.event.EventAction;
 import dev.core.event.EventBusInterface;
@@ -69,7 +71,15 @@ public class BossState extends GameState {
             return;
         }
 
-        prepareBossArena(bossTemplate, settings);
+        FloorData floorData = FloorDataRegistry.getInstance().getOrEmpty(settings.getFloor());
+        prepareBossArena(bossTemplate, settings, floorData);
+    }
+
+    /**
+     * Exposed for reload / testing: returns the floor-data for the current floor.
+     */
+    public FloorData getFloorDataForCurrentFloor() {
+        return FloorDataRegistry.getInstance().getOrEmpty(GameSettings.getCurrentSettings().getFloor());
     }
 
     @Override
@@ -178,6 +188,11 @@ public class BossState extends GameState {
     }
 
     private boolean spawnBoss(World world, Location spawnLocation) {
+        FloorData fd = FloorDataRegistry.getInstance().getOrEmpty(GameSettings.getCurrentSettings().getFloor());
+        return spawnBoss(world, spawnLocation, fd);
+    }
+
+    private boolean spawnBoss(World world, Location spawnLocation, FloorData floorData) {
         if (activeBoss != null) {
             bossFactory.despawn(activeBoss);
             activeBoss = null;
@@ -190,22 +205,27 @@ public class BossState extends GameState {
         }
 
         GameSettings settings = GameSettings.getCurrentSettings();
-        BossDefinition definition = BossDefinitionRegistry.getInstance().getForFloor(settings.getFloor())
-                .orElse(null);
+        BossDefinition definition = BossDefinitionRegistry.getInstance().getForFloor(settings.getFloor()).orElse(null);
         if (definition == null) {
             Bukkit.broadcastMessage("§cBossState failed: no boss configured for floor " + settings.getFloor());
             return false;
         }
 
-        BukkitBossEntity boss = bossFactory.spawn(definition, world, spawnLocation);
+        BukkitBossEntity boss = bossFactory.spawn(definition, world, spawnLocation, floorData);
         this.activeBoss = boss;
         this.bossUuid = boss.getUuid();
-        boss.getBukkitEntity().ifPresent(living -> living.setMetadata("BOSS", new FixedMetadataValue(DMain.getInstance(), true)));
+        boss.getBukkitEntity()
+                .ifPresent(living -> living.setMetadata("BOSS", new FixedMetadataValue(DMain.getInstance(), true)));
 
         return true;
     }
 
     private void prepareBossArena(String bossTemplate, GameSettings settings) {
+        FloorData fd = FloorDataRegistry.getInstance().getOrEmpty(settings.getFloor());
+        prepareBossArena(bossTemplate, settings, fd);
+    }
+
+    private void prepareBossArena(String bossTemplate, GameSettings settings, FloorData floorData) {
         DMain.getInstance().getBossArenaManager().createInstance(bossTemplate).whenComplete((world, throwable) -> {
             if (throwable != null) {
                 Bukkit.broadcastMessage(
@@ -230,10 +250,17 @@ public class BossState extends GameState {
                 return;
             }
 
+            // FloorData is now available for floor-specific arena preparation.
+            // Example for Floor 1 Sealed Entity: validate required lists and spawn
+            // pillars/chains/stalactites/locks/material spawners here before boss spawn.
+            // Fail-fast with broadcast is handled by the floor's BossStage.onEnter as well,
+            // but early validation here gives immediate feedback.
+            // Floor-specific code can read floorData.getViewPointList("pillars") etc.
+
             teleportPlayersToBossSpawn(world, playerSpawnPoint);
             Location bossSpawn = new Location(world, bossSpawnPoint.getX() + 0.5, bossSpawnPoint.getY(),
                     bossSpawnPoint.getZ() + 0.5, bossSpawnPoint.getYaw(), bossSpawnPoint.getPitch());
-            if (!spawnBoss(world, bossSpawn)) {
+            if (!spawnBoss(world, bossSpawn, floorData)) {
                 Bukkit.broadcastMessage("§cBossState failed: could not spawn boss.");
                 complete(GameStateResult.COMPLETE);
                 return;
@@ -241,5 +268,13 @@ public class BossState extends GameState {
 
             Bukkit.broadcastMessage("§cThe Wither boss has awakened in the dungeon's deepest room!");
         });
+    }
+
+    /**
+     * Public entry for external callers (e.g., tests or reload) that need to
+     * inspect or pre-warm the arena with explicit floor-data.
+     */
+    public void prepareBossArenaWithFloorData(String bossTemplate, GameSettings settings, FloorData floorData) {
+        prepareBossArena(bossTemplate, settings, floorData);
     }
 }

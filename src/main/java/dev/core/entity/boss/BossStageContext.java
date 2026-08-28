@@ -43,4 +43,29 @@ public class BossStageContext {
     public boolean hasState(String key) {
         return state.containsKey(key);
     }
+
+    public FloorData getFloorData() {
+        return boss.getFloorData();
+    }
+
+    public void broadcast(String message) {
+        boss.getBossEntityContext().ifPresent(ctx -> ctx.broadcast(message));
+    }
+
+    /**
+     * Fail-fast helper: validates required floor-data and broadcasts on failure.
+     * Returns true if valid, false if missing and already broadcast.
+     */
+    public boolean requireFloorData(String path, int expectedCount) {
+        FloorData fd = getFloorData();
+        if (path == null || path.isBlank())
+            return false;
+        var list = fd.getViewPointList(path);
+        if (list.size() != expectedCount) {
+            broadcast("§c[Floor " + fd.getFloor() + "] Invalid floor-data '" + path + "': expected " + expectedCount
+                    + " but got " + list.size());
+            return false;
+        }
+        return true;
+    }
 }

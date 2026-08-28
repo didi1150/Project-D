@@ -30,6 +30,8 @@ import dev.bukkit.hud.TriHomingHudFormatter;
 import dev.bukkit.item.BukkitInventorySync;
 import dev.bukkit.item.BukkitItemStackAdapter;
 import dev.bukkit.item.display.BukkitTextColorAdapter;
+import dev.bukkit.reload.BossReloadService;
+import dev.bukkit.reload.BossReloadService.ReloadResult;
 import dev.bukkit.reload.ItemsAbilitiesReloadService;
 import dev.bukkit.storage.progression.ClassProgressionService;
 import dev.bukkit.utils.BukkitMessageSender;
@@ -424,6 +426,34 @@ public class CommandManager {
                     } catch (Exception e) {
                         BukkitMessageSender.getInstance().sendMessage(sender,
                                 dev.core.utils.MessageComponent.of("<red>HUD reload failed: %s</red>", e.getMessage()));
+                    }
+                })).setCommandArgumentsList(0, Arrays.asList("reload")));
+
+        // ==============================================================
+        // boss tree -> /d boss reload (bosses.yml + floor-data)
+        // ==============================================================
+        addSubCommand("project-d", SubCommandBuilder.startBuilding("boss").setDescription("Boss controls")
+                .setCommandAction(1, "reload", permAny("projectd.boss.reload", (sender, args) -> {
+                    try {
+                        long t0 = System.currentTimeMillis();
+                        BukkitMessageSender.getInstance().sendMessage(sender,
+                                MessageComponent.of("<yellow>Reloading bosses...</yellow>"));
+                        ReloadResult r = BossReloadService.reload(DMain.getInstance().getConfigManager());
+                        if (r.success) {
+                            BukkitMessageSender.getInstance().sendMessage(sender,
+                                    MessageComponent.of("<green>Reloaded: %s</green>", r.message));
+                            Bukkit.getLogger().info("[boss reload] " + r.message + " by " + sender.getName() + " in "
+                                    + (System.currentTimeMillis() - t0) + "ms");
+                        } else {
+                            BukkitMessageSender.getInstance().sendMessage(sender,
+                                    MessageComponent.of("<red>Reload failed: %s</red>", r.message));
+                            if (r.error != null)
+                                r.error.printStackTrace();
+                        }
+                    } catch (Exception e) {
+                        BukkitMessageSender.getInstance().sendMessage(sender, dev.core.utils.MessageComponent
+                                .of("<red>Boss reload failed: %s</red>", e.getMessage()));
+                        e.printStackTrace();
                     }
                 })).setCommandArgumentsList(0, Arrays.asList("reload")));
 

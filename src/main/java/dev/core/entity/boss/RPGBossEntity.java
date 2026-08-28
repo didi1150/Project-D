@@ -16,6 +16,7 @@ public class RPGBossEntity extends RPGMobEntity {
     private BossEntityContext bossEntityContext;
     private String defeatStageId;
     private boolean defeatTriggered;
+    private FloorData floorData;
 
     public RPGBossEntity(UUID uuid, String name, EffectManagerInterface effectManager, EventBusInterface eventBus,
             TaskScheduler scheduler) {
@@ -36,8 +37,19 @@ public class RPGBossEntity extends RPGMobEntity {
      * stage. Must be called before the boss is ticked.
      */
     public void configure(BossDefinition definition, BossEntityContext context) {
+        FloorData fd = FloorDataRegistry.getInstance().getOrEmpty(definition.getFloor());
+        configure(definition, context, fd);
+    }
+
+    /**
+     * Applies a definition with explicit floor-data. Used by
+     * {@link dev.bukkit.entity.boss.BukkitBossFactory} to pass the floor-specific
+     * metadata loaded from {@code bosses.yml#floor-data}.
+     */
+    public void configure(BossDefinition definition, BossEntityContext context, FloorData floorData) {
         this.bossEntityContext = context;
         this.defeatStageId = definition.getDefeatStageId();
+        this.floorData = floorData != null ? floorData : FloorData.empty(definition.getFloor());
         getStatManager().addAll(definition.getBaseStatManager().getStats());
         for (BossStage stage : definition.getStages()) {
             stageManager.addStage(stage);
@@ -65,8 +77,8 @@ public class RPGBossEntity extends RPGMobEntity {
     }
 
     /**
-     * True while the boss is at 0 health but the defeat stage (e.g. a monologue)
-     * is still running.
+     * True while the boss is at 0 health but the defeat stage (e.g. a monologue) is
+     * still running.
      */
     public boolean isDefeatSequenceActive() {
         return defeatTriggered && isAlive();
@@ -107,8 +119,7 @@ public class RPGBossEntity extends RPGMobEntity {
     }
 
     /**
-     * Hook fired whenever the current stage changes (including the initial
-     * stage).
+     * Hook fired whenever the current stage changes (including the initial stage).
      */
     protected void onStageTransition(BossStage nextStage) {
     }
@@ -127,5 +138,9 @@ public class RPGBossEntity extends RPGMobEntity {
 
     public Optional<BossStage> getCurrentStage() {
         return Optional.ofNullable(stageManager.getCurrentStage());
+    }
+
+    public FloorData getFloorData() {
+        return floorData != null ? floorData : FloorData.empty(0);
     }
 }

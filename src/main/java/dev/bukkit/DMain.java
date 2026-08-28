@@ -20,12 +20,12 @@ import dev.bukkit.ability.BukkitShieldBashEffect;
 import dev.bukkit.ability.BukkitSmashEffect;
 import dev.bukkit.ability.BukkitSmokeShroudEffect;
 import dev.bukkit.ability.BukkitSoulRecallEffect;
-import dev.bukkit.ability.BukkitSupportStaffUseEffect;
-import dev.bukkit.ability.BukkitSupportStaffToggleEffect;
 import dev.bukkit.ability.BukkitSoulStoreEffect;
 import dev.bukkit.ability.BukkitSoulSummonEffect;
 import dev.bukkit.ability.BukkitSpinjitzuEffect;
 import dev.bukkit.ability.BukkitSpiritSceptreBatEffect;
+import dev.bukkit.ability.BukkitSupportStaffToggleEffect;
+import dev.bukkit.ability.BukkitSupportStaffUseEffect;
 import dev.bukkit.ability.BukkitSwingBoneEffect;
 import dev.bukkit.ability.BukkitTriVolleyEffect;
 import dev.bukkit.ability.BukkitWitherSkullLaunchEffect;
@@ -39,11 +39,11 @@ import dev.bukkit.ability.behavior.ManaDiscountBehavior;
 import dev.bukkit.ability.behavior.ShadowWeaverBehavior;
 import dev.bukkit.ability.behavior.StackerBehavior;
 import dev.bukkit.ability.behavior.StealthPassiveBehavior;
+import dev.bukkit.ability.behavior.SupportStaffBehavior;
 import dev.bukkit.ability.behavior.ThreatBehavior;
 import dev.bukkit.ability.behavior.TriVolleyBehavior;
 import dev.bukkit.ability.behavior.VampirismBehavior;
 import dev.bukkit.ability.behavior.WitherSkullOrbitBehavior;
-import dev.bukkit.ability.behavior.SupportStaffBehavior;
 import dev.bukkit.command.CommandManager;
 import dev.bukkit.entity.boss.BukkitBossStageTypeRegistry;
 import dev.bukkit.entity.boss.BukkitBossStrategyRegistry;
@@ -68,17 +68,17 @@ import dev.bukkit.hud.HudConfig;
 import dev.bukkit.hud.HudConfigLoader;
 import dev.bukkit.hud.HudOverlayService;
 import dev.bukkit.hud.HunterHudFormatter;
-import dev.bukkit.hud.TriHomingHudFormatter;
 import dev.bukkit.hud.StaffHudFormatter;
+import dev.bukkit.hud.TriHomingHudFormatter;
 import dev.bukkit.item.display.LoreLabels;
 import dev.bukkit.status.BukkitStatusEffectManager;
 import dev.bukkit.status.StatusEffectBehaviorRegistry;
+import dev.bukkit.status.behavior.AbsorptionStatusEffectBehavior;
 import dev.bukkit.status.behavior.AirborneStatusEffectBehavior;
 import dev.bukkit.status.behavior.RootedStatusEffectBehavior;
 import dev.bukkit.status.behavior.SlowedStatusEffectBehavior;
 import dev.bukkit.status.behavior.StunnedStatusEffectBehavior;
 import dev.bukkit.status.behavior.WitherStatusEffectBehavior;
-import dev.bukkit.status.behavior.AbsorptionStatusEffectBehavior;
 import dev.bukkit.storage.BukkitConfigManager;
 import dev.bukkit.storage.progression.BukkitConfigProgressionDatabase;
 import dev.bukkit.storage.progression.ClassProgressionService;
@@ -114,16 +114,19 @@ import dev.core.ability.impl.SoulSummonAbility;
 import dev.core.ability.impl.SpinjitzuAbility;
 import dev.core.ability.impl.SpiritSceptreAbility;
 import dev.core.ability.impl.StackerAbility;
+import dev.core.ability.impl.SupportStaffAbility;
 import dev.core.ability.impl.SwingBoneAbility;
 import dev.core.ability.impl.TriVolleyAbility;
 import dev.core.ability.impl.WitherSkullLaunchAbility;
 import dev.core.ability.impl.WitherSkullOrbitAbility;
-import dev.core.ability.impl.SupportStaffAbility;
 import dev.core.ability.passive.SetPassiveRegistry;
 import dev.core.ability.storage.AbilityLoader;
 import dev.core.entity.EntityManager;
 import dev.core.entity.boss.BossDefinitionLoader;
 import dev.core.entity.boss.BossDefinitionRegistry;
+import dev.core.entity.boss.FloorData;
+import dev.core.entity.boss.FloorDataLoader;
+import dev.core.entity.boss.FloorDataRegistry;
 import dev.core.entity.mob.MobDefinitionLoader;
 import dev.core.entity.mob.MobDefinitionRegistry;
 import dev.core.entity.rpgclass.RPGClassType;
@@ -144,11 +147,11 @@ import dev.core.stat.adapter.StatTypeAdapter;
 import dev.core.stat.loader.StatLoader;
 import dev.core.stat.loader.StatMetadataLoader;
 import dev.core.status.StatusEffectType;
-import fr.skytasul.glowingentities.GlowingEntities;
 import dev.core.storage.config.ConfigProvider;
 import dev.core.storage.database.ProgressionCacheStrategy;
 import dev.core.storage.database.ProgressionDatabaseStrategy;
 import dev.core.utils.MessageSenderInterface;
+import fr.skytasul.glowingentities.GlowingEntities;
 
 public final class DMain extends JavaPlugin {
     private EventBusInterface eventBusInterface;
@@ -319,6 +322,15 @@ public final class DMain extends JavaPlugin {
         ConfigProvider bossesConfig = configManager.getProvider("bosses.yml");
         BossDefinitionRegistry.getInstance().registerAll(BossDefinitionLoader.loadAll(bossesConfig,
                 new BukkitBossStageTypeRegistry(), new BukkitBossStrategyRegistry()));
+        // floor-data is sibling top-level key in bosses.yml: floor-data: <floor>: {
+        // free-form }
+        try {
+            Map<Integer, FloorData> floorDatas = FloorDataLoader.loadAll(bossesConfig);
+            FloorDataRegistry.getInstance().registerAll(floorDatas);
+            Bukkit.getConsoleSender().sendMessage("Loaded " + floorDatas.size() + " floor-data entries.");
+        } catch (Exception e) {
+            Bukkit.getLogger().warning("Failed to load floor-data: " + e.getMessage());
+        }
 
         // ==============================================[ Load dungeon-mobs.yml
         // ]=============================================

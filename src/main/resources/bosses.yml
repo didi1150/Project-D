@@ -18,6 +18,14 @@
 #   attack-count / attack-cooldown-ms        (WITHER_SKULL)
 #   movement-speed / stop-distance           (PATHFIND)
 #   teleport-distance / teleport-cooldown-ms (TELEPORT)
+#
+# Floor-specific metadata:
+#   Top-level `floor-data` holds free-form per-floor key-values handled manually
+#   by floor-specific stage code. Each floor key is an integer floor number.
+#   Helpers in FloorData (getViewPointList etc.) parse locations shaped as:
+#     { x: <int>, y: <int>, z: <int>, world: <string>, yaw: <float>, pitch: <float> }
+#   Reload live via /d boss reload (bosses.yml + floor-data).
+#   Fail-fast: stages validate required keys in onEnter and broadcast if missing.
 
 bosses:
   1:
@@ -66,3 +74,39 @@ bosses:
             - "§cThe Wither King staggers... 'Impossible... you cannot defeat me!'"
             - "§c'The dungeon... will consume you all...'" 
             - "§7The Wither King collapses into dust."
+
+# Floor-specific metadata (top-level sibling to `bosses`).
+# Each floor has arbitrary keys; FloorData keeps them generic and floor code
+# interprets them manually via getString/getDouble/getViewPointList etc.
+# Example for Floor 1 Sealed Entity (pillars 4, locks, mob/stalactite/material spawns,
+# height thresholds, chain health). Stages fail-fast onEnter with broadcast if required keys missing.
+floor-data:
+  1:
+    wipe-height: 100.0
+    suppress-height: 25.0
+    ascent-base-rate: 0.12
+    ascent-max-rate: 2.0
+    chain-max-health: 100
+    # Pillar locations for chains (4 Pillars) - arena-world-relative if world omitted
+    pillars:
+      - { x: 10, y: 64, z: 10, yaw: 0, pitch: 0 }
+      - { x: -10, y: 64, z: 10, yaw: 0, pitch: 0 }
+      - { x: 10, y: 64, z: -10, yaw: 0, pitch: 0 }
+      - { x: -10, y: 64, z: -10, yaw: 0, pitch: 0 }
+    # Lock locations where keys must be re-inserted below 25% height
+    locks:
+      - { x: 0, y: 65, z: 12 }
+      - { x: 0, y: 65, z: -12 }
+    mob-spawns:
+      - { x: 5, y: 64, z: 5 }
+      - { x: -5, y: 64, z: 5 }
+    stalactite-spawns:
+      - { x: 0, y: 80, z: 0 }
+      - { x: 5, y: 80, z: 5 }
+    material-spawners:
+      - { x: 15, y: 64, z: 15 }
+      - { x: -15, y: 64, z: 15 }
+    material:
+      hits-to-break: 3
+      display: "IRON_BLOCK"
+      reward: "IRON_INGOT"
