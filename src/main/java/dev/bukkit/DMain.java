@@ -4,6 +4,9 @@ import java.io.File;
 import java.io.IOException;
 import java.util.Map;
 
+import dev.bukkit.game.dungeon.DungeonPortalManager;
+import dev.bukkit.utils.setup.*;
+import dev.bukkit.game.dungeon.buildassets.BuildAssetManager;
 import org.bukkit.Bukkit;
 import org.bukkit.WorldCreator;
 import org.bukkit.plugin.java.JavaPlugin;
@@ -87,9 +90,6 @@ import dev.bukkit.utils.BackstabUtils;
 import dev.bukkit.utils.BukkitMessageSender;
 import dev.bukkit.utils.HealAuraUtils;
 import dev.bukkit.utils.ManaDiscountUtils;
-import dev.bukkit.utils.setup.BuildAssetHelper;
-import dev.bukkit.utils.setup.GameSetupHelper;
-import dev.bukkit.utils.setup.SetupManager;
 import dev.core.ability.Ability;
 import dev.core.ability.AbilityBehaviorRegistry;
 import dev.core.ability.AbilityRegistry;
@@ -405,6 +405,9 @@ public final class DMain extends JavaPlugin {
         SetupManager.getInstance().registerSetupHelpers(commandManager, eventBusInterface,
                 (BukkitMessageSender) messageSenderInterface);
 
+        DungeonPortalManager.getInstance().registerEvents(eventBusInterface);
+        DungeonPortalManager.getInstance().setGameStateController(gameStateController);
+
         commandManager.registerCommands(this);
         combatListener = new CombatListener(this);
         Bukkit.getPluginManager().registerEvents(combatListener, this);
@@ -467,6 +470,10 @@ public final class DMain extends JavaPlugin {
 
     public BukkitConfigManager getConfigManager() {
         return configManager;
+    }
+
+    public BuildAssetManager getBuildAssetManager() {
+        return buildAssetManager;
     }
 
     /**

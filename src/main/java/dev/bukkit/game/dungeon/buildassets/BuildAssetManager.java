@@ -78,7 +78,9 @@ public class BuildAssetManager {
 
         List<Map<String, Object>> entities = new ArrayList<>();
         BoundingBox box = new BoundingBox(startPos.x, startPos.y, startPos.z, endPos.x, endPos.y, endPos.z);
-        for (Entity entity : world.getNearbyEntities(box, e -> e.getType() != EntityType.PLAYER)) {
+        Collection<Entity> nearbyEntities = world.getNearbyEntities(box,
+                e -> e.getType() != EntityType.PLAYER && e.getType() != EntityType.BLOCK_DISPLAY && e.getType() != EntityType.TEXT_DISPLAY && e.getType() != EntityType.ITEM_DISPLAY);
+        for (Entity entity : nearbyEntities) {
             Map<String, Object> map = new LinkedHashMap<>();
             Vector3f pos = entity.getLocation().toVector().toVector3f().sub(startPos.toVector3f());
             map.put("pos", "(" + pos.x + ", " + pos.y + ", " + pos.z + ")");

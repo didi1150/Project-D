@@ -186,7 +186,15 @@ public class RoomFirstDungeonGenerator3D extends SimpleRandomWalkDungeonGenerato
             int roomCreatingAttempts = 0;
 
             do {
-                rooms = ProceduralGenerationAlgorithms.binarySpacePartitioning3D(new BoundingBox(startPosition, startPosition.add(dungeonWidth, dungeonHeight, dungeonLength)), minRoomWidth, minRoomHeight, minRoomLength, random, this);
+                var nodes = ProceduralGenerationAlgorithms.binarySpacePartitioning3D(new BoundingBox(startPosition, startPosition.add(dungeonWidth, dungeonHeight, dungeonLength)), minRoomWidth, minRoomHeight, minRoomLength, random, this);
+                rooms = nodes.stream().map(ProceduralGenerationAlgorithms.BSPNode::room).collect(Collectors.toList());
+                nodes.stream().filter(ProceduralGenerationAlgorithms.BSPNode::canBeBoss).forEach(node -> System.out.println("possible bossroom: " + node.room().getDimensions()));
+                BoundingBox possibleBossRoom = nodes.stream().filter(ProceduralGenerationAlgorithms.BSPNode::canBeBoss).map(ProceduralGenerationAlgorithms.BSPNode::room).findFirst().orElse(null);
+                if (possibleBossRoom == null) {
+                    rooms.clear();
+                } else {
+                    bossRoom = possibleBossRoom;
+                }
                 roomCreatingAttempts++;
             } while (rooms.isEmpty() && roomCreatingAttempts < 10);
 
@@ -201,9 +209,9 @@ public class RoomFirstDungeonGenerator3D extends SimpleRandomWalkDungeonGenerato
 
             Map<Vector3Int, Set<Vector3Int>> roomCenterToRoomFloorMap;
             if (randomWalkRooms) {
-                roomCenterToRoomFloorMap = createRoomsRandomly(rooms, random);
+                roomCenterToRoomFloorMap = createRoomsRandomly(rooms, bossRoom, random);
             } else {
-                roomCenterToRoomFloorMap = CreateSimpleRooms(rooms);
+                roomCenterToRoomFloorMap = createSimpleRooms(rooms);
             }
             floorPositions.clear();
             for (var room : rooms) {
@@ -275,12 +283,12 @@ public class RoomFirstDungeonGenerator3D extends SimpleRandomWalkDungeonGenerato
                 startRoom = startRoom2;
             }
 
-            bossRoom = connectedRooms.stream().filter(room -> room.get2DCenter().y == minCenterHeight).max(Comparator.comparing(BoundingBox::getVolume)).get();
-            var bossRoom2 = connectedRooms.stream().filter(room -> room.get2DCenter().y == minCenterHeight).max(Comparator.comparing(room -> roomCenterToRoomFloorMap.get(room.get2DCenter()).size())).get();
-            if (!bossRoom.equals(bossRoom2)) {
-                printInfo("Replaced bossRoom -> diff: " + roomCenterToRoomFloorMap.get(bossRoom.get2DCenter()).size() + " to " + roomCenterToRoomFloorMap.get(bossRoom2.get2DCenter()).size());
-                bossRoom = bossRoom2;
-            }
+//            bossRoom = connectedRooms.stream().filter(room -> room.get2DCenter().y == minCenterHeight).max(Comparator.comparing(BoundingBox::getVolume)).get();
+//            var bossRoom2 = connectedRooms.stream().filter(room -> room.get2DCenter().y == minCenterHeight).max(Comparator.comparing(room -> roomCenterToRoomFloorMap.get(room.get2DCenter()).size())).get();
+//            if (!bossRoom.equals(bossRoom2)) {
+//                printInfo("Replaced bossRoom -> diff: " + roomCenterToRoomFloorMap.get(bossRoom.get2DCenter()).size() + " to " + roomCenterToRoomFloorMap.get(bossRoom2.get2DCenter()).size());
+//                bossRoom = bossRoom2;
+//            }
 
             Set<DungeonRoom> reachableRoomsFromStart = roomCenterToDungeonRoomMap.get(startRoom.get2DCenter()).getReachableRooms();
             if (!reachableRoomsFromStart.contains(roomCenterToDungeonRoomMap.get(bossRoom.get2DCenter()))) {
@@ -465,11 +473,20 @@ public class RoomFirstDungeonGenerator3D extends SimpleRandomWalkDungeonGenerato
 
     }
 
-    private Map<Vector3Int, Set<Vector3Int>> createRoomsRandomly(List<BoundingBox> rooms, Random random) {
+    private Map<Vector3Int, Set<Vector3Int>> createRoomsRandomly(List<BoundingBox> rooms, BoundingBox possibleBossRoom, Random random) {
         Map<Vector3Int, Set<Vector3Int>> roomCenterToRoomFloorMap = new HashMap<>();
         for (var room : rooms) {
             Set<Vector3Int> floor = new LinkedHashSet<>();
             var roomCenter = room.get2DCenter();
+
+            if (room.equals(possibleBossRoom)) {
+                for (Vector3Int pos : room.get2DFilledBoxPositions()) {
+                    if (pos.distance2D(roomCenter) <= 14) {
+                        floor.add(pos);
+                    }
+                }
+            }
+
             int walkLength = (room.getDimensions().getX() + room.getDimensions().getZ()) / 2 - roomOffset;
 //            walkLength = Math.max(room.getDimensions().getX(), room.getDimensions().getZ()) - roomOffset;
             SimpleRandomWalkParameters parameters = new SimpleRandomWalkParameters(walkLength, walkLength, startRandomlyEachIteration);
@@ -1587,7 +1604,7 @@ public class RoomFirstDungeonGenerator3D extends SimpleRandomWalkDungeonGenerato
         return roomCenters.stream().filter(vec -> vec.y == currentRoomCenter.y).sorted(Comparator.comparing(currentRoomCenter::distance)).collect(Collectors.toList());
     }
 
-    private Map<Vector3Int, Set<Vector3Int>> CreateSimpleRooms(List<BoundingBox> roomList) {
+    private Map<Vector3Int, Set<Vector3Int>> createSimpleRooms(List<BoundingBox> roomList) {
         Map<Vector3Int, Set<Vector3Int>> roomCenterToRoomFloorMap = new HashMap<>();
         for (var room : roomList) {
             Set<Vector3Int> floor = new LinkedHashSet<>();
@@ -1604,27 +1621,27 @@ public class RoomFirstDungeonGenerator3D extends SimpleRandomWalkDungeonGenerato
 
 
     public static void main(String[] args) {
-        int minRoomWidth = Integer.parseInt(args[1]);
-        int minRoomHeight = Integer.parseInt(args[2]);
-        int minRoomLength = Integer.parseInt(args[3]);
-        int dungeonWidth = Integer.parseInt(args[4]);
-        int dungeonHeight = Integer.parseInt(args[5]);
-        int dungeonLength = Integer.parseInt(args[6]);
+        int minRoomWidth;
+        int minRoomHeight;
+        int minRoomLength;
+        int dungeonWidth;
+        int dungeonHeight;
+        int dungeonLength;
 
-        int roomOffset = Integer.parseInt(args[7]);
-        boolean randomWalkRooms = Boolean.parseBoolean(args[8]);
-        int corridorWidth = Integer.parseInt(args[9]);
+        int roomOffset;
+        boolean randomWalkRooms;
+        int corridorWidth;
 
-        int iterations = Integer.parseInt(args[10]);
-        int walkLength = Integer.parseInt(args[11]);
-        boolean startRandomlyEachIteration = Boolean.parseBoolean(args[12]);
+        int iterations;
+        int walkLength;
+        boolean startRandomlyEachIteration;
 
         minRoomWidth = 10;
         minRoomHeight = 10;
         minRoomLength = 10;
-        dungeonWidth = 50;
+        dungeonWidth = 100;
         dungeonHeight = 30;
-        dungeonLength = 50;
+        dungeonLength = 100;
 
         roomOffset = 1;
         randomWalkRooms = true;
@@ -1636,7 +1653,7 @@ public class RoomFirstDungeonGenerator3D extends SimpleRandomWalkDungeonGenerato
 
         SimpleRandomWalkParameters parameters = new SimpleRandomWalkParameters(iterations, walkLength, startRandomlyEachIteration);
 
-        long seed = Long.parseLong(args[13]) == -1 ? System.currentTimeMillis() : Long.parseLong(args[13]);
+        long seed;
 
         // 1773179824818 -> fails perfect path
 

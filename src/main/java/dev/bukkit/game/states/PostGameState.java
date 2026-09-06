@@ -55,7 +55,7 @@ public class PostGameState extends GameState {
         SimpleDungeonBuilderBukkit simpleDungeonBuilderBukkit = new SimpleDungeonBuilderBukkit(plugin,
                 Bukkit.getWorld(GameSettings.getCurrentSettings().getDungeonWorld()));
 
-        simpleDungeonBuilderBukkit.resetSpace(GameSettings.getCurrentSettings().getLastGenerator(), null);
+        simpleDungeonBuilderBukkit.resetDungeonSpace(GameSettings.getCurrentSettings().getLastGenerator(), null);
 
 //        DungeonBuilderBukkit dungeonBuilderBukkit = new DungeonBuilderBukkit(plugin,
 //                Bukkit.getWorld(GameSettings.getCurrentSettings().getDungeonWorld()));

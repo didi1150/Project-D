@@ -135,6 +135,18 @@ public class BuildAssetHelper extends SetupHelper {
                     ms.sendMessage(player, MessageComponent.of(ChatColor.GREEN + "Loading <yellow>%s</yellow> asset at <yellow>%s</yellow> with info:", name, pos));
                     ms.sendMessage(player, MessageComponent.of(ChatColor.DARK_GREEN + "firstPos=%s secondPos=%s blocks.size=%s entities.size=%s", asset.startPos(), asset.endPos(), asset.blocks().size(), asset.entities().size()));
                 }).setCommandArgumentsList(1, "load", buildAssetManager::getAllAssetNames, "name")
+                .setPlayerCommandAction(2, "loadAtCenter", (player, args) -> {
+                    String name = args[1];
+                    BuildAsset asset = buildAssetManager.getAsset(name);
+                    if (asset == null) {
+                        player.sendMessage("No build asset found with name: " + name);
+                        return;
+                    }
+                    Vector3Int pos = new Vector3Int(player.getLocation().getBlockX(), player.getLocation().getBlockY(), player.getLocation().getBlockZ());
+                    asset.buildAtCenter(player.getServer(), player.getWorld(), pos);
+                    ms.sendMessage(player, MessageComponent.of(ChatColor.GREEN + "Loading <yellow>%s</yellow> asset at <yellow>%s</yellow> with info:", name, pos));
+                    ms.sendMessage(player, MessageComponent.of(ChatColor.DARK_GREEN + "firstPos=%s secondPos=%s blocks.size=%s entities.size=%s", asset.startPos(), asset.endPos(), asset.blocks().size(), asset.entities().size()));
+                }).setCommandArgumentsList(1, "loadAtCenter", buildAssetManager::getAllAssetNames, "name")
                 .setPlayerCommandAction(1, "reloadAssets", (player, args) -> {
                     buildAssetManager.loadAllAssets();
                     ms.sendMessage(player, MessageComponent.of(ChatColor.GREEN + "Reloaded %s build assets", buildAssetManager.getAllAssetNames().size()));
@@ -156,6 +168,23 @@ public class BuildAssetHelper extends SetupHelper {
                         ms.sendMessage(player, MessageComponent.of(ChatColor.DARK_GREEN + "firstPos=%s secondPos=%s blocks.size=%s entities.size=%s", asset.startPos(), asset.endPos(), asset.blocks().size(), asset.entities().size()));
                     }
                 }).setCommandArgumentsList(1, "showPreview", buildAssetManager::getAllAssetNames, "name")
+                .setPlayerCommandAction(2, "showPreviewAtCenter", (player, args) -> {
+                    if (isPlayerInMode(player, ms, true)) {
+                        String name = args[1];
+                        BuildAsset asset = buildAssetManager.getAsset(name);
+                        if (asset == null) {
+                            player.sendMessage("No build asset found with name: " + name);
+                            return;
+                        }
+                        Vector3Int pos = new Vector3Int(player.getLocation().getBlockX(), player.getLocation().getBlockY(), player.getLocation().getBlockZ());
+                        var data = playerData.get(player.getUniqueId());
+                        data.lastPreviewedAsset = asset;
+                        data.lastPreviewStartPos = pos;
+                        asset.showPreviewAtCenter(player.getServer(), player.getWorld(), pos);
+                        ms.sendMessage(player, MessageComponent.of(ChatColor.GREEN + "Showing Preview of <yellow>%s</yellow> asset at <yellow>%s</yellow> with info:", name, pos));
+                        ms.sendMessage(player, MessageComponent.of(ChatColor.DARK_GREEN + "firstPos=%s secondPos=%s blocks.size=%s entities.size=%s", asset.startPos(), asset.endPos(), asset.blocks().size(), asset.entities().size()));
+                    }
+                }).setCommandArgumentsList(1, "showPreviewAtCenter", buildAssetManager::getAllAssetNames, "name")
                 .setPlayerCommandAction(1, "removeLastPreview", (player, args) -> {
                     if (isPlayerInMode(player, ms, true)) {
                         var data = playerData.get(player.getUniqueId());
@@ -175,7 +204,7 @@ public class BuildAssetHelper extends SetupHelper {
                         setPlayerInMode(ms, player);
                     }
                 })
-                .setCommandArgumentsList(0, List.of("firstPos", "secondPos", "save", "load", "reloadAssets", "showPreview", "removeLastPreview", "toggleBuildMode"))
+                .setCommandArgumentsList(0, List.of("firstPos", "secondPos", "save", "load", "loadAtCenter", "reloadAssets", "showPreview", "showPreviewAtCenter", "removeLastPreview", "toggleBuildMode"))
         );
     }
 

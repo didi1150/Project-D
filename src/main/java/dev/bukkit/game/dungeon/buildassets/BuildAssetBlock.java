@@ -26,7 +26,7 @@ public class BuildAssetBlock {
     public void place(Server server, World world, Vector3Int startPos) {
         Vector3Int position = startPos.add(pos);
         Block block = world.getBlockAt(position.x, position.y, position.z);
-        block.setType(material, false);
+        block.setType(material, true);
         if (!nbt.equalsIgnoreCase("none")) {
             BlockData data = server.createBlockData(nbt);
             block.setBlockData(data);

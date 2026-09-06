@@ -337,8 +337,8 @@ public class GameSetupHelper extends SetupHelper {
                     }
                 }))
                 .setCommandArgumentsList(0, Arrays.asList("toggle",
-//                        "prelobby","selectionspawn","holecenter","classblock","dungeonworld","bossspawn","bossplayerspawn",
-                        "bossworld","minplayers","loadbossworld","tpbossworld","savebossworld","quitbossworld","status", "toggleSetupMode"))
+//                        "prelobby","selectionspawn","holecenter","classblock","bossspawn","bossplayerspawn",
+                        "dungeonworld","bossworld","minplayers","loadbossworld","tpbossworld","savebossworld","quitbossworld","status", "toggleSetupMode"))
 //                .setCommandArgumentsList(1, "classblock", Arrays.asList(RPGClassType.validTypes()).stream().map(type -> type.toString()).toList())
         );
     }
