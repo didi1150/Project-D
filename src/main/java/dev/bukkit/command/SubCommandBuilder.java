@@ -367,7 +367,7 @@ public class SubCommandBuilder {
         }
     }
 
-    public record Pair<K, V>(K first, V second){}
+    private record Pair<K, V>(K first, V second){}
 
     public interface CommandAction {
         void perform(CommandSender commandSender, String[] args);

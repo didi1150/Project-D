@@ -22,7 +22,7 @@ public record BuildAsset(String name, Vector3Int startPos, Vector3Int endPos, Li
     }
 
     public void buildAtCenter(Server server, World world, Vector3Int startPos) {
-        Vector3Int center = endPos.mul(0.5);
+        Vector3Int center = endPos.mul(0.5, 0, 0.5);
         startPos = startPos.sub(center);
         for (BuildAssetBlock block : blocks) {
             block.place(server, world, startPos);
@@ -39,10 +39,10 @@ public record BuildAsset(String name, Vector3Int startPos, Vector3Int endPos, Li
     }
 
     public void showPreviewAtCenter(Server server, World world, Vector3Int startPos) {
-        Vector3Int center = endPos.mul(0.5);
+        Vector3Int center = endPos.mul(0.5, 0, 0.5);
         startPos = startPos.sub(center);
         for (BuildAssetBlock block : blocks) {
-            block.place(server, world, startPos);
+            block.placePreview(server, world, startPos);
         }
     }
 

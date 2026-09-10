@@ -99,11 +99,11 @@ public class ClearState extends GameState {
         int minRoomWidth = new Random().nextInt(10, 20);
         int minRoomHeight = new Random().nextInt(5, 8);
         int minRoomLength = new Random().nextInt(10, 20);
-        int dungeonWidth = 30
+        int dungeonWidth = 55
                 + (GameSettings.getCurrentSettings().getFloor() * GameSettings.getCurrentSettings().getFloor()) * 5;
         int dungeonHeight = 30
                 + (GameSettings.getCurrentSettings().getFloor() * GameSettings.getCurrentSettings().getFloor()) * 5;
-        int dungeonLength = 30
+        int dungeonLength = 55
                 + (GameSettings.getCurrentSettings().getFloor() * GameSettings.getCurrentSettings().getFloor()) * 5;
 
         int roomOffset = 1;

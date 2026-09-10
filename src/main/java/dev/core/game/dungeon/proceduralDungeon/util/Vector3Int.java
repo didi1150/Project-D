@@ -54,6 +54,10 @@ public class Vector3Int {
         return new Vector3Int((int) (x * value), (int) (y * value), (int) (z * value));
     }
 
+    public Vector3Int mul(double xValue, double yValue, double zValue) {
+        return new Vector3Int((int) (x * xValue), (int) (y * yValue), (int) (z * zValue));
+    }
+
     public double getLength() {
         return Math.sqrt(x*x + y*y + z*z);
     }

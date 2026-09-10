@@ -104,7 +104,7 @@ public abstract class GameState {
     }
 
     // States signal completion
-    protected final void complete(GameStateResult result) {
+    public final void complete(GameStateResult result) {
         if (!active) {
             return;
         }

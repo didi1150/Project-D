@@ -10,9 +10,10 @@ import java.util.Queue;
 import java.util.Set;
 import java.util.stream.Collectors;
 
+import dev.bukkit.game.dungeon.DungeonPortalManager;
+import dev.bukkit.game.dungeon.buildassets.BuildAsset;
 import dev.core.game.coords.Point3D;
 import dev.core.game.dungeon.proceduralDungeon.util.DungeonRoom;
-import dev.core.game.dungeon.proceduralDungeon.util.DungeonSpawnManager;
 import dev.core.game.dungeon.proceduralDungeon.util.SpawnLocation;
 import org.bukkit.Bukkit;
 import org.bukkit.Location;
@@ -340,6 +341,14 @@ public class SimpleDungeonBuilderBukkit {
                         LinkedHashSet<DungeonDecorationBlock> dungeonBlocks = new LinkedHashSet<>(decorationBlocksFiltered.poll());
                         matManager.placeBlocksWithSameMaterial(dungeonBlocks);
                     } else {
+                        BuildAsset portal = DMain.getInstance().getBuildAssetManager().getAsset("portal_to_boss");
+                        if (portal != null) {
+                            Vector3Int pos = dungeonGenerator.getBossRoom().get2DCenter().add(0,1,0);
+                            portal.buildAtCenter(plugin.getServer(), world, pos);
+
+                            DungeonPortalManager.getInstance().setPortalRoomCenter(pos);
+                        }
+
                         cancel();
                         if (onComplete != null) {
                             onComplete.run();
@@ -416,7 +425,20 @@ public class SimpleDungeonBuilderBukkit {
         }.runTaskTimer(plugin, 0L, 1L);
     }
 
-    public void resetSpace(BoundingBox space, Runnable onComplete, Set<Vector3Int>... extraBlocks) {
+    public void resetDungeonSpace(AbstractDungeonGenerator dungeonGenerator, Runnable onComplete) {
+        if (dungeonGenerator instanceof RoomFirstDungeonGenerator3D dungeonGenerator3D) {
+            Set<Vector3Int> decoBlocks = dungeonGenerator3D.getDecorationBlocks().stream()
+                    .flatMap(Collection::stream).map(DungeonBlock::getPos)
+                    .collect(Collectors.toSet());
+            resetSpace(dungeonGenerator.getMaxBounds().expand(1), onComplete, decoBlocks, dungeonGenerator3D.getCorridorFloor(),
+                    dungeonGenerator3D.getWallPositions());
+        } else {
+            resetSpace(dungeonGenerator.getMaxBounds(), onComplete);
+        }
+    }
+
+    @SafeVarargs
+    public final void resetSpace(BoundingBox space, Runnable onComplete, Set<Vector3Int>... extraBlocks) {
         Set<Vector3Int> allPositions = new LinkedHashSet<>();
         if (extraBlocks.length > 0)
             allPositions.addAll(extraBlocks[0]);
@@ -754,11 +776,7 @@ public class SimpleDungeonBuilderBukkit {
                         Bukkit.getScheduler().runTask(plugin, () -> {
                             SimpleDungeonBuilderBukkit dungeonBuilder = new SimpleDungeonBuilderBukkit(plugin,
                                     player.getWorld());
-                            Set<Vector3Int> decoBlocks = last3DDungeonGenerator.getDecorationBlocks().stream()
-                                    .flatMap(Collection::stream).map(DungeonBlock::getPos).collect(Collectors.toSet());
-                            dungeonBuilder.resetSpace(lastGeneratedSpace, buildSpace, decoBlocks,
-                                    last3DDungeonGenerator.getCorridorFloor(),
-                                    last3DDungeonGenerator.getWallPositions());
+                            dungeonBuilder.resetSpace(last3DDungeonGenerator, buildSpace);
                             lastGeneratedSpace = null;
                             last3DDungeonGenerator = null;
                         });
@@ -792,12 +810,7 @@ public class SimpleDungeonBuilderBukkit {
                             Bukkit.getScheduler().runTask(plugin, () -> {
                                 SimpleDungeonBuilderBukkit dungeonBuilder = new SimpleDungeonBuilderBukkit(plugin,
                                         player.getWorld());
-                                Set<Vector3Int> decoBlocks = last3DDungeonGenerator.getDecorationBlocks().stream()
-                                        .flatMap(Collection::stream).map(DungeonBlock::getPos)
-                                        .collect(Collectors.toSet());
-                                dungeonBuilder.resetSpace(lastGeneratedSpace, () -> {
-                                }, decoBlocks, last3DDungeonGenerator.getCorridorFloor(),
-                                        last3DDungeonGenerator.getWallPositions());
+                                dungeonBuilder.resetDungeonSpace(last3DDungeonGenerator, () -> {});
                                 lastGeneratedSpace = null;
                                 last3DDungeonGenerator = null;
                             });
