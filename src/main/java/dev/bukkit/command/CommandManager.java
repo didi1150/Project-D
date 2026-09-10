@@ -21,8 +21,10 @@ import org.jetbrains.annotations.Nullable;
 
 import dev.bukkit.DMain;
 import dev.bukkit.entity.BukkitPlayerEntity;
+import dev.bukkit.game.boss.stalactite.DebugStalactiteService;
 import dev.bukkit.game.states.SelectItemState;
 import dev.bukkit.hud.HudConfig;
+import dev.bukkit.hud.HudConfigLoader;
 import dev.bukkit.hud.HudOverlayService;
 import dev.bukkit.hud.HunterHudFormatter;
 import dev.bukkit.hud.StaffHudFormatter;
@@ -143,7 +145,7 @@ public class CommandManager {
                     continue;
                 }
                 RPGItem item = optItem.get();
-                org.bukkit.inventory.ItemStack stack = BukkitItemStackAdapter.toItemStack(item, p);
+                ItemStack stack = BukkitItemStackAdapter.toItemStack(item, p);
                 Map<Integer, ItemStack> leftover = player.getInventory().addItem(stack);
                 for (ItemStack left : leftover.values()) {
                     player.getWorld().dropItemNaturally(player.getLocation(), left);
@@ -416,16 +418,16 @@ public class CommandManager {
                 .setCommandAction(1, "reload", permAny("projectd.hud.reload", (sender, args) -> {
                     try {
                         ConfigProvider reloaded = DMain.getInstance().getConfigManager().reloadProvider("hud.yml");
-                        HudConfig n = dev.bukkit.hud.HudConfigLoader.load(reloaded);
+                        HudConfig n = HudConfigLoader.load(reloaded);
                         HudOverlayService.getInstance().reload(n);
                         HunterHudFormatter.load(n);
                         TriHomingHudFormatter.load(n);
                         StaffHudFormatter.load(n);
                         BukkitMessageSender.getInstance().sendMessage(sender,
-                                dev.core.utils.MessageComponent.of("<green>HUD reloaded.</green>"));
+                                MessageComponent.of("<green>HUD reloaded.</green>"));
                     } catch (Exception e) {
                         BukkitMessageSender.getInstance().sendMessage(sender,
-                                dev.core.utils.MessageComponent.of("<red>HUD reload failed: %s</red>", e.getMessage()));
+                                MessageComponent.of("<red>HUD reload failed: %s</red>", e.getMessage()));
                     }
                 })).setCommandArgumentsList(0, Arrays.asList("reload")));
 
@@ -451,11 +453,152 @@ public class CommandManager {
                                 r.error.printStackTrace();
                         }
                     } catch (Exception e) {
-                        BukkitMessageSender.getInstance().sendMessage(sender, dev.core.utils.MessageComponent
-                                .of("<red>Boss reload failed: %s</red>", e.getMessage()));
+                        BukkitMessageSender.getInstance().sendMessage(sender,
+                                MessageComponent.of("<red>Boss reload failed: %s</red>", e.getMessage()));
                         e.printStackTrace();
                     }
                 })).setCommandArgumentsList(0, Arrays.asList("reload")));
+
+        // ==============================================================
+        // stalactite tree -> /d stalactite [spawn] [<debug|respawn> ...]
+        // Debug harness: spawns a bukkit-local stalactite system above the player.
+        // Options:
+        // - no extra arg (/d stalactite or /d stalactite spawn) -> single stalactite
+        // that doesn't regrow, no hitbox
+        // - debug -> shows hitbox highlights
+        // - respawn -> respawning stalactite (regrows 20s after fall)
+        // Remove despawns displays + cancels tasks.
+        // ==============================================================
+        addSubCommand("project-d",
+                SubCommandBuilder.startBuilding("stalactite").setDescription("Debug stalactite controls")
+                        // bare /d stalactite -> single (no extra arg)
+                        .setPlayerCommandAction(0, perm("projectd.stalactite.debug", (player, args) -> {
+                            try {
+                                boolean debug = false, respawn = false;
+                                for (String a : args) {
+                                    if (a.equalsIgnoreCase("debug"))
+                                        debug = true;
+                                    if (a.equalsIgnoreCase("respawn"))
+                                        respawn = true;
+                                }
+                                DebugStalactiteService.getInstance().spawnAt(player, respawn, debug);
+                            } catch (Exception e) {
+                                player.sendMessage("§c[Stalactite Debug] Spawn failed: " + e.getMessage());
+                                e.printStackTrace();
+                            }
+                        }))
+                        // /d stalactite debug and /d stalactite respawn (top-level shortcuts)
+                        .setPlayerCommandAction(1, "debug", perm("projectd.stalactite.debug", (player, args) -> {
+                            try {
+                                boolean debug = true, respawn = false;
+                                for (String a : args)
+                                    if (a.equalsIgnoreCase("respawn"))
+                                        respawn = true;
+                                DebugStalactiteService.getInstance().spawnAt(player, respawn, debug);
+                            } catch (Exception e) {
+                                player.sendMessage("§c[Stalactite Debug] Spawn failed: " + e.getMessage());
+                                e.printStackTrace();
+                            }
+                        })).setPlayerCommandAction(1, "respawn", perm("projectd.stalactite.debug", (player, args) -> {
+                            try {
+                                boolean debug = false, respawn = true;
+                                for (String a : args)
+                                    if (a.equalsIgnoreCase("debug"))
+                                        debug = true;
+                                DebugStalactiteService.getInstance().spawnAt(player, respawn, debug);
+                            } catch (Exception e) {
+                                player.sendMessage("§c[Stalactite Debug] Spawn failed: " + e.getMessage());
+                                e.printStackTrace();
+                            }
+                        })).setPlayerCommandAction(2, "debug", perm("projectd.stalactite.debug", (player, args) -> {
+                            try {
+                                boolean debug = true, respawn = false;
+                                for (String a : args)
+                                    if (a.equalsIgnoreCase("respawn"))
+                                        respawn = true;
+                                DebugStalactiteService.getInstance().spawnAt(player, respawn, debug);
+                            } catch (Exception e) {
+                                player.sendMessage("§c[Stalactite Debug] Spawn failed: " + e.getMessage());
+                                e.printStackTrace();
+                            }
+                        })).setPlayerCommandAction(2, "respawn", perm("projectd.stalactite.debug", (player, args) -> {
+                            try {
+                                boolean debug = false, respawn = true;
+                                for (String a : args)
+                                    if (a.equalsIgnoreCase("debug"))
+                                        debug = true;
+                                DebugStalactiteService.getInstance().spawnAt(player, respawn, debug);
+                            } catch (Exception e) {
+                                player.sendMessage("§c[Stalactite Debug] Spawn failed: " + e.getMessage());
+                                e.printStackTrace();
+                            }
+                        }))
+                        // spawn variants: /d stalactite spawn [<debug|respawn> ...]
+                        .setPlayerCommandAction(1, "spawn", perm("projectd.stalactite.debug", (player, args) -> {
+                            try {
+                                boolean debug = false, respawn = false;
+                                for (String a : args) {
+                                    if (a.equalsIgnoreCase("debug"))
+                                        debug = true;
+                                    if (a.equalsIgnoreCase("respawn"))
+                                        respawn = true;
+                                }
+                                DebugStalactiteService.getInstance().spawnAt(player, respawn, debug);
+                            } catch (Exception e) {
+                                player.sendMessage("§c[Stalactite Debug] Spawn failed: " + e.getMessage());
+                                e.printStackTrace();
+                            }
+                        })).setPlayerCommandAction(2, "spawn", perm("projectd.stalactite.debug", (player, args) -> {
+                            try {
+                                boolean debug = false, respawn = false;
+                                for (String a : args) {
+                                    if (a.equalsIgnoreCase("debug"))
+                                        debug = true;
+                                    if (a.equalsIgnoreCase("respawn"))
+                                        respawn = true;
+                                }
+                                DebugStalactiteService.getInstance().spawnAt(player, respawn, debug);
+                            } catch (Exception e) {
+                                player.sendMessage("§c[Stalactite Debug] Spawn failed: " + e.getMessage());
+                                e.printStackTrace();
+                            }
+                        })).setPlayerCommandAction(3, "spawn", perm("projectd.stalactite.debug", (player, args) -> {
+                            try {
+                                boolean debug = false, respawn = false;
+                                for (String a : args) {
+                                    if (a.equalsIgnoreCase("debug"))
+                                        debug = true;
+                                    if (a.equalsIgnoreCase("respawn"))
+                                        respawn = true;
+                                }
+                                DebugStalactiteService.getInstance().spawnAt(player, respawn, debug);
+                            } catch (Exception e) {
+                                player.sendMessage("§c[Stalactite Debug] Spawn failed: " + e.getMessage());
+                                e.printStackTrace();
+                            }
+                        })).setPlayerCommandAction(1, "remove", perm("projectd.stalactite.debug", (player, args) -> {
+                            int n = DebugStalactiteService.getInstance().removeAt(player);
+                            if (n > 0)
+                                player.sendMessage("§a[Stalactite Debug] Removed " + n + " system(s) nearby.");
+                            else
+                                player.sendMessage(
+                                        "§c[Stalactite Debug] No debug stalactite nearby. Try /d stalactite removeAll");
+                        })).setCommandAction(1, "removeAll", permAny("projectd.stalactite.debug", (sender, args) -> {
+                            int n = DebugStalactiteService.getInstance().removeAll();
+                            sender.sendMessage("§a[Stalactite Debug] Removed all " + n
+                                    + " debug system(s). Displays + tasks cancelled.");
+                            if (sender instanceof Player p)
+                                p.sendMessage("§7Impact will no longer fire until you /d stalactite spawn again.");
+                        })).setPlayerCommandAction(1, "count", perm("projectd.stalactite.debug", (player, args) -> {
+                            int c = DebugStalactiteService.getInstance().count();
+                            player.sendMessage("§7[Stalactite Debug] Active systems: §e" + c);
+                        }))
+                        .setCommandArgumentsList(0,
+                                Arrays.asList("spawn", "remove", "removeAll", "count", "debug", "respawn"))
+                        .setCommandArgumentsList(1, "spawn", Arrays.asList("debug", "respawn"))
+                        .setCommandArgumentsList(2, "spawn", Arrays.asList("debug", "respawn"))
+                        .setCommandArgumentsList(1, "debug", Arrays.asList("respawn"))
+                        .setCommandArgumentsList(1, "respawn", Arrays.asList("debug")));
 
         // ==============================================================
         // give tree -> /d give itemset <setName>

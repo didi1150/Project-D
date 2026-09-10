@@ -1,16 +1,20 @@
 package dev.bukkit.ability;
 
+import java.util.HashSet;
+import java.util.Optional;
 import java.util.Random;
+import java.util.Set;
+import java.util.UUID;
 
 import org.bukkit.Bukkit;
 import org.bukkit.Color;
 import org.bukkit.Location;
 import org.bukkit.Material;
 import org.bukkit.Particle;
-import org.bukkit.Particle.DustOptions;
 import org.bukkit.Sound;
 import org.bukkit.entity.Bat;
 import org.bukkit.entity.Entity;
+import org.bukkit.entity.Interaction;
 import org.bukkit.entity.LivingEntity;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.LeatherArmorMeta;
@@ -20,7 +24,9 @@ import org.bukkit.util.Vector;
 
 import dev.bukkit.DMain;
 import dev.bukkit.entity.BukkitPlayerEntity;
+import dev.bukkit.entity.boss.BukkitStalactiteEntity;
 import dev.bukkit.event.bukkitListeners.CombatListener;
+import dev.bukkit.game.boss.stalactite.StalactiteHitbox;
 import dev.bukkit.utils.CombatRelation;
 import dev.bukkit.utils.DamageUtils;
 import dev.core.ability.CooldownSink;
@@ -182,6 +188,11 @@ public class BukkitSpiritSceptreBatEffect extends Effect {
             return;
         }
 
+        if (hitsStalactite(caster, loc)) {
+            explode(caster, casterEntity);
+            return;
+        }
+
         ticks++;
         bat.teleport(loc);
 
@@ -209,6 +220,28 @@ public class BukkitSpiritSceptreBatEffect extends Effect {
         return false;
     }
 
+    private boolean hitsStalactite(RPGEntity caster, Location loc) {
+        // Stalactite Interaction is not LivingEntity, so isEnemy never matches — check
+        // explicitly
+        for (Entity entity : loc.getWorld().getNearbyEntities(loc, HIT_RADIUS + 2, HIT_RADIUS + 2, HIT_RADIUS + 2)) {
+            if (!(entity instanceof Interaction inter))
+                continue;
+            UUID id = inter.getUniqueId();
+            Optional<RPGEntity> opt = EntityManager.getInstance().getEntity(id);
+            if (opt.isEmpty() || !(opt.get() instanceof BukkitStalactiteEntity st))
+                continue;
+            Vector vec = new Vector(loc.getX(), loc.getY(), loc.getZ());
+            if (StalactiteHitbox.isInsideTaperedStalactite(vec, st.getCeiling(), HIT_RADIUS))
+                return true;
+            if (inter.getLocation().distanceSquared(loc) <= (HIT_RADIUS + 1) * (HIT_RADIUS + 1))
+                return true;
+            // also check pivot distance for centered stalactite
+            if (st.getPivot().distanceSquared(loc) <= (HIT_RADIUS + 2) * (HIT_RADIUS + 2))
+                return true;
+        }
+        return false;
+    }
+
     /**
      * Explodes the bat: AoE magic damage to every enemy within the blast radius,
      * then removes the bat. Magic damage follows the standard formula Damage = Base
@@ -226,7 +259,7 @@ public class BukkitSpiritSceptreBatEffect extends Effect {
         loc.getWorld().spawnParticle(Particle.EXPLOSION_EMITTER, loc, 1, 0.0, 0.0, 0.0, // Offsets (X, Y, Z)
                 0.0);
         loc.getWorld().playSound(loc, Sound.ENTITY_GENERIC_EXPLODE, 1.0f, 1.0f);
-        
+
         long now = System.currentTimeMillis();
 //        double mana = caster.getStatEngineAdapter().getCurrentValue(StatType.MANA_MAX, now);
         double abilityPower = caster.getStatEngineAdapter().getCurrentValue(StatType.ABILITY_POWER, now);
@@ -258,6 +291,39 @@ public class BukkitSpiritSceptreBatEffect extends Effect {
             });
         }
 
+        // Stalactite handling: Interaction hitbox is not LivingEntity, so isEnemy
+        // filtered it out.
+        // Damage nearby stalactites via hitbox geometry with same MAGIC scaling, show
+        // indicator at hitbox.
+        Set<UUID> handledStalactites = new HashSet<>();
+        for (Entity entity : loc.getWorld().getNearbyEntities(loc, EXPLOSION_RADIUS + 3, EXPLOSION_RADIUS + 5,
+                EXPLOSION_RADIUS + 3)) {
+            if (!(entity instanceof Interaction inter))
+                continue;
+            UUID id = inter.getUniqueId();
+            if (!handledStalactites.add(id))
+                continue;
+            Optional<RPGEntity> opt = EntityManager.getInstance().getEntity(id);
+            if (opt.isEmpty() || !(opt.get() instanceof BukkitStalactiteEntity st))
+                continue;
+            if (!st.isDamageable())
+                continue;
+            // Check explosion within stalactite tapered hitbox (with explosion radius
+            // margin) or close to hitbox
+            Vector locVec = new Vector(loc.getX(), loc.getY(), loc.getZ());
+            boolean inTaper = StalactiteHitbox.isInsideTaperedStalactite(locVec, st.getCeiling(), EXPLOSION_RADIUS);
+            boolean nearHitbox = inter.getLocation().distanceSquared(loc) <= (EXPLOSION_RADIUS * EXPLOSION_RADIUS) + 4;
+            if (!inTaper && !nearHitbox)
+                continue;
+            RPGDamageResult r = st.dealRPGDamage(caster, st, damage, DamageType.MAGIC);
+            if (r.getResult() != DamageResult.DENY && r.getDamage() > 0) {
+                // Show indicator at hitbox location per clarification (not pivot)
+                Location hitboxLoc = inter.getLocation().clone().add(0, 1, 0);
+                showMagicIndicator(hitboxLoc, r.getDamage(), r.getResult());
+                playHitSound(inter, r.getResult());
+            }
+        }
+
         cancel();
         if (cooldownSink != null) {
             cooldownSink.startCooldown();
@@ -266,15 +332,16 @@ public class BukkitSpiritSceptreBatEffect extends Effect {
 
     /**
      * Enemy filter shared by the contact check and the AoE: living entities,
-     * excluding the caster, other bat/bonemerang projectiles, ghosts, and
-     * same-team entities (players and player-owned summons are allies; only
-     * cross-team targets are valid).
+     * excluding the caster, other bat/bonemerang projectiles, ghosts, and same-team
+     * entities (players and player-owned summons are allies; only cross-team
+     * targets are valid).
      */
     private boolean isEnemy(RPGEntity caster, Entity entity) {
         if (!(entity instanceof LivingEntity le)) {
             return false;
         }
-        if (le.hasMetadata(METADATA) || le.hasMetadata("BONEMERANG")) {
+        if (le.hasMetadata(METADATA) || le.hasMetadata("BONEMERANG")
+                || le.hasMetadata(BukkitStalactiteEntity.COLLIDER_METADATA)) {
             return false;
         }
         if (EntityManager.getInstance().isGhost(le.getUniqueId())) {
@@ -304,6 +371,18 @@ public class BukkitSpiritSceptreBatEffect extends Effect {
         combatListener.showMagicDamage(le.getLocation(), damage, result);
     }
 
+    private void showMagicIndicator(Location loc, double damage, DamageResult result) {
+        if (damage <= 0 || loc == null) {
+            return;
+        }
+        DMain plugin = DMain.getInstance();
+        CombatListener combatListener = plugin == null ? null : plugin.getCombatListener();
+        if (combatListener == null) {
+            return;
+        }
+        combatListener.showMagicDamage(loc, damage, result);
+    }
+
     private void playHitSound(LivingEntity le, DamageResult result) {
         DMain plugin = DMain.getInstance();
         CombatListener combatListener = plugin == null ? null : plugin.getCombatListener();
@@ -311,6 +390,34 @@ public class BukkitSpiritSceptreBatEffect extends Effect {
             return;
         }
         combatListener.playProjectileHitSound(le, result);
+    }
+
+    private void playHitSound(Location loc, DamageResult result) {
+        if (loc == null || loc.getWorld() == null)
+            return;
+        try {
+            DMain plugin = DMain.getInstance();
+            CombatListener combatListener = plugin == null ? null : plugin.getCombatListener();
+            if (combatListener != null) {
+                // CombatListener has no Location overload, fallback to generic projectile hit
+                // sound via location
+                // Use direct world sound as stalactite hitbox is Interaction, not LivingEntity
+                loc.getWorld().playSound(loc, Sound.ENTITY_ARROW_HIT_PLAYER, 1.0f, 1.2f);
+                return;
+            }
+        } catch (Exception ignored) {
+        }
+        try {
+            loc.getWorld().playSound(loc, Sound.ENTITY_ARROW_HIT_PLAYER, 1.0f, 1.2f);
+        } catch (Exception ignored) {
+        }
+    }
+
+    private void playHitSound(Entity entity, DamageResult result) {
+        if (entity instanceof LivingEntity le)
+            playHitSound(le, result);
+        else
+            playHitSound(entity.getLocation(), result);
     }
 
 }

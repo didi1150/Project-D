@@ -6,6 +6,7 @@ import java.util.Map;
 
 import org.bukkit.Bukkit;
 import org.bukkit.WorldCreator;
+import org.bukkit.event.entity.ProjectileHitEvent;
 import org.bukkit.plugin.java.JavaPlugin;
 
 import dev.bukkit.ability.BukkitBladeDanceEffect;
@@ -53,6 +54,7 @@ import dev.bukkit.event.bukkitListeners.CombatListener;
 import dev.bukkit.event.bukkitListeners.EventBusRegistry;
 import dev.bukkit.event.subscribers.ThreatPassiveSubscriber;
 import dev.bukkit.game.boss.BossArenaManager;
+import dev.bukkit.game.boss.stalactite.DebugStalactiteService;
 import dev.bukkit.game.dungeon.buildassets.BuildAssetManager;
 import dev.bukkit.game.dungeon.proceduralDungeon.BukkitVoidWorldGenerator;
 import dev.bukkit.game.dungeon.proceduralDungeon.SimpleDungeonBuilderBukkit;
@@ -377,7 +379,7 @@ public final class DMain extends JavaPlugin {
         // TriVolleyBehavior.onGlobalProjectileHit): per-holder bindings detach
         // when the player swaps away from the bow mid-flight.
         eventBusInterface.subscribe(new EventAction<>(TriVolleyBehavior::onGlobalProjectileHit,
-                org.bukkit.event.entity.ProjectileHitEvent.class, EventAction.HIGHEST_PRIORITY));
+                ProjectileHitEvent.class, EventAction.HIGHEST_PRIORITY));
 
         gameStateController = new GameStateController(new BukkitTaskScheduler(this), effectManagerInterface,
                 entityManager);
@@ -416,6 +418,10 @@ public final class DMain extends JavaPlugin {
 
     @Override
     public void onDisable() {
+        try {
+            DebugStalactiteService.getInstance().shutdownAll();
+        } catch (Exception ignored) {
+        }
         gameStateController.stop();
         effectManagerInterface.cancelAll();
         BukkitStatusEffectManager.getInstance().cancelAll();
