@@ -132,6 +132,22 @@ public class SetupUtils {
         return itemStack;
     }
 
+    public static String getValueFromItemLore(ItemStack item, int loreLine) {
+        ItemMeta itemMeta = item.getItemMeta();
+        List<String> lore = itemMeta.getLore();
+        String line = lore.get(loreLine);
+        return line.substring(line.indexOf(":") + 2);
+    }
+
+    public static void setValueInItemLore(ItemStack item, String newValue, int loreLine) {
+        ItemMeta itemMeta = item.getItemMeta();
+        List<String> lore = itemMeta.getLore();
+        String line = lore.get(loreLine);
+        lore.set(loreLine, line.substring(0, line.indexOf(":") + 2) + newValue);
+        itemMeta.setLore(lore);
+        item.setItemMeta(itemMeta);
+    }
+
     public static TextDisplay spawnTextDisplayInBlockCenter(World world, Vector3Int pos, String text) {
         Vector3f spawnPoint = pos.toVector3f().add(0.5f, 0.3f, 0.5f);
         Location loc = new Location(world, spawnPoint.x, spawnPoint.y, spawnPoint.z);

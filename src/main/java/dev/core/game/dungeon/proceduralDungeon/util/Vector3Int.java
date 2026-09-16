@@ -90,6 +90,10 @@ public class Vector3Int {
         return new Vector3f(x, y, z);
     }
 
+    public Vector3f toCenterVector3f() {
+        return new Vector3f(x + 0.5f, y + 0.5f, z + 0.5f);
+    }
+
     @Override
     public boolean equals(Object obj) {
         if (this == obj) {
