@@ -309,7 +309,7 @@ public class DungeonPortalManager {
         } else {
             t -= 25;
             int ticksToComplete = 100;
-            float angle = 4 * t * t / (ticksToComplete);
+            float angle = 16 * t * t / (ticksToComplete);
             float radiusPercentage = (ticksToComplete - t) / (ticksToComplete - 20);
             if (t <= 20) {
                 radiusPercentage = 1;

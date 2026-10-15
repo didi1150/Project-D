@@ -406,6 +406,7 @@ public final class DMain extends JavaPlugin {
         buildAssetManager = new BuildAssetManager(this, "buildAssets/");
         BuildAssetHelper buildAssetHelper = new BuildAssetHelper(buildAssetManager);
         GameSetupHelper gameSetupHelper = new GameSetupHelper(gameSettingsLoader);
+        BossSetupHelper bossSetupHelper = new BossSetupHelper();
         SetupManager.getInstance().registerSetupHelpers(commandManager, eventBusInterface,
                 (BukkitMessageSender) messageSenderInterface);
 
