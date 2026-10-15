@@ -43,6 +43,11 @@ public class MobDefinitionRegistry {
         byTier.clear();
     }
 
+    public synchronized void replaceAll(Collection<MobDefinition> definitions) {
+        clear();
+        registerAll(definitions);
+    }
+
     public Optional<MobDefinition> get(String id) {
         return Optional.ofNullable(byId.get(id));
     }
@@ -52,7 +57,26 @@ public class MobDefinitionRegistry {
         return Collections.unmodifiableList(byTier.getOrDefault(tier, List.of()));
     }
 
+    /** Filtered by tier + floor (honors {@link MobDefinition#getFloors()}). */
+    public List<MobDefinition> getForTierAndFloor(SpawnTier tier, int floor) {
+        List<MobDefinition> list = byTier.getOrDefault(tier, List.of());
+        if (list.isEmpty()) return List.of();
+        List<MobDefinition> out = new ArrayList<>();
+        for (MobDefinition d : list) {
+            if (d.isAllowedForFloor(floor)) out.add(d);
+        }
+        return Collections.unmodifiableList(out);
+    }
+
     public int size() {
         return byId.size();
+    }
+
+    public synchronized Map<String, MobDefinition> snapshot() {
+        return Collections.unmodifiableMap(new LinkedHashMap<>(byId));
+    }
+
+    public synchronized List<String> getAllIds() {
+        return List.copyOf(byId.keySet());
     }
 }

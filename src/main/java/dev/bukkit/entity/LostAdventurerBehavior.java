@@ -8,22 +8,28 @@ import org.bukkit.entity.LivingEntity;
 import org.bukkit.potion.PotionEffect;
 import org.bukkit.potion.PotionEffectType;
 
+import dev.core.stat.StatType;
+import dev.core.stat.modifier.StatModifier;
+import dev.core.stat.modifier.StatModifierType;
+
 /**
- * Example miniboss behavior for the hybrid config+Java model: the "Lost Adventurer"
- * (inspired by Hypixel Skyblock dungeon minibosses) keeps its stats/equipment in
- * {@code dungeon-mobs.yml} but gains Java-driven mechanics here:
+ * Example miniboss behavior for the hybrid config+Java model: the "Lost
+ * Adventurer" (inspired by Hypixel Skyblock dungeon minibosses) keeps its
+ * stats/equipment in {@code dungeon-mobs.yml} but gains Java-driven mechanics
+ * here:
  *
  * <ul>
- *   <li>{@link #onSpawn} — a glowing marker so the adventurer reads as special.</li>
- *   <li>{@link #onTick} — an enrage phase below 50% health: stays fast and casts its
- *       weapon ability on a custom cadence, independent of the config's
- *       {@code ability-cast-interval}.</li>
- *   <li>{@link #onDeath} — logs the kill and clears per-mob state.</li>
+ * <li>{@link #onSpawn} — a glowing marker so the adventurer reads as
+ * special.</li>
+ * <li>{@link #onTick} — an enrage phase below 50% health: stays fast and casts
+ * its weapon ability on a custom cadence, independent of the config's
+ * {@code ability-cast-interval}.</li>
+ * <li>{@link #onDeath} — logs the kill and clears per-mob state.</li>
  * </ul>
  *
  * <p>
- * Per-mob state (the last ability-cast time) is keyed by entity UUID, since this
- * behavior is a shared singleton across all Lost Adventurers.
+ * Per-mob state (the last ability-cast time) is keyed by entity UUID, since
+ * this behavior is a shared singleton across all Lost Adventurers.
  */
 public class LostAdventurerBehavior implements MobBehavior {
 
@@ -45,9 +51,11 @@ public class LostAdventurerBehavior implements MobBehavior {
         }
 
         // Enrage phase: stay fast while below half health.
-        vanilla.addPotionEffect(new PotionEffect(PotionEffectType.SPEED, 30, 1, false, false));
+        mob.addStatModifier(
+                StatModifier.builder(30, StatModifierType.FLAT, StatType.MOVE_SPEED, "enrage").duration(1).build());
 
-        // Cast the equipped weapon's ability on a custom cadence (ignores config interval).
+        // Cast the equipped weapon's ability on a custom cadence (ignores config
+        // interval).
         long last = lastAbilityCast.getOrDefault(vanilla.getUniqueId(), 0L);
         if (now - last > ENRAGE_ABILITY_INTERVAL_MS) {
             lastAbilityCast.put(vanilla.getUniqueId(), now);

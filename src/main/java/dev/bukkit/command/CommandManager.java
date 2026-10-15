@@ -9,11 +9,14 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.UUID;
 
 import org.bukkit.Bukkit;
 import org.bukkit.ChatColor;
+import org.bukkit.Location;
 import org.bukkit.command.CommandMap;
 import org.bukkit.command.CommandSender;
+import org.bukkit.entity.LivingEntity;
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.plugin.java.JavaPlugin;
@@ -21,6 +24,7 @@ import org.jetbrains.annotations.Nullable;
 
 import dev.bukkit.DMain;
 import dev.bukkit.entity.BukkitPlayerEntity;
+import dev.bukkit.entity.DebugRpgEntityService;
 import dev.bukkit.game.boss.stalactite.DebugStalactiteService;
 import dev.bukkit.game.states.SelectItemState;
 import dev.bukkit.hud.HudConfig;
@@ -35,11 +39,16 @@ import dev.bukkit.item.display.BukkitTextColorAdapter;
 import dev.bukkit.reload.BossReloadService;
 import dev.bukkit.reload.BossReloadService.ReloadResult;
 import dev.bukkit.reload.ItemsAbilitiesReloadService;
+import dev.bukkit.reload.MobReloadService;
 import dev.bukkit.storage.progression.ClassProgressionService;
 import dev.bukkit.utils.BukkitMessageSender;
 import dev.bukkit.utils.DamageUtils;
 import dev.core.entity.EntityManager;
 import dev.core.entity.RPGEntity;
+import dev.core.entity.boss.BossDefinition;
+import dev.core.entity.boss.BossDefinitionRegistry;
+import dev.core.entity.mob.MobDefinition;
+import dev.core.entity.mob.MobDefinitionRegistry;
 import dev.core.entity.rpgclass.RPGClassType;
 import dev.core.event.EventBusInterface;
 import dev.core.game.GameState;
@@ -163,6 +172,42 @@ public class CommandManager {
         });
     }
 
+    private static MobDefinition findMobDefinition(String id) {
+        if (id == null) {
+            return null;
+        }
+        MobDefinitionRegistry registry = MobDefinitionRegistry.getInstance();
+        Optional<MobDefinition> opt = registry.get(id);
+        if (opt.isPresent()) {
+            return opt.get();
+        }
+        for (MobDefinition def : registry.snapshot().values()) {
+            if (def.getId().equalsIgnoreCase(id)) {
+                return def;
+            }
+        }
+        return null;
+    }
+
+    private static BossDefinition findBossDefinition(String id) {
+        if (id == null) {
+            return null;
+        }
+        BossDefinitionRegistry registry = BossDefinitionRegistry.getInstance();
+        Optional<BossDefinition> opt = registry.getById(id);
+        if (opt.isPresent()) {
+            return opt.get();
+        }
+        for (List<BossDefinition> list : registry.snapshot().values()) {
+            for (BossDefinition def : list) {
+                if (def.getId().equalsIgnoreCase(id)) {
+                    return def;
+                }
+            }
+        }
+        return null;
+    }
+
     private CommandManager(ConfigProvider configProvider, ClassProgressionService classProgressionService) {
 
         messageSender = BukkitMessageSender.getInstance();
@@ -227,7 +272,6 @@ public class CommandManager {
                     });
                 })).setCommandAction(1, "reload", permAny("projectd.item.reload", (sender, args) -> {
                     try {
-                        long t0 = System.currentTimeMillis();
                         BukkitMessageSender.getInstance().sendMessage(sender,
                                 MessageComponent.of("<yellow>Reloading items/abilities...</yellow>"));
                         var r = ItemsAbilitiesReloadService.reload(DMain.getInstance().getConfigManager());
@@ -432,7 +476,7 @@ public class CommandManager {
                 })).setCommandArgumentsList(0, Arrays.asList("reload")));
 
         // ==============================================================
-        // boss tree -> /d boss reload (bosses.yml + floor-data)
+        // boss tree -> /d boss <reload|minion> (bosses.yml + floor-data, minion areas)
         // ==============================================================
         addSubCommand("project-d", SubCommandBuilder.startBuilding("boss").setDescription("Boss controls")
                 .setCommandAction(1, "reload", permAny("projectd.boss.reload", (sender, args) -> {
@@ -455,6 +499,34 @@ public class CommandManager {
                     } catch (Exception e) {
                         BukkitMessageSender.getInstance().sendMessage(sender,
                                 MessageComponent.of("<red>Boss reload failed: %s</red>", e.getMessage()));
+                        e.printStackTrace();
+                    }
+                })));
+
+        // ==============================================================
+        // mob tree -> /d mob reload (dungeon-mobs.yml)
+        // ==============================================================
+        addSubCommand("project-d", SubCommandBuilder.startBuilding("mob").setDescription("Mob controls")
+                .setCommandAction(1, "reload", permAny("projectd.mob.reload", (sender, args) -> {
+                    try {
+                        long t0 = System.currentTimeMillis();
+                        BukkitMessageSender.getInstance().sendMessage(sender,
+                                MessageComponent.of("<yellow>Reloading mobs...</yellow>"));
+                        var r = MobReloadService.reload(DMain.getInstance().getConfigManager());
+                        if (r.success) {
+                            BukkitMessageSender.getInstance().sendMessage(sender,
+                                    MessageComponent.of("<green>Reloaded: %s</green>", r.message));
+                            Bukkit.getLogger().info("[mob reload] " + r.message + " by " + sender.getName() + " in "
+                                    + (System.currentTimeMillis() - t0) + "ms");
+                        } else {
+                            BukkitMessageSender.getInstance().sendMessage(sender,
+                                    MessageComponent.of("<red>Reload failed: %s</red>", r.message));
+                            if (r.error != null)
+                                r.error.printStackTrace();
+                        }
+                    } catch (Exception e) {
+                        BukkitMessageSender.getInstance().sendMessage(sender,
+                                MessageComponent.of("<red>Mob reload failed: %s</red>", e.getMessage()));
                         e.printStackTrace();
                     }
                 })).setCommandArgumentsList(0, Arrays.asList("reload")));
@@ -609,6 +681,186 @@ public class CommandManager {
                         perm("projectd.item.give", (player, args) -> giveItemSetToPlayer(player, args[1])))
                 .setCommandArgumentsList(0, Arrays.asList("itemset")).setCommandArgumentsList(1, "itemset",
                         () -> RPGItemRegistry.getInstance().allItemSets().keySet().stream().toList(), "itemSetName"));
+
+        // ==============================================================
+        // entity tree -> /d entity spawn <entityId> [level] / despawn
+        // [all|nearest|<uuid>] / list / count
+        // Spawns RPG mobs/bosses by their config id (dungeon-mobs.yml / bosses.yml),
+        // registers in EntityManager, and tracks for debug despawn.
+        // ==============================================================
+        addSubCommand("project-d", SubCommandBuilder.startBuilding("entity").setDescription("RPG entity debug spawns")
+                .setPlayerCommandAction(2, "spawn", perm("projectd.entity.spawn", (player, args) -> {
+                    String id = args[1];
+                    int level = 1;
+                    MobDefinition mobDef = findMobDefinition(id);
+                    BossDefinition bossDef = null;
+                    if (mobDef == null) {
+                        bossDef = findBossDefinition(id);
+                    }
+                    if (mobDef == null && bossDef == null) {
+                        player.sendMessage("§cUnknown entity id '" + id + "'. Use /d entity list to see mob/boss ids.");
+                        return;
+                    }
+                    if (mobDef != null) {
+                        Location loc = player.getLocation();
+                        LivingEntity spawned = DebugRpgEntityService.getInstance().spawnMob(mobDef, loc, level);
+                        if (spawned == null) {
+                            player.sendMessage("§cFailed to spawn mob '" + mobDef.getId() + "'. Check entity-type.");
+                            return;
+                        }
+                        player.sendMessage("§aSpawned mob §e" + mobDef.getId() + " §aat level " + level + " ("
+                                + spawned.getUniqueId().toString().substring(0, 8) + ")");
+                        Bukkit.getLogger()
+                                .info("[entity spawn] " + player.getName() + " spawned mob " + mobDef.getId()
+                                        + " level " + level + " at " + loc.getBlockX() + "," + loc.getBlockY() + ","
+                                        + loc.getBlockZ());
+                    } else {
+                        Location loc = player.getLocation();
+                        try {
+                            var boss = DebugRpgEntityService.getInstance().spawnBoss(bossDef, loc);
+                            player.sendMessage("§aSpawned boss §e" + bossDef.getId() + " §a(floor " + bossDef.getFloor()
+                                    + ") (" + boss.getUuid().toString().substring(0, 8) + ")");
+                            Bukkit.getLogger()
+                                    .info("[entity spawn] " + player.getName() + " spawned boss " + bossDef.getId()
+                                            + " floor " + bossDef.getFloor() + " at " + loc.getBlockX() + ","
+                                            + loc.getBlockY() + "," + loc.getBlockZ());
+                        } catch (Exception e) {
+                            player.sendMessage("§cFailed to spawn boss '" + bossDef.getId() + "': " + e.getMessage());
+                            e.printStackTrace();
+                        }
+                    }
+                })).setPlayerCommandAction(3, "spawn", perm("projectd.entity.spawn", (player, args) -> {
+                    String id = args[1];
+                    int level;
+                    try {
+                        level = Integer.parseInt(args[2]);
+                        if (level < 1)
+                            level = 1;
+                    } catch (NumberFormatException e) {
+                        player.sendMessage("§cInvalid level '" + args[2] + "'. Must be integer >=1.");
+                        return;
+                    }
+                    MobDefinition mobDef = findMobDefinition(id);
+                    BossDefinition bossDef = null;
+                    if (mobDef == null) {
+                        bossDef = findBossDefinition(id);
+                    }
+                    if (mobDef == null && bossDef == null) {
+                        player.sendMessage("§cUnknown entity id '" + id + "'.");
+                        return;
+                    }
+                    if (mobDef != null) {
+                        Location loc = player.getLocation();
+                        LivingEntity spawned = DebugRpgEntityService.getInstance().spawnMob(mobDef, loc, level);
+                        if (spawned == null) {
+                            player.sendMessage("§cFailed to spawn mob '" + mobDef.getId() + "'.");
+                            return;
+                        }
+                        player.sendMessage("§aSpawned mob §e" + mobDef.getId() + " §aat level " + level + " ("
+                                + spawned.getUniqueId().toString().substring(0, 8) + ")");
+                        Bukkit.getLogger().info("[entity spawn] " + player.getName() + " spawned mob " + mobDef.getId()
+                                + " level " + level);
+                    } else {
+                        if (args.length > 2) {
+                            player.sendMessage("§eNote: level is ignored for bosses (fixed stats). Spawning '"
+                                    + bossDef.getId() + "' anyway.");
+                        }
+                        Location loc = player.getLocation();
+                        try {
+                            var boss = DebugRpgEntityService.getInstance().spawnBoss(bossDef, loc);
+                            player.sendMessage("§aSpawned boss §e" + bossDef.getId() + " §a(floor " + bossDef.getFloor()
+                                    + ") (" + boss.getUuid().toString().substring(0, 8) + ")");
+                        } catch (Exception e) {
+                            player.sendMessage("§cFailed to spawn boss '" + bossDef.getId() + "': " + e.getMessage());
+                        }
+                    }
+                })).setPlayerCommandAction(1, "despawn", perm("projectd.entity.despawn", (player, args) -> {
+                    int n = DebugRpgEntityService.getInstance().despawnNearest(player, 10);
+                    if (n > 0) {
+                        player.sendMessage("§aDespawned nearest debug entity.");
+                    } else {
+                        int c = DebugRpgEntityService.getInstance().count();
+                        if (c == 0) {
+                            player.sendMessage("§cNo debug entities to despawn. Use /d entity spawn <id> first.");
+                        } else {
+                            player.sendMessage(
+                                    "§cNo debug entity within 10 blocks. Use /d entity despawn all or /d entity despawn <uuid> (count: "
+                                            + c + ")");
+                        }
+                    }
+                })).setPlayerCommandAction(2, "despawn", perm("projectd.entity.despawn", (player, args) -> {
+                    String arg = args[1];
+                    if (arg.equalsIgnoreCase("all")) {
+                        int n = DebugRpgEntityService.getInstance().despawnAll();
+                        player.sendMessage("§aDespawned " + n + " debug entity(s). Removed from EntityManager.");
+                        return;
+                    }
+                    if (arg.equalsIgnoreCase("nearest")) {
+                        int n = DebugRpgEntityService.getInstance().despawnNearest(player, 10);
+                        if (n > 0)
+                            player.sendMessage("§aDespawned nearest debug entity.");
+                        else
+                            player.sendMessage("§cNo debug entity within 10 blocks.");
+                        return;
+                    }
+                    try {
+                        UUID uuid = UUID.fromString(arg);
+                        boolean ok = DebugRpgEntityService.getInstance().despawn(uuid);
+                        if (ok)
+                            player.sendMessage("§aDespawned entity " + uuid.toString().substring(0, 8));
+                        else
+                            player.sendMessage("§cNo tracked debug entity with uuid " + arg);
+                    } catch (IllegalArgumentException e) {
+                        player.sendMessage("§cUnknown despawn argument '" + arg + "'. Use all, nearest, or a uuid.");
+                    }
+                })).setPlayerCommandAction(1, "list", perm("projectd.entity.spawn", (player, args) -> {
+                    List<String> mobs = MobDefinitionRegistry.getInstance().getAllIds();
+                    List<String> bosses = BossDefinitionRegistry.getInstance().snapshot().values().stream()
+                            .flatMap(List::stream).map(BossDefinition::getId).toList();
+                    player.sendMessage("§6=== RPG Entities (" + (mobs.size() + bosses.size()) + ") ===");
+                    if (!mobs.isEmpty())
+                        player.sendMessage("§eMobs: §7" + String.join(", ", mobs));
+                    if (!bosses.isEmpty())
+                        player.sendMessage("§cBosses: §7" + String.join(", ", bosses));
+                    int tracked = DebugRpgEntityService.getInstance().count();
+                    player.sendMessage("§7Tracked debug spawns: " + tracked);
+                    if (tracked > 0) {
+                        String uuids = String.join(", ", DebugRpgEntityService.getInstance().getTrackedUuids().stream()
+                                .map(u -> u.toString().substring(0, 8)).toList());
+                        player.sendMessage("§7UUIDs: " + uuids);
+                    }
+                })).setPlayerCommandAction(1, "count", perm("projectd.entity.spawn", (player, args) -> {
+                    int c = DebugRpgEntityService.getInstance().count();
+                    player.sendMessage("§7Tracked debug entities: §e" + c);
+                })).setCommandAction(1, "list", permAny("projectd.entity.spawn", (sender, args) -> {
+                    List<String> mobs = MobDefinitionRegistry.getInstance().getAllIds();
+                    List<String> bosses = BossDefinitionRegistry.getInstance().snapshot().values().stream()
+                            .flatMap(List::stream).map(BossDefinition::getId).toList();
+                    sender.sendMessage("§6=== RPG Entities (" + (mobs.size() + bosses.size()) + ") ===");
+                    if (!mobs.isEmpty())
+                        sender.sendMessage("§eMobs: §7" + String.join(", ", mobs));
+                    if (!bosses.isEmpty())
+                        sender.sendMessage("§cBosses: §7" + String.join(", ", bosses));
+                    sender.sendMessage("§7Tracked debug spawns: " + DebugRpgEntityService.getInstance().count());
+                })).setCommandAction(1, "count", permAny("projectd.entity.spawn", (sender, args) -> {
+                    sender.sendMessage("Tracked debug entities: " + DebugRpgEntityService.getInstance().count());
+                })).setCommandArgumentsList(0, Arrays.asList("spawn", "despawn", "list", "count"))
+                .setCommandArgumentsList(1, "spawn", () -> {
+                    List<String> ids = new ArrayList<>();
+                    ids.addAll(MobDefinitionRegistry.getInstance().getAllIds());
+                    ids.addAll(BossDefinitionRegistry.getInstance().snapshot().values().stream().flatMap(List::stream)
+                            .map(BossDefinition::getId).toList());
+                    return ids;
+                }, "entityId").setCommandArgumentsList(2, "spawn", "level(Integer)")
+                .setCommandArgumentsList(1, "despawn", () -> {
+                    List<String> opts = new ArrayList<>();
+                    opts.add("all");
+                    opts.add("nearest");
+                    opts.addAll(DebugRpgEntityService.getInstance().getTrackedUuids().stream().map(UUID::toString)
+                            .toList());
+                    return opts;
+                }, "all|nearest|uuid").setCommandArgumentsList(0, "list", "noArgs")
+                .setCommandArgumentsList(0, "count", "noArgs"));
 
         // Note: BuildAssetManager and SimpleDungeonBuilderBukkit add their own
         // "asset"/"dungeon" branches under project-d via DMain hooks (already unified,

@@ -4,9 +4,6 @@ import java.io.File;
 import java.io.IOException;
 import java.util.Map;
 
-import dev.bukkit.game.dungeon.DungeonPortalManager;
-import dev.bukkit.utils.setup.*;
-import dev.bukkit.game.dungeon.buildassets.BuildAssetManager;
 import org.bukkit.Bukkit;
 import org.bukkit.WorldCreator;
 import org.bukkit.event.entity.ProjectileHitEvent;
@@ -49,6 +46,7 @@ import dev.bukkit.ability.behavior.TriVolleyBehavior;
 import dev.bukkit.ability.behavior.VampirismBehavior;
 import dev.bukkit.ability.behavior.WitherSkullOrbitBehavior;
 import dev.bukkit.command.CommandManager;
+import dev.bukkit.entity.DebugRpgEntityService;
 import dev.bukkit.entity.boss.BukkitBossStageTypeRegistry;
 import dev.bukkit.entity.boss.BukkitBossStrategyRegistry;
 import dev.bukkit.entity.boss.BukkitDisplayEntityRegistry;
@@ -58,6 +56,7 @@ import dev.bukkit.event.bukkitListeners.EventBusRegistry;
 import dev.bukkit.event.subscribers.ThreatPassiveSubscriber;
 import dev.bukkit.game.boss.BossArenaManager;
 import dev.bukkit.game.boss.stalactite.DebugStalactiteService;
+import dev.bukkit.game.dungeon.DungeonPortalManager;
 import dev.bukkit.game.dungeon.buildassets.BuildAssetManager;
 import dev.bukkit.game.dungeon.proceduralDungeon.BukkitVoidWorldGenerator;
 import dev.bukkit.game.dungeon.proceduralDungeon.SimpleDungeonBuilderBukkit;
@@ -92,6 +91,9 @@ import dev.bukkit.utils.BackstabUtils;
 import dev.bukkit.utils.BukkitMessageSender;
 import dev.bukkit.utils.HealAuraUtils;
 import dev.bukkit.utils.ManaDiscountUtils;
+import dev.bukkit.utils.setup.BuildAssetHelper;
+import dev.bukkit.utils.setup.GameSetupHelper;
+import dev.bukkit.utils.setup.SetupManager;
 import dev.core.ability.Ability;
 import dev.core.ability.AbilityBehaviorRegistry;
 import dev.core.ability.AbilityRegistry;
@@ -419,8 +421,16 @@ public final class DMain extends JavaPlugin {
         EventSubscriberScanner.scan(eventBusInterface, "dev", instance);
     }
 
+    public GameStateController getGameStateController() {
+        return gameStateController;
+    }
+
     @Override
     public void onDisable() {
+        try {
+            DebugRpgEntityService.getInstance().shutdownAll();
+        } catch (Exception ignored) {
+        }
         try {
             DebugStalactiteService.getInstance().shutdownAll();
         } catch (Exception ignored) {

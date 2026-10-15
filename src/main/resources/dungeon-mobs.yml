@@ -7,7 +7,7 @@
 # abilities, and refreshes the name.
 #
 # A mob is selected at spawn time from the pool matching the spawn location's
-# tier (BASIC / ADVANCED / ELITE), weighted by `weight`.
+# tier (BASIC / ADVANCED / ELITE / BOSS_MINION), weighted by `weight`.
 #
 #   entity-type:             vanilla EntityType name (required)
 #   weight:                  relative spawn weight (higher = more common)
@@ -134,3 +134,18 @@ dungeon-mobs:
       CRIT_CHANCE: 0
     armor:
       head: BONEMERANG
+  miner-skeleton:
+    entity-type: WITHER_SKELETON
+    weight: 1
+    tiers: [BOSS_MINION]
+    floors: [1]
+    display-name: "&7Miner Skeleton"
+    behavior: no-op
+    main-hand-item: MINER_PICKAXE
+    stats:
+      HEALTH_MAX: 200
+      ATTACK_DAMAGE: 16
+      MOVE_SPEED: 130
+      ARMOR: 6
+      ATTACK_SPEED: 1
+      CRIT_CHANCE: 0

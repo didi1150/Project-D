@@ -103,6 +103,72 @@ public class BukkitEntityFactory {
         return candidates.get(candidates.size() - 1);
     }
 
+    /**
+     * Debug spawn at an exact player location (feet): no tier, no spawn-chance, no
+     * elite flag — stats scaled only by the given level. Registers in EntityManager
+     * and returns the spawned LivingEntity (or null on failure).
+     */
+    public static LivingEntity spawnDebugMob(MobDefinition definition, Location location, int level) {
+        if (definition == null || location == null || location.getWorld() == null) {
+            return null;
+        }
+        World world = location.getWorld();
+        EntityType entityType;
+        try {
+            entityType = EntityType.valueOf(definition.getEntityType());
+        } catch (IllegalArgumentException e) {
+            System.out.println("Mob definition '" + definition.getId() + "' has unknown entity-type: "
+                    + definition.getEntityType());
+            return null;
+        }
+
+        int safeLevel = Math.max(1, level);
+        VanillaEntityMeta vanillaEntityMeta = new VanillaEntityMeta(safeLevel, getRelation(entityType),
+                definition.getDisplayName());
+
+        Location spawnLoc = location.clone();
+        spawnLoc.setX(spawnLoc.getBlockX() + 0.5);
+        spawnLoc.setZ(spawnLoc.getBlockZ() + 0.5);
+
+        Entity entity = world.spawnEntity(spawnLoc, entityType);
+        if (!(entity instanceof LivingEntity livingEntity)) {
+            return null;
+        }
+
+        StatManager stats = scaleStats(definition, safeLevel, false);
+        MobRPGEntity rpgMob = new MobRPGEntity(livingEntity, definition, stats, BukkitEffectManager.getInstance(),
+                BukkitEventBus.getInstance());
+        EntityManager.getInstance().registerEntity(rpgMob);
+
+        Stat moveSpeedStat = stats.getStats().get(StatType.MOVE_SPEED);
+        double moveSpeedValue = moveSpeedStat == null ? 100.0 : moveSpeedStat.getCurrent(System.currentTimeMillis());
+        setAttributeValue(livingEntity, Attribute.MOVEMENT_SPEED, BukkitStatManager.computeMoveSpeed(moveSpeedValue));
+        setAttributeValue(livingEntity, Attribute.KNOCKBACK_RESISTANCE, Math.min(1.0, (safeLevel - 1) * 0.02));
+
+        applyDefinitionEffects(rpgMob, definition);
+        applyMainHandItem(livingEntity, rpgMob, definition);
+        applyArmor(livingEntity, rpgMob, definition);
+
+        livingEntity.setMetadata("VANILLA_META", new FixedMetadataValue(DMain.getInstance(), vanillaEntityMeta));
+        livingEntity.setMetadata("DUNGEON", new FixedMetadataValue(DMain.getInstance(), true));
+        livingEntity.setMetadata("DEBUG_SPAWN", new FixedMetadataValue(DMain.getInstance(), true));
+
+        if (livingEntity instanceof Mob mob) {
+            mob.setRemoveWhenFarAway(false);
+        }
+        DamageUtils.updateName(livingEntity);
+
+        if (definition.isBossBar()) {
+            String title = definition.getDisplayName() != null ? definition.getDisplayName()
+                    : formatMobName(entityType, safeLevel, false);
+            MiniBossBar.track(title, livingEntity);
+        }
+
+        rpgMob.triggerSpawnBehavior(livingEntity);
+        livingEntity.setNoDamageTicks(0);
+        return livingEntity;
+    }
+
     public static Entity spawnDungeonMob(MobDefinition definition, int level, SpawnLocation spawnLocation,
             World world) {
         if (Math.random() > spawnLocation.getSpawnChance()) {
@@ -432,6 +498,4 @@ public class BukkitEntityFactory {
         return getRelation(entity.getType());
     }
 
-    
-    
 }

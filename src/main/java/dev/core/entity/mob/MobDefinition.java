@@ -30,11 +30,20 @@ public class MobDefinition {
     private final String behaviorId;
     private final Map<EquipmentSlot, String> armor;
     private final List<MobEffect> effects;
+    private final Set<Integer> floors;
 
     public MobDefinition(String id, String entityType, int weight, Set<SpawnTier> tiers, String displayName,
             StatManager baseStats, String mainHandItemId, double abilityDamageMultiplier,
             int abilityCastInterval, boolean miniBoss, boolean bossBar, String behaviorId,
             Map<EquipmentSlot, String> armor, List<MobEffect> effects) {
+        this(id, entityType, weight, tiers, displayName, baseStats, mainHandItemId, abilityDamageMultiplier,
+                abilityCastInterval, miniBoss, bossBar, behaviorId, armor, effects, Set.of());
+    }
+
+    public MobDefinition(String id, String entityType, int weight, Set<SpawnTier> tiers, String displayName,
+            StatManager baseStats, String mainHandItemId, double abilityDamageMultiplier,
+            int abilityCastInterval, boolean miniBoss, boolean bossBar, String behaviorId,
+            Map<EquipmentSlot, String> armor, List<MobEffect> effects, Set<Integer> floors) {
         this.id = id;
         this.entityType = entityType;
         this.weight = weight;
@@ -49,6 +58,7 @@ public class MobDefinition {
         this.behaviorId = behaviorId;
         this.armor = armor == null ? Map.of() : Map.copyOf(armor);
         this.effects = effects == null ? List.of() : List.copyOf(effects);
+        this.floors = floors == null || floors.isEmpty() ? Set.of() : Set.copyOf(floors);
     }
 
     public String getId() {
@@ -116,5 +126,17 @@ public class MobDefinition {
 
     public List<MobEffect> getEffects() {
         return effects;
+    }
+
+    /**
+     * Floor restriction: empty means allowed on every floor (global).
+     * If non-empty, this definition is only eligible when spawned for one of those floors.
+     */
+    public Set<Integer> getFloors() {
+        return floors;
+    }
+
+    public boolean isAllowedForFloor(int floor) {
+        return floors.isEmpty() || floors.contains(floor);
     }
 }

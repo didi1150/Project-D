@@ -3,7 +3,8 @@ package dev.core.game.dungeon.proceduralDungeon.util;
 public enum SpawnTier {
     BASIC(1),
     ADVANCED(5),
-    ELITE(10);
+    ELITE(10),
+    BOSS_MINION(20);
 
     private final int minLevel;
 

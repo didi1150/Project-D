@@ -91,6 +91,38 @@ public class BossState extends GameState {
         bossUuid = null;
     }
 
+    public boolean hasActiveBoss() {
+        return activeBoss != null && bossUuid != null;
+    }
+
+    public UUID getBossUuid() {
+        return bossUuid;
+    }
+
+    public BukkitBossEntity getActiveBoss() {
+        return activeBoss;
+    }
+
+    public void injectDebugBoss(BukkitBossEntity boss) {
+        if (boss == null) {
+            return;
+        }
+        if (activeBoss != null) {
+            bossFactory.despawn(activeBoss);
+        }
+        this.activeBoss = boss;
+        this.bossUuid = boss.getUuid();
+        boss.getBukkitEntity()
+                .ifPresent(living -> living.setMetadata("BOSS", new FixedMetadataValue(DMain.getInstance(), true)));
+    }
+
+    public void clearInjectedBoss(UUID uuid) {
+        if (uuid != null && uuid.equals(this.bossUuid)) {
+            this.activeBoss = null;
+            this.bossUuid = null;
+        }
+    }
+
     @Override
     protected void registerSubscribers() {
         EventAction<PlayerQuitEvent> quitAction = new EventAction<>(this::handleQuit, PlayerQuitEvent.class);

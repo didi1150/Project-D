@@ -6,8 +6,8 @@ import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * Registry of {@link MobBehavior}s, keyed by the {@code behavior} id used in
- * {@code dungeon-mobs.yml}. Built-in miniboss behaviors are registered lazily on
- * first access; plugins can register their own via {@link #register}.
+ * {@code dungeon-mobs.yml}. Built-in miniboss behaviors are registered lazily
+ * on first access; plugins can register their own via {@link #register}.
  */
 public final class MobBehaviorRegistry {
 
@@ -29,7 +29,6 @@ public final class MobBehaviorRegistry {
     /** Registers the built-in behaviors shipped with the plugin. */
     private void registerDefaults() {
         register("lost-adventurer", new LostAdventurerBehavior());
-        // Register additional built-in miniboss behaviors here.
     }
 
     /** Register (or replace) a behavior under an id referenced by mob configs. */

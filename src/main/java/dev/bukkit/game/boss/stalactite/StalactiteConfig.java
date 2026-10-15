@@ -28,8 +28,8 @@ public final class StalactiteConfig {
     public static final Material DISPLAY_MATERIAL = Material.POINTED_DRIPSTONE;
 
     /** interaction hitbox dims (also the max stalk thickness/height before fall) */
-    public static final float HITBOX_WIDTH = 3.0f;
-    public static final float HITBOX_HEIGHT = 5.0f;
+    public static final float HITBOX_WIDTH = 6.0f;
+    public static final float HITBOX_HEIGHT = 10.0f;
 
     /**
      * Max dimensions of the stalactite BlockDisplay scale. Adjustable constants —
@@ -37,9 +37,9 @@ public final class StalactiteConfig {
      * hanging from ceiling. The display is rendered with a negative Y scale to
      * point the pointed_dripstone downward (tip at bottom).
      */
-    public static final float MAX_DISPLAY_SCALE_X = 3.0f;
-    public static final float MAX_DISPLAY_SCALE_Y = 5.0f;
-    public static final float MAX_DISPLAY_SCALE_Z = 3.0f;
+    public static final float MAX_DISPLAY_SCALE_X = 6.0f;
+    public static final float MAX_DISPLAY_SCALE_Y = 10.0f;
+    public static final float MAX_DISPLAY_SCALE_Z = 6.0f;
 
     /**
      * Max BlockDisplay scale as a Vector3f (positive — negated on Y when applied).
@@ -72,7 +72,7 @@ public final class StalactiteConfig {
      * stalactite length. A Slime with this size centered on the stalactite covers
      * the entire 5-block height.
      */
-    public static final int COLLIDER_SLIME_SIZE = 5;
+    public static final int COLLIDER_SLIME_SIZE = 10;
 
     // ---- Hitbox highlight (debug/visual aid) ----
     /** Enable transparent green glass highlights for each hitbox. */

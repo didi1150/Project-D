@@ -76,9 +76,10 @@ public class MobDefinitionLoader {
         String behaviorId = section.getString("behavior", null);
         Map<EquipmentSlot, String> armor = loadArmor(section);
         List<MobEffect> effects = loadEffects(section);
+        Set<Integer> floors = parseFloors(section);
 
         return new MobDefinition(id, entityType, weight, tiers, displayName, baseStats, mainHandItemId,
-                abilityDamageMultiplier, abilityCastInterval, miniBoss, bossBar, behaviorId, armor, effects);
+                abilityDamageMultiplier, abilityCastInterval, miniBoss, bossBar, behaviorId, armor, effects, floors);
     }
 
     private static Map<EquipmentSlot, String> loadArmor(ConfigSection section) {
@@ -118,5 +119,50 @@ public class MobDefinitionLoader {
             effects.add(new MobEffect(effectId.trim()));
         }
         return effects;
+    }
+
+    private static Set<Integer> parseFloors(ConfigSection section) {
+        // Supports: floors: [1,2]  or  floors: 1  or  floors: "1,2"  or absent (global)
+        // Reads string list, integer list via string conversion, and single int fallback.
+        List<String> list = section.getStringList("floors");
+        Set<Integer> out = new java.util.LinkedHashSet<>();
+        if (list != null && !list.isEmpty()) {
+            for (String s : list) {
+                if (s == null || s.isBlank()) continue;
+                // Allow comma-separated inside one entry
+                for (String part : s.split(",")) {
+                    try {
+                        out.add(Integer.parseInt(part.trim()));
+                    } catch (NumberFormatException ignored) {
+                        System.out.println("Unknown floors entry '" + part + "' in mob definition; ignored.");
+                    }
+                }
+            }
+            return out;
+        }
+        // Try single int fallback via getInt with sentinel
+        // We distinguish missing vs explicit 0 by checking if key exists
+        if (section.getKeys().contains("floors")) {
+            // Could be a single number stored as int
+            try {
+                int single = section.getInt("floors", Integer.MIN_VALUE);
+                if (single != Integer.MIN_VALUE) {
+                    out.add(single);
+                    return out;
+                }
+            } catch (Exception ignored) {
+            }
+            // Could be a string "1"
+            String singleStr = section.getString("floors", null);
+            if (singleStr != null && !singleStr.isBlank()) {
+                for (String part : singleStr.split(",")) {
+                    try {
+                        out.add(Integer.parseInt(part.trim()));
+                    } catch (NumberFormatException ignored) {
+                    }
+                }
+            }
+        }
+        return out;
     }
 }

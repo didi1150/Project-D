@@ -938,6 +938,17 @@ items:
       policy: STACK
     abilities: []
     allowed-classes: []
+  MINER_PICKAXE:
+    # mob_only: mobs equip this by id, players never see it in the shop.
+    name: Monster Bone
+    material: NETHERITE_PICKAXE
+    slot: MAIN_HAND
+    itemType: MISC
+    usage: mob_only
+    allowed-classes: []
+    passive-stats: []
+    active-stats: []
+    abilities: []
   MONSTER_BONE:
     # mob_only: mobs equip this by id, players never see it in the shop.
     name: Monster Bone
