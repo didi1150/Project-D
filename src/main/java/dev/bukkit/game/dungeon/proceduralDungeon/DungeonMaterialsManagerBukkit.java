@@ -137,7 +137,7 @@ public class DungeonMaterialsManagerBukkit extends DungeonMaterialsManager<Mater
         return List.of(DungeonDecorationMaterial.of(DungeonDecorationType.HANGING, 0.3F, Material.PALE_HANGING_MOSS),
                 DungeonDecorationMaterial.of(DungeonDecorationType.HANGING, 0.3F, Material.CAVE_VINES),
                 DungeonDecorationMaterial.of(DungeonDecorationType.HANGING, 0.15F, Material.COBWEB),
-                DungeonDecorationMaterial.of(DungeonDecorationType.HANGING, 0.25F, Material.CHAIN) // + lantern
+                DungeonDecorationMaterial.of(DungeonDecorationType.HANGING, 0.25F, Material.IRON_CHAIN) // + lantern
         // maybe also Material.HANGING_ROOTS
         );
     }
