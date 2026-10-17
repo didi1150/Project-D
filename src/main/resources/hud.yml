@@ -9,10 +9,12 @@
 # distance       — forward from eye before vertical-offset is applied; raytraced
 #                  against walls (min 0.4 after hit).
 # vertical-offset— Y offset applied after forward projection.
-# spacing        — vertical gap between stacked keys (priority-sorted).
+# spacing        — vertical gap between rendered HUD lines. A fragment whose
+#                  text wraps to two lines reserves two slots, so the next
+#                  fragment is pushed up instead of overlapping it.
 # scale          — TextDisplay transformation scale.
 # view-range     — max view distance scalar.
-# line-width     — TextDisplay line width.
+# line-width     — TextDisplay line width; also used to estimate wrapping.
 # background     — nested ARGB 0-255 each (alpha,r,g,b).
 #                  legacy background-color: "#AARRGGBB" still parsed if nested absent.
 # formats.hunter — allow '&' color codes, placeholders %dots%, %bounces%.

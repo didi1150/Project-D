@@ -3,6 +3,7 @@ package dev.bukkit.event.bukkitListeners;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyBoolean;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
@@ -10,6 +11,7 @@ import static org.mockito.Mockito.when;
 import java.util.UUID;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.function.Consumer;
 
 import org.bukkit.Bukkit;
 import org.bukkit.Location;
@@ -24,6 +26,7 @@ import org.bukkit.event.entity.EntityDamageEvent;
 import org.bukkit.event.entity.EntityDamageEvent.DamageCause;
 import org.bukkit.persistence.PersistentDataContainer;
 import org.bukkit.persistence.PersistentDataType;
+import org.bukkit.plugin.Plugin;
 import org.bukkit.projectiles.ProjectileSource;
 import org.bukkit.scheduler.BukkitScheduler;
 import org.junit.jupiter.api.AfterEach;
@@ -39,13 +42,13 @@ import dev.bukkit.utils.StealthRegistry;
  * The shroud blocks AGGRO only, never damage: a shrouded player is
  * untargetable, but any hostile hit that still connects — AoE splash, an
  * already-swung melee, a mob-shot projectile, an explosion — lands normally.
- * These tests pin that no-shield behavior so a damage-cancel cannot creep
- * back in.
+ * These tests pin that no-shield behavior so a damage-cancel cannot creep back
+ * in.
  *
  * <p>
  * A passing hit falls through into the RPG/vanilla pipeline, which touches
- * server-only code (damage indicators), so {@link Bukkit} is statically
- * mocked and the spawned indicator display is a mock.
+ * server-only code (damage indicators), so {@link Bukkit} is statically mocked
+ * and the spawned indicator display is a mock.
  */
 class CombatListenerShroudAggroOnlyTest {
 
@@ -56,16 +59,17 @@ class CombatListenerShroudAggroOnlyTest {
     private UUID victimId;
     private Player victim;
 
+    @SuppressWarnings("unchecked")
     @BeforeEach
     void setUp() {
         StealthRegistry.CLOCK = clock::get;
         bukkitStatic = Mockito.mockStatic(Bukkit.class);
         bukkitStatic.when(Bukkit::getScheduler).thenReturn(mock(BukkitScheduler.class));
-        listener = new CombatListener(mock(org.bukkit.plugin.Plugin.class));
+        listener = new CombatListener(mock(Plugin.class));
         world = mock(World.class);
         TextDisplay indicator = mock(TextDisplay.class);
         when(indicator.getLocation()).thenReturn(new Location(world, 0, 66, 0));
-        when(world.spawn(any(Location.class), any(Class.class), any())).thenReturn(indicator);
+        when(world.spawn(any(Location.class), eq(TextDisplay.class), any(Consumer.class))).thenReturn(indicator);
 
         victimId = UUID.randomUUID();
         victim = mock(Player.class);
@@ -84,7 +88,10 @@ class CombatListenerShroudAggroOnlyTest {
         StealthRegistry.CLOCK = System::currentTimeMillis;
     }
 
-    /** A victim hit by the given damager; read the outcome via {@code event.isCancelled()}. */
+    /**
+     * A victim hit by the given damager; read the outcome via
+     * {@code event.isCancelled()}.
+     */
     private EntityDamageByEntityEvent hitBy(org.bukkit.entity.Entity damager, double damage) {
         EntityDamageByEntityEvent event = mock(EntityDamageByEntityEvent.class);
         when(event.getEntity()).thenReturn(victim);
@@ -98,14 +105,17 @@ class CombatListenerShroudAggroOnlyTest {
         return event;
     }
 
-    /** Back any {@code isCancelled()} readout with the mock's own setCancelled calls. */
+    /**
+     * Back any {@code isCancelled()} readout with the mock's own setCancelled
+     * calls.
+     */
     private void trackCancellation(EntityDamageEvent event) {
         AtomicBoolean cancelled = new AtomicBoolean(false);
-        doAnswer(inv -> {
+        doAnswer(_ -> {
             cancelled.set(true);
             return null;
         }).when(event).setCancelled(anyBoolean());
-        when(event.isCancelled()).thenAnswer(inv -> cancelled.get());
+        when(event.isCancelled()).thenAnswer(_ -> cancelled.get());
     }
 
     private Mob zombie() {
@@ -157,8 +167,7 @@ class CombatListenerShroudAggroOnlyTest {
         when(explosion.getDamage()).thenReturn(9.0);
         trackCancellation(explosion);
         listener.onDamage(explosion);
-        assertFalse(explosion.isCancelled(),
-                "AoE that never targeted you still lands while shrouded");
+        assertFalse(explosion.isCancelled(), "AoE that never targeted you still lands while shrouded");
     }
 
     @Test

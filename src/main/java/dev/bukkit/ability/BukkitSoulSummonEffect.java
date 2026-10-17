@@ -1,6 +1,5 @@
 package dev.bukkit.ability;
 
-import org.bukkit.ChatColor;
 import org.bukkit.Sound;
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.ItemStack;
@@ -18,6 +17,7 @@ import dev.core.ability.Effect;
 import dev.core.entity.RPGEntity;
 import dev.core.entity.rpgclass.RPGClassType;
 import dev.core.game.dungeon.proceduralDungeon.util.SpawnTier;
+import dev.core.utils.LegacyColors;
 import dev.core.stat.StatType;
 
 /**
@@ -57,7 +57,7 @@ public class BukkitSoulSummonEffect extends Effect {
         ItemStack tome = SoulTome.findTome(player);
         if (tome == null) {
             refundMana(caster);
-            player.sendMessage(ChatColor.GRAY + "You need a Soul Tome in your inventory to summon souls.");
+            player.sendMessage(LegacyColors.GRAY + "You need a Soul Tome in your inventory to summon souls.");
             return;
         }
 
@@ -71,30 +71,30 @@ public class BukkitSoulSummonEffect extends Effect {
         while ((fragment = SoulTome.popSoul(tome)) != null) {
             if (!dev.bukkit.summon.SummonStats.canCapture(level, fragment.tier())) {
                 SoulTome.addSoul(tome, fragment, 99); // too powerful: keep it for later
-                player.sendMessage(ChatColor.RED + "Your Support level is too low to summon the "
+                player.sendMessage(LegacyColors.RED + "Your Support level is too low to summon the "
                         + fragment.mobType().name().toLowerCase().replace('_', ' ') + " soul; it stays on the tome.");
                 continue;
             }
             if (SummonedEntityFactory.spawnSummon(player, fragment, level) == null) {
                 SoulTome.addSoul(tome, fragment, 99);
-                player.sendMessage(ChatColor.RED + "Could not summon the "
+                player.sendMessage(LegacyColors.RED + "Could not summon the "
                         + fragment.mobType().name().toLowerCase().replace('_', ' ') + " soul here; it stays on the tome.");
                 continue;
             }
             summoned++;
-            player.sendMessage(ChatColor.GREEN + "Summoned your "
+            player.sendMessage(LegacyColors.GREEN + "Summoned your "
                     + fragment.mobType().name().toLowerCase().replace('_', ' ') + " ("
                     + (fragment.tier() == SpawnTier.BASIC ? "Basic" : fragment.tier().name().toLowerCase()) + ").");
         }
 
         if (summoned == 0) {
             refundMana(caster);
-            player.sendMessage(ChatColor.GRAY + "Your Soul Tome holds no souls. Slay dungeon mobs to capture them.");
+            player.sendMessage(LegacyColors.GRAY + "Your Soul Tome holds no souls. Slay dungeon mobs to capture them.");
             return; // no mana, no cooldown on a failed attempt
         }
 
         player.getWorld().playSound(player.getLocation(), Sound.BLOCK_BEACON_ACTIVATE, 1.0f, 1.2f);
-        player.sendMessage(ChatColor.GREEN + "Summoned " + summoned + " soul" + (summoned == 1 ? "" : "s") + ".");
+        player.sendMessage(LegacyColors.GREEN + "Summoned " + summoned + " soul" + (summoned == 1 ? "" : "s") + ".");
         cooldownSink.startCooldown();
     }
 

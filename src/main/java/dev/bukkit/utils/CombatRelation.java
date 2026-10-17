@@ -1,5 +1,6 @@
 package dev.bukkit.utils;
 
+import org.bukkit.entity.ArmorStand;
 import org.bukkit.entity.Entity;
 import org.bukkit.entity.LivingEntity;
 import org.bukkit.entity.Player;
@@ -38,6 +39,11 @@ public final class CombatRelation {
      */
     public static boolean isEnemy(RPGEntity attacker, Entity target) {
         if (!(target instanceof LivingEntity) || target.getUniqueId().equals(attacker.getUuid())) {
+            return false;
+        }
+        // Armor stands are LivingEntities in Bukkit, but technical/decorative
+        // stands (e.g. the bonemerang body) are never combat targets.
+        if (target instanceof ArmorStand) {
             return false;
         }
         return isPlayerTeam(attacker) != isPlayerTeam(target);

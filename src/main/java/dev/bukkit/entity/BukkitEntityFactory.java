@@ -14,11 +14,9 @@ import org.bukkit.entity.LivingEntity;
 import org.bukkit.entity.Mob;
 import org.bukkit.inventory.EntityEquipment;
 import org.bukkit.inventory.ItemStack;
-import org.bukkit.metadata.FixedMetadataValue;
 import org.bukkit.potion.PotionEffect;
 import org.bukkit.potion.PotionEffectType;
 
-import dev.bukkit.DMain;
 import dev.bukkit.ability.BukkitEffectManager;
 import dev.bukkit.entity.VanillaEntityMeta.RelationType;
 import dev.bukkit.event.BukkitEventBus;
@@ -149,9 +147,9 @@ public class BukkitEntityFactory {
         applyMainHandItem(livingEntity, rpgMob, definition);
         applyArmor(livingEntity, rpgMob, definition);
 
-        livingEntity.setMetadata("VANILLA_META", new FixedMetadataValue(DMain.getInstance(), vanillaEntityMeta));
-        livingEntity.setMetadata("DUNGEON", new FixedMetadataValue(DMain.getInstance(), true));
-        livingEntity.setMetadata("DEBUG_SPAWN", new FixedMetadataValue(DMain.getInstance(), true));
+        BukkitEntityMetadata.set(livingEntity, "VANILLA_META", vanillaEntityMeta);
+        BukkitEntityMetadata.set(livingEntity, "DUNGEON", true);
+        BukkitEntityMetadata.set(livingEntity, "DEBUG_SPAWN", true);
 
         if (livingEntity instanceof Mob mob) {
             mob.setRemoveWhenFarAway(false);
@@ -229,8 +227,8 @@ public class BukkitEntityFactory {
             applyArmor(livingEntity, rpgMob, definition);
 
             // Store metadata
-            livingEntity.setMetadata("VANILLA_META", new FixedMetadataValue(DMain.getInstance(), vanillaEntityMeta));
-            livingEntity.setMetadata("DUNGEON", new FixedMetadataValue(DMain.getInstance(), true));
+        BukkitEntityMetadata.set(livingEntity, "VANILLA_META", vanillaEntityMeta);
+        BukkitEntityMetadata.set(livingEntity, "DUNGEON", true);
 
             // Ensure mob doesn't despawn
             if (livingEntity instanceof Mob) {

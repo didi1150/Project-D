@@ -1,8 +1,7 @@
 package dev.bukkit.hud;
 
-import org.bukkit.ChatColor;
-
 import dev.core.utils.ColorCodes;
+import dev.core.utils.LegacyColors;
 
 /**
  * Formats hunter bow state into HUD lines.
@@ -44,23 +43,23 @@ public final class HunterHudFormatter {
 
     /** Short form for shot summary (optional transient, not used for persistent held). */
     public static String formatShot(int bounces, boolean explosive) {
-        StringBuilder sb = new StringBuilder(ChatColor.GOLD + "Hunter's Bow " + ChatColor.DARK_GRAY + "| ");
+        StringBuilder sb = new StringBuilder(LegacyColors.GOLD + "Hunter's Bow " + LegacyColors.DARK_GRAY + "| ");
         if (bounces > 0) {
-            sb.append(ChatColor.AQUA).append("Recon ×").append(bounces).append(" ");
+            sb.append(LegacyColors.AQUA).append("Recon ×").append(bounces).append(" ");
         } else {
-            sb.append(ChatColor.GRAY).append("Plain ");
+            sb.append(LegacyColors.GRAY).append("Plain ");
         }
         if (explosive) {
-            sb.append(ChatColor.RED).append("◉ Shock");
+            sb.append(LegacyColors.RED).append("◉ Shock");
         } else {
-            sb.append(ChatColor.DARK_GRAY).append("○ No shock");
+            sb.append(LegacyColors.DARK_GRAY).append("○ No shock");
         }
         return sb.toString();
     }
 
     private static String dots(int bounces) {
-        String filled = ChatColor.AQUA + "●";
-        String empty = ChatColor.GRAY + "○";
+        String filled = LegacyColors.AQUA + "●";
+        String empty = LegacyColors.GRAY + "○";
         StringBuilder sb = new StringBuilder();
         for (int i = 0; i < MAX_BOUNCES; i++) {
             sb.append(i < bounces ? filled : empty);

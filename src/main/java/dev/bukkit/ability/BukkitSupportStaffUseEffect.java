@@ -2,7 +2,6 @@ package dev.bukkit.ability;
 
 import java.util.Optional;
 
-import org.bukkit.FluidCollisionMode;
 import org.bukkit.Location;
 import org.bukkit.Particle;
 import org.bukkit.Sound;
@@ -10,12 +9,13 @@ import org.bukkit.World;
 import org.bukkit.entity.Entity;
 import org.bukkit.entity.LivingEntity;
 import org.bukkit.entity.Player;
-import org.bukkit.util.RayTraceResult;
 import org.bukkit.util.Vector;
 
 import dev.bukkit.ability.behavior.SupportStaffBehavior;
 import dev.bukkit.entity.BukkitPlayerEntity;
+import dev.bukkit.hud.StaffFeedback;
 import dev.bukkit.utils.CombatRelation;
+import dev.bukkit.utils.StaffTargeting;
 import dev.core.ability.CooldownSink;
 import dev.core.ability.Effect;
 import dev.core.entity.EntityManager;
@@ -23,6 +23,7 @@ import dev.core.entity.RPGEntity;
 import dev.core.event.impl.RPGEntityHealEvent.HealReason;
 import dev.core.stat.StatType;
 import dev.core.status.StatusEffectType;
+import dev.core.utils.LegacyColors;
 
 /**
  * RIGHT-click effect for the Utility Staff. The action depends on the staff's
@@ -34,14 +35,12 @@ import dev.core.status.StatusEffectType;
  * <li><b>Mode 3 (Tempest Gust)</b>: Pushes all nearby enemies outward (10s
  * cooldown)</li>
  * </ul>
- * Cooldowns are managed per-mode via {@link CooldownSink#startCooldown(long)}.
- * Targeting indicators (glow outlines) are managed by
- * {@link SupportStaffBehavior}.
+ * Cooldowns are per-mode: {@code BukkitEffectManager} appends the current mode
+ * to the staff's cooldown key before {@code canActivate} checks it. Every
+ * attempt reports success or failure through the HUD overlay (chat fallback
+ * when the HUD is disabled).
  */
 public class BukkitSupportStaffUseEffect extends Effect {
-
-    private static final double TARGETING_RANGE = 15.0;
-    private static final double RAY_SIZE = 0.5;
 
     private static final double HEAL_BASE = 20.0;
     private static final long HEAL_COOLDOWN_MS = 3000;
@@ -58,6 +57,12 @@ public class BukkitSupportStaffUseEffect extends Effect {
         super(null, -1, false, cooldownKey);
     }
 
+    /** The staff cast is instantaneous; do not keep it in the active-effect list. */
+    @Override
+    public boolean hasExpired(long now) {
+        return true;
+    }
+
     @Override
     public void cast(RPGEntity caster, CooldownSink cooldownSink) {
         if (!(caster instanceof BukkitPlayerEntity playerEntity))
@@ -70,14 +75,10 @@ public class BukkitSupportStaffUseEffect extends Effect {
             return;
 
         SupportStaffBehavior state = SupportStaffBehavior.forHolder(caster.getUuid());
-        if (state == null) {
-            System.out.println("[StaffDebug] USE cast: state is null for " + caster.getUuid());
+        if (state == null)
             return;
-        }
-        int mode = state.getCurrentMode();
-        System.out.println("[StaffDebug] USE cast: mode=" + mode + " player=" + player.getName());
 
-        switch (mode) {
+        switch (state.getCurrentMode()) {
         case 1 -> handleHeal(caster, player, cooldownSink);
         case 2 -> handleShield(caster, player, cooldownSink);
         case 3 -> handlePushback(caster, player, cooldownSink);
@@ -89,72 +90,79 @@ public class BukkitSupportStaffUseEffect extends Effect {
     }
 
     private void handleHeal(RPGEntity caster, Player player, CooldownSink cooldownSink) {
-        Entity targetBukkit = raycastAlly(player);
+        Entity targetBukkit = StaffTargeting.raycastAlly(player);
         if (targetBukkit == null) {
-//            System.out.println("[StaffDebug] HEAL: no target found by raycast");
+            fail(player, LegacyColors.RED + "Mending Touch: no ally in sight.");
             return;
         }
-//        System.out.println("[StaffDebug] HEAL: raycast found " + targetBukkit.getName());
 
-        Optional<RPGEntity> targetOpt = EntityManager.getInstance().getEntity(targetBukkit.getUniqueId());
-        if (targetOpt.isEmpty()) {
-//            System.out.println("[StaffDebug] HEAL: entity not in EntityManager for " + targetBukkit.getUniqueId());
+        RPGEntity target = EntityManager.getInstance().getEntity(targetBukkit.getUniqueId()).orElse(null);
+        if (target == null) {
+            fail(player, LegacyColors.RED + "Mending Touch: that ally cannot be healed.");
             return;
         }
-        RPGEntity target = targetOpt.get();
         if (!target.isAlive()) {
-//            System.out.println("[StaffDebug] HEAL: target is dead");
+            fail(player, LegacyColors.RED + "Mending Touch: that ally is already down.");
             return;
         }
         if (target.getHealth() >= target.getMaxHealth()) {
-//            System.out.println(
-//                    "[StaffDebug] HEAL: target at max health=" + target.getHealth() + "/" + target.getMaxHealth());
+            fail(player, LegacyColors.YELLOW + "Mending Touch: " + targetBukkit.getName()
+                    + " is already at full health.");
             return;
         }
 
-//        System.out.println("[StaffDebug] HEAL: healing " + targetBukkit.getName() + " for " + HEAL_BASE + " health="
-//                + target.getHealth() + "/" + target.getMaxHealth());
+        double before = target.getHealth();
         caster.healRPGEntity(caster, target, HEAL_BASE, HealReason.SPELL);
+        double healed = target.getHealth() - before;
+        if (healed <= 0.001) {
+            fail(player, LegacyColors.YELLOW + "Mending Touch: healing had no effect.");
+            return;
+        }
+
         player.getWorld().spawnParticle(Particle.HAPPY_VILLAGER,
                 targetBukkit.getLocation().add(0, targetBukkit.getHeight() + 0.3, 0), 5, 0.3, 0.3, 0.3, 0);
         player.getWorld().playSound(player.getLocation(), Sound.ENTITY_PLAYER_LEVELUP, 0.3f, 1.8f);
         cooldownSink.startCooldown(HEAL_COOLDOWN_MS);
+        success(player, LegacyColors.GREEN + "Mending Touch: healed " + targetBukkit.getName() + " for "
+                + String.format("%.0f", healed) + " HP.");
     }
 
     private void handleShield(RPGEntity caster, Player player, CooldownSink cooldownSink) {
-        Entity targetBukkit = raycastAlly(player);
+        Entity targetBukkit = StaffTargeting.raycastAlly(player);
         if (targetBukkit == null) {
-//            System.out.println("[StaffDebug] SHIELD: no target found by raycast");
+            fail(player, LegacyColors.RED + "Aegis Ward: no ally in sight.");
             return;
         }
-//        System.out.println("[StaffDebug] SHIELD: raycast found " + targetBukkit.getName());
 
-        Optional<RPGEntity> targetOpt = EntityManager.getInstance().getEntity(targetBukkit.getUniqueId());
-        if (targetOpt.isEmpty()) {
-//            System.out.println("[StaffDebug] SHIELD: entity not in EntityManager for " + targetBukkit.getUniqueId());
+        RPGEntity target = EntityManager.getInstance().getEntity(targetBukkit.getUniqueId()).orElse(null);
+        if (target == null) {
+            fail(player, LegacyColors.RED + "Aegis Ward: that ally cannot be shielded.");
             return;
         }
-        RPGEntity target = targetOpt.get();
         if (!target.isAlive()) {
-//            System.out.println("[StaffDebug] SHIELD: target is dead");
+            fail(player, LegacyColors.RED + "Aegis Ward: that ally is already down.");
             return;
         }
 
         double healPower = caster.getStatEngineAdapter().getCurrentValue(StatType.HEAL_AND_SHIELD_POWER,
                 System.currentTimeMillis());
         double potency = SHIELD_BASE_POTENCY * (1.0 + healPower / 100.0);
-        System.out.println("[StaffDebug] SHIELD: applying to " + targetBukkit.getName() + " potency="
-                + String.format("%.1f", potency) + " healPower=" + String.format("%.1f", healPower));
-        target.getStatusEffectManager().apply(target, StatusEffectType.ABSORPTION, SHIELD_DURATION_MS, true, potency);
+        target.getStatusEffectManager().applyStacking(target, StatusEffectType.ABSORPTION, SHIELD_DURATION_MS, true,
+                potency);
+
         player.getWorld().spawnParticle(Particle.ELECTRIC_SPARK,
                 targetBukkit.getLocation().add(0, targetBukkit.getHeight() + 0.3, 0), 8, 0.3, 0.3, 0.3, 0.05);
         player.getWorld().playSound(player.getLocation(), Sound.ITEM_ARMOR_EQUIP_IRON, 0.5f, 1.2f);
         cooldownSink.startCooldown(SHIELD_COOLDOWN_MS);
+        success(player, LegacyColors.GREEN + "Aegis Ward: shielded " + targetBukkit.getName() + " for "
+                + (SHIELD_DURATION_MS / 1000) + "s.");
     }
 
     private void handlePushback(RPGEntity caster, Player player, CooldownSink cooldownSink) {
         World world = player.getWorld();
         Location center = player.getLocation();
+        int pushed = 0;
+
         for (Entity entity : world.getNearbyEntities(center, PUSH_RADIUS, PUSH_RADIUS, PUSH_RADIUS)) {
             if (!(entity instanceof LivingEntity living))
                 continue;
@@ -179,66 +187,26 @@ public class BukkitSupportStaffUseEffect extends Effect {
             living.setVelocity(push);
             world.spawnParticle(Particle.CLOUD, living.getLocation().add(0, living.getHeight() * 0.5, 0), 3, 0.2, 0.2,
                     0.2, 0.01);
+            pushed++;
         }
+
+        if (pushed == 0) {
+            fail(player, LegacyColors.YELLOW + "Tempest Gust: no enemies in range.");
+            return;
+        }
+
         world.playSound(center, Sound.ENTITY_PLAYER_ATTACK_SWEEP, 0.8f, 1.0f);
         cooldownSink.startCooldown(PUSH_COOLDOWN_MS);
+        success(player, LegacyColors.AQUA + "Tempest Gust: pushed " + pushed
+                + (pushed == 1 ? " enemy." : " enemies."));
     }
 
-    /**
-     * Raycasts from the player's eye in the look direction to find the nearest
-     * allied living entity (other players and player-owned summons). Returns the
-     * Bukkit Entity or null if nothing valid is in sight.
-     */
-    private Entity raycastAlly(Player player) {
-        Location eye = player.getEyeLocation();
-        Vector dir = eye.getDirection().normalize();
-        World world = player.getWorld();
-
-        RayTraceResult result = world.rayTrace(eye.clone().add(dir), dir, TARGETING_RANGE, FluidCollisionMode.NEVER,
-                true, RAY_SIZE, this::isAlliedTarget);
-        if (result == null || result.getHitEntity() == null) {
-//            if (System.currentTimeMillis() % 2000 < 50) {
-//                int nearbyCount = 0;
-//                for (Entity e : world.getNearbyEntities(eye, TARGETING_RANGE, TARGETING_RANGE, TARGETING_RANGE)) {
-//                    if (e instanceof LivingEntity && !e.getUniqueId().equals(player.getUniqueId())) {
-//                        nearbyCount++;
-//                    }
-//                }
-//                System.out.println("[StaffDebug] USE raycast miss: nearbyLiving=" + nearbyCount + " eye="
-//                        + String.format("%.1f,%.1f,%.1f", eye.getX(), eye.getY(), eye.getZ()));
-//            }
-            return null;
-        }
-
-        Entity hit = result.getHitEntity();
-        if (!(hit instanceof LivingEntity living))
-            return null;
-        if (living.isDead() || !living.isValid())
-            return null;
-        if (EntityManager.getInstance().isGhost(living.getUniqueId()))
-            return null;
-
-//        System.out.println("[StaffDebug] USE raycast HIT: " + hit.getName() + " dist="
-//                + String.format("%.1f", eye.distance(hit.getLocation())));
-        return hit;
+    private static void success(Player player, String message) {
+        StaffFeedback.show(player, message);
     }
 
-    /**
-     * Entity filter for the ray trace: accepts living entities on the player team
-     * that are not the caster.
-     */
-    private boolean isAlliedTarget(Entity entity) {
-        if (!(entity instanceof LivingEntity living))
-            return false;
-        if (living.isDead() || !living.isValid())
-            return false;
-        if (EntityManager.getInstance().isGhost(living.getUniqueId()))
-            return false;
-        boolean allied = CombatRelation.isPlayerTeam(entity);
-//        if (System.currentTimeMillis() % 5000 < 50) {
-//            System.out.println("[StaffDebug] USE isAlliedTarget: " + entity.getName() + " type=" + entity.getType()
-//                    + " alive=" + living.isValid() + " playerTeam=" + allied);
-//        }
-        return allied;
+    private static void fail(Player player, String message) {
+        StaffFeedback.show(player, message);
+        player.playSound(player.getLocation(), Sound.ENTITY_VILLAGER_NO, 0.5f, 0.9f);
     }
 }

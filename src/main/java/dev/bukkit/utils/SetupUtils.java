@@ -19,6 +19,8 @@ import dev.core.event.EventBusInterface;
 import dev.core.game.coords.Point3D;
 import dev.core.game.coords.ViewPoint3D;
 import dev.core.game.settings.GameSettingsLoader;
+import dev.core.utils.AdventureText;
+import dev.core.utils.LegacyColors;
 import dev.core.utils.MessageComponent;
 import dev.core.utils.MessageSenderInterface;
 import org.bukkit.util.Transformation;
@@ -30,7 +32,8 @@ public class SetupUtils {
             EventBusInterface eventBus, MessageSenderInterface messageSender) {
         ItemStack itemStack = new ItemStack(Material.BEDROCK);
         ItemMeta meta = itemStack.getItemMeta();
-        meta.setDisplayName(ChatColor.GRAY + "(Place to set Location)");
+        meta.displayName(AdventureText.withoutItalic(AdventureText.legacy(
+                LegacyColors.GRAY + "(Place to set Location)")));
         itemStack.setItemMeta(meta);
 
         player.getInventory().addItem(itemStack);
@@ -38,7 +41,7 @@ public class SetupUtils {
             ItemStack item = event.getItemInHand();
             if (item != null) {
                 if (item.getItemMeta() != null
-                        && item.getItemMeta().getDisplayName().contains("Place to set Location")) {
+                        && AdventureText.plainOrEmpty(item.getItemMeta().displayName()).contains("Place to set Location")) {
                     event.setCancelled(true);
                     Location loc = event.getBlock().getLocation();
                     Point3D point3D = LocToPoint.locToBlock(loc);
@@ -62,7 +65,8 @@ public class SetupUtils {
             EventBusInterface eventBus, MessageSenderInterface messageSender) {
         ItemStack itemStack = new ItemStack(Material.BLAZE_ROD);
         ItemMeta meta = itemStack.getItemMeta();
-        meta.setDisplayName(ChatColor.GRAY + "(Right click to set your Location)");
+        meta.displayName(AdventureText.withoutItalic(AdventureText.legacy(
+                LegacyColors.GRAY + "(Right click to set your Location)")));
         itemStack.setItemMeta(meta);
         player.getInventory().addItem(itemStack);
 
@@ -70,7 +74,7 @@ public class SetupUtils {
             ItemStack item = event.getPlayer().getInventory().getItemInMainHand();
             if (item != null) {
                 if (item.getItemMeta() != null
-                        && item.getItemMeta().getDisplayName().contains("Right click to set your Location")) {
+                        && AdventureText.plainOrEmpty(item.getItemMeta().displayName()).contains("Right click to set your Location")) {
                     event.setCancelled(true);
                     Location loc = event.getPlayer().getLocation();
                     List<World> worlds = Bukkit.getWorlds();
@@ -94,7 +98,8 @@ public class SetupUtils {
 
     private static boolean hasSetterItemInInventory(Player player, String contains) {
         for (ItemStack item : player.getInventory().getContents()) {
-            if (item != null && item.getItemMeta() != null && item.getItemMeta().getDisplayName().contains(contains)) {
+            if (item != null && item.getItemMeta() != null
+                && AdventureText.plainOrEmpty(item.getItemMeta().displayName()).contains(contains)) {
                 return true;
             }
         }
@@ -103,7 +108,8 @@ public class SetupUtils {
 
     public static boolean hasItemInMainHand(Player player, String displayName) {
         ItemStack item = player.getInventory().getItemInMainHand();
-        return item.getItemMeta() != null && item.getItemMeta().getDisplayName().contains(displayName);
+        return item.getItemMeta() != null
+                && AdventureText.plainOrEmpty(item.getItemMeta().displayName()).contains(displayName);
     }
 
     public static void setDungeonWorld(String world, GameSettingsLoader gameSettingsLoader) {
@@ -120,8 +126,8 @@ public class SetupUtils {
         if (meta == null) {
             return itemStack;
         }
-        meta.setDisplayName(ChatColor.GOLD + name);
-        meta.setLore(lore.stream().flatMap(l -> l.getLore().stream()).toList());
+        meta.displayName(AdventureText.withoutItalic(AdventureText.legacy(LegacyColors.GOLD + name)));
+        meta.lore(AdventureText.itemLoreLines(lore.stream().flatMap(l -> l.getLore().stream()).toList()));
         meta.setUnbreakable(true);
         meta.addItemFlags(ItemFlag.HIDE_UNBREAKABLE, ItemFlag.HIDE_ATTRIBUTES);
         if (meta.getAttributeModifiers() != null) {
@@ -136,7 +142,7 @@ public class SetupUtils {
         Location loc = new Location(world, spawnPoint.x, spawnPoint.y, spawnPoint.z);
         return BukkitDisplayEntityRegistry.getInstance().spawnDisplayEntity(loc, TextDisplay.class, d -> {
             d.setBillboard(Display.Billboard.CENTER);
-            d.setText(text);
+            d.text(AdventureText.legacy(text));
             d.setSeeThrough(true);
             d.setBackgroundColor(d.getBackgroundColor().setAlpha(0));
             Transformation transformation = d.getTransformation();

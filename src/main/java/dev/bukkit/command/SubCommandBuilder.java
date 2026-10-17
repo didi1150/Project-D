@@ -1,10 +1,10 @@
 package dev.bukkit.command;
 
 import dev.bukkit.utils.BukkitMessageSender;
+import dev.core.utils.LegacyColors;
 import dev.core.utils.MessageComponent;
 import dev.core.utils.MessageText;
 import me.kodysimpson.simpapi.command.SubCommand;
-import org.bukkit.ChatColor;
 import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
 
@@ -120,9 +120,9 @@ public class SubCommandBuilder {
     }
 
     private void sendUsageMessage(CommandSender sender) {
-        BukkitMessageSender.getInstance().sendLine(sender, ChatColor.AQUA.toString());
-        BukkitMessageSender.getInstance().sendMessage(sender, MessageComponent.of(ChatColor.GREEN + syntax + ChatColor.GOLD + " - " + description));
-        BukkitMessageSender.getInstance().sendLine(sender, ChatColor.AQUA.toString());
+        BukkitMessageSender.getInstance().sendLine(sender, LegacyColors.AQUA.toString());
+        BukkitMessageSender.getInstance().sendMessage(sender, MessageComponent.of(LegacyColors.GREEN + syntax + LegacyColors.GOLD + " - " + description));
+        BukkitMessageSender.getInstance().sendLine(sender, LegacyColors.AQUA.toString());
     }
 
     private void sendUsageMessage(CommandSender sender, String mainArg) {
@@ -140,9 +140,9 @@ public class SubCommandBuilder {
         }
         String usage = builder.toString();
 
-        BukkitMessageSender.getInstance().sendLine(sender, ChatColor.AQUA.toString());
-        BukkitMessageSender.getInstance().sendMessage(sender, MessageComponent.of(ChatColor.GREEN + usage + ChatColor.GOLD + " - " + description));
-        BukkitMessageSender.getInstance().sendLine(sender, ChatColor.AQUA.toString());
+        BukkitMessageSender.getInstance().sendLine(sender, LegacyColors.AQUA.toString());
+        BukkitMessageSender.getInstance().sendMessage(sender, MessageComponent.of(LegacyColors.GREEN + usage + LegacyColors.GOLD + " - " + description));
+        BukkitMessageSender.getInstance().sendLine(sender, LegacyColors.AQUA.toString());
     }
 
     private void sendUsageMessage(CommandSender sender, String mainArg, MessageComponent error) {

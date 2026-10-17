@@ -4,10 +4,8 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
-import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyDouble;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doAnswer;
@@ -32,10 +30,14 @@ import org.bukkit.persistence.PersistentDataType;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
+import org.mockito.Mockito;
 
 import dev.bukkit.event.BukkitEventBus;
+import dev.core.ability.Ability;
+import dev.core.ability.Effect;
 import dev.core.ability.EffectManagerInterface;
 import dev.core.entity.EntityManager;
 import dev.core.entity.EntityType;
@@ -50,9 +52,6 @@ import dev.core.stat.StatManager;
 import dev.core.stat.StatType;
 import dev.core.stat.impl.CombatStat;
 import dev.core.stat.impl.ResourceStat;
-import dev.core.ability.Ability;
-import dev.core.ability.Effect;
-import org.mockito.Mockito;
 
 class BowArrowManagerTest {
 
@@ -64,14 +63,10 @@ class BowArrowManagerTest {
 
     @BeforeAll
     static void registerTestItems() {
-        RPGItem bow = RPGItem.builder(BOW_ID, "Test Bow", "BOW", EquipmentSlot.MAIN_HAND)
-                .withItemType(ItemType.BOW)
-                .requiresArrows(true)
-                .build();
+        RPGItem bow = RPGItem.builder(BOW_ID, "Test Bow", "BOW", EquipmentSlot.MAIN_HAND).withItemType(ItemType.BOW)
+                .requiresArrows(true).build();
         RPGItem arrowless = RPGItem.builder(ARROWLESS_BOW_ID, "Test Arrowless Bow", "BONE", EquipmentSlot.MAIN_HAND)
-                .withItemType(ItemType.BOW)
-                .requiresArrows(false)
-                .build();
+                .withItemType(ItemType.BOW).requiresArrows(false).build();
         RPGItemRegistry.getInstance().addAll(Map.of(BOW_ID, bow, ARROWLESS_BOW_ID, arrowless));
     }
 
@@ -79,6 +74,12 @@ class BowArrowManagerTest {
     static void unregisterTestItems() {
         RPGItem stub = RPGItem.builder("GONE", "Gone", EquipmentSlot.MAIN_HAND).build();
         RPGItemRegistry.getInstance().addAll(Map.of(BOW_ID, stub, ARROWLESS_BOW_ID, stub));
+        BowArrowManager.resetArrowStackFactoryForTesting();
+    }
+
+    @BeforeEach
+    void useMockedArrowStacks() {
+        BowArrowManager.setArrowStackFactoryForTesting(() -> plainStack(Material.ARROW, BowArrowManager.ARROW_COUNT));
     }
 
     @AfterEach
@@ -99,11 +100,12 @@ class BowArrowManagerTest {
             slots[(int) invocation.getArgument(0)] = invocation.getArgument(1);
             return null;
         }).when(inventory).setItem(anyInt(), any());
-        when(inventory.getItemInMainHand()).thenAnswer(invocation -> slots[0]);
+        when(inventory.getItemInMainHand()).thenAnswer(_ -> slots[0]);
         return player;
     }
 
     /** A stack whose PDC advertises the given RPG item id. */
+    @SuppressWarnings("unchecked")
     private ItemStack rpgStack(String id) {
         ItemStack stack = mock(ItemStack.class);
         when(stack.getType()).thenReturn(Material.BOW);
@@ -117,12 +119,17 @@ class BowArrowManagerTest {
     }
 
     /**
-     * A plain non-RPG stack. Must be mocked: real ItemStack meta methods hit
-     * Bukkit.getItemFactory(), which needs a running server.
+     * A plain non-RPG stack. Must be mocked: constructing a real ItemStack requires
+     * Paper's runtime item registry, which headless tests do not have.
      */
     private ItemStack plainStack(Material material) {
+        return plainStack(material, 1);
+    }
+
+    private ItemStack plainStack(Material material, int amount) {
         ItemStack stack = mock(ItemStack.class);
         when(stack.getType()).thenReturn(material);
+        when(stack.getAmount()).thenReturn(amount);
         when(stack.hasItemMeta()).thenReturn(false);
         return stack;
     }
@@ -164,7 +171,7 @@ class BowArrowManagerTest {
     void swapToBow_withFullMainInventory_overridesHighestOccupiedSlot() {
         Player player = player();
         slots[2] = rpgStack(BOW_ID);
-        fillMainInventory(new ItemStack(Material.DIAMOND, 3));
+        fillMainInventory(plainStack(Material.DIAMOND, 3));
 
         BowArrowManager.onSlotSwap(player, 2);
 
@@ -176,7 +183,7 @@ class BowArrowManagerTest {
     @Test
     void swapAway_restoresOverriddenItem() {
         Player player = player();
-        ItemStack sacrifice = new ItemStack(Material.DIAMOND, 3);
+        ItemStack sacrifice = plainStack(Material.DIAMOND, 3);
         slots[2] = rpgStack(BOW_ID);
         fillMainInventory(sacrifice);
         BowArrowManager.onSlotSwap(player, 2);
@@ -191,13 +198,13 @@ class BowArrowManagerTest {
     @Test
     void shoot_refreshesArrowButKeepsStoredItem() {
         Player player = player();
-        ItemStack sacrifice = new ItemStack(Material.DIAMOND, 3);
+        ItemStack sacrifice = plainStack(Material.DIAMOND, 3);
         slots[2] = rpgStack(BOW_ID);
         fillMainInventory(sacrifice);
         BowArrowManager.onSlotSwap(player, 2);
 
         // player fires: arrow slot drops to a nearly-empty stack as if consumed
-        slots[35] = new ItemStack(Material.ARROW, 1);
+        slots[35] = plainStack(Material.ARROW, 1);
         BowArrowManager.onShoot(player, mock(Projectile.class));
 
         assertEquals(64, slots[35].getAmount(), "arrow stack refreshed after shot");
@@ -221,7 +228,7 @@ class BowArrowManagerTest {
     @Test
     void cleanup_restoresStoredItemAndClearsState() {
         Player player = player();
-        ItemStack sacrifice = new ItemStack(Material.DIAMOND, 3);
+        ItemStack sacrifice = plainStack(Material.DIAMOND, 3);
         slots[2] = rpgStack(BOW_ID);
         fillMainInventory(sacrifice);
         BowArrowManager.onSlotSwap(player, 2);
@@ -329,7 +336,7 @@ class BowArrowManagerTest {
     void isPlantedArrowSlot_tracksOverriddenSlot() {
         Player player = player();
         slots[2] = rpgStack(BOW_ID);
-        fillMainInventory(new ItemStack(Material.DIAMOND, 3));
+        fillMainInventory(plainStack(Material.DIAMOND, 3));
         BowArrowManager.onSlotSwap(player, 2);
 
         assertTrue(BowArrowManager.isPlantedArrowSlot(player, 35), "highest-index slot holds the planted arrow");
@@ -403,7 +410,7 @@ class BowArrowManagerTest {
     private static StatManager statsManager() {
         Map<StatType, Stat> stats = new HashMap<>();
         long now = System.currentTimeMillis();
-        stats.put(StatType.HEALTH_RESOURCE, new ResourceStat("health", t -> 100.0, t -> 0.0, now));
+        stats.put(StatType.HEALTH_RESOURCE, new ResourceStat("health", _ -> 100.0, _ -> 0.0, now));
         stats.put(StatType.ATTACK_DAMAGE, new CombatStat("ATTACK_DAMAGE", 150));
         stats.put(StatType.PROJECTILE_DAMAGE, new CombatStat("PROJECTILE_DAMAGE", 10));
         return new StatManager(stats);
@@ -411,8 +418,8 @@ class BowArrowManagerTest {
 
     private static final class TestRPGEntity extends RPGEntity {
         TestRPGEntity(UUID uuid, StatManager statManager) {
-            super(statManager, uuid, "archer", EntityType.PLAYER, new NoopEffectManager(),
-                    BukkitEventBus.getInstance(), RPGClassType.ARCHER);
+            super(statManager, uuid, "archer", EntityType.PLAYER, new NoopEffectManager(), BukkitEventBus.getInstance(),
+                    RPGClassType.ARCHER);
         }
     }
 

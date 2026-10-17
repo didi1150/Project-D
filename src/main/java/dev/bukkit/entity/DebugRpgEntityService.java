@@ -15,7 +15,6 @@ import org.bukkit.World;
 import org.bukkit.entity.Entity;
 import org.bukkit.entity.LivingEntity;
 import org.bukkit.entity.Player;
-import org.bukkit.metadata.FixedMetadataValue;
 
 import dev.bukkit.DMain;
 import dev.bukkit.entity.boss.BukkitBossEntity;
@@ -66,8 +65,7 @@ public class DebugRpgEntityService {
                 new BukkitTaskScheduler(DMain.getInstance()));
         BukkitBossEntity boss = factory.spawn(definition, world, spawnLoc,
                 FloorDataRegistry.getInstance().getOrEmpty(definition.getFloor()));
-        boss.getBukkitEntity().ifPresent(entity -> entity.setMetadata("DEBUG_SPAWN",
-                new FixedMetadataValue(DMain.getInstance(), true)));
+        boss.getBukkitEntity().ifPresent(entity -> BukkitEntityMetadata.set(entity, "DEBUG_SPAWN", true));
         debugUuids.add(boss.getUuid());
         debugBosses.put(boss.getUuid(), boss);
         injectIntoBossStateIfActive(boss);
@@ -106,7 +104,7 @@ public class DebugRpgEntityService {
         if (!debugUuids.contains(uuid)) {
             // Not tracked — still allow deregister if it is a debug mob/boss via metadata check
             Entity entity = Bukkit.getEntity(uuid);
-            if (entity != null && entity.hasMetadata("DEBUG_SPAWN")) {
+            if (entity != null && BukkitEntityMetadata.has(entity, "DEBUG_SPAWN")) {
                 // treat as debug even if not tracked (e.g. after reload)
                 debugUuids.add(uuid);
             } else {

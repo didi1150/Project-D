@@ -12,7 +12,9 @@ import java.util.stream.Collectors;
 
 import dev.bukkit.game.dungeon.DungeonPortalManager;
 import dev.bukkit.game.dungeon.buildassets.BuildAsset;
+import dev.bukkit.utils.BukkitText;
 import dev.core.game.coords.Point3D;
+import dev.core.utils.AdventureText;
 import dev.core.game.dungeon.proceduralDungeon.util.DungeonRoom;
 import dev.core.game.dungeon.proceduralDungeon.util.SpawnLocation;
 import org.bukkit.Bukkit;
@@ -67,7 +69,7 @@ public class SimpleDungeonBuilderBukkit {
         }
         Queue<BoundingBox> rooms = tmpRooms;
         int blocksToPlace = floorPositions.size() + wallPositions.size();
-        Bukkit.broadcastMessage("§a" + blocksToPlace + " Blocks (" + rooms.size() + " Rooms) to place ...");
+        BukkitText.broadcast("§a" + blocksToPlace + " Blocks (" + rooms.size() + " Rooms) to place ...");
         new BukkitRunnable() {
             int blocksPerTick = 1; // Adjust based on performance needs
 
@@ -108,7 +110,7 @@ public class SimpleDungeonBuilderBukkit {
                         if (onComplete != null) {
                             onComplete.run();
                         }
-                        Bukkit.broadcastMessage("§aDungeon construction complete!");
+                        BukkitText.broadcast("§aDungeon construction complete!");
                         return;
                     }
                 }
@@ -162,7 +164,7 @@ public class SimpleDungeonBuilderBukkit {
                         if (onComplete != null) {
                             onComplete.run();
                         }
-                        Bukkit.broadcastMessage("§aDungeon reset complete!");
+                        BukkitText.broadcast("§aDungeon reset complete!");
                         return;
                     }
                 }
@@ -198,7 +200,7 @@ public class SimpleDungeonBuilderBukkit {
         int wallVsStair = (int) wallPosSet.stream().filter(stairPosSet::contains).count();
         int ceilingVsStair = (int) ceilingPosSet.stream().filter(stairPosSet::contains).count();
 
-        Bukkit.broadcastMessage("§e[DBG] overlaps before filter - wall vs corridor: " + wallVsCorridor + ", wall vs stair: " + wallVsStair + ", ceiling vs stair: " + ceilingVsStair);
+        BukkitText.broadcast("§e[DBG] overlaps before filter - wall vs corridor: " + wallVsCorridor + ", wall vs stair: " + wallVsStair + ", ceiling vs stair: " + ceilingVsStair);
 
         // Create final filtered queues (avoid reassigning original locals so anonymous class can capture them)
         final Queue<DungeonWallBlock> wallBlocksFiltered = new LinkedList<>(wallBlocks.stream().filter(w -> {
@@ -223,11 +225,11 @@ public class SimpleDungeonBuilderBukkit {
         final Queue<Set<DungeonDecorationBlock>> decorationBlocksFiltered = new LinkedList<>(filteredDecorations);
 
         // report counts after filtering
-        Bukkit.broadcastMessage("§e[DBG] after filter - walls: " + wallBlocksFiltered.size() + ", ceilings: " + ceilingBlocksFiltered.size() + ", decoGroups: " + decorationBlocksFiltered.size());
+        BukkitText.broadcast("§e[DBG] after filter - walls: " + wallBlocksFiltered.size() + ", ceilings: " + ceilingBlocksFiltered.size() + ", decoGroups: " + decorationBlocksFiltered.size());
 
         int blocksToPlace = floorBlocks.size() + corridorBlocks.size() + stairBlocks.size() + wallBlocksFiltered.size()
                 + ceilingBlocksFiltered.size() + decorationBlocksFiltered.size();
-        Bukkit.broadcastMessage("§a" + blocksToPlace + " Blocks (" + rooms.size() + " Rooms) to place ...");
+        BukkitText.broadcast("§a" + blocksToPlace + " Blocks (" + rooms.size() + " Rooms) to place ...");
 
         Queue<Pair<Vector3Int, Material>> currentRoomBox = new LinkedList<>();
 
@@ -239,13 +241,13 @@ public class SimpleDungeonBuilderBukkit {
                     if (spawnPosition.isMiniBossSpawn()) {
                         spawnBlockDisplay(world, Vector3Int.fromPoint3D(p), Vector3Int.fromPoint3D(p).add(0,1,0), Material.PINK_STAINED_GLASS);
                         BukkitDisplayEntityRegistry.getInstance().spawnDisplayEntity(loc, TextDisplay.class, d -> {
-                            d.setText("MiniBoss");
+                            d.text(AdventureText.legacy("MiniBoss"));
                             d.setBillboard(Display.Billboard.CENTER);
                         });
                     } else if (spawnPosition.isEliteSpawn()) {
                         spawnBlockDisplay(world, Vector3Int.fromPoint3D(p), Vector3Int.fromPoint3D(p).add(0,1,0), Material.MAGENTA_STAINED_GLASS);
                         BukkitDisplayEntityRegistry.getInstance().spawnDisplayEntity(loc, TextDisplay.class, d -> {
-                            d.setText("Elite");
+                            d.text(AdventureText.legacy("Elite"));
                             d.setBillboard(Display.Billboard.CENTER);
                         });
                     } else {
@@ -355,7 +357,7 @@ public class SimpleDungeonBuilderBukkit {
                         }
                         long timePassed = System.currentTimeMillis() - time;
                         double sec = timePassed / 1000d;
-                        Bukkit.broadcastMessage("§aDungeon construction completed! (in " + sec + " secs)");
+                        BukkitText.broadcast("§aDungeon construction completed! (in " + sec + " secs)");
                         if (debugMode)
                             matManager.printStatistic();
                         // teleport online players to a safe floor location within the start room
@@ -367,7 +369,7 @@ public class SimpleDungeonBuilderBukkit {
                             for (Player p : Bukkit.getOnlinePlayers()) {
                                 p.teleport(spawnLoc);
                             }
-                            Bukkit.broadcastMessage("§aPlayers teleported to safe spot in start room: " + startRoom + " at " + spawnLoc.toVector());
+                            BukkitText.broadcast("§aPlayers teleported to safe spot in start room: " + startRoom + " at " + spawnLoc.toVector());
                         }
 
                         // /d cdw dungeon1
@@ -389,7 +391,7 @@ public class SimpleDungeonBuilderBukkit {
                 .orElse(new BoundingBox(0, 0, 0, 0, 0, 0));
 
         int blocksToPlace = rooms.size();
-        Bukkit.broadcastMessage(
+        BukkitText.broadcast(
                 "§a" + blocksToPlace + " Blocks (" + rooms.size() + " Rooms) to place ... Biggest Room = " + biggestRoom
                         + "(" + biggestRoom.getDimensions().getLength() + ")");
         new BukkitRunnable() {
@@ -398,7 +400,6 @@ public class SimpleDungeonBuilderBukkit {
             @Override
             public void run() {
                 for (int i = 0; i < blocksPerTick; i++) {
-                    Vector3Int nextPos;
                     if (!rooms.isEmpty()) {
                         BoundingBox box = rooms.poll();
                         System.out.println("Room with " + box.getFilledBoxPositions().size() + " blocks");
@@ -417,7 +418,7 @@ public class SimpleDungeonBuilderBukkit {
                         if (onComplete != null) {
                             onComplete.run();
                         }
-                        Bukkit.broadcastMessage("§aConstruction complete!");
+                        BukkitText.broadcast("§aConstruction complete!");
                         return;
                     }
                 }
@@ -472,7 +473,7 @@ public class SimpleDungeonBuilderBukkit {
                         if (onComplete != null) {
                             onComplete.run();
                         }
-                        Bukkit.broadcastMessage("§aDungeon reset complete!");
+                        BukkitText.broadcast("§aDungeon reset complete!");
                         return;
                     }
                 }
@@ -683,7 +684,7 @@ public class SimpleDungeonBuilderBukkit {
                 .setCommandArgumentsList(7, "startRandomlyEachIteration"));
         commandManager.addSubCommand("project-d", SubCommandBuilder.startBuilding("resetDungeon").addAlias("rd")
                 .setDescription("Dungeon controls")
-                .setPlayerCommandAction(0, (player, args) -> {
+                .setPlayerCommandAction(0, (player, _) -> {
                     if (!checkPerm(player, "projectd.dungeon.reset")) return;
                     if (lastDungeonGenerator == null) {
                         player.sendMessage("§cNo Dungeon to reset.");
@@ -797,7 +798,7 @@ public class SimpleDungeonBuilderBukkit {
                         .setCommandArgumentsList(11, "create", "walkLength")
                         .setCommandArgumentsList(12, "create", "startRandomlyEachIteration")
                         .setCommandArgumentsList(13, "create", "seed")
-                        .setPlayerCommandAction(1, "reset", (player, args) -> {
+                        .setPlayerCommandAction(1, "reset", (player, _) -> {
                             if (!checkPerm(player, "projectd.dungeon.test")) return;
                             if (lastGeneratedSpace == null) {
                                 player.sendMessage("§cNo Space to reset.");

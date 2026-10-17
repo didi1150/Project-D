@@ -8,6 +8,8 @@ import dev.bukkit.utils.*;
 import dev.core.event.EventAction;
 import dev.core.event.EventBusInterface;
 import dev.core.game.dungeon.proceduralDungeon.util.Vector3Int;
+import dev.core.utils.AdventureText;
+import dev.core.utils.LegacyColors;
 import dev.core.utils.MessageComponent;
 import org.bukkit.*;
 import org.bukkit.entity.*;
@@ -51,7 +53,8 @@ public class BuildAssetHelper extends SetupHelper {
     @Override
     public void giveSetupItemsToPlayer(BukkitMessageSender ms, Player player) {
         player.getInventory().addItem(getBoxSelectionTool());
-        ms.sendMessage(player, MessageComponent.of(ChatColor.GREEN + "You received a " + getBoxSelectionTool().getItemMeta().getDisplayName()));
+        ms.sendMessage(player, MessageComponent.of(LegacyColors.GREEN + "You received a "
+                + AdventureText.plainOrEmpty(getBoxSelectionTool().getItemMeta().displayName())));
     }
 
     @Override
@@ -89,7 +92,8 @@ public class BuildAssetHelper extends SetupHelper {
             if (data.fullBoxDisplay != null)
                 data.fullBoxDisplay.remove();
             if (player == null) {
-                System.err.println("Player was null when trying to remove a preview of the " + data.lastPreviewedAsset.name() + " build asset!");
+                System.err.println("Player was null when trying to remove a preview of the "
+                        + data.lastPreviewedAsset.name() + " build asset!");
                 return;
             }
             if (data.lastPreviewedAsset != null)
@@ -99,41 +103,49 @@ public class BuildAssetHelper extends SetupHelper {
 
     @Override
     public void registerCommand(CommandManager cm, BukkitMessageSender ms) {
-        cm.addSubCommand("project-d", SubCommandBuilder.startBuilding("asset")
-                .setPermission("projectd.asset")
-                .setPlayerCommandAction(1, "firstPos", (player, args) -> {
+        cm.addSubCommand("project-d", SubCommandBuilder.startBuilding("asset").setPermission("projectd.asset")
+                .setPlayerCommandAction(1, "firstPos", (player, _) -> {
                     if (isPlayerInMode(player, ms, true)) {
                         selectFirstPos(ms, player, player.getLocation());
                     }
-                })
-                .setPlayerCommandAction(1, "secondPos", (player, args) -> {
+                }).setPlayerCommandAction(1, "secondPos", (player, _) -> {
                     if (isPlayerInMode(player, ms, true)) {
                         selectSecondPos(ms, player, player.getLocation());
                     }
-                })
-                .setPlayerCommandAction(2, "save", (player, args) -> {
+                }).setPlayerCommandAction(2, "save", (player, args) -> {
                     if (isPlayerInMode(player, ms, true)) {
                         String name = args[1];
                         var data = playerData.get(player.getUniqueId());
                         if (data == null || data.firstPos == null || data.secondPos == null) {
-                            ms.sendMessage(player, MessageComponent.of(ChatColor.RED + "Missing firstPos/secondPos to save asset!"));
+                            ms.sendMessage(player, MessageComponent
+                                    .of(LegacyColors.RED + "Missing firstPos/secondPos to save asset!"));
                             return;
                         }
                         buildAssetManager.saveAsset(name, player.getWorld(), data.firstPos, data.secondPos);
-                        ms.sendMessage(player, MessageComponent.of(ChatColor.GREEN + "Saving asset from <yellow>%s</yellow> to <yellow>%s</yellow> as: <yellow>%s</yellow>", data.firstPos, data.secondPos, name));
+                        ms.sendMessage(player, MessageComponent.of(LegacyColors.GREEN
+                                + "Saving asset from <yellow>%s</yellow> to <yellow>%s</yellow> as: <yellow>%s</yellow>",
+                                data.firstPos, data.secondPos, name));
                     }
-                }).setCommandArgumentsList(1, "save", "name")
-                .setPlayerCommandAction(2, "load", (player, args) -> {
+                }).setCommandArgumentsList(1, "save", "name").setPlayerCommandAction(2, "load", (player, args) -> {
                     String name = args[1];
                     BuildAsset asset = buildAssetManager.getAsset(name);
                     if (asset == null) {
                         player.sendMessage("No build asset found with name: " + name);
                         return;
                     }
-                    Vector3Int pos = new Vector3Int(player.getLocation().getBlockX(), player.getLocation().getBlockY(), player.getLocation().getBlockZ());
+                    Vector3Int pos = new Vector3Int(player.getLocation().getBlockX(), player.getLocation().getBlockY(),
+                            player.getLocation().getBlockZ());
                     asset.build(player.getServer(), player.getWorld(), pos);
-                    ms.sendMessage(player, MessageComponent.of(ChatColor.GREEN + "Loading <yellow>%s</yellow> asset at <yellow>%s</yellow> with info:", name, pos));
-                    ms.sendMessage(player, MessageComponent.of(ChatColor.DARK_GREEN + "firstPos=%s secondPos=%s blocks.size=%s entities.size=%s", asset.startPos(), asset.endPos(), asset.blocks().size(), asset.entities().size()));
+                    ms.sendMessage(player,
+                            MessageComponent.of(
+                                    LegacyColors.GREEN
+                                            + "Loading <yellow>%s</yellow> asset at <yellow>%s</yellow> with info:",
+                                    name, pos));
+                    ms.sendMessage(player,
+                            MessageComponent.of(
+                                    LegacyColors.DARK_GREEN
+                                            + "firstPos=%s secondPos=%s blocks.size=%s entities.size=%s",
+                                    asset.startPos(), asset.endPos(), asset.blocks().size(), asset.entities().size()));
                 }).setCommandArgumentsList(1, "load", buildAssetManager::getAllAssetNames, "name")
                 .setPlayerCommandAction(2, "loadAtCenter", (player, args) -> {
                     String name = args[1];
@@ -142,16 +154,25 @@ public class BuildAssetHelper extends SetupHelper {
                         player.sendMessage("No build asset found with name: " + name);
                         return;
                     }
-                    Vector3Int pos = new Vector3Int(player.getLocation().getBlockX(), player.getLocation().getBlockY(), player.getLocation().getBlockZ());
+                    Vector3Int pos = new Vector3Int(player.getLocation().getBlockX(), player.getLocation().getBlockY(),
+                            player.getLocation().getBlockZ());
                     asset.buildAtCenter(player.getServer(), player.getWorld(), pos);
-                    ms.sendMessage(player, MessageComponent.of(ChatColor.GREEN + "Loading <yellow>%s</yellow> asset at <yellow>%s</yellow> with info:", name, pos));
-                    ms.sendMessage(player, MessageComponent.of(ChatColor.DARK_GREEN + "firstPos=%s secondPos=%s blocks.size=%s entities.size=%s", asset.startPos(), asset.endPos(), asset.blocks().size(), asset.entities().size()));
+                    ms.sendMessage(player,
+                            MessageComponent.of(
+                                    LegacyColors.GREEN
+                                            + "Loading <yellow>%s</yellow> asset at <yellow>%s</yellow> with info:",
+                                    name, pos));
+                    ms.sendMessage(player,
+                            MessageComponent.of(
+                                    LegacyColors.DARK_GREEN
+                                            + "firstPos=%s secondPos=%s blocks.size=%s entities.size=%s",
+                                    asset.startPos(), asset.endPos(), asset.blocks().size(), asset.entities().size()));
                 }).setCommandArgumentsList(1, "loadAtCenter", buildAssetManager::getAllAssetNames, "name")
-                .setPlayerCommandAction(1, "reloadAssets", (player, args) -> {
+                .setPlayerCommandAction(1, "reloadAssets", (player, _) -> {
                     buildAssetManager.loadAllAssets();
-                    ms.sendMessage(player, MessageComponent.of(ChatColor.GREEN + "Reloaded %s build assets", buildAssetManager.getAllAssetNames().size()));
-                })
-                .setPlayerCommandAction(2, "showPreview", (player, args) -> {
+                    ms.sendMessage(player, MessageComponent.of(LegacyColors.GREEN + "Reloaded %s build assets",
+                            buildAssetManager.getAllAssetNames().size()));
+                }).setPlayerCommandAction(2, "showPreview", (player, args) -> {
                     if (isPlayerInMode(player, ms, true)) {
                         String name = args[1];
                         BuildAsset asset = buildAssetManager.getAsset(name);
@@ -159,13 +180,18 @@ public class BuildAssetHelper extends SetupHelper {
                             player.sendMessage("No build asset found with name: " + name);
                             return;
                         }
-                        Vector3Int pos = new Vector3Int(player.getLocation().getBlockX(), player.getLocation().getBlockY(), player.getLocation().getBlockZ());
+                        Vector3Int pos = new Vector3Int(player.getLocation().getBlockX(),
+                                player.getLocation().getBlockY(), player.getLocation().getBlockZ());
                         var data = playerData.get(player.getUniqueId());
                         data.lastPreviewedAsset = asset;
                         data.lastPreviewStartPos = pos;
                         asset.showPreview(player.getServer(), player.getWorld(), pos);
-                        ms.sendMessage(player, MessageComponent.of(ChatColor.GREEN + "Showing Preview of <yellow>%s</yellow> asset at <yellow>%s</yellow> with info:", name, pos));
-                        ms.sendMessage(player, MessageComponent.of(ChatColor.DARK_GREEN + "firstPos=%s secondPos=%s blocks.size=%s entities.size=%s", asset.startPos(), asset.endPos(), asset.blocks().size(), asset.entities().size()));
+                        ms.sendMessage(player, MessageComponent.of(LegacyColors.GREEN
+                                + "Showing Preview of <yellow>%s</yellow> asset at <yellow>%s</yellow> with info:",
+                                name, pos));
+                        ms.sendMessage(player, MessageComponent.of(
+                                LegacyColors.DARK_GREEN + "firstPos=%s secondPos=%s blocks.size=%s entities.size=%s",
+                                asset.startPos(), asset.endPos(), asset.blocks().size(), asset.entities().size()));
                     }
                 }).setCommandArgumentsList(1, "showPreview", buildAssetManager::getAllAssetNames, "name")
                 .setPlayerCommandAction(2, "showPreviewAtCenter", (player, args) -> {
@@ -176,79 +202,87 @@ public class BuildAssetHelper extends SetupHelper {
                             player.sendMessage("No build asset found with name: " + name);
                             return;
                         }
-                        Vector3Int pos = new Vector3Int(player.getLocation().getBlockX(), player.getLocation().getBlockY(), player.getLocation().getBlockZ());
+                        Vector3Int pos = new Vector3Int(player.getLocation().getBlockX(),
+                                player.getLocation().getBlockY(), player.getLocation().getBlockZ());
                         var data = playerData.get(player.getUniqueId());
                         data.lastPreviewedAsset = asset;
                         data.lastPreviewStartPos = pos;
                         asset.showPreviewAtCenter(player.getServer(), player.getWorld(), pos);
-                        ms.sendMessage(player, MessageComponent.of(ChatColor.GREEN + "Showing Preview of <yellow>%s</yellow> asset at <yellow>%s</yellow> with info:", name, pos));
-                        ms.sendMessage(player, MessageComponent.of(ChatColor.DARK_GREEN + "firstPos=%s secondPos=%s blocks.size=%s entities.size=%s", asset.startPos(), asset.endPos(), asset.blocks().size(), asset.entities().size()));
+                        ms.sendMessage(player, MessageComponent.of(LegacyColors.GREEN
+                                + "Showing Preview of <yellow>%s</yellow> asset at <yellow>%s</yellow> with info:",
+                                name, pos));
+                        ms.sendMessage(player, MessageComponent.of(
+                                LegacyColors.DARK_GREEN + "firstPos=%s secondPos=%s blocks.size=%s entities.size=%s",
+                                asset.startPos(), asset.endPos(), asset.blocks().size(), asset.entities().size()));
                     }
                 }).setCommandArgumentsList(1, "showPreviewAtCenter", buildAssetManager::getAllAssetNames, "name")
-                .setPlayerCommandAction(1, "removeLastPreview", (player, args) -> {
+                .setPlayerCommandAction(1, "removeLastPreview", (player, _) -> {
                     if (isPlayerInMode(player, ms, true)) {
                         var data = playerData.get(player.getUniqueId());
                         if (data.lastPreviewedAsset == null) {
-                            ms.sendMessage(player, MessageComponent.of(ChatColor.RED + "No last build asset preview found to remove!"));
+                            ms.sendMessage(player, MessageComponent
+                                    .of(LegacyColors.RED + "No last build asset preview found to remove!"));
                         }
                         data.lastPreviewedAsset.removePreview(player.getWorld(), data.lastPreviewStartPos);
-                        ms.sendMessage(player, MessageComponent.of(ChatColor.YELLOW + "Removing Preview of %s asset at %s", data.lastPreviewedAsset.name(), data.lastPreviewStartPos));
+                        ms.sendMessage(player,
+                                MessageComponent.of(LegacyColors.YELLOW + "Removing Preview of %s asset at %s",
+                                        data.lastPreviewedAsset.name(), data.lastPreviewStartPos));
                         data.lastPreviewedAsset = null;
                         data.lastPreviewStartPos = null;
                     }
-                })
-                .setPlayerCommandAction(1, "toggleBuildMode", (player, args) -> {
+                }).setPlayerCommandAction(1, "toggleBuildMode", (player, _) -> {
                     if (isPlayerInMode(player, ms, false)) {
                         removePlayerFromMode(player);
                     } else {
                         setPlayerInMode(ms, player);
                     }
-                })
-                .setCommandArgumentsList(0, List.of("firstPos", "secondPos", "save", "load", "loadAtCenter", "reloadAssets", "showPreview", "showPreviewAtCenter", "removeLastPreview", "toggleBuildMode"))
-        );
+                }).setCommandArgumentsList(0, List.of("firstPos", "secondPos", "save", "load", "loadAtCenter",
+                        "reloadAssets", "showPreview", "showPreviewAtCenter", "removeLastPreview", "toggleBuildMode")));
     }
 
     @Override
     public void registerEvents(EventBusInterface eventBus, BukkitMessageSender ms) {
         EventAction<PlayerInteractEvent> blockSelection = new EventAction<PlayerInteractEvent>(event -> {
             Player player = event.getPlayer();
-            if (event.getHand() == EquipmentSlot.HAND && isPlayerInMode(player, ms, false) && SetupUtils.hasItemInMainHand(player, "Box Selection Tool")) {
+            if (event.getHand() == EquipmentSlot.HAND && isPlayerInMode(player, ms, false)
+                    && SetupUtils.hasItemInMainHand(player, "Box Selection Tool")) {
                 event.setCancelled(true);
                 switch (event.getAction()) {
-                    case LEFT_CLICK_BLOCK -> {
-                        Location loc = event.getClickedBlock().getLocation();
-                        selectFirstPos(ms, player, loc);
+                case LEFT_CLICK_BLOCK -> {
+                    Location loc = event.getClickedBlock().getLocation();
+                    selectFirstPos(ms, player, loc);
+                }
+                case RIGHT_CLICK_BLOCK -> {
+                    Location loc = event.getClickedBlock().getLocation();
+                    selectSecondPos(ms, player, loc);
+                }
+                case LEFT_CLICK_AIR -> {
+                    var data = playerData.get(player.getUniqueId());
+                    if (data.firstPos != null)
+                        ms.sendMessage(player, MessageComponent.of("<yellow>Cleared firstPos</yellow>"));
+                    data.firstPos = null;
+                    if (data.firstPosDisplay != null) {
+                        data.firstPosDisplay.remove();
+                        data.firstPosDisplay = null;
+                        data.firstPosTextDisplay.remove();
+                        data.firstPosTextDisplay = null;
+                        checkForFullBox(data, player);
                     }
-                    case RIGHT_CLICK_BLOCK -> {
-                        Location loc = event.getClickedBlock().getLocation();
-                        selectSecondPos(ms, player, loc);
+                }
+                case RIGHT_CLICK_AIR -> {
+                    var data = playerData.get(player.getUniqueId());
+                    if (data.secondPos != null)
+                        ms.sendMessage(player, MessageComponent.of("<yellow>Cleared secondPos</yellow>"));
+                    data.secondPos = null;
+                    if (data.secondPosDisplay != null) {
+                        data.secondPosDisplay.remove();
+                        data.secondPosDisplay = null;
+                        data.secondPosTextDisplay.remove();
+                        data.secondPosTextDisplay = null;
+                        checkForFullBox(data, player);
                     }
-                    case LEFT_CLICK_AIR -> {
-                        var data = playerData.get(player.getUniqueId());
-                        if (data.firstPos != null)
-                            ms.sendMessage(player, MessageComponent.of("<yellow>Cleared firstPos</yellow>"));
-                        data.firstPos = null;
-                        if (data.firstPosDisplay != null) {
-                            data.firstPosDisplay.remove();
-                            data.firstPosDisplay = null;
-                            data.firstPosTextDisplay.remove();
-                            data.firstPosTextDisplay = null;
-                            checkForFullBox(data, player);
-                        }
-                    }
-                    case RIGHT_CLICK_AIR -> {
-                        var data = playerData.get(player.getUniqueId());
-                        if (data.secondPos != null)
-                            ms.sendMessage(player, MessageComponent.of("<yellow>Cleared secondPos</yellow>"));
-                        data.secondPos = null;
-                        if (data.secondPosDisplay != null) {
-                            data.secondPosDisplay.remove();
-                            data.secondPosDisplay = null;
-                            data.secondPosTextDisplay.remove();
-                            data.secondPosTextDisplay = null;
-                            checkForFullBox(data, player);
-                        }
-                    }
+                }
+                default -> throw new IllegalArgumentException("Unexpected value: " + event.getAction());
                 }
             }
         }, PlayerInteractEvent.class);
@@ -258,14 +292,18 @@ public class BuildAssetHelper extends SetupHelper {
     private void selectFirstPos(BukkitMessageSender ms, Player player, Location loc) {
         var data = playerData.get(player.getUniqueId());
         data.firstPos = new Vector3Int(loc.getBlockX(), loc.getBlockY(), loc.getBlockZ());
-        ms.sendMessage(player, MessageComponent.of("<green>Set firstPos to: <yellow>%s</yellow></green>", data.firstPos));
+        ms.sendMessage(player,
+                MessageComponent.of("<green>Set firstPos to: <yellow>%s</yellow></green>", data.firstPos));
         if (data.firstPosDisplay == null) {
-            data.firstPosDisplay = SetupUtils.spawnGlowingBlockDisplay(player.getWorld(), data.firstPos, Material.LIME_STAINED_GLASS, Color.LIME);
+            data.firstPosDisplay = SetupUtils.spawnGlowingBlockDisplay(player.getWorld(), data.firstPos,
+                    Material.LIME_STAINED_GLASS, Color.LIME);
             data.firstPosTextDisplay = SetupUtils.spawnTextDisplayInBlockCenter(player.getWorld(), data.firstPos, "1");
         } else {
-            Location location = new Location(player.getWorld(), data.firstPos.x - 0.05f, data.firstPos.y - 0.05f, data.firstPos.z - 0.05f);
+            Location location = new Location(player.getWorld(), data.firstPos.x - 0.05f, data.firstPos.y - 0.05f,
+                    data.firstPos.z - 0.05f);
             data.firstPosDisplay.teleport(location);
-            location = new Location(player.getWorld(), data.firstPos.x + 0.5f, data.firstPos.y + 0.3f, data.firstPos.z + 0.5f);
+            location = new Location(player.getWorld(), data.firstPos.x + 0.5f, data.firstPos.y + 0.3f,
+                    data.firstPos.z + 0.5f);
             data.firstPosTextDisplay.teleport(location);
         }
         checkForFullBox(data, player);
@@ -274,14 +312,19 @@ public class BuildAssetHelper extends SetupHelper {
     private void selectSecondPos(BukkitMessageSender ms, Player player, Location loc) {
         var data = playerData.get(player.getUniqueId());
         data.secondPos = new Vector3Int(loc.getBlockX(), loc.getBlockY(), loc.getBlockZ());
-        ms.sendMessage(player, MessageComponent.of("<green>Set secondPos to: <yellow>%s</yellow></green>", data.secondPos));
+        ms.sendMessage(player,
+                MessageComponent.of("<green>Set secondPos to: <yellow>%s</yellow></green>", data.secondPos));
         if (data.secondPosDisplay == null) {
-            data.secondPosDisplay = SetupUtils.spawnGlowingBlockDisplay(player.getWorld(), data.secondPos, Material.RED_STAINED_GLASS, Color.RED);
-            data.secondPosTextDisplay = SetupUtils.spawnTextDisplayInBlockCenter(player.getWorld(), data.secondPos, "2");
+            data.secondPosDisplay = SetupUtils.spawnGlowingBlockDisplay(player.getWorld(), data.secondPos,
+                    Material.RED_STAINED_GLASS, Color.RED);
+            data.secondPosTextDisplay = SetupUtils.spawnTextDisplayInBlockCenter(player.getWorld(), data.secondPos,
+                    "2");
         } else {
-            Location location = new Location(player.getWorld(), data.secondPos.x - 0.05f, data.secondPos.y - 0.05f, data.secondPos.z - 0.05f);
+            Location location = new Location(player.getWorld(), data.secondPos.x - 0.05f, data.secondPos.y - 0.05f,
+                    data.secondPos.z - 0.05f);
             data.secondPosDisplay.teleport(location);
-            location = new Location(player.getWorld(), data.secondPos.x + 0.5f, data.secondPos.y + 0.3f, data.secondPos.z + 0.5f);
+            location = new Location(player.getWorld(), data.secondPos.x + 0.5f, data.secondPos.y + 0.3f,
+                    data.secondPos.z + 0.5f);
             data.secondPosTextDisplay.teleport(location);
         }
         checkForFullBox(data, player);
@@ -289,14 +332,17 @@ public class BuildAssetHelper extends SetupHelper {
 
     private void checkForFullBox(PlayerBuildAssetData data, Player player) {
         if (data.firstPos != null && data.secondPos != null) {
-            Vector3Int minPos = new Vector3Int(Math.min(data.firstPos.x, data.secondPos.x), Math.min(data.firstPos.y, data.secondPos.y), Math.min(data.firstPos.z, data.secondPos.z));
-            Vector3Int maxPos = new Vector3Int(Math.max(data.firstPos.x, data.secondPos.x), Math.max(data.firstPos.y, data.secondPos.y), Math.max(data.firstPos.z, data.secondPos.z));
+            Vector3Int minPos = new Vector3Int(Math.min(data.firstPos.x, data.secondPos.x),
+                    Math.min(data.firstPos.y, data.secondPos.y), Math.min(data.firstPos.z, data.secondPos.z));
+            Vector3Int maxPos = new Vector3Int(Math.max(data.firstPos.x, data.secondPos.x),
+                    Math.max(data.firstPos.y, data.secondPos.y), Math.max(data.firstPos.z, data.secondPos.z));
             float offset = 0.025f;
             if (data.fullBoxDisplay == null) {
-                data.fullBoxDisplay = SetupUtils.spawnGlowingBlockDisplay(player.getWorld(), minPos, maxPos, Material.BLUE_STAINED_GLASS, Color.BLUE, offset);
+                data.fullBoxDisplay = SetupUtils.spawnGlowingBlockDisplay(player.getWorld(), minPos, maxPos,
+                        Material.BLUE_STAINED_GLASS, Color.BLUE, offset);
             } else {
                 Transformation transformation = data.fullBoxDisplay.getTransformation();
-                Vector3f scaleVec = maxPos.sub(minPos).add(1,1,1).toVector3f();
+                Vector3f scaleVec = maxPos.sub(minPos).add(1, 1, 1).toVector3f();
                 transformation.getScale().set(scaleVec.add(new Vector3f(offset * 2)));
                 data.fullBoxDisplay.setTransformation(transformation);
                 Location loc = new Location(player.getWorld(), minPos.x - offset, minPos.y - offset, minPos.z - offset);
@@ -319,7 +365,8 @@ public class BuildAssetHelper extends SetupHelper {
         private TextDisplay secondPosTextDisplay;
         private BlockDisplay fullBoxDisplay;
 
-        public PlayerBuildAssetData() {}
+        public PlayerBuildAssetData() {
+        }
     }
 
 }

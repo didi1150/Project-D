@@ -12,7 +12,6 @@ import java.util.Optional;
 import java.util.UUID;
 
 import org.bukkit.Bukkit;
-import org.bukkit.ChatColor;
 import org.bukkit.Location;
 import org.bukkit.command.CommandMap;
 import org.bukkit.command.CommandSender;
@@ -62,6 +61,7 @@ import dev.core.item.loader.RPGItemRegistry;
 import dev.core.progression.PlayerClassProgression;
 import dev.core.stat.StatType;
 import dev.core.storage.config.ConfigProvider;
+import dev.core.utils.LegacyColors;
 import dev.core.utils.MessageComponent;
 import dev.core.utils.MessageLevel;
 import me.kodysimpson.simpapi.command.CommandList;
@@ -266,7 +266,7 @@ public class CommandManager {
                             player.sendMessage("You need to hold the item in your main hand");
                         else {
                             RPGItemLoader.saveItem(configProvider, item);
-                            player.sendMessage(ChatColor.YELLOW + item.getId() + ChatColor.GREEN
+                            player.sendMessage(LegacyColors.YELLOW + item.getId() + LegacyColors.GREEN
                                     + " has been successfully saved to the config.");
                         }
                     });
@@ -317,51 +317,51 @@ public class CommandManager {
                 .setPlayerCommandAction(1, "showProgress", perm("projectd.player.showprogress", (player, args) -> {
                     Optional<RPGEntity> optional = EntityManager.getInstance().getEntity(player.getUniqueId());
                     if (optional.isEmpty())
-                        player.sendMessage(ChatColor.RED + "Could not find profile");
+                        player.sendMessage(LegacyColors.RED + "Could not find profile");
                     else {
                         BukkitPlayerEntity playerEntity = (BukkitPlayerEntity) optional.get();
                         RPGClassType activeClass = playerEntity.getPlayerProgression().getActiveClass();
-                        player.sendMessage(ChatColor.GOLD + "═══════════════════════════════════");
-                        player.sendMessage(ChatColor.YELLOW + "Active Class: " + ChatColor.GREEN
+                        player.sendMessage(LegacyColors.GOLD + "═══════════════════════════════════");
+                        player.sendMessage(LegacyColors.YELLOW + "Active Class: " + LegacyColors.GREEN
                                 + (activeClass != null ? activeClass.name() : "None"));
-                        player.sendMessage(ChatColor.GOLD + "═══════════════════════════════════");
+                        player.sendMessage(LegacyColors.GOLD + "═══════════════════════════════════");
                         for (Map.Entry<RPGClassType, PlayerClassProgression> entry : playerEntity.getPlayerProgression()
                                 .getAllProgressions().entrySet()) {
                             RPGClassType classType = entry.getKey();
                             PlayerClassProgression progression = entry.getValue();
-                            String classPrefix = classType.equals(activeClass) ? ChatColor.AQUA + "★ "
-                                    : ChatColor.GRAY + "  ";
-                            player.sendMessage(classPrefix + ChatColor.WHITE + classType.name() + ":");
+                            String classPrefix = classType.equals(activeClass) ? LegacyColors.AQUA + "★ "
+                                    : LegacyColors.GRAY + "  ";
+                            player.sendMessage(classPrefix + LegacyColors.WHITE + classType.name() + ":");
                             player.sendMessage(
-                                    ChatColor.GRAY + "  Level: " + ChatColor.YELLOW + progression.getLevel());
-                            player.sendMessage(ChatColor.GRAY + "  XP: " + ChatColor.GREEN + progression.getXp());
-                            player.sendMessage(ChatColor.GRAY + "  XP til next level: " + ChatColor.GREEN
+                                    LegacyColors.GRAY + "  Level: " + LegacyColors.YELLOW + progression.getLevel());
+                            player.sendMessage(LegacyColors.GRAY + "  XP: " + LegacyColors.GREEN + progression.getXp());
+                            player.sendMessage(LegacyColors.GRAY + "  XP til next level: " + LegacyColors.GREEN
                                     + progression.getXpToNextLevel());
-                            player.sendMessage(ChatColor.GRAY + "  Usable Items: " + ChatColor.LIGHT_PURPLE
+                            player.sendMessage(LegacyColors.GRAY + "  Usable Items: " + LegacyColors.LIGHT_PURPLE
                                     + progression.getUsableItems());
                             player.sendMessage("");
                         }
-                        player.sendMessage(ChatColor.GOLD + "═══════════════════════════════════");
-                        player.sendMessage(ChatColor.GRAY + "★ = Active Class");
+                        player.sendMessage(LegacyColors.GOLD + "═══════════════════════════════════");
+                        player.sendMessage(LegacyColors.GRAY + "★ = Active Class");
                     }
                 })).setPlayerCommandAction(1, "showStats", perm("projectd.player.showstats", (player, args) -> {
                     Optional<RPGEntity> optional = EntityManager.getInstance().getEntity(player.getUniqueId());
                     if (optional.isEmpty())
-                        player.sendMessage(ChatColor.RED + "Could not find profile");
+                        player.sendMessage(LegacyColors.RED + "Could not find profile");
                     else {
                         BukkitPlayerEntity playerEntity = (BukkitPlayerEntity) optional.get();
-                        player.sendMessage(ChatColor.GOLD + "═══════════════════════════════════");
+                        player.sendMessage(LegacyColors.GOLD + "═══════════════════════════════════");
                         long now = System.currentTimeMillis();
                         for (StatType type : playerEntity.getStatManager().getStats().keySet()) {
                             double value = playerEntity.getStatEngineAdapter().getCurrentValue(type, now);
                             player.sendMessage(BukkitTextColorAdapter.formatStat(type, value, false));
                         }
-                        player.sendMessage(ChatColor.GOLD + "═══════════════════════════════════");
+                        player.sendMessage(LegacyColors.GOLD + "═══════════════════════════════════");
                     }
                 })).setPlayerCommandAction(2, "selectActive", perm("projectd.player.select", (player, args) -> {
                     Optional<RPGEntity> optional = EntityManager.getInstance().getEntity(player.getUniqueId());
                     if (optional.isEmpty())
-                        player.sendMessage(ChatColor.RED + "Could not find profile");
+                        player.sendMessage(LegacyColors.RED + "Could not find profile");
                     else {
                         BukkitPlayerEntity playerEntity = (BukkitPlayerEntity) optional.get();
                         playerEntity.getPlayerProgression().setActiveClass(RPGClassType.valueOf(args[1]),
@@ -373,7 +373,7 @@ public class CommandManager {
                 })).setPlayerCommandAction(3, "setXp", perm("projectd.player.setxp", (player, args) -> {
                     Optional<RPGEntity> optional = EntityManager.getInstance().getEntity(player.getUniqueId());
                     if (optional.isEmpty())
-                        player.sendMessage(ChatColor.RED + "Could not find profile");
+                        player.sendMessage(LegacyColors.RED + "Could not find profile");
                     else {
                         BukkitPlayerEntity playerEntity = (BukkitPlayerEntity) optional.get();
                         try {
@@ -391,7 +391,7 @@ public class CommandManager {
                 })).setPlayerCommandAction(1, "revive", perm("projectd.player.revive", (player, args) -> {
                     Optional<RPGEntity> optional = EntityManager.getInstance().getEntity(player.getUniqueId());
                     if (optional.isEmpty())
-                        player.sendMessage(ChatColor.RED + "Could not find profile");
+                        player.sendMessage(LegacyColors.RED + "Could not find profile");
                     else {
                         BukkitPlayerEntity playerEntity = (BukkitPlayerEntity) optional.get();
                         if (playerEntity.isAlive())
@@ -402,11 +402,11 @@ public class CommandManager {
                     String name = args[2];
                     Player target = Bukkit.getPlayer(name);
                     if (target == null)
-                        player.sendMessage(ChatColor.RED + "This player is not online.");
+                        player.sendMessage(LegacyColors.RED + "This player is not online.");
                     else {
                         Optional<RPGEntity> optional = EntityManager.getInstance().getEntity(target.getUniqueId());
                         if (optional.isEmpty())
-                            player.sendMessage(ChatColor.RED + "Could not find profile");
+                            player.sendMessage(LegacyColors.RED + "Could not find profile");
                         else
                             EntityManager.getInstance().revive(target.getUniqueId());
                     }

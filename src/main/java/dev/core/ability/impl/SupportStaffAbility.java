@@ -4,11 +4,11 @@ import dev.core.ability.Ability;
 
 /**
  * The Utility Staff's two manual clicks. RIGHT_CLICK uses the staff's current
- * mode (heal / shield / pushback); SHIFT cycles through the modes. Both are
- * registered in {@code AbilityRegistry} and configured in {@code abilities.yml}.
- * All of the actual behavior (targeting, cooldown management, mode state,
- * visual indicators) lives in the matching Bukkit effects and the per-holder
- * {@code SupportStaffBehavior}.
+ * mode (heal / shield / pushback); LEFT_CLICK cycles through the modes. Both
+ * are registered in {@code AbilityRegistry} and configured in
+ * {@code abilities.yml}. All of the actual behavior (targeting, cooldown
+ * management, mode state, visual indicators) lives in the matching Bukkit
+ * effects and the per-holder {@code SupportStaffBehavior}.
  */
 public class SupportStaffAbility extends Ability {
 
@@ -24,7 +24,7 @@ public class SupportStaffAbility extends Ability {
 		return new SupportStaffAbility(USE_ID);
 	}
 
-	/** The shift-click toggle half of the staff. */
+	/** The pure left-click cycle half of the staff. */
 	public static SupportStaffAbility toggle() {
 		return new SupportStaffAbility(TOGGLE_ID);
 	}
@@ -34,7 +34,7 @@ public class SupportStaffAbility extends Ability {
 		return USE_ID.equals(getId());
 	}
 
-	/** Whether this instance backs the shift-click toggle action. */
+	/** Whether this instance backs the left-click toggle action. */
 	public boolean isToggle() {
 		return TOGGLE_ID.equals(getId());
 	}

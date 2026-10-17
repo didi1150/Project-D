@@ -1,6 +1,5 @@
 package dev.bukkit.ability;
 
-import org.bukkit.ChatColor;
 import org.bukkit.Sound;
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.ItemStack;
@@ -17,6 +16,7 @@ import dev.core.entity.EntityManager;
 import dev.core.entity.RPGEntity;
 import dev.core.entity.SummonRegistry;
 import dev.core.entity.rpgclass.RPGClassType;
+import dev.core.utils.LegacyColors;
 
 /**
  * Soul Store — shift-right-click on the Soul Tome: active summons of the
@@ -47,7 +47,7 @@ public class BukkitSoulStoreEffect extends Effect {
         }
         ItemStack tome = SoulTome.findTome(player);
         if (tome == null) {
-            player.sendMessage(ChatColor.GRAY + "You need a Soul Tome in your inventory to store summons.");
+            player.sendMessage(LegacyColors.GRAY + "You need a Soul Tome in your inventory to store summons.");
             return;
         }
 
@@ -81,20 +81,20 @@ public class BukkitSoulStoreEffect extends Effect {
         int leftOut = SummonRegistry.getInstance().getSummons(player.getUniqueId()).size();
         if (stored == 0) {
             if (leftOut == 0) {
-                player.sendMessage(ChatColor.GRAY + "You have no active summons to store.");
+                player.sendMessage(LegacyColors.GRAY + "You have no active summons to store.");
             } else {
-                player.sendMessage(ChatColor.RED + "Your tome is already full (" + SoulTome.countSouls(tome) + "/"
+                player.sendMessage(LegacyColors.RED + "Your tome is already full (" + SoulTome.countSouls(tome) + "/"
                         + capacity + "): no summon was stored.");
             }
             return; // no cooldown spent on an empty cast
         }
 
         player.getWorld().playSound(player.getLocation(), Sound.BLOCK_RESPAWN_ANCHOR_SET_SPAWN, 0.7f, 1.4f);
-        player.sendMessage(ChatColor.GREEN + "Stored " + stored + " summon"
+        player.sendMessage(LegacyColors.GREEN + "Stored " + stored + " summon"
                 + (stored == 1 ? "" : "s") + " back into your tome (" + SoulTome.countSouls(tome) + "/" + capacity
                 + " souls held).");
         if (leftOut > 0) {
-            player.sendMessage(ChatColor.GRAY + "Your tome is full: " + leftOut + " summon"
+            player.sendMessage(LegacyColors.GRAY + "Your tome is full: " + leftOut + " summon"
                     + (leftOut == 1 ? " was" : "s were") + " left fighting.");
         }
         cooldownSink.startCooldown();

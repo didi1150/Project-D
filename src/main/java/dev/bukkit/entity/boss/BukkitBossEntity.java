@@ -20,6 +20,7 @@ import dev.core.entity.boss.BossStage;
 import dev.core.entity.boss.RPGBossEntity;
 import dev.core.event.EventBusInterface;
 import dev.core.game.TaskScheduler;
+import dev.core.utils.AdventureText;
 import dev.core.utils.ColorCodes;
 
 /**
@@ -83,7 +84,8 @@ public class BukkitBossEntity extends RPGBossEntity {
             double max = getMaxHealth();
             double absorption = getAbsorptionAmount();
             String color = absorption > 0 ? "§e" : "";
-            living.setCustomName(color + base + " [❤] " + Math.round(current + absorption) + "/" + Math.round(max));
+            living.customName(AdventureText
+                    .legacy(color + base + " [❤] " + Math.round(current + absorption) + "/" + Math.round(max)));
             living.setCustomNameVisible(true);
         });
     }

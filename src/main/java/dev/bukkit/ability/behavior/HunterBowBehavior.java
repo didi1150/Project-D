@@ -143,6 +143,7 @@ public class HunterBowBehavior implements AbilityBehavior {
             return;
         HolderState s = state();
         s.bounceCharges = (s.bounceCharges + 1) % (MAX_BOUNCES + 1);
+        refreshHudForHolder();
         Location loc = player.getLocation();
         World world = player.getWorld();
         if (s.bounceCharges == 0) {
@@ -153,7 +154,6 @@ public class HunterBowBehavior implements AbilityBehavior {
             world.playSound(loc, Sound.BLOCK_NOTE_BLOCK_PLING, 0.8f, pitch);
             world.playSound(loc, Sound.ENTITY_EXPERIENCE_ORB_PICKUP, 0.45f, 1.1f + s.bounceCharges * 0.18f);
         }
-        refreshHudForHolder();
     }
 
     public void toggleExplosive(Player player) {
@@ -161,6 +161,7 @@ public class HunterBowBehavior implements AbilityBehavior {
             return;
         HolderState s = state();
         s.explosiveArmed = !s.explosiveArmed;
+        refreshHudForHolder();
         Location loc = player.getLocation();
         World world = player.getWorld();
         if (s.explosiveArmed) {
@@ -171,13 +172,12 @@ public class HunterBowBehavior implements AbilityBehavior {
             world.spawnParticle(Particle.ELECTRIC_SPARK, burstAt, 10, 0.45, 0.35, 0.45, 0.07);
             world.spawnParticle(Particle.DUST, burstAt, 10, 0.35, 0.25, 0.35, 0,
                     new Particle.DustOptions(Color.fromRGB(0xFF6D00), 1.35f));
-            world.spawnParticle(Particle.FLASH, burstAt, 1);
+            world.spawnParticle(Particle.FLASH, burstAt, 1, Color.WHITE);
         } else {
             world.playSound(loc, Sound.BLOCK_FIRE_EXTINGUISH, 0.55f, 0.9f);
             world.playSound(loc, Sound.BLOCK_NOTE_BLOCK_HAT, 0.6f, 0.7f);
             world.spawnParticle(Particle.SMOKE, player.getEyeLocation().add(0, -0.3, 0), 12, 0.35, 0.3, 0.35, 0.02);
         }
-        refreshHudForHolder();
     }
 
     // ---- Shoot stamping ----
@@ -388,7 +388,7 @@ public class HunterBowBehavior implements AbilityBehavior {
                 new Particle.DustOptions(Color.fromRGB(0xFF6D00), 1.55f));
         world.spawnParticle(Particle.DUST, loc, 22, 1.1, 0.65, 1.1, 0,
                 new Particle.DustOptions(Color.fromRGB(0xFF3D00), 1.2f));
-        world.spawnParticle(Particle.FLASH, loc, 1, 0, 0, 0, 0);
+        world.spawnParticle(Particle.FLASH, loc, 1, 0, 0, 0, 0, Color.WHITE);
         world.playSound(loc, Sound.ENTITY_GENERIC_EXPLODE, 1.0f, 0.92f);
         world.playSound(loc, Sound.ENTITY_FIREWORK_ROCKET_BLAST, 0.9f, 1.25f);
         world.playSound(loc, Sound.BLOCK_BEACON_DEACTIVATE, 0.7f, 1.6f);

@@ -9,7 +9,6 @@ import java.util.UUID;
 import java.util.stream.Collectors;
 
 import org.bukkit.Bukkit;
-import org.bukkit.ChatColor;
 import org.bukkit.Color;
 import org.bukkit.Location;
 import org.bukkit.Material;
@@ -46,6 +45,8 @@ import dev.core.game.coords.ViewPoint3D;
 import dev.core.game.dungeon.proceduralDungeon.util.Vector3Int;
 import dev.core.game.settings.GameSettings;
 import dev.core.game.settings.GameSettingsLoader;
+import dev.core.utils.AdventureText;
+import dev.core.utils.LegacyColors;
 import dev.core.utils.MessageComponent;
 
 public class GameSetupHelper extends SetupHelper {
@@ -136,7 +137,7 @@ public class GameSetupHelper extends SetupHelper {
         for (ItemStack item : items) {
             player.getInventory().addItem(item);
         }
-        ms.sendMessage(player, MessageComponent.of(ChatColor.GREEN + "You received: " + items.stream().map(i -> i.getItemMeta().getDisplayName()).collect(Collectors.joining(", "))));
+        ms.sendMessage(player, MessageComponent.of(LegacyColors.GREEN + "You received: " + items.stream().map(i -> AdventureText.plainOrEmpty(i.getItemMeta().displayName())).collect(Collectors.joining(", "))));
     }
 
     @Override
@@ -327,8 +328,8 @@ public class GameSetupHelper extends SetupHelper {
                     boolean hasBossWorld = settings.getBossWorld() != null && !settings.getBossWorld().isBlank();
                     boolean hasBossSpawn = settings.getBossSpawnLocation(floor) != null;
                     boolean hasBossPlayerSpawn = settings.getBossPlayerSpawnLocation(floor) != null;
-                    ms.sendCenteredMessage(player, MessageComponent.of(ChatColor.GOLD + "Setup Status"));
-                    ms.sendLine(player, ChatColor.GOLD.toString());
+                    ms.sendCenteredMessage(player, MessageComponent.of(LegacyColors.GOLD + "Setup Status"));
+                    ms.sendLine(player, LegacyColors.GOLD.toString());
                     ms.sendCenteredMessage(player, MessageComponent.of("<yellow>Pre-lobby spawn:</yellow> %s", hasPreLobby ? "SET" : "MISSING"));
                     ms.sendCenteredMessage(player, MessageComponent.of("<yellow>Selection spawn:</yellow> %s", hasSelectionSpawn ? "SET" : "MISSING"));
                     ms.sendCenteredMessage(player, MessageComponent.of("<yellow>Selection hole center:</yellow> %s", hasHoleCenter ? "SET" : "MISSING"));
@@ -336,7 +337,7 @@ public class GameSetupHelper extends SetupHelper {
                     ms.sendCenteredMessage(player, MessageComponent.of("<yellow>Boss world for floor %s:</yellow> %s", floor, hasBossWorld ? "SET" : "MISSING"));
                     ms.sendCenteredMessage(player, MessageComponent.of("<yellow>Boss spawn for floor %s:</yellow> %s", floor, hasBossSpawn ? "SET" : "MISSING"));
                     ms.sendCenteredMessage(player, MessageComponent.of("<yellow>Boss player spawn for floor %s:</yellow> %s", floor, hasBossPlayerSpawn ? "SET" : "MISSING"));
-                    ms.sendLine(player, ChatColor.GOLD.toString());
+                    ms.sendLine(player, LegacyColors.GOLD.toString());
                 }))
                 .setPlayerCommandAction(1, "toggleSetupMode", ((player, args) -> {
                     if (isPlayerInMode(player, ms, false)) {
@@ -369,21 +370,21 @@ public class GameSetupHelper extends SetupHelper {
             if (isPlayerInMode(player, ms, false)) {
                 ItemStack prevItem = player.getInventory().getItem(event.getPreviousSlot());
                 if (prevItem != null && prevItem.hasItemMeta() && prevItem.getItemMeta().hasDisplayName()) {
-                    if (prevItem.getItemMeta().getDisplayName().contains(DISPLAY_NAME_PRE_LOBBY)) {
+                    if (AdventureText.plainOrEmpty(prevItem.getItemMeta().displayName()).contains(DISPLAY_NAME_PRE_LOBBY)) {
                         preLobbySpawnDisplay.clearDisplays(false, player);
-                    } else if (prevItem.getItemMeta().getDisplayName().contains(DISPLAY_NAME_CLASS_SELECTION)) {
+                    } else if (AdventureText.plainOrEmpty(prevItem.getItemMeta().displayName()).contains(DISPLAY_NAME_CLASS_SELECTION)) {
                         classSelectionSpawnDisplay.clearDisplays(false, player);
-                    } else if (prevItem.getItemMeta().getDisplayName().contains(DISPLAY_NAME_HOLE_CENTER)) {
+                    } else if (AdventureText.plainOrEmpty(prevItem.getItemMeta().displayName()).contains(DISPLAY_NAME_HOLE_CENTER)) {
                         holeCenterDisplay.clearDisplays(false, player);
-                    } else if (prevItem.getItemMeta().getDisplayName().contains(DISPLAY_NAME_CLASS_BLOCK)) {
+                    } else if (AdventureText.plainOrEmpty(prevItem.getItemMeta().displayName()).contains(DISPLAY_NAME_CLASS_BLOCK)) {
                         for (int i = 0; i < 5; i++) {
                             classBlockDisplays[i].clearDisplays(false, player);
                         }
-                    } else if (prevItem.getItemMeta().getDisplayName().contains(DISPLAY_NAME_BOSS)) {
+                    } else if (AdventureText.plainOrEmpty(prevItem.getItemMeta().displayName()).contains(DISPLAY_NAME_BOSS)) {
                         for (int i = 0; i < 5; i++) {
                             bossSpawnDisplays[i].clearDisplays(false, player);
                         }
-                    } else if (prevItem.getItemMeta().getDisplayName().contains(DISPLAY_NAME_BOSS_PLAYER)) {
+                    } else if (AdventureText.plainOrEmpty(prevItem.getItemMeta().displayName()).contains(DISPLAY_NAME_BOSS_PLAYER)) {
                         for (int i = 0; i < 5; i++) {
                             bossPlayerSpawnDisplays[i].clearDisplays(false, player);
                         }
@@ -391,28 +392,28 @@ public class GameSetupHelper extends SetupHelper {
                 }
                 ItemStack newItem = player.getInventory().getItem(event.getNewSlot());
                 if (newItem != null && newItem.hasItemMeta() && newItem.getItemMeta().hasDisplayName()) {
-                    if (newItem.getItemMeta().getDisplayName().contains(DISPLAY_NAME_PRE_LOBBY)) {
+                    if (AdventureText.plainOrEmpty(newItem.getItemMeta().displayName()).contains(DISPLAY_NAME_PRE_LOBBY)) {
                         ViewPoint3D point = gameSettings.getPreLobbySpawn();
                         if (point != null) {
                             Vector3Int pos = Vector3Int.fromPoint3D(point);
                             Location loc = PointToLocation.viewToLoc(point);
                             preLobbySpawnDisplay.updateDisplays(loc.getWorld(), pos, loc);
                         }
-                    } else if (newItem.getItemMeta().getDisplayName().contains(DISPLAY_NAME_CLASS_SELECTION)) {
+                    } else if (AdventureText.plainOrEmpty(newItem.getItemMeta().displayName()).contains(DISPLAY_NAME_CLASS_SELECTION)) {
                         ViewPoint3D point = gameSettings.getSelectionSpawn();
                         if (point != null) {
                             Vector3Int pos = Vector3Int.fromPoint3D(point);
                             Location loc = PointToLocation.viewToLoc(point);
                             classSelectionSpawnDisplay.updateDisplays(loc.getWorld(), pos, loc);
                         }
-                    } else if (newItem.getItemMeta().getDisplayName().contains(DISPLAY_NAME_HOLE_CENTER)) {
+                    } else if (AdventureText.plainOrEmpty(newItem.getItemMeta().displayName()).contains(DISPLAY_NAME_HOLE_CENTER)) {
                         Point3D point = gameSettings.getHoleCenter();
                         if (point != null) {
                             Vector3Int pos = Vector3Int.fromPoint3D(point);
                             Location loc = PointToLocation.blockToLoc(point);
                             holeCenterDisplay.updateDisplays(loc.getWorld(), pos);
                         }
-                    } else if (newItem.getItemMeta().getDisplayName().contains(DISPLAY_NAME_CLASS_BLOCK)) {
+                    } else if (AdventureText.plainOrEmpty(newItem.getItemMeta().displayName()).contains(DISPLAY_NAME_CLASS_BLOCK)) {
                         RPGClassType classType = getClassFromItemLore(newItem);
                         int index = getClassIndex(classType);
                         Point3D point = gameSettings.getSelectionLocations().get(classType);
@@ -421,7 +422,7 @@ public class GameSetupHelper extends SetupHelper {
                             Location loc = PointToLocation.blockToLoc(point);
                             classBlockDisplays[index].updateDisplays(loc.getWorld(), pos);
                         }
-                    } else if (newItem.getItemMeta().getDisplayName().contains(DISPLAY_NAME_BOSS)) {
+                    } else if (AdventureText.plainOrEmpty(newItem.getItemMeta().displayName()).contains(DISPLAY_NAME_BOSS)) {
                         int floor = getFloorFromItemLore(newItem);
                         ViewPoint3D point = gameSettings.getBossSpawnLocation(floor);
                         if (point != null) {
@@ -429,7 +430,7 @@ public class GameSetupHelper extends SetupHelper {
                             Location loc = PointToLocation.viewToLoc(point);
                             bossSpawnDisplays[floor - 1].updateDisplays(loc.getWorld(), pos, loc);
                         }
-                    } else if (newItem.getItemMeta().getDisplayName().contains(DISPLAY_NAME_BOSS_PLAYER)) {
+                    } else if (AdventureText.plainOrEmpty(newItem.getItemMeta().displayName()).contains(DISPLAY_NAME_BOSS_PLAYER)) {
                         int floor = getFloorFromItemLore(newItem);
                         ViewPoint3D point = gameSettings.getBossPlayerSpawnLocation(floor);
                         if (point != null) {
@@ -583,33 +584,33 @@ public class GameSetupHelper extends SetupHelper {
 
     private RPGClassType getClassFromItemLore(ItemStack item) {
         ItemMeta itemMeta = item.getItemMeta();
-        List<String> lore = itemMeta.getLore();
+        List<String> lore = AdventureText.legacyStrings(itemMeta.lore());
         String line = lore.get(1);
         return RPGClassType.valueOf(line.substring(line.indexOf(":") + 2));
     }
 
     private void setClassInItemLore(ItemStack item, RPGClassType classType) {
         ItemMeta itemMeta = item.getItemMeta();
-        List<String> lore = itemMeta.getLore();
+        List<String> lore = AdventureText.legacyStrings(itemMeta.lore());
         String line = lore.get(1);
         lore.set(1, line.substring(0, line.indexOf(":") + 2) + classType);
-        itemMeta.setLore(lore);
+        itemMeta.lore(AdventureText.itemLoreLines(lore));
         item.setItemMeta(itemMeta);
     }
 
     private int getFloorFromItemLore(ItemStack item) {
         ItemMeta itemMeta = item.getItemMeta();
-        List<String> lore = itemMeta.getLore();
+        List<String> lore = AdventureText.legacyStrings(itemMeta.lore());
         String line = lore.get(1);
         return Integer.parseInt(line.substring(line.indexOf(":") + 2));
     }
 
     private void setFloorInItemLore(ItemStack item, int newFloor) {
         ItemMeta itemMeta = item.getItemMeta();
-        List<String> lore = itemMeta.getLore();
+        List<String> lore = AdventureText.legacyStrings(itemMeta.lore());
         String line = lore.get(1);
         lore.set(1, line.substring(0, line.indexOf(":") + 2) + newFloor);
-        itemMeta.setLore(lore);
+        itemMeta.lore(AdventureText.itemLoreLines(lore));
         item.setItemMeta(itemMeta);
     }
 

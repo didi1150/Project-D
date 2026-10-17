@@ -19,14 +19,15 @@ import org.bukkit.entity.Player;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.PlayerInventory;
 import org.bukkit.inventory.meta.ItemMeta;
-import org.bukkit.metadata.FixedMetadataValue;
 import org.bukkit.scheduler.BukkitTask;
 import org.bukkit.util.Vector;
 
 import dev.bukkit.DMain;
+import dev.bukkit.entity.BukkitEntityMetadata;
 import dev.bukkit.entity.BukkitPlayerEntity;
 import dev.bukkit.event.bukkitListeners.CombatListener;
 import dev.bukkit.item.BukkitItemStackAdapter;
+import dev.bukkit.summon.SoulSkull;
 import dev.bukkit.utils.BackstabUtils;
 import dev.bukkit.utils.CombatRelation;
 import dev.bukkit.utils.DamageUtils;
@@ -41,32 +42,32 @@ import dev.core.stat.StatType;
 
 /**
  * Bonemerang: a bone armor stand thrown along the caster's look vector for a
- * fixed outward flight of {@code 18} ticks (~10.8 blocks) before homing back
- * to the caster's CURRENT position for up to another 18 ticks. Outbound hits
- * deal 1.0x damage; returning hits deal 2.0x; the bone pierces up to
+ * fixed outward flight of {@code 18} ticks (~10.8 blocks) before homing back to
+ * the caster's CURRENT position for up to another 18 ticks. Outbound hits deal
+ * 1.0x damage; returning hits deal 2.0x; the bone pierces up to
  * {@link #MAX_PIERCE} distinct mobs. Hitting a solid block or exceeding the
  * pierce limit shatters the bone: the shatter penalty is a 3-second cooldown,
  * shortened by the caster's ABILITY_HASTE stat (see BONE_SWING in
  * abilities.yml), after which the original item is restored. The restore task
  * keeps polling the inventory (endlessly, if need be) until the lock item is
  * found again, so a thrown weapon is never left as a ghast tear; a clean catch
- * restores the item immediately.
- * Only ONE bone may be in flight PER ITEM INSTANCE: while a given bonemerang
- * item is away, it cannot be thrown again, but different bonemerang instances
- * (each keyed by its own item UUID) can all be airborne at the same time.
- * Per-item state (lock item, cooldown, restore) is tracked per item UUID;
- * mobs (no item UUID) keep one bone in flight per caster.
+ * restores the item immediately. Only ONE bone may be in flight PER ITEM
+ * INSTANCE: while a given bonemerang item is away, it cannot be thrown again,
+ * but different bonemerang instances (each keyed by its own item UUID) can all
+ * be airborne at the same time. Per-item state (lock item, cooldown, restore)
+ * is tracked per item UUID; mobs (no item UUID) keep one bone in flight per
+ * caster.
  */
 public class BukkitSwingBoneEffect extends Effect {
 
     /**
      * Flights currently in progress, keyed by {@code casterUuid:cooldownKey}.
      * Because the cooldown key is the item instance's UUID for ITEM-scoped
-     * abilities, this locks per (caster, bonemerang) pair: a second throw of
-     * the SAME instance is refused until it returns or shatters, while two
-     * DIFFERENT bonemerang instances can fly simultaneously. Mobs fall back to
-     * the ability id as the key, so they keep one bone in flight per caster.
-     * Entries are removed when the flight ends (cleanup / cancel).
+     * abilities, this locks per (caster, bonemerang) pair: a second throw of the
+     * SAME instance is refused until it returns or shatters, while two DIFFERENT
+     * bonemerang instances can fly simultaneously. Mobs fall back to the ability id
+     * as the key, so they keep one bone in flight per caster. Entries are removed
+     * when the flight ends (cleanup / cancel).
      */
     private static final Set<String> FLIGHTS_IN_PROGRESS = ConcurrentHashMap.newKeySet();
 
@@ -80,7 +81,6 @@ public class BukkitSwingBoneEffect extends Effect {
     private boolean hitReturn;
     private ArmorStand armorStand;
     private Vector directionOutward;
-    private RPGEntity caster;
     private Player player;
     private CooldownSink cooldownSink;
     private String uuid;
@@ -109,10 +109,10 @@ public class BukkitSwingBoneEffect extends Effect {
 
     /**
      * A bone that finished its flight (caught, shattered or interrupted) is
-     * considered expired at once, so the manager removes it from the active
-     * effect list immediately and the caster is free to throw again - the
-     * configured duration only caps a flight that never ends (emergency
-     * despawn via the manager).
+     * considered expired at once, so the manager removes it from the active effect
+     * list immediately and the caster is free to throw again - the configured
+     * duration only caps a flight that never ends (emergency despawn via the
+     * manager).
      */
     @Override
     public boolean hasExpired(long now) {
@@ -120,10 +120,10 @@ public class BukkitSwingBoneEffect extends Effect {
     }
 
     /**
-     * Resolves the Bukkit living entity backing a caster, so the bone can be
-     * thrown by players AND mobs. Mobs keep their vanilla AI but cast abilities
-     * through an {@code RPGMobEntity} wrapper that shares the vanilla entity's
-     * uuid, so {@link Bukkit#getEntity(uuid)} resolves the living mob.
+     * Resolves the Bukkit living entity backing a caster, so the bone can be thrown
+     * by players AND mobs. Mobs keep their vanilla AI but cast abilities through an
+     * {@code RPGMobEntity} wrapper that shares the vanilla entity's uuid, so
+     * {@link Bukkit#getEntity(uuid)} resolves the living mob.
      */
     private static LivingEntity resolveEntity(RPGEntity caster) {
         if (caster instanceof BukkitPlayerEntity playerEntity) {
@@ -147,7 +147,7 @@ public class BukkitSwingBoneEffect extends Effect {
             stand.setBasePlate(false);
             stand.setMarker(true);
             stand.getEquipment().setHelmet(new ItemStack(Material.BONE));
-            stand.setMetadata("BONEMERANG", new FixedMetadataValue(DMain.getInstance(), true));
+            BukkitEntityMetadata.set(stand, "BONEMERANG", true);
         });
 
         speed = 0.6f;
@@ -197,7 +197,6 @@ public class BukkitSwingBoneEffect extends Effect {
             return;
         }
 
-        this.caster = caster;
         this.cooldownSink = cooldownSink;
         this.cleanedUp = false;
         this.shatterRequested = false;
@@ -328,11 +327,10 @@ public class BukkitSwingBoneEffect extends Effect {
     }
 
     /**
-     * Ends the flight. {@code cooldown} true means the bone shattered (solid
-     * block, pierce limit, interruption): the haste-scaled cooldown applies
-     * and the item comes back when it ends. False means a clean catch: the
-     * cooldown (if any was started) is cleared and the item comes back
-     * immediately.
+     * Ends the flight. {@code cooldown} true means the bone shattered (solid block,
+     * pierce limit, interruption): the haste-scaled cooldown applies and the item
+     * comes back when it ends. False means a clean catch: the cooldown (if any was
+     * started) is cleared and the item comes back immediately.
      */
     private void cleanup(RPGEntity caster, LivingEntity casterEntity, Location loc, boolean cooldown) {
         cleanedUp = true;
@@ -358,8 +356,8 @@ public class BukkitSwingBoneEffect extends Effect {
     }
 
     /**
-     * Frees this instance's in-flight slot so the same bonemerang can be
-     * thrown again.
+     * Frees this instance's in-flight slot so the same bonemerang can be thrown
+     * again.
      */
     private void releaseFlight() {
         if (flightKey != null) {
@@ -370,11 +368,11 @@ public class BukkitSwingBoneEffect extends Effect {
 
     /**
      * Restores the player's weapon once the flight is over. After a shatter the
-     * item is only swapped back once the haste-scaled cooldown expires, so the
-     * item never returns before the ability is usable again; after a clean
-     * catch it is restored immediately. The task polls the inventory every 5
-     * ticks with no attempt cap, so even a lock item dropped or moved around
-     * mid-flight is eventually found and converted back.
+     * item is only swapped back once the haste-scaled cooldown expires, so the item
+     * never returns before the ability is usable again; after a clean catch it is
+     * restored immediately. The task polls the inventory every 5 ticks with no
+     * attempt cap, so even a lock item dropped or moved around mid-flight is
+     * eventually found and converted back.
      */
     private void scheduleItemRestore(Player player, Location loc) {
         if (resetItemTask != null) {
@@ -401,10 +399,10 @@ public class BukkitSwingBoneEffect extends Effect {
 
     /**
      * Swaps the morphed lock item back to the original weapon material. First
-     * preference is a UUID match anywhere in the inventory (the player may
-     * have moved the lock item mid-flight); second is the exact slot that was
-     * morphed at cast time, which also covers weapons without an instance UUID
-     * (where an all-UUID scan cannot find anything).
+     * preference is a UUID match anywhere in the inventory (the player may have
+     * moved the lock item mid-flight); second is the exact slot that was morphed at
+     * cast time, which also covers weapons without an instance UUID (where an
+     * all-UUID scan cannot find anything).
      */
     private boolean resetItem(Player player) {
         PlayerInventory inv = player.getInventory();
@@ -433,8 +431,8 @@ public class BukkitSwingBoneEffect extends Effect {
     }
 
     /**
-     * True if the stack looks like the lock item this effect morphed: a ghast
-     * tear carrying the same RPG item id as the weapon held at cast time.
+     * True if the stack looks like the lock item this effect morphed: a ghast tear
+     * carrying the same RPG item id as the weapon held at cast time.
      */
     private boolean isLockItem(ItemStack stack) {
         if (originalWeapon == null || stack == null || stack.getType() != Material.GHAST_TEAR) {
@@ -449,27 +447,39 @@ public class BukkitSwingBoneEffect extends Effect {
     }
 
     private void dealDamage(RPGEntity caster, LivingEntity casterEntity, long now, List<UUID> hitList) {
-        List<Entity> nearbyEntities = (List<Entity>) casterEntity.getWorld()
-                .getNearbyEntities(armorStand.getLocation().clone().add(0, 1.575, 0), 0.8, 0.8, 0.8);
+        List<LivingEntity> nearbyEntities = casterEntity.getWorld()
+                .getNearbyLivingEntities(armorStand.getLocation().clone().add(0, 1.575, 0), 0.8, le -> {
+                    if (le.getUniqueId().equals(caster.getUuid())) {
+                        return false;
+                    }
 
-        for (Entity entity : nearbyEntities) {
-            if (!(entity instanceof LivingEntity le) || le.getUniqueId().equals(caster.getUuid())) {
-                continue;
-            }
-            if (le.hasMetadata("BONEMERANG")) {
-                continue;
-            }
-            if (EntityManager.getInstance().isGhost(le.getUniqueId())) {
-                continue; // ghosts take no damage; don't track them as a hit
-            }
+                    if (le.isDead() || !le.isValid()) {
+                        return false;
+                    }
+                    if (le instanceof ArmorStand || SoulSkull.isSoulSkull(le)) {
+                        return false;
+                    }
+                    // Armor stands are LivingEntities too; souls and the bonemerang's own
+                    // marker stand must never register as bone hits.
+                    if (BukkitEntityMetadata.has(le, "BONEMERANG")) {
+                        return false;
+                    }
+                    if (EntityManager.getInstance().isGhost(le.getUniqueId())) {
+                        return false; // ghosts take no damage; don't track them as a hit
+                    }
 
-            // Players and player-owned summons are allies; only cross-team
-            // targets (mobs for the player team, players for mobs) take hits.
-            if (!CombatRelation.isEnemy(caster, entity)) {
-                continue;
-            }
+                    // Players and player-owned summons are allies; only cross-team
+                    // targets (mobs for the player team, players for mobs) take hits.
+                    if (!CombatRelation.isEnemy(caster, le)) {
+                        return false;
+                    }
+
+                    return true;
+                }).stream().toList();
+        for (LivingEntity le : nearbyEntities) {
 
             if (!hitList.contains(le.getUniqueId())) {
+                DMain.getInstance().getLogger().info(le.getName() + " " + le.getType().toString());
                 // Penetration limit: the 11th distinct mob of the cycle shatters
                 // the bone instead of taking damage.
                 if (totalHits() >= MAX_PIERCE) {
@@ -487,11 +497,9 @@ public class BukkitSwingBoneEffect extends Effect {
                 double multiplier = hitReturn ? 2 : 1;
                 double attackDamage = (caster.getStatEngineAdapter().getCurrentValue(StatType.ATTACK_DAMAGE, now)
                         + BONE_DAMAGE) * multiplier * caster.getAbilityDamageMultiplier()
-                        * caster.getProjectileDamageMultiplier()
-                        * BackstabUtils.backstabMultiplier(caster, le);
-                EntityManager.getInstance().getEntity(entity.getUniqueId()).ifPresentOrElse(target -> {
-                    RPGDamageResult rpgDamage = target.dealRPGDamage(caster, target, attackDamage,
-                            DamageType.PHYSICAL);
+                        * caster.getProjectileDamageMultiplier() * BackstabUtils.backstabMultiplier(caster, le);
+                EntityManager.getInstance().getEntity(le.getUniqueId()).ifPresentOrElse(target -> {
+                    RPGDamageResult rpgDamage = target.dealRPGDamage(caster, target, attackDamage, DamageType.PHYSICAL);
                     // Hurt animation/sound are handled centrally by dealRPGDamage
                     // (only when the target is not immune). Here we only knock
                     // back + render the floating damage numbers, and skip both
@@ -514,8 +522,8 @@ public class BukkitSwingBoneEffect extends Effect {
     }
 
     private void knockback(LivingEntity le) {
-        Vector knockbackDirection = le.getLocation().toVector()
-                .subtract(armorStand.getLocation().toVector()).normalize();
+        Vector knockbackDirection = le.getLocation().toVector().subtract(armorStand.getLocation().toVector())
+                .normalize();
         le.setVelocity(knockbackDirection.multiply(0.1));
     }
 

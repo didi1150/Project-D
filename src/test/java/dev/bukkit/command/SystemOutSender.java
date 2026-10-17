@@ -1,7 +1,8 @@
 package dev.bukkit.command;
 
-
 import dev.core.utils.MinecraftColorTranslator;
+import net.kyori.adventure.text.Component;
+
 import org.bukkit.Server;
 import org.bukkit.command.CommandSender;
 import org.bukkit.permissions.Permission;
@@ -114,5 +115,10 @@ public class SystemOutSender implements CommandSender {
     @Override
     public void setOp(boolean b) {
 
+    }
+
+    @Override
+    public @NotNull Component name() {
+        return Component.text("SystemOutSender");
     }
 }

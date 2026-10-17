@@ -3,8 +3,8 @@ package dev.bukkit.utils.setup;
 import dev.bukkit.command.CommandManager;
 import dev.bukkit.utils.BukkitMessageSender;
 import dev.core.event.EventBusInterface;
+import dev.core.utils.LegacyColors;
 import dev.core.utils.MessageComponent;
-import org.bukkit.ChatColor;
 import org.bukkit.Server;
 import org.bukkit.entity.Player;
 import org.jetbrains.annotations.Nullable;
@@ -26,7 +26,7 @@ public abstract class SetupHelper {
     public boolean isPlayerInMode(Player player, BukkitMessageSender ms, boolean sendErrorMessage) {
         if (!playersInMode.contains(player.getUniqueId())) {
             if (sendErrorMessage)
-                ms.sendMessage(player, MessageComponent.of(ChatColor.RED + "You can't use this command without being in %s!", modeName));
+                ms.sendMessage(player, MessageComponent.of(LegacyColors.RED + "You can't use this command without being in %s!", modeName));
             return false;
         }
         return true;
@@ -40,7 +40,7 @@ public abstract class SetupHelper {
             giveSetupItemsToPlayer(ms, player);
             return true;
         } else {
-            ms.sendMessage(player, MessageComponent.of(ChatColor.RED + "You can't enter %s while being already in another mode!", modeName));
+            ms.sendMessage(player, MessageComponent.of(LegacyColors.RED + "You can't enter %s while being already in another mode!", modeName));
             return false;
         }
     }

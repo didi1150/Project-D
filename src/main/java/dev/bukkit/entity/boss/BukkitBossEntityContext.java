@@ -6,10 +6,10 @@ import java.util.Random;
 import java.util.UUID;
 import java.util.function.Supplier;
 
-import org.bukkit.Bukkit;
 import org.bukkit.Location;
 import org.bukkit.entity.EntityType;
 
+import dev.bukkit.utils.BukkitText;
 import dev.core.entity.boss.BossEntityContext;
 
 public class BukkitBossEntityContext implements BossEntityContext {
@@ -24,7 +24,7 @@ public class BukkitBossEntityContext implements BossEntityContext {
 
     @Override
     public void broadcast(String message) {
-        Bukkit.broadcastMessage(message);
+        BukkitText.broadcast(message);
     }
 
     @Override

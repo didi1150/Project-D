@@ -25,6 +25,7 @@ import org.bukkit.potion.PotionEffectType;
 import org.bukkit.util.Vector;
 
 import dev.bukkit.DMain;
+import dev.bukkit.utils.BukkitText;
 import dev.bukkit.entity.BukkitEntityFactory;
 import dev.bukkit.entity.BukkitPlayerEntity;
 import dev.bukkit.game.coords.LocToPoint;
@@ -324,7 +325,7 @@ public class ClearState extends GameState {
             }
 
             // Announce the ground collapse
-            Bukkit.broadcastMessage("§c§lThe ground crumbles beneath your feet!");
+            BukkitText.broadcast("§c§lThe ground crumbles beneath your feet!");
             Bukkit.getOnlinePlayers().forEach(player -> {
                 player.addPotionEffect(new PotionEffect(PotionEffectType.BLINDNESS, 20 * 2, 2, false, false));
             });
@@ -345,7 +346,8 @@ public class ClearState extends GameState {
         block.setType(Material.AIR);
 
         // Create falling block entity
-        FallingBlock fallingBlock = world.spawnFallingBlock(blockLoc, blockType.createBlockData());
+        FallingBlock fallingBlock = world.spawn(blockLoc, FallingBlock.class,
+                falling -> falling.setBlockData(blockType.createBlockData()));
 
         // Add random velocity for realistic crumbling effect
         Vector velocity = new Vector((RANDOM.nextDouble() - 0.5) * 0.4, // Random X velocity

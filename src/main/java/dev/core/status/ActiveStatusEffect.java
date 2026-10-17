@@ -4,9 +4,10 @@ import java.util.UUID;
 
 /**
  * One active status-effect instance on an entity. Instances are created by
- * {@link StatusEffectManager} on apply and are immutable; a re-apply replaces
- * the instance (fresh duration) rather than mutating it, so display handles
- * keyed by instance never go stale.
+ * {@link StatusEffectManager} on apply and are immutable; a normal re-apply
+ * replaces the instance (fresh duration) rather than mutating it, while
+ * {@link StatusEffectManager#applyStacking} adds another independent instance.
+ * Display handles keyed by instance therefore never go stale.
  */
 public final class ActiveStatusEffect {
 

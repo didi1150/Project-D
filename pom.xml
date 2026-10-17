@@ -29,8 +29,7 @@
                 <artifactId>maven-compiler-plugin</artifactId>
                 <version>3.13.0</version>
                 <configuration>
-                    <source>${java.version}</source>
-                    <target>${java.version}</target>
+                    <release>${java.version}</release>
                     <annotationProcessorPaths>
                         <path>
                             <groupId>org.projectlombok</groupId>
@@ -47,12 +46,6 @@
                 <configuration>
                     <dependencyReducedPomLocation>
                         ${project.build.directory}/dependency-reduced-pom.xml</dependencyReducedPomLocation>
-                    <relocations>
-                        <relocation>
-                            <pattern>fr.skytasul.glowing</pattern>
-                            <shadedPattern>${project.name}.glowing</shadedPattern>
-                        </relocation>
-                    </relocations>
                 </configuration>
                 <executions>
                     <execution>
@@ -125,15 +118,9 @@
             <scope>provided</scope>
         </dependency>
         <dependency>
-            <groupId>fr.skytasul</groupId>
-            <artifactId>glowingentities</artifactId>
-            <version>1.4.11</version>
-            <scope>compile</scope>
-        </dependency>
-        <dependency>
             <groupId>io.papermc.paper</groupId>
             <artifactId>paper-api</artifactId>
-            <version>[26.3.build,)</version>
+            <version>26.3.build.202-stable</version>
             <scope>provided</scope>
         </dependency>
         <!-- Source: https://mvnrepository.com/artifact/net.kyori/adventure-api -->
@@ -149,7 +136,7 @@
             <version>5.13.3</version>
             <scope>test</scope>
         </dependency>
-        <!-- spigot-api 1.21.8's YamlConfiguration requires snakeyaml 2.x;
+        <!-- YamlConfiguration requires snakeyaml 2.x;
              pinned so surefire's test classpath resolves the right version. -->
         <dependency>
             <groupId>org.yaml</groupId>

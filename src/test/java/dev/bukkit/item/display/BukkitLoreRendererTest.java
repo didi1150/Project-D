@@ -5,7 +5,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.List;
 
-import org.bukkit.ChatColor;
+import dev.core.utils.LegacyColors;
 import org.junit.jupiter.api.Test;
 
 import dev.core.item.ItemType;
@@ -26,7 +26,7 @@ class BukkitLoreRendererTest {
 
         List<String> lore = renderer.render(sword);
 
-        String expected = ChatColor.GOLD.toString() + ChatColor.BOLD.toString() + "LEVEL 5: SWORD ITEM";
+        String expected = LegacyColors.GOLD.toString() + LegacyColors.BOLD.toString() + "LEVEL 5: SWORD ITEM";
         assertEquals(expected, lore.get(lore.size() - 1));
     }
 
@@ -39,11 +39,11 @@ class BukkitLoreRendererTest {
 
         List<String> lore = renderer.render(bow);
 
-        String expected = ChatColor.GOLD.toString() + ChatColor.BOLD.toString() + "LEVEL 0: BOW ITEM";
+        String expected = LegacyColors.GOLD.toString() + LegacyColors.BOLD.toString() + "LEVEL 0: BOW ITEM";
         assertEquals(expected, lore.get(lore.size() - 1));
-        assertTrue(lore.get(lore.size() - 1).startsWith(ChatColor.GOLD.toString()),
+        assertTrue(lore.get(lore.size() - 1).startsWith(LegacyColors.GOLD.toString()),
                 "level line must be gold");
-        assertTrue(lore.get(lore.size() - 1).startsWith(ChatColor.GOLD.toString() + ChatColor.BOLD.toString()),
+        assertTrue(lore.get(lore.size() - 1).startsWith(LegacyColors.GOLD.toString() + LegacyColors.BOLD.toString()),
                 "level line must be bold");
     }
 
@@ -56,7 +56,7 @@ class BukkitLoreRendererTest {
 
         List<String> lore = renderer.render(helmet, null);
 
-        String expected = ChatColor.GOLD.toString() + ChatColor.BOLD.toString() + "LEVEL 3: HELMET ITEM";
+        String expected = LegacyColors.GOLD.toString() + LegacyColors.BOLD.toString() + "LEVEL 3: HELMET ITEM";
         assertEquals(expected, lore.get(lore.size() - 1));
     }
 }

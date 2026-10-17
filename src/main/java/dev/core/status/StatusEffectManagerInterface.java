@@ -34,6 +34,33 @@ public interface StatusEffectManagerInterface {
 	boolean apply(RPGEntity entity, StatusEffectType type, long durationMillis);
 
 	/**
+	 * Add an independent stack of an effect. Unlike {@link #apply}, existing
+	 * effects of the same type are left untouched: their end times are neither
+	 * refreshed nor extended. The new stack gets its own full duration and its
+	 * potency is added to the combined amount read by {@link #getCombinedPotency}.
+	 *
+	 * <p>
+	 * Intended for additive effects such as absorption; this bypasses the CC
+	 * stacking rules.
+	 */
+	boolean applyStacking(RPGEntity entity, StatusEffectType type, long durationMillis, boolean fadeOut,
+			double potency);
+
+	/**
+	 * Add an independent stack with caster tracking.
+	 *
+	 * @see #applyStacking(RPGEntity, StatusEffectType, long, boolean, double)
+	 */
+	boolean applyStacking(RPGEntity entity, StatusEffectType type, long durationMillis, boolean fadeOut, double potency,
+			UUID casterUuid);
+
+	/**
+	 * Combined potency of every active effect of the given type, or {@code 0} when
+	 * none are active.
+	 */
+	double getCombinedPotency(RPGEntity entity, StatusEffectType type);
+
+	/**
 	 * Forcefully end an effect of the given type, if active.
 	 *
 	 * @return true if an effect was removed.

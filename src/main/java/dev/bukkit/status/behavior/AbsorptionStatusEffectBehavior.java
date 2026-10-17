@@ -4,27 +4,20 @@ import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 
-import org.bukkit.Bukkit;
-import org.bukkit.ChatColor;
-import org.bukkit.attribute.Attribute;
-import org.bukkit.entity.Entity;
 import org.bukkit.entity.LivingEntity;
 import org.bukkit.entity.Player;
-import org.bukkit.scoreboard.Scoreboard;
-import org.bukkit.scoreboard.Team;
 
 import dev.bukkit.status.StatusEffectBehavior;
 import dev.bukkit.status.StatusEffectContext;
 import dev.core.entity.RPGEntity;
+import dev.core.status.StatusEffectType;
 
 /**
  * Absorption shield status effect: absorbs all damage before real HP is hit.
- * Visualised with vanilla golden absorption hearts (players) and a yellow
- * glowing outline on all entities via scoreboard team coloring.
+ * Visualised with vanilla absorption hearts (players) and the vanilla glowing
+ * outline on all entities.
  */
 public final class AbsorptionStatusEffectBehavior implements StatusEffectBehavior {
-
-    private static final String TEAM_NAME = "rpg_absorption_glow";
 
     private final Map<UUID, AbsorptionState> states = new ConcurrentHashMap<>();
 
@@ -34,16 +27,22 @@ public final class AbsorptionStatusEffectBehavior implements StatusEffectBehavio
         LivingEntity living = ctx.getLivingEntity();
         UUID uuid = rpg.getUuid();
 
-        // Set the RPG entity's absorption amount from the effect potency.
-        rpg.setAbsorptionAmount(ctx.getEffect().getPotency());
+        // Each absorption application is an independent stack: add its potency to
+        // the live total instead of replacing the amount already granted.
+        AbsorptionState state = states.computeIfAbsent(uuid, key -> {
+            AbsorptionState created = new AbsorptionState();
+            created.previousGlowing = living.isGlowing();
+            return created;
+        });
+        state.stackCount++;
+        rpg.setAbsorptionAmount(rpg.getAbsorptionAmount() + ctx.getEffect().getPotency());
 
-        AbsorptionState state = new AbsorptionState();
-        state.previousGlowing = living.isGlowing();
-        states.put(uuid, state);
-
-        // Enable yellow glow via scoreboard team.
-        living.setGlowing(true);
-        addToYellowTeam(living);
+        // Vanilla glowing supplies the shield outline. No scoreboard team is used:
+        // the staff targeting indicator owns its own client-only teams and two
+        // team systems fighting over one entity causes client protocol errors.
+        if (!living.isGlowing()) {
+            living.setGlowing(true);
+        }
 
         // Sync vanilla absorption hearts for players.
         if (living instanceof Player player) {
@@ -57,16 +56,18 @@ public final class AbsorptionStatusEffectBehavior implements StatusEffectBehavio
         LivingEntity living = ctx.getLivingEntity();
         UUID uuid = rpg.getUuid();
 
+        AbsorptionState state = states.get(uuid);
+        if (state == null || state.stackCount <= 0) {
+            return; // all absorption stacks already ended during this tick
+        }
         if (!living.isValid() || living.isDead()) {
-            states.remove(uuid);
             return;
         }
 
-        // Defensive sync: ensure glow stays active and yellow.
+        // Defensive sync: ensure the vanilla shield outline stays active.
         if (!living.isGlowing()) {
             living.setGlowing(true);
         }
-        ensureInYellowTeam(living);
 
         // Sync vanilla absorption hearts for players every tick (absorption may
         // have been consumed by damage since the last tick).
@@ -74,10 +75,9 @@ public final class AbsorptionStatusEffectBehavior implements StatusEffectBehavio
             syncVanillaAbsorption(player, rpg.getAbsorptionAmount());
         }
 
-        // If absorption has been fully consumed by damage, end the effect.
+        // If absorption has been fully consumed by damage, end every stack.
         if (rpg.getAbsorptionAmount() <= 0) {
-            ctx.getRpgEntity().getStatusEffectManager().remove(ctx.getRpgEntity(),
-                    dev.core.status.StatusEffectType.ABSORPTION);
+            ctx.getRpgEntity().getStatusEffectManager().remove(ctx.getRpgEntity(), StatusEffectType.ABSORPTION);
         }
     }
 
@@ -87,21 +87,42 @@ public final class AbsorptionStatusEffectBehavior implements StatusEffectBehavio
         LivingEntity living = ctx.getLivingEntity();
         UUID uuid = rpg.getUuid();
 
-        // Clear absorption amount.
+        AbsorptionState state = states.get(uuid);
+        if (state != null) {
+            state.stackCount--;
+
+            // Remove only this stack's contribution; damage already consumed is
+            // reflected in the live total, so never restore more than remains.
+            double remaining = Math.max(0, rpg.getAbsorptionAmount() - ctx.getEffect().getPotency());
+            rpg.setAbsorptionAmount(remaining);
+
+            if (state.stackCount > 0) {
+                // Other absorption stacks are still active: keep the glow and the
+                // vanilla hearts synced to the reduced total.
+                if (living != null && living.isValid() && !living.isDead()) {
+                    if (!living.isGlowing()) {
+                        living.setGlowing(true);
+                    }
+                    if (living instanceof Player player) {
+                        syncVanillaAbsorption(player, remaining);
+                    }
+                }
+                return;
+            }
+            states.remove(uuid);
+        }
+
+        // Last stack ended (or the effect was removed without an applied stack):
+        // clear the shield completely.
         rpg.setAbsorptionAmount(0);
 
-        AbsorptionState state = states.remove(uuid);
-
         if (living != null && living.isValid() && !living.isDead()) {
-            // Remove from yellow team.
-            removeFromYellowTeam(living);
-
             // Restore previous glow state.
             living.setGlowing(state != null && state.previousGlowing);
 
             // Clear vanilla absorption hearts for players.
             if (living instanceof Player player) {
-                player.setAbsorptionAmount(0);
+                syncVanillaAbsorption(player, 0);
             }
         }
     }
@@ -131,37 +152,8 @@ public final class AbsorptionStatusEffectBehavior implements StatusEffectBehavio
         return Math.min(hearts, 20.0);
     }
 
-    // =========================- Team glow ==========================
-
-    private static Team getOrCreateYellowTeam() {
-        Scoreboard scoreboard = Bukkit.getScoreboardManager().getMainScoreboard();
-        Team team = scoreboard.getTeam(TEAM_NAME);
-        if (team == null) {
-            team = scoreboard.registerNewTeam(TEAM_NAME);
-            team.setColor(ChatColor.YELLOW);
-        }
-        return team;
-    }
-
-    private static void addToYellowTeam(LivingEntity living) {
-        Team team = getOrCreateYellowTeam();
-        team.addEntry(living.getUniqueId().toString());
-    }
-
-    private static void ensureInYellowTeam(LivingEntity living) {
-        Team team = getOrCreateYellowTeam();
-        String entry = living.getUniqueId().toString();
-        if (!team.hasEntry(entry)) {
-            team.addEntry(entry);
-        }
-    }
-
-    private static void removeFromYellowTeam(LivingEntity living) {
-        Team team = getOrCreateYellowTeam();
-        team.removeEntry(living.getUniqueId().toString());
-    }
-
     private static class AbsorptionState {
         boolean previousGlowing;
+        int stackCount;
     }
 }

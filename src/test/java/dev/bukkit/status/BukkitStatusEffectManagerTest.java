@@ -25,12 +25,15 @@ import org.bukkit.entity.TextDisplay;
 import org.bukkit.util.Transformation;
 import org.joml.Quaternionf;
 import org.joml.Vector3f;
+
+import net.kyori.adventure.text.Component;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mockito;
 
+import dev.bukkit.status.behavior.AbsorptionStatusEffectBehavior;
 import dev.bukkit.status.behavior.AirborneStatusEffectBehavior;
 import dev.bukkit.status.behavior.RootedStatusEffectBehavior;
 import dev.bukkit.status.behavior.SlowedStatusEffectBehavior;
@@ -42,7 +45,9 @@ import dev.core.entity.rpgclass.RPGClassType;
 import dev.core.stat.StatManager;
 import dev.core.stat.StatType;
 import dev.core.stat.impl.CombatStat;
+import dev.core.status.ActiveStatusEffect;
 import dev.core.status.StatusEffectType;
+import dev.core.utils.AdventureText;
 
 /**
  * Headless smoke test for the Bukkit status manager: display spawn/stacking and
@@ -59,6 +64,7 @@ class BukkitStatusEffectManagerTest {
     private Location location;
     private TestStatusEffectManager manager;
 
+    @SuppressWarnings("unchecked")
     @BeforeEach
     void setUp() {
         living = mock(LivingEntity.class);
@@ -66,7 +72,7 @@ class BukkitStatusEffectManagerTest {
         display = mock(TextDisplay.class);
         location = mock(Location.class);
         when(display.isValid()).thenReturn(true);
-        when(display.getText()).thenReturn("stub");
+        when(display.text()).thenReturn(Component.text("stub"));
         when(display.getTransformation())
                 .thenReturn(new Transformation(new Vector3f(), new Quaternionf(), new Vector3f(), new Quaternionf()));
         when(living.getWorld()).thenReturn(world);
@@ -80,7 +86,7 @@ class BukkitStatusEffectManagerTest {
         when(living.getLocation()).thenReturn(location);
         // Run the spawn consumer so the display actually gets configured
         // (text, billboard, transformation) like on a live server.
-        when(world.spawn(any(), eq(TextDisplay.class), any())).thenAnswer(inv -> {
+        when(world.spawn(any(), eq(TextDisplay.class), any(Consumer.class))).thenAnswer(inv -> {
             Consumer<TextDisplay> consumer = inv.getArgument(2);
             consumer.accept(display);
             return display;
@@ -100,20 +106,23 @@ class BukkitStatusEffectManagerTest {
         StatusEffectBehaviorRegistry.register(StatusEffectType.ROOTED, new RootedStatusEffectBehavior());
         StatusEffectBehaviorRegistry.register(StatusEffectType.STUNNED, new StunnedStatusEffectBehavior());
         StatusEffectBehaviorRegistry.register(StatusEffectType.AIRBORNE, new AirborneStatusEffectBehavior());
+        StatusEffectBehaviorRegistry.register(StatusEffectType.ABSORPTION, new AbsorptionStatusEffectBehavior());
     }
 
+    @SuppressWarnings("unchecked")
     @Test
     void applySpawnsTextDisplayAboveTheName() {
         RPGEntity entity = entityWithMoveSpeed();
 
         assertTrue(manager.apply(entity, StatusEffectType.SLOWED, 10_000));
-        verify(world).spawn(any(), eq(TextDisplay.class), any());
-        ArgumentCaptor<String> text = ArgumentCaptor.forClass(String.class);
-        verify(display, atLeastOnce()).setText(text.capture());
-        assertTrue(text.getAllValues().stream().anyMatch(t -> t.contains("Slowed")),
+        verify(world).spawn(any(), eq(TextDisplay.class), any(Consumer.class));
+        ArgumentCaptor<Component> text = ArgumentCaptor.forClass(Component.class);
+        verify(display, atLeastOnce()).text(text.capture());
+        assertTrue(text.getAllValues().stream().map(AdventureText::plainOrEmpty).anyMatch(t -> t.contains("Slowed")),
                 "display must show the effect name: " + text.getAllValues());
     }
 
+    @SuppressWarnings("unchecked")
     @Test
     void stackedEffectsGetIncrementallyHigherDisplays() {
         RPGEntity entity = entityWithMoveSpeed();
@@ -121,10 +130,28 @@ class BukkitStatusEffectManagerTest {
         manager.apply(entity, StatusEffectType.ROOTED, 10_000);
 
         ArgumentCaptor<Location> spawnLocations = ArgumentCaptor.forClass(Location.class);
-        verify(world, times(2)).spawn(spawnLocations.capture(), eq(TextDisplay.class), any());
+        verify(world, times(2)).spawn(spawnLocations.capture(), eq(TextDisplay.class), any(Consumer.class));
         List<Location> locations = spawnLocations.getAllValues();
         assertEquals(2, locations.size());
         assertTrue(locations.get(1).getY() > locations.get(0).getY(), "the second display must stack above the first");
+    }
+
+    @Test
+    void absorptionStacksCombineAmountWithoutRefreshingExistingDurations() {
+        RPGEntity entity = entityWithoutMoveSpeed();
+
+        assertTrue(manager.applyStacking(entity, StatusEffectType.ABSORPTION, 10_000, true, 20.0));
+        long firstEnd = manager.getActive(entity).get(0).getEndTime();
+
+        assertTrue(manager.applyStacking(entity, StatusEffectType.ABSORPTION, 5_000, true, 10.0));
+        List<ActiveStatusEffect> active = manager.getActive(entity);
+
+        assertEquals(2, active.size());
+        assertEquals(firstEnd, active.get(0).getEndTime(), "the first shield stack must keep its duration");
+        assertEquals(30.0, entity.getAbsorptionAmount(), 0.001, "shield amounts must combine");
+
+        manager.remove(entity, StatusEffectType.ABSORPTION);
+        assertEquals(0.0, entity.getAbsorptionAmount(), 0.001);
     }
 
     @Test

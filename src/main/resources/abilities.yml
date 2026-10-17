@@ -440,7 +440,7 @@ abilities:
       - "<dark_gray/>Aegis Ward <gray/>- Shield allies"
       - "<dark_gray/>Tempest Gust <gray/>- Push back mobs"
     triggerType: MANUAL
-    action: LEFT_CLICK
+    action: RIGHT_CLICK
     cooldownScope: PLAYER
     cooldown: 0
   STAFF_TOGGLE:
@@ -448,6 +448,6 @@ abilities:
     description:
       - "<gray/>Cycle staff mode."
     triggerType: MANUAL
-    action: SHIFT_LEFT_CLICK
+    action: LEFT_CLICK
     cooldownScope: PLAYER
     cooldown: 0

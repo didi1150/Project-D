@@ -26,7 +26,6 @@ import org.bukkit.event.entity.ProjectileHitEvent;
 import org.bukkit.event.inventory.InventoryClickEvent;
 import org.bukkit.event.inventory.InventoryCloseEvent;
 import org.bukkit.event.inventory.InventoryDragEvent;
-import org.bukkit.event.player.AsyncPlayerChatEvent;
 import org.bukkit.event.player.PlayerChangedWorldEvent;
 import org.bukkit.event.player.PlayerCommandPreprocessEvent;
 import org.bukkit.event.player.PlayerDropItemEvent;
@@ -44,7 +43,6 @@ import org.bukkit.event.player.PlayerToggleSneakEvent;
 import org.bukkit.event.world.PortalCreateEvent;
 import org.bukkit.plugin.Plugin;
 import org.bukkit.plugin.PluginManager;
-import org.spigotmc.event.player.PlayerSpawnLocationEvent;
 
 import dev.bukkit.event.BukkitEventBus;
 
@@ -68,7 +66,6 @@ public class EventBusRegistry {
             new Reg(InventoryCloseEvent.class, EventPriority.NORMAL, false),
             new Reg(EntityPickupItemEvent.class, EventPriority.NORMAL, false),
             new Reg(PlayerDropItemEvent.class, EventPriority.NORMAL, false),
-            new Reg(PlayerSpawnLocationEvent.class, EventPriority.NORMAL, false),
             new Reg(PlayerMoveEvent.class, EventPriority.NORMAL, false),
             new Reg(PlayerToggleSneakEvent.class, EventPriority.NORMAL, false),
             new Reg(PlayerCommandPreprocessEvent.class, EventPriority.NORMAL, false),
@@ -88,8 +85,7 @@ public class EventBusRegistry {
             new Reg(EntityShootBowEvent.class, EventPriority.NORMAL, false),
             new Reg(EntityRemoveEvent.class, EventPriority.NORMAL, false),
             new Reg(ProjectileHitEvent.class, EventPriority.NORMAL, false),
-            new Reg(PlayerPickupArrowEvent.class, EventPriority.NORMAL, false),
-            new Reg(AsyncPlayerChatEvent.class, EventPriority.NORMAL, false));
+            new Reg(PlayerPickupArrowEvent.class, EventPriority.NORMAL, false));
 
     public static void registerAll(Plugin plugin) {
         Listener dummy = new Listener() {
@@ -97,7 +93,7 @@ public class EventBusRegistry {
         PluginManager pm = plugin.getServer().getPluginManager();
 
         for (Reg r : FORWARDED) {
-            pm.registerEvent(r.type(), dummy, r.priority(), (l, event) -> {
+            pm.registerEvent(r.type(), dummy, r.priority(), (_, event) -> {
                 if (event instanceof PlayerInteractEvent interact) {
                     // The pre-refactor EventListener un-cancelled the interact
                     // event before forwarding it to the bus; without this,

@@ -20,6 +20,7 @@ import dev.core.entity.EntityManager;
 import dev.core.entity.RPGEntity;
 import dev.core.status.ActiveStatusEffect;
 import dev.core.status.StatusEffectManager;
+import dev.core.utils.AdventureText;
 
 /**
  * Bukkit status effect manager: extends the pure-Java core manager with the
@@ -70,7 +71,7 @@ public class BukkitStatusEffectManager extends StatusEffectManager {
             behavior.onApply(new StatusEffectContext(entity, living, effect));
         }
         TextDisplay display = spawnDisplay(living, entity, effect);
-        displayByEffect.computeIfAbsent(entity, k -> new HashMap<>()).put(effect, display);
+        displayByEffect.computeIfAbsent(entity, _ -> new HashMap<>()).put(effect, display);
     }
 
     @Override
@@ -152,7 +153,7 @@ public class BukkitStatusEffectManager extends StatusEffectManager {
         Location spawnLoc = living.getLocation().add(0, living.getHeight() + 0.55 + index * DISPLAY_SPACING, 0);
 
         return BukkitDisplayEntityRegistry.getInstance().spawnDisplayEntity(spawnLoc, TextDisplay.class, d -> {
-            d.setText(formatText(effect, effect.remaining(System.currentTimeMillis())));
+            d.text(AdventureText.legacy(formatText(effect, effect.remaining(System.currentTimeMillis()))));
             d.setBillboard(Display.Billboard.CENTER);
             d.setSeeThrough(false);
             d.setGravity(false);
@@ -182,11 +183,11 @@ public class BukkitStatusEffectManager extends StatusEffectManager {
         long remaining = effect.remaining(now);
         long shown = remaining < 0 ? -1 : remaining / 1000;
         Long lastShown = lastShownSeconds.get(effect);
-        if (lastShown != null && lastShown == shown && display.getText() != null) {
+        if (lastShown != null && lastShown == shown && display.text() != null) {
             return; // same whole-second bucket: no text churn
         }
         lastShownSeconds.put(effect, shown);
-        display.setText(formatText(effect, remaining));
+        display.text(AdventureText.legacy(formatText(effect, remaining)));
     }
 
     private String formatText(ActiveStatusEffect effect, long remainingMillis) {

@@ -40,6 +40,23 @@ public final class NoopStatusEffectManager implements StatusEffectManagerInterfa
 	}
 
 	@Override
+	public boolean applyStacking(RPGEntity entity, StatusEffectType type, long durationMillis, boolean fadeOut,
+			double potency) {
+		return true;
+	}
+
+	@Override
+	public boolean applyStacking(RPGEntity entity, StatusEffectType type, long durationMillis, boolean fadeOut,
+			double potency, UUID casterUuid) {
+		return true;
+	}
+
+	@Override
+	public double getCombinedPotency(RPGEntity entity, StatusEffectType type) {
+		return 0;
+	}
+
+	@Override
 	public boolean remove(RPGEntity entity, StatusEffectType type) {
 		return false;
 	}

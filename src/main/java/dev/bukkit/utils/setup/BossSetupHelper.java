@@ -1,5 +1,22 @@
 package dev.bukkit.utils.setup;
 
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
+import java.util.UUID;
+import java.util.stream.Collectors;
+
+import org.bukkit.Location;
+import org.bukkit.Material;
+import org.bukkit.Server;
+import org.bukkit.entity.Player;
+import org.bukkit.event.block.Action;
+import org.bukkit.event.player.PlayerInteractEntityEvent;
+import org.bukkit.event.player.PlayerInteractEvent;
+import org.bukkit.inventory.EquipmentSlot;
+import org.bukkit.inventory.ItemStack;
+import org.jetbrains.annotations.Nullable;
+
 import dev.bukkit.command.CommandManager;
 import dev.bukkit.command.SubCommandBuilder;
 import dev.bukkit.game.coords.LocToPoint;
@@ -12,28 +29,9 @@ import dev.core.event.EventBusInterface;
 import dev.core.game.coords.Point3D;
 import dev.core.game.dungeon.proceduralDungeon.util.Vector3Int;
 import dev.core.game.settings.GameSettings;
+import dev.core.utils.AdventureText;
+import dev.core.utils.LegacyColors;
 import dev.core.utils.MessageComponent;
-import org.bukkit.*;
-import org.bukkit.entity.*;
-import org.bukkit.event.block.Action;
-import org.bukkit.event.entity.EntityInteractEvent;
-import org.bukkit.event.player.PlayerInteractAtEntityEvent;
-import org.bukkit.event.player.PlayerInteractEntityEvent;
-import org.bukkit.event.player.PlayerInteractEvent;
-import org.bukkit.inventory.EquipmentSlot;
-import org.bukkit.inventory.ItemStack;
-import org.bukkit.inventory.meta.ItemMeta;
-import org.bukkit.util.Transformation;
-import org.jetbrains.annotations.Nullable;
-import org.joml.Quaternionf;
-import org.joml.Vector3f;
-
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.List;
-import java.util.UUID;
-import java.util.function.Function;
-import java.util.stream.Collectors;
 
 public class BossSetupHelper extends SetupHelper {
 
@@ -62,7 +60,7 @@ public class BossSetupHelper extends SetupHelper {
         for (ItemStack item : items) {
             player.getInventory().addItem(item);
         }
-        ms.sendMessage(player, MessageComponent.of(ChatColor.GREEN + "You received: " + items.stream().map(i -> i.getItemMeta().getDisplayName()).collect(Collectors.joining(", "))));
+        ms.sendMessage(player, MessageComponent.of(LegacyColors.GREEN + "You received: " + items.stream().map(i -> AdventureText.plainOrEmpty(i.getItemMeta().displayName())).collect(Collectors.joining(", "))));
     }
 
     @Override
@@ -108,7 +106,7 @@ public class BossSetupHelper extends SetupHelper {
     @Override
     public void registerCommand(CommandManager cm, BukkitMessageSender ms) {
         cm.addSubCommand("project-d", SubCommandBuilder.startBuilding("bossSetup")
-                        .setPlayerCommandAction(1, "toggleSetupMode", ((player, args) -> {
+                        .setPlayerCommandAction(1, "toggleSetupMode", ((player, _) -> {
                             if (isPlayerInMode(player, ms, false)) {
                                 removePlayerFromMode(player);
                             } else {

@@ -11,7 +11,6 @@ import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 
 import org.bukkit.Bukkit;
-import org.bukkit.ChatColor;
 import org.bukkit.Color;
 import org.bukkit.Location;
 import org.bukkit.Material;
@@ -45,9 +44,10 @@ import dev.core.game.GameStateResult;
 import dev.core.game.ScheduledTask;
 import dev.core.game.coords.Point3D;
 import dev.core.game.coords.ViewPoint3D;
+import dev.bukkit.utils.BukkitText;
+import dev.core.utils.AdventureText;
+import dev.core.utils.LegacyColors;
 import dev.core.utils.MessageComponent;
-import net.md_5.bungee.api.ChatMessageType;
-import net.md_5.bungee.api.chat.TextComponent;
 
 public class SelectClassState extends GameState {
 
@@ -176,7 +176,7 @@ public class SelectClassState extends GameState {
         dungeonVoting.startVoting(scheduler);
         Bukkit.getOnlinePlayers().forEach(player -> {
             player.teleport(spawnLocation);
-            BukkitMessageSender.getInstance().sendLine(player, ChatColor.YELLOW.toString());
+            BukkitMessageSender.getInstance().sendLine(player, LegacyColors.YELLOW.toString());
             BukkitMessageSender.getInstance().sendCenteredMessage(player,
                     MessageComponent.of("<yellow>=== CLASS & FLOOR SELECTION ===</yellow>"));
             BukkitMessageSender.getInstance().sendCenteredMessage(player,
@@ -312,7 +312,7 @@ public class SelectClassState extends GameState {
             // Lock role for player
             if (chosenRole != null) {
                 lockRole(player, chosenRole);
-                player.sendMessage(ChatColor.YELLOW + "You did not pick a class in time. "
+                player.sendMessage(LegacyColors.YELLOW + "You did not pick a class in time. "
                         + "You have been assigned to: " + BukkitTextColorAdapter
                                 .colored(chosenRole.getClassType().getColor(), chosenRole.getClassType().toString()));
             }
@@ -387,8 +387,8 @@ public class SelectClassState extends GameState {
 
     private void handleJoin(PlayerJoinEvent event) {
         scheduler.runTaskLater(() -> {
-            event.setJoinMessage(null);
-            event.getPlayer().kickPlayer("Game is already running!");
+            event.joinMessage(null);
+            event.getPlayer().kick(AdventureText.legacy("Game is already running!"));
         }, 1);
     }
 
@@ -451,7 +451,7 @@ public class SelectClassState extends GameState {
             // If this player owned and locked a role, unlock it
             if (roleState.getOwner() == player && roleState.isLocked()) {
                 unlockRole(roleState);
-                Bukkit.broadcastMessage("§e"
+                BukkitText.broadcast("§e"
                         + player.getName() + " left! Role " + BukkitTextColorAdapter
                                 .colored(roleState.getClassType().getColor(), roleState.getClassType().toString())
                         + " is now available again.");
@@ -597,7 +597,7 @@ public class SelectClassState extends GameState {
         }
 
         // Announce lock
-        Bukkit.broadcastMessage("§a" + player.getName() + " locked role: "
+        BukkitText.broadcast("§a" + player.getName() + " locked role: "
                 + BukkitTextColorAdapter.colored(roleState.getClassType().getColor(),
                         roleState.getClassType().toString())
                 + " §7(" + getLockedRoleCount() + "/" + REQUIRED_ROLES_SELECTED + ")");
@@ -630,12 +630,10 @@ public class SelectClassState extends GameState {
         if (currentRole != null) {
             RoleState roleState = roleStates.get(currentRole);
             String status = roleState.isLocked() && roleState.getOwner() == player ? "§a§lLOCKED" : "§eSneak to lock";
-            player.spigot().sendMessage(ChatMessageType.ACTION_BAR,
-                    new TextComponent(BukkitTextColorAdapter.colored(roleState.getClassType().getColor(),
-                            roleState.getClassType().toString()) + " §7| " + status));
+            player.sendActionBar(AdventureText.legacy(BukkitTextColorAdapter.colored(
+                    roleState.getClassType().getColor(), roleState.getClassType().toString()) + " §7| " + status));
         } else {
-            player.spigot().sendMessage(ChatMessageType.ACTION_BAR,
-                    new TextComponent("§7Stand on a colored block to select a role"));
+            player.sendActionBar(AdventureText.legacy("§7Stand on a colored block to select a role"));
         }
 
         // Update experience bar to show progress
@@ -657,14 +655,14 @@ public class SelectClassState extends GameState {
     }
 
     private void displayFinalSelections() {
-        Bukkit.broadcastMessage("§a§l--- Final Role Assignments ---");
+        BukkitText.broadcast("§a§l--- Final Role Assignments ---");
         for (RoleState roleState : roleStates.values()) {
             if (roleState.isLocked()) {
-                Bukkit.broadcastMessage(BukkitTextColorAdapter.colored(roleState.getClassType().getColor(),
+                BukkitText.broadcast(BukkitTextColorAdapter.colored(roleState.getClassType().getColor(),
                         roleState.getClassType().toString()) + " §7→ §f" + roleState.getOwner().getName());
             }
         }
-        Bukkit.broadcastMessage("§a§l-------------------------------");
+        BukkitText.broadcast("§a§l-------------------------------");
     }
 
     private void cancelUpdateTask() {

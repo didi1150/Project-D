@@ -5,16 +5,15 @@ import org.bukkit.World;
 import org.bukkit.entity.Entity;
 import org.bukkit.entity.EntityType;
 import org.bukkit.entity.LivingEntity;
-import org.bukkit.metadata.FixedMetadataValue;
 
-import dev.bukkit.DMain;
+import dev.bukkit.entity.BukkitEntityMetadata;
 import dev.core.entity.EntityManager;
 import dev.core.entity.boss.BossDefinition;
 import dev.core.entity.boss.FloorData;
 import dev.core.entity.boss.FloorDataRegistry;
 import dev.core.event.EventBusInterface;
 import dev.core.game.TaskScheduler;
-import dev.core.utils.ColorCodes;
+import dev.core.utils.AdventureText;
 
 /**
  * Spawns the bukkit entity for a {@link BossDefinition} and wraps it in a
@@ -73,14 +72,14 @@ public class BukkitBossFactory {
     }
 
     private void applySetup(LivingEntity living, BossDefinition definition) {
-        living.setCustomName(ColorCodes.translate(definition.getDisplayName()));
+        living.customName(AdventureText.legacy(definition.getDisplayName()));
         living.setCustomNameVisible(true);
         living.setRemoveWhenFarAway(false);
         living.setPersistent(true);
         living.setAI(false);
         living.setCollidable(false);
-        living.setMetadata("BOSS", new FixedMetadataValue(DMain.getInstance(), true));
-        living.setMetadata("DUNGEON", new FixedMetadataValue(DMain.getInstance(), true));
+        BukkitEntityMetadata.set(living, "BOSS", true);
+        BukkitEntityMetadata.set(living, "DUNGEON", true);
     }
 
     private void applyTypeSpecificSetup(LivingEntity living, EntityType type) {

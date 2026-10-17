@@ -5,6 +5,7 @@ import java.util.Map;
 import java.util.UUID;
 
 import org.bukkit.Bukkit;
+import org.bukkit.Color;
 import org.bukkit.FluidCollisionMode;
 import org.bukkit.Location;
 import org.bukkit.Particle;
@@ -56,12 +57,15 @@ public class BukkitFocusBeamEffect extends Effect {
     private static final int BEAM_TICKS = 40 * 4; // 2s discharge
     private static final double BASE_DAMAGE_PER_TICK = 3.0;
     private static final Particle HELIX_PARTICLE = Particle.END_ROD;
-    /** Ticks between magic damage indicators, so the channel doesn't spam text displays. */
+    /**
+     * Ticks between magic damage indicators, so the channel doesn't spam text
+     * displays.
+     */
     private static final int INDICATOR_INTERVAL_TICKS = 5;
 
     /**
-     * One live beam per caster, keyed by uuid. A cast while an entry exists
-     * cancels that beam instead of starting a new one (the toggle-off click).
+     * One live beam per caster, keyed by uuid. A cast while an entry exists cancels
+     * that beam instead of starting a new one (the toggle-off click).
      */
     private static final Map<UUID, BukkitFocusBeamEffect> ACTIVE_BEAMS = new HashMap<>();
 
@@ -190,25 +194,25 @@ public class BukkitFocusBeamEffect extends Effect {
     /**
      * Returns the cost the effect manager deducted for THIS (cancelling) click,
      * re-resolving it exactly like {@code BukkitEffectManager.resolveCharges}
-     * (formula against the caster, mana discount applied). The original cast's
-     * cost stays spent.
+     * (formula against the caster, mana discount applied). The original cast's cost
+     * stays spent.
      */
     private void refundCastCost(RPGEntity caster) {
         AbilityRegistry.get(FocusBeamAbility.ID).ifPresent(ability -> {
-                    for (CostEntry cost : ability.getCost().getCosts()) {
-                        double base = cost.resolve(caster);
-                        double paid = ManaDiscountUtils.discountedCost(caster, cost.mode().getResourceType(), base);
-                        caster.getStatManager().modifyStat(StatType.valueOf(cost.mode().getResourceType()), paid);
-                    }
-                });
+            for (CostEntry cost : ability.getCost().getCosts()) {
+                double base = cost.resolve(caster);
+                double paid = ManaDiscountUtils.discountedCost(caster, cost.mode().getResourceType(), base);
+                caster.getStatManager().modifyStat(StatType.valueOf(cost.mode().getResourceType()), paid);
+            }
+        });
     }
 
     /**
-     * Magic damage for one beam tick, following the standard ability formula
-     * Damage = Base Damage * (1 + Ability Power), further scaled by the
-     * caster's ability damage multiplier. Registered RPG targets go through
-     * the central pipeline (defenses, crits, events); unregistered vanilla mobs
-     * fall back to direct damage so CombatListener still renders the hit.
+     * Magic damage for one beam tick, following the standard ability formula Damage
+     * = Base Damage * (1 + Ability Power), further scaled by the caster's ability
+     * damage multiplier. Registered RPG targets go through the central pipeline
+     * (defenses, crits, events); unregistered vanilla mobs fall back to direct
+     * damage so CombatListener still renders the hit.
      */
     private void damageTarget(LivingEntity casterEntity, LivingEntity target) {
         long now = System.currentTimeMillis();
@@ -216,8 +220,7 @@ public class BukkitFocusBeamEffect extends Effect {
         double damage = BASE_DAMAGE_PER_TICK * (1.0 + abilityPower) * caster.getAbilityDamageMultiplier();
 
         RPGDamageResult result = EntityManager.getInstance().getEntity(target.getUniqueId())
-                .map(rpgTarget -> rpgTarget.dealRPGDamage(caster, rpgTarget, damage, DamageType.MAGIC))
-                .orElse(null);
+                .map(rpgTarget -> rpgTarget.dealRPGDamage(caster, rpgTarget, damage, DamageType.MAGIC)).orElse(null);
         if (result != null) {
             if (result.getResult() != DamageResult.DENY && currentTick % INDICATOR_INTERVAL_TICKS == 0) {
                 showMagicIndicator(target, result.getDamage(), result.getResult());
@@ -228,15 +231,22 @@ public class BukkitFocusBeamEffect extends Effect {
         // Vanilla mob: damageMob fires an EntityDamageByEntityEvent that
         // CombatListener already renders an indicator for, so only the hit
         // sound is added here.
-        DamageUtils.damageMob(target, damage, casterEntity);
+        //
+        // The channel must land on EVERY tick, so: (1) send MAGIC damage rather
+        // than GENERIC - with a causing entity Paper maps GENERIC to
+        // ENTITY_ATTACK, which CombatListener throttles to the caster's
+        // ATTACK_SPEED (once per second) as if it were a melee swing; and (2)
+        // clear the vanilla hurt-resistance window (same as MobRPGEntity /
+        // BukkitBossEntity do) so the next tick's hit is not swallowed.
+        DamageUtils.damageMob(target, damage, casterEntity, org.bukkit.damage.DamageType.MAGIC, true);
         if (currentTick % INDICATOR_INTERVAL_TICKS == 0) {
             playHitSound(target, DamageResult.NORMAL);
         }
     }
 
     /**
-     * Ray trace filter: the beam stops at the first valid enemy and passes
-     * through everything else (allies, ghosts, armor stands, projectiles).
+     * Ray trace filter: the beam stops at the first valid enemy and passes through
+     * everything else (allies, ghosts, armor stands, projectiles).
      */
     private boolean isBeamTarget(Entity entity) {
         if (!(entity instanceof LivingEntity living) || living instanceof ArmorStand) {
@@ -264,8 +274,8 @@ public class BukkitFocusBeamEffect extends Effect {
     }
 
     /**
-     * Staff tip origin: eye position offset to the right hand and pushed
-     * forward along the look direction.
+     * Staff tip origin: eye position offset to the right hand and pushed forward
+     * along the look direction.
      */
     private static Vector staffOrigin(Location eye, Vector eyeDir) {
         Vector right = eyeDir.clone().crossProduct(new Vector(0, 1, 0)).normalize();
@@ -277,8 +287,8 @@ public class BukkitFocusBeamEffect extends Effect {
     }
 
     /**
-     * Renders a ring in front of the staff tip that spirals inward toward the
-     * focal point.
+     * Renders a ring in front of the staff tip that spirals inward toward the focal
+     * point.
      */
     private static void renderInwardSpiralCharge(World world, Vector staffOrigin, Vector eyeDir, int tick) {
         // Coordinate space perpendicular to the eye direction
@@ -313,14 +323,15 @@ public class BukkitFocusBeamEffect extends Effect {
             world.spawnParticle(Particle.FLAME, loc, 1, 0, 0, 0, 0);
 
             // Add a dense inner glowing focal spot at the staff tip
-            world.spawnParticle(Particle.INSTANT_EFFECT, staffOrigin.toLocation(world), 1, 0.02, 0.02, 0.02, 0);
+            world.spawnParticle(Particle.INSTANT_EFFECT, staffOrigin.toLocation(world), 1, 0.02, 0.02, 0.02, 0,
+                    new Particle.Spell(Color.WHITE, 1.0f));
         }
     }
 
     private static void renderFastCore(World world, Vector origin, Vector dir, double length) {
         for (double d = 0; d < length; d += 0.25) {
             Location pLoc = origin.clone().add(dir.clone().multiply(d)).toLocation(world);
-            world.spawnParticle(Particle.INSTANT_EFFECT, pLoc, 1, 0, 0, 0, 0);
+            world.spawnParticle(Particle.INSTANT_EFFECT, pLoc, 1, 0, 0, 0, 0, new Particle.Spell(Color.WHITE, 1.0f));
             if (d % 0.5 == 0) {
                 world.spawnParticle(Particle.DUST_PLUME, pLoc, 1, 0, 0, 0, 0);
             }
@@ -352,8 +363,8 @@ public class BukkitFocusBeamEffect extends Effect {
     }
 
     /**
-     * Renders the magical ✦ damage indicator, mirroring the Spirit Sceptre's
-     * reuse of the central damage-number machinery.
+     * Renders the magical ✦ damage indicator, mirroring the Spirit Sceptre's reuse
+     * of the central damage-number machinery.
      */
     private void showMagicIndicator(LivingEntity le, double damage, DamageResult result) {
         if (damage <= 0) {

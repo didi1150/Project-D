@@ -4,6 +4,7 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
+import java.util.function.Supplier;
 
 import org.bukkit.Material;
 import org.bukkit.NamespacedKey;
@@ -58,11 +59,28 @@ public final class BowArrowManager {
     private static final int SLOT_START = 9;
     private static final int SLOT_END = 35;
 
-    private static final ItemStack ARROWS = new ItemStack(Material.ARROW, ARROW_COUNT);
+    /**
+     * Created lazily so loading this class never touches Paper's item registry
+     * (headless tests have no server implementation). The supplier must return
+     * a fresh stack for every call.
+     */
+    private static Supplier<ItemStack> arrowStackFactory = () -> new ItemStack(Material.ARROW, ARROW_COUNT);
 
     private static final Map<UUID, BowState> BOWING = new HashMap<>();
 
     private BowArrowManager() {
+    }
+
+    static void setArrowStackFactoryForTesting(Supplier<ItemStack> factory) {
+        arrowStackFactory = factory;
+    }
+
+    static void resetArrowStackFactoryForTesting() {
+        arrowStackFactory = () -> new ItemStack(Material.ARROW, ARROW_COUNT);
+    }
+
+    private static ItemStack newArrowStack() {
+        return arrowStackFactory.get();
     }
 
     private record BowState(int arrowSlot, ItemStack stored, boolean overrode) {
@@ -162,7 +180,7 @@ public final class BowArrowManager {
     public static void onShoot(Player player, Projectile projectile) {
         BowState state = BOWING.get(player.getUniqueId());
         if (state != null) {
-            player.getInventory().setItem(state.arrowSlot(), ARROWS.clone());
+            player.getInventory().setItem(state.arrowSlot(), newArrowStack());
         }
         // The planted stack is the only arrow source: a fired arrow must never
         // be picked back up (it would merge into the stack or clutter the
@@ -199,7 +217,7 @@ public final class BowArrowManager {
             stored = player.getInventory().getItem(arrowSlot);
             overrode = true;
         }
-        player.getInventory().setItem(arrowSlot, ARROWS.clone());
+        player.getInventory().setItem(arrowSlot, newArrowStack());
         BOWING.put(player.getUniqueId(), new BowState(arrowSlot, stored, overrode));
     }
 

@@ -24,6 +24,7 @@ import dev.core.entity.RPGEntity;
 import dev.core.item.RPGItem;
 import dev.core.item.display.RPGItemLoreRenderer;
 import dev.core.item.display.TextColor;
+import dev.core.utils.AdventureText;
 
 public class BukkitItemStackAdapter {
 
@@ -53,8 +54,10 @@ public class BukkitItemStackAdapter {
             return itemStack;
         }
 
-        meta.setDisplayName(BukkitTextColorAdapter.colored(TextColor.GOLD, rpgItem.getName()));
-        meta.setLore(renderer.render(rpgItem, holder));
+        meta.displayName(
+                AdventureText.withoutItalic(AdventureText.legacy(BukkitTextColorAdapter.colored(TextColor.GOLD,
+                        rpgItem.getName()))));
+        meta.lore(AdventureText.itemLoreLines(renderer.render(rpgItem, holder)));
         meta.setUnbreakable(true);
         meta.addItemFlags(ItemFlag.HIDE_UNBREAKABLE, ItemFlag.HIDE_ATTRIBUTES);
         if (meta.getAttributeModifiers() != null) {
@@ -88,10 +91,10 @@ public class BukkitItemStackAdapter {
             if (rpgItem.getSkullTexture().isPresent()) {
                 if (!applySkullTexture(skullMeta, rpgItem.getSkullTexture().get(),
                         rpgItem.getSkullOwner().orElse(rpgItem.getName()))) {
-                    rpgItem.getSkullOwner().ifPresent(skullMeta::setOwner);
+                    rpgItem.getSkullOwner().ifPresent(name -> skullMeta.setOwningPlayer(Bukkit.getOfflinePlayer(name)));
                 }
             } else {
-                rpgItem.getSkullOwner().ifPresent(skullMeta::setOwner);
+                rpgItem.getSkullOwner().ifPresent(name -> skullMeta.setOwningPlayer(Bukkit.getOfflinePlayer(name)));
             }
         }
     }
@@ -123,8 +126,8 @@ public class BukkitItemStackAdapter {
             setProfile.invoke(meta, profile);
             return true;
         } catch (ReflectiveOperationException | LinkageError e) {
-            Bukkit.getLogger().warning("Could not apply skull texture for item '" + meta.getDisplayName() + "': "
-                    + e.getMessage());
+            Bukkit.getLogger().warning("Could not apply skull texture for item '"
+                    + AdventureText.plain(meta.displayName()) + "': " + e.getMessage());
             return false;
         }
     }
@@ -140,10 +143,10 @@ public class BukkitItemStackAdapter {
         if (meta == null) {
             return locked;
         }
-        meta.setDisplayName("§c" + rpgItem.getName() + " §7(Locked)");
+        meta.displayName(AdventureText.withoutItalic(AdventureText.legacy("§c" + rpgItem.getName() + " §7(Locked)")));
         List<String> lore = new ArrayList<>();
         lore.add("§7Requires Level §c" + rpgItem.getUnlockLevel());
-        meta.setLore(lore);
+        meta.lore(AdventureText.itemLoreLines(lore));
         meta.addItemFlags(ItemFlag.HIDE_ATTRIBUTES, ItemFlag.HIDE_ENCHANTS);
 
         // Keep the item id on the stack so the shop can resolve the barrier.

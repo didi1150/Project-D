@@ -3,7 +3,6 @@ package dev.bukkit.game.states;
 import java.util.Optional;
 import java.util.UUID;
 
-import dev.core.game.coords.ViewPoint3D;
 import org.bukkit.Bukkit;
 import org.bukkit.GameMode;
 import org.bukkit.Location;
@@ -13,17 +12,18 @@ import org.bukkit.entity.Entity;
 import org.bukkit.entity.Player;
 import org.bukkit.event.player.PlayerJoinEvent;
 import org.bukkit.event.player.PlayerQuitEvent;
-import org.bukkit.metadata.FixedMetadataValue;
 import org.bukkit.potion.PotionEffect;
 import org.bukkit.potion.PotionEffectType;
 
 import dev.bukkit.DMain;
+import dev.bukkit.entity.BukkitEntityMetadata;
 import dev.bukkit.entity.BukkitPlayerEntity;
 import dev.bukkit.entity.boss.BukkitBossEntity;
 import dev.bukkit.entity.boss.BukkitBossFactory;
 import dev.bukkit.game.scheduler.BukkitTaskScheduler;
 import dev.bukkit.item.BukkitInventorySync;
 import dev.bukkit.storage.progression.ClassProgressionService;
+import dev.bukkit.utils.BukkitText;
 import dev.core.entity.EntityManager;
 import dev.core.entity.RPGEntity;
 import dev.core.entity.boss.BossDefinition;
@@ -37,7 +37,7 @@ import dev.core.event.impl.RPGEntityDeathEvent;
 import dev.core.game.GameState;
 import dev.core.game.GameStateResult;
 import dev.core.game.TaskScheduler;
-import dev.core.game.coords.Point3D;
+import dev.core.game.coords.ViewPoint3D;
 import dev.core.game.settings.GameSettings;
 import dev.core.progression.PlayerClassProgression;
 
@@ -65,7 +65,7 @@ public class BossState extends GameState {
         GameSettings settings = GameSettings.getCurrentSettings();
         String bossTemplate = settings.getBossWorld();
         if (bossTemplate == null || bossTemplate.isBlank()) {
-            Bukkit.broadcastMessage(
+            BukkitText.broadcast(
                     "§cBossState failed: no boss arena template configured for floor " + settings.getFloor());
             complete(GameStateResult.COMPLETE);
             return;
@@ -113,7 +113,7 @@ public class BossState extends GameState {
         this.activeBoss = boss;
         this.bossUuid = boss.getUuid();
         boss.getBukkitEntity()
-                .ifPresent(living -> living.setMetadata("BOSS", new FixedMetadataValue(DMain.getInstance(), true)));
+                .ifPresent(living -> BukkitEntityMetadata.set(living, "BOSS", true));
     }
 
     public void clearInjectedBoss(UUID uuid) {
@@ -200,7 +200,7 @@ public class BossState extends GameState {
             return;
         }
 
-        Bukkit.broadcastMessage("§aThe End Boss has been defeated!");
+        BukkitText.broadcast("§aThe End Boss has been defeated!");
         complete(GameStateResult.COMPLETE);
     }
 
@@ -231,7 +231,7 @@ public class BossState extends GameState {
         }
 
         Entity existing = world.getNearbyEntities(spawnLocation, 1, 1, 1).stream()
-                .filter(entity -> entity.hasMetadata("BOSS")).findFirst().orElse(null);
+                .filter(entity -> BukkitEntityMetadata.has(entity, "BOSS")).findFirst().orElse(null);
         if (existing != null) {
             existing.remove();
         }
@@ -239,7 +239,7 @@ public class BossState extends GameState {
         GameSettings settings = GameSettings.getCurrentSettings();
         BossDefinition definition = BossDefinitionRegistry.getInstance().getForFloor(settings.getFloor()).orElse(null);
         if (definition == null) {
-            Bukkit.broadcastMessage("§cBossState failed: no boss configured for floor " + settings.getFloor());
+            BukkitText.broadcast("§cBossState failed: no boss configured for floor " + settings.getFloor());
             return false;
         }
 
@@ -247,7 +247,7 @@ public class BossState extends GameState {
         this.activeBoss = boss;
         this.bossUuid = boss.getUuid();
         boss.getBukkitEntity()
-                .ifPresent(living -> living.setMetadata("BOSS", new FixedMetadataValue(DMain.getInstance(), true)));
+                .ifPresent(living -> BukkitEntityMetadata.set(living, "BOSS", true));
 
         return true;
     }
@@ -260,7 +260,7 @@ public class BossState extends GameState {
     private void prepareBossArena(String bossTemplate, GameSettings settings, FloorData floorData) {
         DMain.getInstance().getBossArenaManager().createInstance(bossTemplate).whenComplete((world, throwable) -> {
             if (throwable != null) {
-                Bukkit.broadcastMessage(
+                BukkitText.broadcast(
                         "§cBossState failed: could not load boss arena template. " + throwable.getMessage());
                 complete(GameStateResult.COMPLETE);
                 return;
@@ -268,7 +268,7 @@ public class BossState extends GameState {
 
             ViewPoint3D bossSpawnPoint = settings.getBossSpawnLocation(settings.getFloor());
             if (bossSpawnPoint == null) {
-                Bukkit.broadcastMessage(
+                BukkitText.broadcast(
                         "§cBossState failed: no boss spawn configured for floor " + settings.getFloor());
                 complete(GameStateResult.COMPLETE);
                 return;
@@ -276,7 +276,7 @@ public class BossState extends GameState {
 
             ViewPoint3D playerSpawnPoint = settings.getBossPlayerSpawnLocation(settings.getFloor());
             if (playerSpawnPoint == null) {
-                Bukkit.broadcastMessage(
+                BukkitText.broadcast(
                         "§cBossState failed: no boss player spawn configured for floor " + settings.getFloor());
                 complete(GameStateResult.COMPLETE);
                 return;
@@ -293,12 +293,12 @@ public class BossState extends GameState {
             Location bossSpawn = new Location(world, bossSpawnPoint.getX() + 0.5, bossSpawnPoint.getY(),
                     bossSpawnPoint.getZ() + 0.5, bossSpawnPoint.getYaw(), bossSpawnPoint.getPitch());
             if (!spawnBoss(world, bossSpawn, floorData)) {
-                Bukkit.broadcastMessage("§cBossState failed: could not spawn boss.");
+                BukkitText.broadcast("§cBossState failed: could not spawn boss.");
                 complete(GameStateResult.COMPLETE);
                 return;
             }
 
-            Bukkit.broadcastMessage("§cThe Wither boss has awakened in the dungeon's deepest room!");
+            BukkitText.broadcast("§cThe Wither boss has awakened in the dungeon's deepest room!");
         });
     }
 

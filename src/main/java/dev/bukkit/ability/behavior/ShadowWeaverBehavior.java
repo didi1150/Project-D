@@ -369,7 +369,7 @@ public class ShadowWeaverBehavior implements AbilityBehavior {
         }
 
         boolean valid = isValidPlacement(player, state, target);
-        state.showIndicator(target, valid);
+        state.showIndicator(target, valid, player);
         state.target = target;
     }
 
@@ -404,8 +404,7 @@ public class ShadowWeaverBehavior implements AbilityBehavior {
         World world = eye.getWorld();
         // Raytrace collidable block surfaces, ignoring entities so mobs/players
         // standing between the caster and the target cannot block the trace.
-        RayTraceResult result = world.rayTrace(eye, dir, maxBlocks, FluidCollisionMode.NEVER, true, 0,
-                e -> false);
+        RayTraceResult result = world.rayTrace(eye, dir, maxBlocks, FluidCollisionMode.NEVER, true, 0, e -> false);
 
         if (result != null && result.getHitPosition() != null) {
             return result.getHitPosition().toLocation(world);
@@ -1014,7 +1013,7 @@ public class ShadowWeaverBehavior implements AbilityBehavior {
             return dashing;
         }
 
-        void showIndicator(Location at, boolean valid) {
+        void showIndicator(Location at, boolean valid, Player player) {
             Location center = at.clone();
             Color glowColor = valid ? Color.fromRGB(0x00, 0xFF, 0x66) : Color.fromRGB(0xFF, 0x33, 0x33);
             Material displayBlock = valid ? Material.LIME_STAINED_GLASS : Material.RED_STAINED_GLASS;
@@ -1036,14 +1035,19 @@ public class ShadowWeaverBehavior implements AbilityBehavior {
                 indicator.teleport(center);
             }
 
-            // Render a lightweight cloud swirl preview around the target location
-            World world = at.getWorld();
-            if (world != null) {
-                Particle.DustOptions dust = new Particle.DustOptions(glowColor, 0.9f);
-                world.spawnParticle(Particle.DUST, center, 3, 0.25, 0.05, 0.25, 0, dust);
-                if (valid) {
-                    world.spawnParticle(Particle.END_ROD, center, 1, 0.1, 0.02, 0.1, 0.005);
+            for (Player p : Bukkit.getOnlinePlayers()) {
+                if (!p.getUniqueId().equals(player.getUniqueId())) {
+                    p.hideEntity(DMain.getInstance(), indicator);
+                } else {
+                    p.showEntity(DMain.getInstance(), indicator);
                 }
+            }
+
+            // Render a lightweight cloud swirl preview around the target location
+            Particle.DustOptions dust = new Particle.DustOptions(glowColor, 0.9f);
+            player.spawnParticle(Particle.DUST, center, 3, 0.25, 0.05, 0.25, 0, dust);
+            if (valid) {
+                player.spawnParticle(Particle.END_ROD, center, 1, 0.1, 0.02, 0.1, 0.005);
             }
         }
 

@@ -1,7 +1,7 @@
 package dev.bukkit.item.display;
 
 import dev.core.item.display.TextStyle;
-import org.bukkit.ChatColor;
+import dev.core.utils.LegacyColors;
 
 import dev.core.item.display.TextColor;
 import dev.core.stat.StatType;
@@ -12,22 +12,22 @@ public class BukkitTextColorAdapter {
 
     public static String toChatColor(TextColor color) {
         return switch (color) {
-        case BLACK -> ChatColor.BLACK.toString();
-        case DARK_BLUE -> ChatColor.DARK_BLUE.toString();
-        case DARK_GREEN -> ChatColor.DARK_GREEN.toString();
-        case DARK_AQUA -> ChatColor.DARK_AQUA.toString();
-        case DARK_RED -> ChatColor.DARK_RED.toString();
-        case DARK_PURPLE -> ChatColor.DARK_PURPLE.toString();
-        case GOLD -> ChatColor.GOLD.toString();
-        case GRAY -> ChatColor.GRAY.toString();
-        case DARK_GRAY -> ChatColor.DARK_GRAY.toString();
-        case BLUE -> ChatColor.BLUE.toString();
-        case GREEN -> ChatColor.GREEN.toString();
-        case AQUA -> ChatColor.AQUA.toString();
-        case RED -> ChatColor.RED.toString();
-        case LIGHT_PURPLE -> ChatColor.LIGHT_PURPLE.toString();
-        case YELLOW -> ChatColor.YELLOW.toString();
-        case WHITE -> ChatColor.WHITE.toString();
+        case BLACK -> LegacyColors.BLACK;
+        case DARK_BLUE -> LegacyColors.DARK_BLUE;
+        case DARK_GREEN -> LegacyColors.DARK_GREEN;
+        case DARK_AQUA -> LegacyColors.DARK_AQUA;
+        case DARK_RED -> LegacyColors.DARK_RED;
+        case DARK_PURPLE -> LegacyColors.DARK_PURPLE;
+        case GOLD -> LegacyColors.GOLD;
+        case GRAY -> LegacyColors.GRAY;
+        case DARK_GRAY -> LegacyColors.DARK_GRAY;
+        case BLUE -> LegacyColors.BLUE;
+        case GREEN -> LegacyColors.GREEN;
+        case AQUA -> LegacyColors.AQUA;
+        case RED -> LegacyColors.RED;
+        case LIGHT_PURPLE -> LegacyColors.LIGHT_PURPLE;
+        case YELLOW -> LegacyColors.YELLOW;
+        case WHITE -> LegacyColors.WHITE;
         };
     }
 
@@ -79,11 +79,11 @@ public class BukkitTextColorAdapter {
         // Apply formatters
         for (TextStyle.TextFormatter fmt : style.formatters()) {
             switch (fmt) {
-                case BOLD -> sb.append(ChatColor.BOLD);
-                case ITALIC -> sb.append(ChatColor.ITALIC);
-                case UNDERLINE -> sb.append(ChatColor.UNDERLINE);
-                case STRIKETHROUGH -> sb.append(ChatColor.STRIKETHROUGH);
-                case RESET -> sb.append(ChatColor.RESET).append(style.hexColor() != null
+                case BOLD -> sb.append(LegacyColors.BOLD);
+                case ITALIC -> sb.append(LegacyColors.ITALIC);
+                case UNDERLINE -> sb.append(LegacyColors.UNDERLINE);
+                case STRIKETHROUGH -> sb.append(LegacyColors.STRIKETHROUGH);
+                case RESET -> sb.append(LegacyColors.RESET).append(style.hexColor() != null
                         ? toHexCode(style.hexColor()) : toChatColor(style.color())); // restore color after reset
             }
         }

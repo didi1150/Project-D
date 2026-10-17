@@ -76,6 +76,33 @@ class StatusEffectManagerTest {
     }
 
     @Test
+    void stackingApplyAddsIndependentStackWithoutRefreshingExistingDuration() {
+        assertTrue(manager.applyStacking(entity, StatusEffectType.ABSORPTION, DURATION, true, 20.0));
+        long firstEnd = manager.getActive(entity).get(0).getEndTime();
+
+        assertTrue(manager.applyStacking(entity, StatusEffectType.ABSORPTION, 4 * DURATION, true, 10.0, null));
+        List<ActiveStatusEffect> active = manager.getActive(entity);
+
+        assertEquals(2, active.size(), "stacking applies must coexist");
+        assertEquals(firstEnd, active.get(0).getEndTime(), "the existing stack must not be refreshed");
+        assertEquals(20.0, active.get(0).getPotency(), 0.001);
+        assertEquals(10.0, active.get(1).getPotency(), 0.001);
+        assertTrue(active.get(1).getEndTime() > firstEnd);
+        assertEquals(30.0, manager.getCombinedPotency(entity, StatusEffectType.ABSORPTION), 0.001);
+    }
+
+    @Test
+    void stackingApplyStacksExpireIndependently() {
+        manager.applyStacking(entity, StatusEffectType.ABSORPTION, 1_000, true, 20.0);
+        manager.applyStacking(entity, StatusEffectType.ABSORPTION, 5_000, true, 10.0);
+
+        manager.tick(System.currentTimeMillis() + 1_500);
+
+        assertEquals(1, manager.getActive(entity).size(), "only the short stack must expire");
+        assertEquals(10.0, manager.getCombinedPotency(entity, StatusEffectType.ABSORPTION), 0.001);
+    }
+
+    @Test
     void softCcsCoexist() {
         assertTrue(manager.apply(entity, StatusEffectType.SLOWED, DURATION));
         assertTrue(manager.apply(entity, StatusEffectType.ROOTED, DURATION));

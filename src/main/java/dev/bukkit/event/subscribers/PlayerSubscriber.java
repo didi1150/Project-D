@@ -3,7 +3,6 @@ package dev.bukkit.event.subscribers;
 import java.util.Optional;
 
 import org.bukkit.Bukkit;
-import org.bukkit.ChatColor;
 import org.bukkit.GameMode;
 import org.bukkit.entity.Player;
 import org.bukkit.entity.Projectile;
@@ -26,7 +25,6 @@ import org.bukkit.event.player.PlayerSwapHandItemsEvent;
 import org.bukkit.event.player.PlayerToggleSneakEvent;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.plugin.Plugin;
-import org.spigotmc.event.player.PlayerSpawnLocationEvent;
 
 import com.comphenix.protocol.PacketType;
 import com.comphenix.protocol.ProtocolLibrary;
@@ -45,8 +43,11 @@ import dev.core.entity.RPGEntity;
 import dev.core.event.EventAction;
 import dev.core.event.EventSubscriber;
 import dev.core.event.Subscribe;
+import dev.core.utils.AdventureText;
+import dev.core.utils.LegacyColors;
 import dev.core.utils.MessageComponent;
 import dev.core.utils.MessageText;
+import net.kyori.adventure.text.format.NamedTextColor;
 
 @EventSubscriber
 public class PlayerSubscriber {
@@ -90,12 +91,15 @@ public class PlayerSubscriber {
 //        }
 //        playerEntity.getPlayerProgression().setActiveClass(
 //                classProgressionService.getActiveClass(playerEntity.getUuid()), playerEntity.getStatManager());
-        BukkitMessageSender.getInstance().sendLine(event.getPlayer(), ChatColor.AQUA.toString());
+        BukkitMessageSender.getInstance().sendLine(event.getPlayer(), LegacyColors.AQUA.toString());
         BukkitMessageSender.getInstance().sendCenteredMessage(event.getPlayer(),
                 MessageComponent.of(MessageText.INFO_PLAYER_JOINED, event.getPlayer().getName()));
-        BukkitMessageSender.getInstance().sendLine(event.getPlayer(), ChatColor.AQUA.toString());
-        event.setJoinMessage("");
+        BukkitMessageSender.getInstance().sendLine(event.getPlayer(), LegacyColors.AQUA.toString());
+        event.joinMessage(null);
         event.getPlayer().setFoodLevel(20);
+        EntityManager.getInstance().getEntity(event.getPlayer().getUniqueId())
+                .ifPresent(rpgEntity -> BukkitInventorySync.syncInventory(rpgEntity, event.getPlayer()));
+        refreshLore(event.getPlayer());
 //			BukkitMessageSender.getInstance().sendMessage(event.getPlayer(), MessageComponent.of("&a&m                                                                             "), false);
 //			BukkitMessageSender.getInstance().sendMessage(event.getPlayer(), MessageComponent.of("<red>Okay, so, this message is longer than 1 line of text. The color code should pass and it should center</red>"));
 //			BukkitMessageSender.getInstance().sendDebugMessage(event.getPlayer(), MessageComponent.of("If no <diff-option> is provided, the default behavior will be given by the stash.showStat, and stash.showPatch config variables. You can also use stash.showIncludeUntracked to set whether --include-untracked is enabled by default. Show the changes recorded in the stash entry as a diff between the stashed contents and the commit back when the stash entry was first created. By default, the command shows the diffstat, but it will accept any format known to git diff (e.g., git stash show -p stash@{1} to view the second most recent entry in patch form). If no <diff-option> is provided, the default behavior will be given by the stash.showStat, and stash.showPatch config variables. You can also use stash.showIncludeUntracked to set whether --include-untracked is enabled by default."));
@@ -104,17 +108,8 @@ public class PlayerSubscriber {
 //			BukkitMessageSender.getInstance().sendCenteredMessage(MessageComponent.of("Okay, so, this message is longer than 1 line of text. The color code should pass and it should center"));
 //			BukkitMessageSender.getInstance().sendLine(event.getPlayer(), "<bold><blue> </blue></bold>");
 //			BukkitMessageSender.getInstance().sendMessage(event.getPlayer(), MessageComponent.of("&a&m                                                                              "), false);
-//			BukkitMessageSender.getInstance().sendLine(event.getPlayer(), ChatColor.AQUA.toString());
+//			BukkitMessageSender.getInstance().sendLine(event.getPlayer(), LegacyColors.AQUA.toString());
 //			BukkitMessageSender.getInstance().sendCenteredDebugMessage(event.getPlayer(), MessageComponent.of( "If no <diff-option> is provided, the default behavior will be given by the stash.showStat, and stash.showPatch config variables. You can also use stash.showIncludeUntracked to set whether --include-untracked is enabled by default. Show the changes recorded in the stash entry as a diff between the stashed contents and the commit back when the stash entry was first created. By default, the command shows the diffstat, but it will accept any format known to git diff (e.g., git stash show -p stash@{1} to view the second most recent entry in patch form). If no <diff-option> is provided, the default behavior will be given by the stash.showStat, and stash.showPatch config variables. You can also use stash.showIncludeUntracked to set whether --include-untracked is enabled by default."));
-    }
-
-    @Subscribe
-    public void onSpawnWorld(PlayerSpawnLocationEvent event) {
-        Optional<RPGEntity> optional = EntityManager.getInstance().getEntity(event.getPlayer().getUniqueId());
-        optional.ifPresent(rpgEntity -> {
-            BukkitInventorySync.syncInventory(rpgEntity, event.getPlayer());
-        });
-        refreshLore(event.getPlayer());
     }
 
     @Subscribe
@@ -317,7 +312,7 @@ public class PlayerSubscriber {
 
     @Subscribe
     public void onBowPickup(EntityPickupItemEvent event) {
-        if (event.getEntity() instanceof Player player) {
+        if (event.getEntity() instanceof Player) {
             ItemStack stack = event.getItem().getItemStack();
             if (BowArrowManager.isArrowMaterial(stack.getType()) && !BowArrowManager.isBounceArrow(stack)) {
                 event.setCancelled(true);

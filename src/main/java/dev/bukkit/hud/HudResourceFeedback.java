@@ -4,7 +4,6 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
 
-import org.bukkit.ChatColor;
 import org.bukkit.Sound;
 import org.bukkit.entity.Player;
 
@@ -13,6 +12,7 @@ import dev.core.ability.CostMode;
 import dev.core.stat.StatType;
 import dev.core.stat.adapter.StatTypeAdapter;
 import dev.core.stat.descriptor.StatDescriptor;
+import dev.core.utils.LegacyColors;
 import dev.core.utils.MessageComponent;
 import dev.bukkit.item.display.BukkitTextColorAdapter;
 
@@ -77,8 +77,8 @@ public final class HudResourceFeedback {
             return BukkitTextColorAdapter.toChatColor(type.getColor()) + type.getDisplayName();
         } catch (Exception e) {
             // fallback plain
-            if (mode == CostMode.MANA) return ChatColor.AQUA + "Mana";
-            if (mode == CostMode.HEALTH) return ChatColor.RED + "Health";
+            if (mode == CostMode.MANA) return LegacyColors.AQUA + "Mana";
+            if (mode == CostMode.HEALTH) return LegacyColors.RED + "Health";
             return mode.name();
         }
     }

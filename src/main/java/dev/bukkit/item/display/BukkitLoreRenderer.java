@@ -6,7 +6,6 @@ import static dev.bukkit.item.display.BukkitTextColorAdapter.toChatFormatting;
 import java.util.ArrayList;
 import java.util.List;
 
-import org.bukkit.ChatColor;
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.ItemStack;
 
@@ -23,6 +22,7 @@ import dev.core.ability.CooldownScope;
 import dev.core.ability.CostEntry;
 import dev.core.entity.RPGEntity;
 import dev.core.entity.rpgclass.RPGClassType;
+import dev.core.utils.LegacyColors;
 import dev.core.item.RPGItem;
 import dev.core.item.display.RPGItemLoreRenderer;
 import dev.core.item.display.StyleTagParser;
@@ -216,18 +216,18 @@ public class BukkitLoreRenderer implements RPGItemLoreRenderer {
         }
         lore.add("");
         if (capacity == null) {
-            lore.add(ChatColor.DARK_PURPLE + "Souls held: see your own tome.");
+            lore.add(LegacyColors.DARK_PURPLE + "Souls held: see your own tome.");
         } else {
-            lore.add(ChatColor.DARK_PURPLE + "Souls: " + held + "/" + capacity);
+            lore.add(LegacyColors.DARK_PURPLE + "Souls: " + held + "/" + capacity);
             if (souls.isEmpty()) {
-                lore.add(ChatColor.GRAY + "No souls captured yet. Walk into");
-                lore.add(ChatColor.GRAY + "dropped souls to claim them.");
+                lore.add(LegacyColors.GRAY + "No souls captured yet. Walk into");
+                lore.add(LegacyColors.GRAY + "dropped souls to claim them.");
             } else {
                 for (SoulFragment soul : souls) {
                     String mobName = soul.mobType().name().toLowerCase().replace('_', ' ');
                     mobName = mobName.isEmpty() ? mobName
                             : Character.toUpperCase(mobName.charAt(0)) + mobName.substring(1);
-                    lore.add(ChatColor.GRAY + "- " + mobName + " (" + soul.tier().name().toLowerCase() + ")");
+                    lore.add(LegacyColors.GRAY + "- " + mobName + " (" + soul.tier().name().toLowerCase() + ")");
                 }
             }
         }

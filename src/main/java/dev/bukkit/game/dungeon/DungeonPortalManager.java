@@ -12,6 +12,8 @@ import dev.core.game.GameStateResult;
 import dev.core.game.dungeon.proceduralDungeon.util.Vector3Int;
 import dev.core.item.RPGItem;
 import dev.core.item.loader.RPGItemRegistry;
+import dev.core.utils.AdventureText;
+import dev.core.utils.LegacyColors;
 import dev.core.utils.MessageComponent;
 import org.bukkit.*;
 import org.bukkit.block.Block;
@@ -31,6 +33,7 @@ import java.util.*;
 public class DungeonPortalManager {
 
     private static final DungeonPortalManager INSTANCE = new DungeonPortalManager();
+
     public static DungeonPortalManager getInstance() {
         return INSTANCE;
     }
@@ -70,15 +73,18 @@ public class DungeonPortalManager {
             ItemStack item = event.getItem();
             World world = player.getWorld();
             if (isInClearState()) {
-                if (item != null && item.hasItemMeta() && item.getItemMeta().hasDisplayName() && item.getItemMeta().getDisplayName().contains("Eye of Clarity")) {
-                    if (event.getAction() == Action.RIGHT_CLICK_BLOCK && event.getClickedBlock().getType() == Material.END_PORTAL_FRAME) {
+                if (item != null && item.hasItemMeta() && item.getItemMeta().hasDisplayName()
+                        && AdventureText.plain(item.getItemMeta().displayName()).contains("Eye of Clarity")) {
+                    if (event.getAction() == Action.RIGHT_CLICK_BLOCK
+                            && event.getClickedBlock().getType() == Material.END_PORTAL_FRAME) {
                         event.setCancelled(true);
                         Block block = event.getClickedBlock();
                         EndPortalFrame endPortalFrame = ((EndPortalFrame) block.getBlockData());
                         if (endPortalFrame.hasEye()) {
-                            player.sendMessage(ChatColor.RED + "Eye already placed!");
+                            player.sendMessage(LegacyColors.RED + "Eye already placed!");
                         } else {
-                            player.sendMessage(ChatColor.GREEN + "You placed an " + item.getItemMeta().getDisplayName());
+                            player.sendMessage(LegacyColors.GREEN + "You placed an "
+                                    + AdventureText.plain(item.getItemMeta().displayName()));
                             endPortalFrame.setEye(true);
                             block.setBlockData(endPortalFrame);
                             item.setAmount(item.getAmount() - 1);
@@ -105,7 +111,8 @@ public class DungeonPortalManager {
         eventBus.subscribe(new EventAction<>(event -> {
             if (isInClearState()) {
                 if (event.getCause() == PlayerTeleportEvent.TeleportCause.END_PORTAL) {
-                    if (portalRoomCenter != null && event.getPlayer().getLocation().toVector().toVector3f().distance(portalRoomCenter.toVector3f()) < 2) {
+                    if (portalRoomCenter != null && event.getPlayer().getLocation().toVector().toVector3f()
+                            .distance(portalRoomCenter.toVector3f()) < 2) {
                         enterPortal(event.getPlayer());
                     }
                 }
@@ -114,11 +121,12 @@ public class DungeonPortalManager {
         eventBus.subscribe(new EventAction<>(event -> {
             if (isInClearState()) {
                 Entity victim = Bukkit.getEntity(event.getTarget().getUuid());
-                if (victim != null && victim.getCustomName() != null && victim.getCustomName().contains("Skull King")) {
+                if (victim != null && AdventureText.plain(victim.customName()) != null
+                        && AdventureText.plain(victim.customName()).contains("Skull King")) {
                     RPGItem rpgItem = RPGItemRegistry.getInstance().getItem("EYE_OF_CLARITY").get();
                     ItemStack item = BukkitItemStackAdapter.toItemStack(rpgItem, event.getKiller());
                     Location loc = victim.getLocation();
-                    loc.getWorld().dropItem(loc, item,i -> {
+                    loc.getWorld().dropItem(loc, item, i -> {
                         i.setGlowing(true);
                         i.setUnlimitedLifetime(true);
                     });
@@ -129,51 +137,52 @@ public class DungeonPortalManager {
             if (isInClearState()) {
                 ticks += event.getTickDelta();
                 switch (state) {
-                    case IDLE -> {
-                    }
-                    case BEACONS_POWERING -> {
-                        handleBeacons();
-                    }
-                    case EYES_MOVING -> {
-                        handleEyes();
-                    }
-                    case EYE_DROPPED -> {
-                        if (ticks >= 15) {
-                            state = AnimationState.IDLE;
-                            ticks = 0;
-                            Location loc = new Location(world, portalRoomCenter.x, portalRoomCenter.y, portalRoomCenter.z);
-                            world.strikeLightningEffect(loc);
-                            droppedEyeItem.remove();
-                            world.playSound(loc, Sound.BLOCK_RESPAWN_ANCHOR_SET_SPAWN, 10, 1);
-                            world.playSound(loc, Sound.ENTITY_LIGHTNING_BOLT_THUNDER, 2, 1);
-                            placePortal();
-                            portalFrameLocations.clear();
-                            for (BlockDisplay[] beam : beaconBeamDisplays) {
-                                beam[0].remove();
-                                beam[1].remove();
-                            }
+                case IDLE -> {
+                }
+                case BEACONS_POWERING -> {
+                    handleBeacons();
+                }
+                case EYES_MOVING -> {
+                    handleEyes();
+                }
+                case EYE_DROPPED -> {
+                    if (ticks >= 15) {
+                        state = AnimationState.IDLE;
+                        ticks = 0;
+                        Location loc = new Location(world, portalRoomCenter.x, portalRoomCenter.y, portalRoomCenter.z);
+                        world.strikeLightningEffect(loc);
+                        droppedEyeItem.remove();
+                        world.playSound(loc, Sound.BLOCK_RESPAWN_ANCHOR_SET_SPAWN, 10, 1);
+                        world.playSound(loc, Sound.ENTITY_LIGHTNING_BOLT_THUNDER, 2, 1);
+                        placePortal();
+                        portalFrameLocations.clear();
+                        for (BlockDisplay[] beam : beaconBeamDisplays) {
+                            beam[0].remove();
+                            beam[1].remove();
                         }
                     }
                 }
+                }
                 if (state != AnimationState.IDLE && !beaconBeamDisplays.isEmpty()) {
                     if (lastSummonedBeaconBeamDisplay != null && ticks >= 2) {
-                        lastSummonedBeaconBeamDisplay[0].first.setTransformation(lastSummonedBeaconBeamDisplay[0].second);
-                        lastSummonedBeaconBeamDisplay[1].first.setTransformation(lastSummonedBeaconBeamDisplay[1].second);
+                        lastSummonedBeaconBeamDisplay[0].first
+                                .setTransformation(lastSummonedBeaconBeamDisplay[0].second);
+                        lastSummonedBeaconBeamDisplay[1].first
+                                .setTransformation(lastSummonedBeaconBeamDisplay[1].second);
                         lastSummonedBeaconBeamDisplay = null;
                     }
 //                    float angle = (float) Math.toRadians(allTicks * 2);
                     float angleMultiplier = switch (state) {
-                        case IDLE -> 0.0F;
-                        case BEACONS_POWERING -> 1.0f;
-                        case EYES_MOVING -> ticks <= 25 ? lerp(1, 5, ticks / 25)
-                                : lerp(5,15, (ticks - 25) / 100);
-                        case EYE_DROPPED -> 15;
+                    case IDLE -> 0.0F;
+                    case BEACONS_POWERING -> 1.0f;
+                    case EYES_MOVING -> ticks <= 25 ? lerp(1, 5, ticks / 25) : lerp(5, 15, (ticks - 25) / 100);
+                    case EYE_DROPPED -> 15;
                     };
                     beaconRotationAngle += event.getTickDelta() * angleMultiplier;
 
                     for (BlockDisplay[] beam : beaconBeamDisplays) {
                         beam[0].setRotation(beaconRotationAngle * 2, 0);
-                        beam[1].setRotation( -beaconRotationAngle, 0);
+                        beam[1].setRotation(-beaconRotationAngle, 0);
                     }
                 }
             }
@@ -210,7 +219,8 @@ public class DungeonPortalManager {
         list.remove(start);
         while (!list.isEmpty()) {
             Location finalStart = start;
-            var closestList = list.stream().sorted(Comparator.comparingDouble(loc -> loc.distance(finalStart))).toList();
+            var closestList = list.stream().sorted(Comparator.comparingDouble(loc -> loc.distance(finalStart)))
+                    .toList();
             Location first = closestList.getFirst();
             if (closestList.size() > 1 && first.distance(start) == closestList.get(1).distance(start)) {
                 Location second = closestList.get(1);
@@ -233,11 +243,12 @@ public class DungeonPortalManager {
         if (ticks >= 20) {
             ticks = 0;
             Location loc = beaconLocationsLeft.poll().clone();
-            for (int y = loc.add(0,1,0).getBlockY(); y < 256; y++) {
-                Block block = world.getBlockAt(loc.getBlockX(), y,  loc.getBlockZ());
+            for (int y = loc.add(0, 1, 0).getBlockY(); y < 256; y++) {
+                Block block = world.getBlockAt(loc.getBlockX(), y, loc.getBlockZ());
                 if (block.getType().isSolid() && block.getType().isOccluding()) {
                     Vector3Int firstPos = new Vector3Int(loc.getBlockX(), loc.getBlockY() - 1, loc.getBlockZ());
-                    spawnBeaconBeamDisplay(firstPos.sub(0,3,0), y - firstPos.y + 5, Material.SEA_LANTERN, Material.LIGHT_BLUE_STAINED_GLASS);
+                    spawnBeaconBeamDisplay(firstPos.sub(0, 3, 0), y - firstPos.y + 5, Material.SEA_LANTERN,
+                            Material.LIGHT_BLUE_STAINED_GLASS);
                     world.playSound(loc, Sound.BLOCK_BEACON_ACTIVATE, 5, 1);
                     break;
                 }
@@ -248,19 +259,24 @@ public class DungeonPortalManager {
         }
     }
 
+    @SuppressWarnings("unchecked")
     private void spawnBeaconBeamDisplay(Vector3Int firstPos, int y, Material beamMat, Material bloomMat) {
-        Pair<BlockDisplay, Transformation> beam = spawnBeamDisplay(world, firstPos, firstPos.add(0,y,0), beamMat, -0.4f);
-        Pair<BlockDisplay, Transformation> bloom = spawnBeamDisplay(world, firstPos, firstPos.add(0,y,0), bloomMat, -0.3f);
-        beaconBeamDisplays.add(new BlockDisplay[]{beam.first, bloom.first});
-        lastSummonedBeaconBeamDisplay = new Pair[]{beam, bloom};
+        Pair<BlockDisplay, Transformation> beam = spawnBeamDisplay(world, firstPos, firstPos.add(0, y, 0), beamMat,
+                -0.4f);
+        Pair<BlockDisplay, Transformation> bloom = spawnBeamDisplay(world, firstPos, firstPos.add(0, y, 0), bloomMat,
+                -0.3f);
+        beaconBeamDisplays.add(new BlockDisplay[] { beam.first, bloom.first });
+        lastSummonedBeaconBeamDisplay = new Pair[] { beam, bloom };
     }
 
-    private static Pair<BlockDisplay, Transformation> spawnBeamDisplay(World world, Vector3Int firstPos, Vector3Int secondPos, Material material, float offset) {
+    private static Pair<BlockDisplay, Transformation> spawnBeamDisplay(World world, Vector3Int firstPos,
+            Vector3Int secondPos, Material material, float offset) {
         Vector3f spawnPoint = firstPos.toVector3f().sub(new Vector3f(offset));
-        Location loc = new Location(world, spawnPoint.x + 0.5 + offset, spawnPoint.y + 0.5 + offset , spawnPoint.z + 0.5 + offset);
+        Location loc = new Location(world, spawnPoint.x + 0.5 + offset, spawnPoint.y + 0.5 + offset,
+                spawnPoint.z + 0.5 + offset);
         BlockDisplay blockDisplay = (BlockDisplay) world.spawnEntity(loc, EntityType.BLOCK_DISPLAY);
         blockDisplay.setBlock(Bukkit.createBlockData(material));
-        blockDisplay.setBrightness(new Display.Brightness(15,15));
+        blockDisplay.setBrightness(new Display.Brightness(15, 15));
 //        blockDisplay.setGlowing(true);
 //        blockDisplay.setGlowColorOverride(Color.AQUA);
 
@@ -273,7 +289,7 @@ public class DungeonPortalManager {
         transformation.getTranslation().set(new Vector3f(-0.5F - offset, -0.5F - offset, -0.5F - offset));
         blockDisplay.setTransformation(transformation);
 
-        scaleVec = secondPos.sub(firstPos).add(1,1,1).toVector3f();
+        scaleVec = secondPos.sub(firstPos).add(1, 1, 1).toVector3f();
         transformation.getScale().set(scaleVec.add(new Vector3f(offset * 2)));
 
         return new Pair<>(blockDisplay, transformation);
@@ -286,7 +302,8 @@ public class DungeonPortalManager {
         RPGItem rpgItem = RPGItemRegistry.getInstance().getItem("EYE_OF_CLARITY").get();
         ItemStack item = BukkitItemStackAdapter.toItemStack(rpgItem, null);
         for (Location portalFrameLocation : portalFrameLocations) {
-            ItemDisplay display = (ItemDisplay) world.spawnEntity(portalFrameLocation.clone().add(0.5,0.8,0.5), EntityType.ITEM_DISPLAY);
+            ItemDisplay display = (ItemDisplay) world.spawnEntity(portalFrameLocation.clone().add(0.5, 0.8, 0.5),
+                    EntityType.ITEM_DISPLAY);
             display.setItemStack(item);
             display.setBillboard(Display.Billboard.CENTER);
             display.setTeleportDuration(1);
@@ -303,7 +320,7 @@ public class DungeonPortalManager {
         float t = ticks;
         if (t <= 25) {
             for (ItemDisplay display : eyeDisplays) {
-                Location loc = display.getLocation().add(0,0.1,0);
+                Location loc = display.getLocation().add(0, 0.1, 0);
                 display.teleport(loc);
             }
         } else {
@@ -317,8 +334,10 @@ public class DungeonPortalManager {
             int i = 0;
             for (ItemDisplay display : eyeDisplays) {
                 double ang = Math.toRadians(angle + i * 45);
-                double radius = radiusPercentage * portalFrameLocations.get(i).toVector().toVector3f().distance(portalRoomCenter.toVector3f());
-                Location center = new Location(world, portalRoomCenter.getX() + 0.5, display.getLocation().getY(), portalRoomCenter.getZ() + 0.5);
+                double radius = radiusPercentage
+                        * portalFrameLocations.get(i).toVector().toVector3f().distance(portalRoomCenter.toVector3f());
+                Location center = new Location(world, portalRoomCenter.getX() + 0.5, display.getLocation().getY(),
+                        portalRoomCenter.getZ() + 0.5);
                 Vector dir = new Vector(Math.cos(ang) * radius, 0, Math.sin(ang) * radius);
                 Location loc = center.clone().add(dir);
                 display.teleport(loc);
@@ -330,7 +349,8 @@ public class DungeonPortalManager {
                 for (ItemDisplay display : eyeDisplays) {
                     display.remove();
                 }
-                Location loc = new Location(world, portalRoomCenter.x + 0.5, portalRoomCenter.y + 4, portalRoomCenter.z + 0.5);
+                Location loc = new Location(world, portalRoomCenter.x + 0.5, portalRoomCenter.y + 4,
+                        portalRoomCenter.z + 0.5);
                 RPGItem rpgItem = RPGItemRegistry.getInstance().getItem("EYE_OF_CLARITY").get();
                 ItemStack item = BukkitItemStackAdapter.toItemStack(rpgItem, null);
                 droppedEyeItem = world.dropItemNaturally(loc, item);
@@ -341,7 +361,8 @@ public class DungeonPortalManager {
 
     private void placePortal() {
         if (portalRoomCenter == null) {
-            BukkitMessageSender.getInstance().sendMessage(MessageComponent.of(ChatColor.RED + "portalRoomCenter not set -> can't open the portal to boss"));
+            BukkitMessageSender.getInstance().sendMessage(MessageComponent
+                    .of(LegacyColors.RED + "portalRoomCenter not set -> can't open the portal to boss"));
             return;
         }
         for (int x = portalRoomCenter.x - 1; x <= portalRoomCenter.x + 1; x++) {
@@ -353,15 +374,15 @@ public class DungeonPortalManager {
     }
 
     private void enterPortal(Player player) {
-        System.out.println(player.getDisplayName() + " entered the boss portal");
+        System.out.println(AdventureText.plain(player.displayName()) + " entered the boss portal");
         world.playSound(player, Sound.BLOCK_PORTAL_TRAVEL, 2, 1);
         gameStateController.getCurrentState().complete(GameStateResult.COMPLETE);
     }
-
 
     private enum AnimationState {
         IDLE, BEACONS_POWERING, EYES_MOVING, EYE_DROPPED
     }
 
-    private record Pair<K, V>(K first, V second){}
+    private record Pair<K, V>(K first, V second) {
+    }
 }

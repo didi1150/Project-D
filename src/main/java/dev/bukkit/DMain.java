@@ -8,6 +8,7 @@ import org.bukkit.Bukkit;
 import org.bukkit.WorldCreator;
 import org.bukkit.event.entity.ProjectileHitEvent;
 import org.bukkit.plugin.java.JavaPlugin;
+import org.bukkit.scoreboard.Team;
 
 import dev.bukkit.ability.BukkitBladeDanceEffect;
 import dev.bukkit.ability.BukkitBouncyArrowEffect;
@@ -68,6 +69,7 @@ import dev.bukkit.game.states.PreLobbyState;
 import dev.bukkit.game.states.SelectClassState;
 import dev.bukkit.game.states.SelectItemState;
 import dev.bukkit.game.states.SetupState;
+import dev.bukkit.glow.PlayerGlowService;
 import dev.bukkit.hud.HudConfig;
 import dev.bukkit.hud.HudConfigLoader;
 import dev.bukkit.hud.HudOverlayService;
@@ -91,6 +93,7 @@ import dev.bukkit.utils.BackstabUtils;
 import dev.bukkit.utils.BukkitMessageSender;
 import dev.bukkit.utils.HealAuraUtils;
 import dev.bukkit.utils.ManaDiscountUtils;
+import dev.bukkit.utils.setup.BossSetupHelper;
 import dev.bukkit.utils.setup.BuildAssetHelper;
 import dev.bukkit.utils.setup.GameSetupHelper;
 import dev.bukkit.utils.setup.SetupManager;
@@ -155,7 +158,6 @@ import dev.core.storage.config.ConfigProvider;
 import dev.core.storage.database.ProgressionCacheStrategy;
 import dev.core.storage.database.ProgressionDatabaseStrategy;
 import dev.core.utils.MessageSenderInterface;
-import fr.skytasul.glowingentities.GlowingEntities;
 
 public final class DMain extends JavaPlugin {
     private EventBusInterface eventBusInterface;
@@ -174,7 +176,7 @@ public final class DMain extends JavaPlugin {
     private BuildAssetManager buildAssetManager;
 
     private BukkitDisplayEntityRegistry bukkitDisplayEntityRegistry;
-    private GlowingEntities glowingEntities;
+    private PlayerGlowService playerGlowService;
 
     @Override
     public void onEnable() {
@@ -256,6 +258,7 @@ public final class DMain extends JavaPlugin {
         StatusEffectBehaviorRegistry.register(StatusEffectType.AIRBORNE, new AirborneStatusEffectBehavior());
         StatusEffectBehaviorRegistry.register(StatusEffectType.WITHER, new WitherStatusEffectBehavior());
         StatusEffectBehaviorRegistry.register(StatusEffectType.ABSORPTION, new AbsorptionStatusEffectBehavior());
+        removeLegacyAbsorptionTeam();
 
         // HUD overlay config — create manager early so hud.yml is available before
         // services start
@@ -266,14 +269,13 @@ public final class DMain extends JavaPlugin {
         TriHomingHudFormatter.load(hudCfg);
         StaffHudFormatter.load(hudCfg);
 
-        // GlowingEntities for per-player glow indicators (used by Support Staff)
+        // ProtocolLib-backed per-player glow indicators (used by Support Staff)
         try {
-            glowingEntities = new GlowingEntities(this);
-//            glowingEntities.enable();
-            Bukkit.getConsoleSender().sendMessage("[DMain] GlowingEntities enabled.");
+            playerGlowService = new PlayerGlowService(this);
+            Bukkit.getConsoleSender().sendMessage("[DMain] PlayerGlowService enabled.");
         } catch (Exception e) {
-            Bukkit.getConsoleSender().sendMessage("[DMain] GlowingEntities failed to start: " + e.getMessage());
-            glowingEntities = null;
+            Bukkit.getConsoleSender().sendMessage("[DMain] PlayerGlowService failed to start: " + e.getMessage());
+            playerGlowService = null;
         }
 
         // Item set passives: registered before items.yml loads so the loader can
@@ -426,6 +428,26 @@ public final class DMain extends JavaPlugin {
         return gameStateController;
     }
 
+    /**
+     * Removes the scoreboard team used by older absorption builds. It persisted
+     * in the world scoreboard and could conflict with the staff's client-only
+     * glow teams, causing client-side team removal protocol errors.
+     */
+    private void removeLegacyAbsorptionTeam() {
+        try {
+            if (Bukkit.getScoreboardManager() == null) {
+                return;
+            }
+            Team team = Bukkit.getScoreboardManager().getMainScoreboard().getTeam("rpg_absorption_glow");
+            if (team != null) {
+                team.unregister();
+                getLogger().info("Removed legacy absorption scoreboard team.");
+            }
+        } catch (Exception e) {
+            getLogger().warning("Could not remove legacy absorption scoreboard team: " + e.getMessage());
+        }
+    }
+
     @Override
     public void onDisable() {
         try {
@@ -441,9 +463,9 @@ public final class DMain extends JavaPlugin {
         BukkitStatusEffectManager.getInstance().cancelAll();
         bukkitDisplayEntityRegistry.removeAllDisplays();
         HudOverlayService.getInstance().shutdown();
-        if (glowingEntities != null) {
+        if (playerGlowService != null) {
             try {
-                glowingEntities.disable();
+                playerGlowService.disable();
             } catch (Exception ignored) {
             }
         }
@@ -474,11 +496,11 @@ public final class DMain extends JavaPlugin {
     }
 
     /**
-     * Returns the GlowingEntities instance, or null if the library failed to load.
-     * Used by {@link SupportStaffBehavior} for per-player glow indicators.
+     * Returns the per-player glow service, or null if it failed to initialize.
+     * Used by {@link SupportStaffBehavior} for targeting outlines.
      */
-    public GlowingEntities getGlowingEntities() {
-        return glowingEntities;
+    public PlayerGlowService getPlayerGlowService() {
+        return playerGlowService;
     }
 
     public ClassProgressionService getProgressionService() {

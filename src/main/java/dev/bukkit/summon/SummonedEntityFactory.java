@@ -12,13 +12,12 @@ import org.bukkit.entity.EntityType;
 import org.bukkit.entity.LivingEntity;
 import org.bukkit.entity.Mob;
 import org.bukkit.entity.Player;
-import org.bukkit.metadata.FixedMetadataValue;
 import org.bukkit.potion.PotionEffect;
 import org.bukkit.potion.PotionEffectType;
 
-import dev.bukkit.DMain;
 import dev.bukkit.ability.BukkitEffectManager;
 import dev.bukkit.entity.BukkitEntityFactory;
+import dev.bukkit.entity.BukkitEntityMetadata;
 import dev.bukkit.entity.VanillaEntityMeta;
 import dev.bukkit.entity.VanillaEntityMeta.RelationType;
 import dev.bukkit.event.BukkitEventBus;
@@ -83,8 +82,8 @@ public final class SummonedEntityFactory {
         String displayName = "Summoned " + humanName(entityType);
         VanillaEntityMeta meta = new VanillaEntityMeta(SummonStats.effectiveLevel(supportLevel),
                 RelationType.FRIENDLY, displayName);
-        living.setMetadata("VANILLA_META", new FixedMetadataValue(DMain.getInstance(), meta));
-        living.setMetadata("SUMMON_OWNER", new FixedMetadataValue(DMain.getInstance(), owner.getUniqueId().toString()));
+        BukkitEntityMetadata.set(living, "VANILLA_META", meta);
+        BukkitEntityMetadata.set(living, "SUMMON_OWNER", owner.getUniqueId().toString());
 
         SummonedMobRPGEntity summon = new SummonedMobRPGEntity(owner.getUniqueId(), living, definition, stats,
                 (EffectManagerInterface) BukkitEffectManager.getInstance(), BukkitEventBus.getInstance(), fragment);

@@ -1251,8 +1251,8 @@ items:
       - "<gray>A multi-purpose staff.</gray>"
       - "<gray>Modes: Heal, Shield, Pushback </gray>"
       - ""
-      - "<yellow><bold>[SHIFT] </bold></yellow><gray>Cycle Mode</gray>"
-      - "<yellow><bold>[LEFT]  </bold></yellow><gray>Use Ability</gray>"
+      - "<yellow><bold>[LEFT]  </bold></yellow><gray>Cycle Mode</gray>"
+      - "<yellow><bold>[RIGHT] </bold></yellow><gray>Use Ability</gray>"
     passive-stats: []
     active-stats: 
     - amount: 5.0

@@ -10,6 +10,7 @@ import org.bukkit.inventory.ItemStack;
 import org.bukkit.persistence.PersistentDataType;
 
 import dev.bukkit.entity.BukkitPlayerEntity;
+import dev.bukkit.ability.behavior.SupportStaffBehavior;
 import dev.bukkit.hud.HudCooldownFeedback;
 import dev.bukkit.item.BukkitItemStackAdapter;
 import dev.bukkit.utils.ManaDiscountUtils;
@@ -23,6 +24,7 @@ import dev.core.ability.CostEntry;
 import dev.core.ability.CostMode;
 import dev.core.ability.Effect;
 import dev.core.ability.EffectManagerInterface;
+import dev.core.ability.impl.SupportStaffAbility;
 import dev.core.entity.RPGEntity;
 import dev.core.stat.StatType;
 
@@ -343,7 +345,16 @@ public class BukkitEffectManager implements EffectManagerInterface {
 	}
 
 	private String getCooldownKey(RPGEntity entity, Ability ability) {
-		return itemScopeKey(entity, ability);
+		String key = itemScopeKey(entity, ability);
+		// The Utility Staff has one ability id for three modes; scope the
+		// cooldown to the mode selected at cast/check time so each mode cools
+		// down independently.
+		if (SupportStaffAbility.USE_ID.equals(ability.getId())) {
+			SupportStaffBehavior behavior = SupportStaffBehavior.forHolder(entity.getUuid());
+			int mode = behavior == null ? 1 : behavior.getCurrentMode();
+			return key + ":mode" + mode;
+		}
+		return key;
 	}
 
 	/**

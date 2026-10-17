@@ -2,7 +2,7 @@ package dev.bukkit.game.states;
 
 import org.bukkit.Bukkit;
 import org.bukkit.GameMode;
-import org.bukkit.GameRule;
+import org.bukkit.GameRules;
 import org.bukkit.Location;
 import org.bukkit.attribute.Attribute;
 import org.bukkit.entity.Player;
@@ -13,7 +13,9 @@ import org.bukkit.event.player.PlayerJoinEvent;
 import org.bukkit.event.player.PlayerQuitEvent;
 
 import dev.bukkit.game.coords.PointToLocation;
+import dev.bukkit.utils.BukkitText;
 import dev.core.event.EventAction;
+import dev.core.utils.AdventureText;
 import dev.core.event.EventBusInterface;
 import dev.core.game.GameState;
 import dev.core.game.GameStateResult;
@@ -54,10 +56,10 @@ public class PreLobbyState extends GameState {
 
         switch (currentMode) {
         case WAITING:
-            Bukkit.broadcastMessage("§aEnough players found!");
+            BukkitText.broadcast("§aEnough players found!");
             break;
         case COUNTDOWN:
-            Bukkit.broadcastMessage("§aStarting game...");
+            BukkitText.broadcast("§aStarting game...");
             break;
         }
     }
@@ -102,7 +104,7 @@ public class PreLobbyState extends GameState {
     private void handleJoin(PlayerJoinEvent event) {
         int playerCount = Bukkit.getOnlinePlayers().size();
         if (playerCount > minPlayers) {
-            scheduler.runTaskLater(() -> event.getPlayer().kickPlayer("Server is full"), 1);
+            scheduler.runTaskLater(() -> event.getPlayer().kick(AdventureText.legacy("Server is full")), 1);
             return;
         }
         scheduler.runTaskLater(() -> {
@@ -114,7 +116,7 @@ public class PreLobbyState extends GameState {
                     .forEach(potionEffect -> event.getPlayer().removePotionEffect(potionEffect.getType()));
             event.getPlayer().getInventory().clear();
             spawnLocation.getWorld().setTime(1000);
-            spawnLocation.getWorld().setGameRule(GameRule.DO_DAYLIGHT_CYCLE, false);
+            spawnLocation.getWorld().setGameRule(GameRules.ADVANCE_TIME, false);
             spawnLocation.getWorld().setStorm(false);
         }, 1);
         switch (currentMode) {
@@ -151,7 +153,7 @@ public class PreLobbyState extends GameState {
                 return;
             }
 
-            Bukkit.broadcastMessage("§eWaiting for players... (" + getCurrentPlayerCount() + "/" + minPlayers + ")");
+            BukkitText.broadcast("§eWaiting for players... (" + getCurrentPlayerCount() + "/" + minPlayers + ")");
             updateWaitingModeXP();
         }, 20 * 15L, 20 * 15L); // Every 15 seconds
     }
@@ -169,7 +171,7 @@ public class PreLobbyState extends GameState {
         cancelWaitingTask();
         countdown = maxCountdown;
 
-        Bukkit.broadcastMessage("§aStarting countdown...");
+        BukkitText.broadcast("§aStarting countdown...");
 
         countdownTask = scheduler.runTaskTimer(() -> {
             if (!isActive() || currentMode != Mode.COUNTDOWN) {
@@ -180,7 +182,7 @@ public class PreLobbyState extends GameState {
                 // Update XP for all players
                 updateCountdownModeXP();
 
-                Bukkit.broadcastMessage("§eStarting in: " + countdown + (countdown == 1 ? " second" : " seconds") + "...");
+                BukkitText.broadcast("§eStarting in: " + countdown + (countdown == 1 ? " second" : " seconds") + "...");
                 countdown--;
             } else {
                 complete(GameStateResult.COMPLETE);

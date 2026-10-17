@@ -28,6 +28,7 @@ import org.bukkit.scheduler.BukkitTask;
 import org.bukkit.util.Vector;
 
 import dev.bukkit.DMain;
+import dev.bukkit.entity.BukkitEntityMetadata;
 import dev.bukkit.hud.HudOverlayService;
 import dev.bukkit.hud.TriHomingHudFormatter;
 import dev.bukkit.item.BowArrowManager;
@@ -417,7 +418,7 @@ public class TriVolleyBehavior implements AbilityBehavior {
                 continue;
             if (EntityManager.getInstance().isGhost(le.getUniqueId()))
                 continue;
-            if (le.hasMetadata("BONEMERANG") || le.hasMetadata("SPIRIT_BAT"))
+            if (BukkitEntityMetadata.has(le, "BONEMERANG") || BukkitEntityMetadata.has(le, "SPIRIT_BAT"))
                 continue;
             if (shooterRpg != null && !CombatRelation.isEnemy(shooterRpg, e))
                 continue;

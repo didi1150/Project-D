@@ -24,6 +24,7 @@ import org.bukkit.util.Vector;
 import org.joml.Vector3f;
 
 import dev.bukkit.entity.boss.BukkitDisplayEntityRegistry;
+import dev.core.utils.AdventureText;
 
 import org.joml.AxisAngle4f;
 
@@ -38,6 +39,11 @@ import org.joml.AxisAngle4f;
  * fragments (duration 0) stay until explicit {@code hide} — used for "while
  * hunter bow held". Transient fragments expire automatically. Privacy is MVP
  * via {@code Player#hideEntity} for all non-owners.
+ *
+ * <p>
+ * Fragments reserve one vertical slot per rendered line. A long feedback line
+ * that wraps to two lines therefore pushes the following fragments up instead
+ * of overlapping them.
  */
 public final class HudOverlayService {
 
@@ -72,10 +78,7 @@ public final class HudOverlayService {
         int priority;
         boolean persistent;
         long fadeOutMs; // trailing fade window; 0 = disappear instantly
-
-        OverlayFragment(String key, String text, long expiresAt, int priority, boolean persistent) {
-            this(key, text, expiresAt, priority, persistent, 0L);
-        }
+        int lineCount = 1;
 
         OverlayFragment(String key, String text, long expiresAt, int priority, boolean persistent, long fadeOutMs) {
             this.key = key;
@@ -92,6 +95,7 @@ public final class HudOverlayService {
         final TextDisplay entity;
         int appliedTeleportDuration = Integer.MIN_VALUE;
         int appliedOpacity = Integer.MIN_VALUE;
+        int appliedLineWidth = Integer.MIN_VALUE;
 
         DisplayEntry(TextDisplay entity) {
             this.entity = entity;
@@ -117,6 +121,13 @@ public final class HudOverlayService {
     public void reload(HudConfig cfg) {
         if (cfg != null)
             config = cfg;
+        // Line counts depend on the configured line width, so recompute them
+        // before repositioning live displays.
+        for (Map<String, OverlayFragment> map : fragmentsByPlayer.values()) {
+            for (OverlayFragment fragment : map.values()) {
+                fragment.lineCount = HudTextLayout.lineCount(fragment.text, config.lineWidth());
+            }
+        }
         // reposition live displays with new geometry on next tick; force immediate for
         // snappy reload
         for (UUID uuid : new HashSet<>(fragmentsByPlayer.keySet())) {
@@ -186,13 +197,18 @@ public final class HudOverlayService {
                 k -> new HashMap<>());
         OverlayFragment existing = map.get(key);
         if (existing != null) {
-            existing.text = legacyText;
+            if (!legacyText.equals(existing.text)) {
+                existing.text = legacyText;
+                existing.lineCount = HudTextLayout.lineCount(legacyText, config.lineWidth());
+            }
             existing.expiresAt = expiresAt;
             existing.priority = priority;
             existing.persistent = persistent;
             existing.fadeOutMs = fade;
         } else {
-            map.put(key, new OverlayFragment(key, legacyText, expiresAt, priority, persistent, fade));
+            OverlayFragment fragment = new OverlayFragment(key, legacyText, expiresAt, priority, persistent, fade);
+            fragment.lineCount = HudTextLayout.lineCount(legacyText, config.lineWidth());
+            map.put(key, fragment);
         }
         // ensure display exists/updated on next tick; do immediate reposition for
         // snappy feedback
@@ -389,10 +405,13 @@ public final class HudOverlayService {
             return false;
         });
 
+        int lineOffset = 0;
         for (int i = 0; i < sorted.size(); i++) {
             OverlayFragment frag = sorted.get(i);
+            int slot = lineOffset;
+            lineOffset += Math.max(1, frag.lineCount);
             DisplayEntry entry = dispMap.get(frag.key);
-            Location loc = base.clone().add(0, i * config.spacing(), 0);
+            Location loc = base.clone().add(0, slot * config.spacing(), 0);
             if (entry == null || !entry.entity.isValid() || entry.entity.getWorld() != world) {
                 // remove invalid if present
                 if (entry != null && entry.entity.isValid() && entry.entity.getWorld() != world) {
@@ -402,14 +421,23 @@ public final class HudOverlayService {
                 entry = new DisplayEntry(display);
                 entry.appliedTeleportDuration = config.teleportDuration();
                 entry.appliedOpacity = HudTracking.OPAQUE;
+                entry.appliedLineWidth = config.lineWidth();
                 dispMap.put(frag.key, entry);
                 // MVP privacy: hide from all others
                 hideFromOthers(player, display);
                 continue;
             }
+            if (entry.appliedLineWidth != config.lineWidth()) {
+                try {
+                    entry.entity.setLineWidth(config.lineWidth());
+                } catch (Exception ignored) {
+                }
+                entry.appliedLineWidth = config.lineWidth();
+            }
             // update text if changed
-            if (!frag.text.equals(entry.entity.getText())) {
-                entry.entity.setText(frag.text);
+            var updatedText = AdventureText.legacy(frag.text);
+            if (!updatedText.equals(entry.entity.text())) {
+                entry.entity.text(updatedText);
             }
             applyFade(entry, frag, now);
             moveDisplay(entry, loc, config.teleportDuration(), tracking.minStep(), tracking.snapDistance());
@@ -526,7 +554,7 @@ public final class HudOverlayService {
         if (world == null)
             world = owner.getWorld();
         return BukkitDisplayEntityRegistry.getInstance().spawnDisplayEntity(loc, TextDisplay.class, d -> {
-            d.setText(text);
+            d.text(AdventureText.legacy(text));
             d.setBillboard(Display.Billboard.CENTER);
             d.setSeeThrough(config.seeThrough());
             d.setShadowed(config.shadowed());

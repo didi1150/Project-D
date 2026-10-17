@@ -127,7 +127,7 @@ public class BukkitInventorySync {
                 // on every bonemerang cast).
                 ItemStack refreshed = BukkitItemStackAdapter.toItemStack(item, rpgEntity);
                 refreshed.setAmount(stack.getAmount());
-                refreshed.setType(stack.getType());
+                refreshed = refreshed.withType(stack.getType());
                 ItemMeta refreshedMeta = refreshed.getItemMeta();
                 oldMeta.getPersistentDataContainer().copyTo(
                         refreshedMeta.getPersistentDataContainer(), true);

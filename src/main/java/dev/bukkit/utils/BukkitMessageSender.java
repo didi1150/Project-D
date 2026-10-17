@@ -1,7 +1,6 @@
 package dev.bukkit.utils;
 
 import org.bukkit.Bukkit;
-import org.bukkit.ChatColor;
 import org.bukkit.command.CommandSender;
 import org.bukkit.command.ConsoleCommandSender;
 import org.bukkit.entity.Player;
@@ -11,6 +10,7 @@ import dev.core.item.display.StyleTagParser;
 import dev.core.item.display.TextColor;
 import dev.core.utils.ColorCodes;
 import dev.core.utils.DefaultFontInfo;
+import dev.core.utils.LegacyColors;
 import dev.core.utils.MessageComponent;
 import dev.core.utils.MessageLevel;
 import dev.core.utils.MessageSenderInterface;
@@ -104,7 +104,7 @@ public class BukkitMessageSender implements MessageSenderInterface {
             parsedString.append(BukkitTextColorAdapter.toChatFormatting(seg.style())).append(seg.text());
         }
         String parsedColors = parsedString.toString().trim();
-        parsedColors = parsedColors.replace(ChatColor.BOLD.toString(), "");
+        parsedColors = parsedColors.replace(LegacyColors.BOLD, "");
         MessageComponent component = MessageComponent.of(parsedColors + line);
         send(sender, component, TextColor.WHITE, "", false, false);
     }

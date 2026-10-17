@@ -15,11 +15,11 @@ import dev.core.game.TaskScheduler;
 import dev.core.game.settings.GameSettings;
 import dev.core.game.voting.VotingSystem;
 import dev.core.utils.MessageComponent;
-import net.md_5.bungee.api.ChatColor;
-import net.md_5.bungee.api.chat.ClickEvent;
-import net.md_5.bungee.api.chat.ComponentBuilder;
-import net.md_5.bungee.api.chat.HoverEvent;
-import net.md_5.bungee.api.chat.TextComponent;
+import net.kyori.adventure.text.Component;
+import net.kyori.adventure.text.event.ClickEvent;
+import net.kyori.adventure.text.event.HoverEvent;
+import net.kyori.adventure.text.format.NamedTextColor;
+import net.kyori.adventure.text.format.TextDecoration;
 
 public class DungeonVoting {
 
@@ -128,36 +128,34 @@ public class DungeonVoting {
             int currentVote = votingSystem.getVote(player.getUniqueId()).orElse(1);
 
             // Build a clickable row
-            TextComponent row = new TextComponent();
+            Component row = Component.empty();
 
             for (int floor = 1; floor <= 5; floor++) {
                 boolean isSelected = currentVote == floor;
+                String suffix = isSelected ? " \u2713" : "";
+                int selectedFloor = floor;
 
-                String displayText = isSelected
-                        ? ChatColor.GREEN.toString() + ChatColor.BOLD + "[" + floor + "] Floor " + floor + " ✓"
-                        : ChatColor.GRAY + "[" + floor + "] Floor " + floor;
+                Component hover = Component.text("Click to vote for Floor " + floor + "\n", NamedTextColor.YELLOW)
+                        .append(Component.text(isSelected ? "Currently selected" : "Click to select",
+                                isSelected ? NamedTextColor.GREEN : NamedTextColor.YELLOW));
 
-                TextComponent option = new TextComponent(displayText);
+                Component option = Component.text("[" + floor + "] Floor " + floor + suffix,
+                        isSelected ? NamedTextColor.GREEN : NamedTextColor.GRAY)
+                        .decoration(TextDecoration.BOLD, isSelected)
+                        // Click executes /vote <floor>
+                        .clickEvent(ClickEvent.runCommand("/vote " + selectedFloor))
+                        .hoverEvent(HoverEvent.showText(hover));
 
-                // Click executes /vote <floor>
-                option.setClickEvent(new ClickEvent(ClickEvent.Action.RUN_COMMAND, "/vote " + floor));
-
-                // Hover text
-                String hoverText = ChatColor.YELLOW + "Click to vote for Floor " + floor + "\n"
-                        + (isSelected ? ChatColor.GREEN + "Currently selected" : ChatColor.YELLOW + "Click to select");
-                option.setHoverEvent(
-                        new HoverEvent(HoverEvent.Action.SHOW_TEXT, new ComponentBuilder(hoverText).create()));
-
-                row.addExtra(option);
+                row = row.append(option);
 
                 // Add spacing between options
                 if (floor < 5) {
-                    row.addExtra(new TextComponent("  "));
+                    row = row.append(Component.text("  "));
                 }
             }
 
             // Send interactive row
-            player.spigot().sendMessage(row);
+            player.sendMessage(row);
 
             BukkitMessageSender.getInstance().sendMessage(player,
                     MessageComponent.of("<gray><bold>(Click an option above to vote)</bold></gray>"));

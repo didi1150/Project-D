@@ -5,28 +5,24 @@ import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 
 import org.bukkit.Bukkit;
-import org.bukkit.ChatColor;
-import org.bukkit.FluidCollisionMode;
 import org.bukkit.Location;
 import org.bukkit.Particle;
 import org.bukkit.World;
 import org.bukkit.entity.Entity;
-import org.bukkit.entity.LivingEntity;
 import org.bukkit.entity.Player;
-import org.bukkit.util.RayTraceResult;
-import org.bukkit.util.Vector;
+
+import net.kyori.adventure.text.format.NamedTextColor;
 
 import dev.bukkit.DMain;
+import dev.bukkit.glow.PlayerGlowService;
 import dev.bukkit.hud.HudOverlayService;
 import dev.bukkit.hud.StaffHudFormatter;
 import dev.bukkit.item.BukkitItemStackAdapter;
-import dev.bukkit.utils.CombatRelation;
+import dev.bukkit.utils.StaffTargeting;
 import dev.core.ability.AbilityBehavior;
 import dev.core.ability.ActiveAbility;
-import dev.core.entity.EntityManager;
 import dev.core.event.EventAction;
 import dev.core.event.impl.TickEvent;
-import fr.skytasul.glowingentities.GlowingEntities;
 
 /**
  * Per-holder behavior for the Utility Staff. Owns every piece of the staff
@@ -51,12 +47,6 @@ public class SupportStaffBehavior implements AbilityBehavior {
     /** Item id the staff behavior binds to (see items.yml). */
     public static final String ITEM_ID = "UTILITY_STAFF";
 
-    // ---- Targeting parameters -------------------------------------------------
-    /** Maximum raycast range (blocks) for ally targeting. */
-    private static final double TARGETING_RANGE = 15.0;
-    /** Ray trace size (blocks) for entity hit detection. */
-    private static final double RAY_SIZE = 0.5;
-
     // ---- Mode 3 pushback ring -------------------------------------------------
     /** Radius of the pushback indicator ring (blocks). */
     private static final double PUSH_RADIUS = 8.0;
@@ -75,7 +65,7 @@ public class SupportStaffBehavior implements AbilityBehavior {
         UUID uuid = ctx.getHolder().getUuid();
         HOLDER_CACHE.put(uuid, this);
         HOLDER_REFCNT.merge(uuid, 1, Integer::sum);
-        STATES.computeIfAbsent(uuid, k -> new PlayerState());
+        STATES.computeIfAbsent(uuid, _ -> new PlayerState());
     }
 
     public static SupportStaffBehavior forHolder(UUID uuid) {
@@ -97,7 +87,7 @@ public class SupportStaffBehavior implements AbilityBehavior {
             state.currentMode = state.currentMode >= 3 ? 1 : state.currentMode + 1;
             // Clear any active glow indicator when switching modes so the
             // colour is refreshed immediately on the next tick.
-            state.clearGlowingTarget();
+            state.clearGlowingTarget(Bukkit.getPlayer(ctx.getHolder().getUuid()));
         }
     }
 
@@ -108,7 +98,7 @@ public class SupportStaffBehavior implements AbilityBehavior {
         this.ctx = ctx;
         UUID uuid = ctx.getHolder().getUuid();
         HOLDER_CACHE.put(uuid, this);
-        STATES.computeIfAbsent(uuid, k -> new PlayerState());
+        STATES.computeIfAbsent(uuid, _ -> new PlayerState());
         boolean isFirst = HOLDER_REFCNT.getOrDefault(uuid, 0) == 1;
         if (isFirst) {
             ctx.getSubscriptions().subscribe(new EventAction<>(this::onTick, TickEvent.class));
@@ -131,7 +121,7 @@ public class SupportStaffBehavior implements AbilityBehavior {
         PlayerState state = STATES.remove(uuid);
         if (state != null) {
             if (player != null) {
-                state.clearGlowingTarget();
+                state.clearGlowingTarget(player);
                 hideHudKeys(player);
             }
         }
@@ -146,20 +136,20 @@ public class SupportStaffBehavior implements AbilityBehavior {
         if (state == null) {
             if (!HOLDER_REFCNT.containsKey(uuid))
                 return;
-            state = STATES.computeIfAbsent(uuid, k -> new PlayerState());
+            state = STATES.computeIfAbsent(uuid, _ -> new PlayerState());
         }
 
         Player player = Bukkit.getPlayer(uuid);
         if (player == null || player.isDead() || !player.isOnline()) {
             if (state.hasActiveGlow()) {
-                state.clearGlowingTarget();
+                state.clearGlowingTarget(null);
             }
             return;
         }
 
         if (!holdsStaff(player)) {
             if (state.hasActiveGlow()) {
-                state.clearGlowingTarget();
+                state.clearGlowingTarget(player);
             }
             hideHudKeys(player);
             return;
@@ -168,13 +158,6 @@ public class SupportStaffBehavior implements AbilityBehavior {
         // Persistent HUD line showing current mode
         HudOverlayService hud = HudOverlayService.getInstance();
         hud.show(player, "staff:mode", StaffHudFormatter.formatMode(state.currentMode), 0, 10);
-
-        // [DEBUG] Log tick info every 2 seconds
-        if (System.currentTimeMillis() % 2000 < 50) {
-            GlowingEntities glow = DMain.getInstance().getGlowingEntities();
-            System.out.println("[StaffDebug] tick mode=" + state.currentMode + " holdStaff=true glowLib="
-                    + (glow != null) + " onlinePlayers=" + Bukkit.getOnlinePlayers().size());
-        }
 
         // Mode-specific visual indicators
         switch (state.currentMode) {
@@ -186,30 +169,25 @@ public class SupportStaffBehavior implements AbilityBehavior {
     // ---- Mode 1/2 targeting indicator -----------------------------------------
 
     private void tickTargetingIndicator(Player player, PlayerState state) {
-        Entity target = raycastAlly(player);
+        Entity target = StaffTargeting.raycastAlly(player);
         Entity currentGlowTarget = state.lastGlowingTarget;
 
-        if (target != null && !target.equals(currentGlowTarget)) {
-            // Target changed: clear old, set new
-            state.clearGlowingTarget();
-            try {
-                GlowingEntities glow = DMain.getInstance().getGlowingEntities();
-                if (glow != null) {
-                    ChatColor color = state.currentMode == 1 ? ChatColor.GREEN : ChatColor.YELLOW;
-                    glow.setGlowing(target, player, color);
-                    state.lastGlowingTarget = target;
-//                    System.out.println("[StaffDebug] GLOW SET on " + target.getName() + " color=" + color.name()
-//                            + " mode=" + state.currentMode);
-                } else {
-//                    System.out.println("[StaffDebug] GLOW FAILED: GlowingEntities is null");
-                }
-            } catch (Exception ex) {
-//                System.out.println("[StaffDebug] GLOW EXCEPTION: " + ex.getMessage());
+        if (target != null) {
+            if (!target.equals(currentGlowTarget)) {
+                // Target changed: clear the old outline first.
+                state.clearGlowingTarget(player);
+                state.lastGlowingTarget = target;
             }
-        } else if (target == null && currentGlowTarget != null) {
+            // Re-assert every tick so the service can follow an entity that
+            // changed world / entity id. Same-color calls are no-ops.
+            PlayerGlowService glow = DMain.getInstance().getPlayerGlowService();
+            if (glow != null) {
+                NamedTextColor color = state.currentMode == 1 ? NamedTextColor.GREEN : NamedTextColor.YELLOW;
+                glow.setGlowing(target, player, color);
+            }
+        } else if (currentGlowTarget != null) {
             // No target anymore: clear glow
-//            System.out.println("[StaffDebug] GLOW CLEARED: target lost");
-            state.clearGlowingTarget();
+            state.clearGlowingTarget(player);
         }
     }
 
@@ -218,7 +196,7 @@ public class SupportStaffBehavior implements AbilityBehavior {
     private void tickPushbackIndicator(Player player, PlayerState state) {
         // Clear any lingering glow from modes 1/2
         if (state.hasActiveGlow()) {
-            state.clearGlowingTarget();
+            state.clearGlowingTarget(player);
         }
 
         World world = player.getWorld();
@@ -234,73 +212,6 @@ public class SupportStaffBehavior implements AbilityBehavior {
             ringPoint.setZ(z);
             world.spawnParticle(Particle.DUST, ringPoint, 1, 0, 0, 0, 0, dust);
         }
-    }
-
-    // ---- Raycast helpers ------------------------------------------------------
-
-    /**
-     * Raycasts from the player's eye in the look direction to find the nearest
-     * allied living entity. Returns the Bukkit Entity or null.
-     */
-    private Entity raycastAlly(Player player) {
-        Location eye = player.getEyeLocation();
-        Vector dir = eye.getDirection().normalize();
-        World world = player.getWorld();
-
-        // [DEBUG] Count nearby entities
-//        int nearbyCount = 0;
-//        for (Entity e : world.getNearbyEntities(eye, TARGETING_RANGE, TARGETING_RANGE, TARGETING_RANGE)) {
-//            if (e instanceof LivingEntity && !e.getUniqueId().equals(player.getUniqueId())) {
-//                nearbyCount++;
-//            }
-//        }
-
-        RayTraceResult result = world.rayTrace(eye.clone().add(dir), dir, TARGETING_RANGE, FluidCollisionMode.NEVER,
-                true, RAY_SIZE, this::isAlliedTarget);
-        if (result == null || result.getHitEntity() == null) {
-//            if (System.currentTimeMillis() % 2000 < 50) {
-//                System.out.println("[StaffDebug] raycast miss: nearbyLiving=" + nearbyCount + " eye="
-//                        + String.format("%.1f,%.1f,%.1f", eye.getX(), eye.getY(), eye.getZ()) + " dir="
-//                        + String.format("%.3f,%.3f,%.3f", dir.getX(), dir.getY(), dir.getZ()));
-//            }
-            return null;
-        }
-
-        Entity hit = result.getHitEntity();
-        if (!(hit instanceof LivingEntity living)) {
-//            System.out.println("[StaffDebug] raycast hit non-living: " + hit.getType());
-            return null;
-        }
-        if (living.isDead() || !living.isValid()) {
-//            System.out.println("[StaffDebug] raycast hit dead/invalid: " + hit.getName());
-            return null;
-        }
-        if (EntityManager.getInstance().isGhost(living.getUniqueId())) {
-//            System.out.println("[StaffDebug] raycast hit ghost: " + hit.getName());
-            return null;
-        }
-
-//        System.out.println("[StaffDebug] raycast HIT: " + hit.getName() + " dist="
-//                + String.format("%.1f", eye.distance(hit.getLocation())));
-        return hit;
-    }
-
-    /**
-     * Entity filter for the ray trace: accepts living entities on the player team.
-     */
-    private boolean isAlliedTarget(Entity entity) {
-        if (!(entity instanceof LivingEntity living))
-            return false;
-        if (living.isDead() || !living.isValid())
-            return false;
-        if (EntityManager.getInstance().isGhost(living.getUniqueId()))
-            return false;
-        boolean allied = CombatRelation.isPlayerTeam(entity);
-//        if (System.currentTimeMillis() % 5000 < 50) {
-//            System.out.println("[StaffDebug] isAlliedTarget: " + entity.getName() + " type=" + entity.getType()
-//                    + " alive=" + living.isValid() + " playerTeam=" + allied);
-//        }
-        return allied;
     }
 
     // ---- HUD helpers ----------------------------------------------------------
@@ -325,13 +236,12 @@ public class SupportStaffBehavior implements AbilityBehavior {
             return lastGlowingTarget != null && lastGlowingTarget.isValid();
         }
 
-        void clearGlowingTarget() {
+        void clearGlowingTarget(Player player) {
             if (lastGlowingTarget == null)
                 return;
             try {
-                Player player = findPlayer();
-                if (player != null) {
-                    GlowingEntities glow = DMain.getInstance().getGlowingEntities();
+                if (player != null && player.isOnline()) {
+                    PlayerGlowService glow = DMain.getInstance().getPlayerGlowService();
                     if (glow != null) {
                         glow.unsetGlowing(lastGlowingTarget, player);
                     }
@@ -339,20 +249,6 @@ public class SupportStaffBehavior implements AbilityBehavior {
             } catch (Exception ignored) {
             }
             lastGlowingTarget = null;
-        }
-
-        private Player findPlayer() {
-            if (lastGlowingTarget == null)
-                return null;
-            // The glow was set per-player; we need the owning player.
-            // Walk all online players to find who has this behavior.
-            for (Player p : Bukkit.getOnlinePlayers()) {
-                SupportStaffBehavior behavior = HOLDER_CACHE.get(p.getUniqueId());
-                if (behavior != null) {
-                    return p;
-                }
-            }
-            return null;
         }
     }
 }

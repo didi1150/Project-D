@@ -12,15 +12,22 @@ import dev.core.ability.Effect;
 import dev.core.entity.RPGEntity;
 
 /**
- * SHIFT-click effect for the Utility Staff. Cycles the staff's current mode:
- * Mending Touch (1) → Aegis Ward (2) → Tempest Gust (3) → Mending Touch (1).
- * No cooldown, no cost. The mode change is reflected immediately in the HUD
- * overlay and the targeting indicators managed by {@link SupportStaffBehavior}.
+ * LEFT-click effect for the Utility Staff. Cycles the staff's current mode:
+ * Mending Touch (1) -> Aegis Ward (2)-> Tempest Gust (3)-> Mending Touch (1).
+ * No cooldown, no cost. The mode change is reflected immediately in the
+ * persistent HUD overlay and the targeting indicators managed by
+ * {@link SupportStaffBehavior}.
  */
 public class BukkitSupportStaffToggleEffect extends Effect {
 
 	public BukkitSupportStaffToggleEffect(String cooldownKey) {
 		super(null, -1, false, cooldownKey);
+	}
+
+	/** The toggle is instantaneous; do not keep it in the active-effect list. */
+	@Override
+	public boolean hasExpired(long now) {
+		return true;
 	}
 
 	@Override

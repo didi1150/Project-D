@@ -39,6 +39,8 @@ import dev.core.item.RPGItem;
 import dev.core.item.loader.RPGItemRegistry;
 import dev.core.progression.PlayerClassProgression;
 import dev.core.progression.PlayerProgression;
+import dev.bukkit.utils.BukkitText;
+import dev.core.utils.AdventureText;
 
 public class SelectItemState extends GameState {
 
@@ -49,14 +51,9 @@ public class SelectItemState extends GameState {
     private static final String SHOP_TITLE = "Select an Item";
     private static final int DEFAULT_ITEM_LIMIT = 5;
     private static final int SHOP_COLUMNS = 9;
-    private static final Material[] LEVEL_LABEL_COLORS = {
-            Material.GRAY_STAINED_GLASS_PANE,
-            Material.GREEN_STAINED_GLASS_PANE,
-            Material.BLUE_STAINED_GLASS_PANE,
-            Material.PURPLE_STAINED_GLASS_PANE,
-            Material.ORANGE_STAINED_GLASS_PANE,
-            Material.RED_STAINED_GLASS_PANE,
-    };
+    private static final Material[] LEVEL_LABEL_COLORS = { Material.GRAY_STAINED_GLASS_PANE,
+            Material.GREEN_STAINED_GLASS_PANE, Material.BLUE_STAINED_GLASS_PANE, Material.PURPLE_STAINED_GLASS_PANE,
+            Material.ORANGE_STAINED_GLASS_PANE, Material.RED_STAINED_GLASS_PANE, };
 
     /**
      * Per-player running selection: item id -> how many of that template have been
@@ -75,7 +72,7 @@ public class SelectItemState extends GameState {
         scheduler.runTaskLater(() -> Bukkit.getOnlinePlayers().forEach(this::openShop), 5L);
 
         // Tell players they can reopen the shop with /d open during this state.
-        Bukkit.broadcastMessage("§eThe item draft is open! Use §6/d open§e to open the shop.");
+        BukkitText.broadcast("§eThe item draft is open! Use §6/d open§e to open the shop.");
     }
 
     /**
@@ -89,17 +86,17 @@ public class SelectItemState extends GameState {
      * taken templates glow in the menu (the inventory copy does not).
      */
     public void openShop(Player player) {
-        Inventory shop = Bukkit.createInventory(null, 54, SHOP_TITLE);
+        Inventory shop = Bukkit.createInventory(null, 54, AdventureText.legacy(SHOP_TITLE));
         RPGClassType playerClass = activeClassOf(player);
         int playerLevel = levelOf(player);
-        Map<String, Integer> owned = selections.computeIfAbsent(player.getUniqueId(), k -> new HashMap<>());
+        Map<String, Integer> owned = selections.computeIfAbsent(player.getUniqueId(), _ -> new HashMap<>());
 
         Map<Integer, List<RPGItem>> byLevel = new TreeMap<>();
         for (RPGItem item : RPGItemRegistry.getInstance().allItems().values()) {
             if (!item.isAllowedForClass(playerClass)) {
                 continue;
             }
-            byLevel.computeIfAbsent(Math.max(0, item.getUnlockLevel()), k -> new ArrayList<>()).add(item);
+            byLevel.computeIfAbsent(Math.max(0, item.getUnlockLevel()), _ -> new ArrayList<>()).add(item);
         }
 
         int slot = 0;
@@ -133,21 +130,25 @@ public class SelectItemState extends GameState {
         // clicks on them are inert.
         ItemStack filler = new ItemStack(Material.BLACK_STAINED_GLASS_PANE);
         ItemMeta fillerMeta = filler.getItemMeta();
-        fillerMeta.setDisplayName(" ");
+        fillerMeta.displayName(AdventureText.withoutItalic(AdventureText.legacy(" ")));
         filler.setItemMeta(fillerMeta);
         while (slot < 54) {
             shop.setItem(slot++, filler.clone());
         }
         player.openInventory(shop);
-        player.sendMessage("§eYou can select up to §6" + itemLimitOf(player) + "§e items. §7Armor pieces are free — one per slot.");
+        player.sendMessage("§eYou can select up to §6" + itemLimitOf(player)
+                + "§e items. §7Armor pieces are free — one per slot.");
     }
 
-    /** Row header for an unlock-level group: colored by position, names the level. */
+    /**
+     * Row header for an unlock-level group: colored by position, names the level.
+     */
     private static ItemStack unlockLevelLabel(int level, int levelIndex) {
         Material material = LEVEL_LABEL_COLORS[levelIndex % LEVEL_LABEL_COLORS.length];
         ItemStack label = new ItemStack(material);
         ItemMeta meta = label.getItemMeta();
-        meta.setDisplayName(level <= 0 ? "§7No level required" : "§bRequires Level " + level);
+        meta.displayName(AdventureText.withoutItalic(
+                AdventureText.legacy(level <= 0 ? "§7No level required" : "§bRequires Level " + level)));
         label.setItemMeta(meta);
         return label;
     }
@@ -160,7 +161,10 @@ public class SelectItemState extends GameState {
         return RPGClassType.NONE;
     }
 
-    /** The player's RPG entity, or {@code null} when not registered (no discount applies then). */
+    /**
+     * The player's RPG entity, or {@code null} when not registered (no discount
+     * applies then).
+     */
     private RPGEntity rpgEntityOf(Player player) {
         return EntityManager.getInstance().getEntity(player.getUniqueId()).orElse(null);
     }
@@ -176,8 +180,8 @@ public class SelectItemState extends GameState {
     }
 
     /**
-     * The player's active class level, used to gate item unlocks in the shop.
-     * Falls back to 0 when no progression is available.
+     * The player's active class level, used to gate item unlocks in the shop. Falls
+     * back to 0 when no progression is available.
      */
     private int levelOf(Player player) {
         PlayerClassProgression progression = activeClassProgressionOf(player);
@@ -302,7 +306,7 @@ public class SelectItemState extends GameState {
         if (!(event.getWhoClicked() instanceof Player player)) {
             return;
         }
-        if (!event.getView().getTitle().equals(SHOP_TITLE)) {
+        if (!SHOP_TITLE.equals(AdventureText.plainOrEmpty(event.getView().title()))) {
             return; // not the item shop
         }
         if (event.getClickedInventory() != event.getInventory()) {
@@ -350,7 +354,7 @@ public class SelectItemState extends GameState {
             }
             // Take one: put a plain copy into the inventory, track it for the menu.
             player.getInventory().addItem(BukkitItemStackAdapter.toItemStack(item, rpgEntityOf(player)));
-            Map<String, Integer> owned = selections.computeIfAbsent(player.getUniqueId(), k -> new HashMap<>());
+            Map<String, Integer> owned = selections.computeIfAbsent(player.getUniqueId(), _ -> new HashMap<>());
             int count = owned.merge(item.getId(), 1, Integer::sum);
 
             // Reflect the new count in the menu and glow the template (menu only).
@@ -419,14 +423,14 @@ public class SelectItemState extends GameState {
         }
         // Reflect the new count in the open shop menu (menu only).
         Inventory shop = event.getInventory();
-        if (shop != null && SHOP_TITLE.equals(event.getView().getTitle())) {
+        if (shop != null && SHOP_TITLE.equals(AdventureText.plainOrEmpty(event.getView().title()))) {
             updateShopTemplate(shop, itemId, Math.max(0, remaining), player);
         }
     }
 
     /**
-     * Re-renders the menu template for itemId to reflect its selected count. If
-     * the item is still level-locked for this player, its barrier form is kept.
+     * Re-renders the menu template for itemId to reflect its selected count. If the
+     * item is still level-locked for this player, its barrier form is kept.
      */
     private void updateShopTemplate(Inventory shop, String itemId, int remaining, Player player) {
         for (int i = 0; i < shop.getSize(); i++) {

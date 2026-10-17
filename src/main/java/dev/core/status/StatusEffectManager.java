@@ -16,12 +16,14 @@ import dev.core.entity.RPGEntity;
  * <p>
  * CC rules:
  * <ul>
- * <li>Re-applying the same type refreshes its duration; identical effects never
- * stack with themselves.</li>
+ * <li>Re-applying the same type with {@link #apply} refreshes its duration;
+ * identical effects never stack with themselves.</li>
  * <li>Hard CC ({@link CcCategory#HARD}) clears all soft CC on apply; only one
  * hard CC may be active at a time (a different hard CC is rejected).</li>
  * <li>CC immunity ({@link CcCategory#IMMUNITY}) cleanses every active CC when
  * applied, then rejects every other CC while active.</li>
+ * <li>{@link #applyStacking} is the opt-in exception: it adds an independent
+ * stack of the same type and leaves existing stacks' durations untouched.</li>
  * </ul>
  *
  * <p>
@@ -100,6 +102,35 @@ public class StatusEffectManager implements StatusEffectManagerInterface {
 	@Override
 	public boolean apply(RPGEntity entity, StatusEffectType type, long durationMillis) {
 		return apply(entity, type, durationMillis, type.isFadeOutByDefault(), 1.0);
+	}
+
+	@Override
+	public boolean applyStacking(RPGEntity entity, StatusEffectType type, long durationMillis, boolean fadeOut,
+			double potency) {
+		return applyStacking(entity, type, durationMillis, fadeOut, potency, null);
+	}
+
+	@Override
+	public boolean applyStacking(RPGEntity entity, StatusEffectType type, long durationMillis, boolean fadeOut,
+			double potency, UUID casterUuid) {
+		List<ActiveStatusEffect> effects = activeEffects.computeIfAbsent(entity, k -> new ArrayList<>());
+		long now = System.currentTimeMillis();
+		return addEffect(entity, effects, type, now, durationMillis, fadeOut, potency, casterUuid);
+	}
+
+	@Override
+	public double getCombinedPotency(RPGEntity entity, StatusEffectType type) {
+		List<ActiveStatusEffect> effects = activeEffects.get(entity);
+		if (effects == null) {
+			return 0;
+		}
+		double combined = 0;
+		for (ActiveStatusEffect effect : effects) {
+			if (effect.getType().equals(type)) {
+				combined += effect.getPotency();
+			}
+		}
+		return combined;
 	}
 
 	@Override

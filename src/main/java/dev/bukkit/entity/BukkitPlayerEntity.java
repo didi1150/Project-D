@@ -24,8 +24,7 @@ import dev.core.entity.EntityManager;
 import dev.core.entity.EntityType;
 import dev.core.entity.RPGEntity;
 import dev.core.progression.PlayerProgression;
-import net.md_5.bungee.api.ChatMessageType;
-import net.md_5.bungee.api.chat.TextComponent;
+import dev.core.utils.AdventureText;
 
 public class BukkitPlayerEntity extends RPGEntity {
 
@@ -149,8 +148,7 @@ public class BukkitPlayerEntity extends RPGEntity {
             healthPart = String.format("§c %,.0f§7/§c%,.0f ❤", getHealth(), getMaxHealth());
         }
         String combinedText = healthPart + String.format("   §b %,.0f§7/§b%,.0f ✦", getMana(), getMaxMana());
-        getPlayer().ifPresent(
-                player -> player.spigot().sendMessage(ChatMessageType.ACTION_BAR, new TextComponent(combinedText)));
+        getPlayer().ifPresent(player -> player.sendActionBar(AdventureText.legacy(combinedText)));
     }
 
     public PlayerProgression getPlayerProgression() {

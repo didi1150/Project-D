@@ -46,6 +46,7 @@ import dev.core.event.impl.RPGEntityDamageEvent.DamageResult;
 import dev.core.event.impl.RPGEntityDamageEvent.DamageType;
 import dev.core.event.impl.TickEvent;
 import dev.core.stat.StatType;
+import dev.core.utils.AdventureText;
 
 public class CombatListener implements Listener {
 
@@ -78,7 +79,7 @@ public class CombatListener implements Listener {
         // Create Text Display entity
         TextDisplay textDisplay = BukkitDisplayEntityRegistry.getInstance().spawnDisplayEntity(spawnLoc,
                 TextDisplay.class, display -> {
-                    display.setText(formatDamageText(damage, type, result));
+                    display.text(AdventureText.legacy(formatDamageText(damage, type, result)));
                     display.setBillboard(Display.Billboard.CENTER);
                     display.setSeeThrough(false);
                     display.setGravity(false);
@@ -240,7 +241,7 @@ public class CombatListener implements Listener {
 
         TextDisplay textDisplay = BukkitDisplayEntityRegistry.getInstance().spawnDisplayEntity(spawnLoc,
                 TextDisplay.class, display -> {
-                    display.setText(formatHealText(healing));
+                    display.text(AdventureText.legacy(formatHealText(healing)));
                     display.setBillboard(Display.Billboard.CENTER);
                     display.setSeeThrough(false);
                     display.setGravity(false);
@@ -340,6 +341,20 @@ public class CombatListener implements Listener {
 
     public void showTrueDamage(Location location, double damage) {
         showDamageIndicator(location, damage, DamageType.TRUE, DamageResult.NORMAL);
+    }
+
+    /**
+     * Renders the indicator matching the Bukkit damage cause, so ability
+     * damage that arrives through vanilla damage events (e.g. the Focus
+     * Beam's per-tick MAGIC hits on unregistered mobs) is not displayed as a
+     * physical/slash hit.
+     */
+    private void showDamageForCause(Location location, double damage, DamageResult result, DamageCause cause) {
+        if (cause == DamageCause.MAGIC) {
+            showMagicDamage(location, damage, result);
+        } else {
+            showPhysicalDamage(location, damage, result);
+        }
     }
 
     /**
@@ -599,7 +614,8 @@ public class CombatListener implements Listener {
                     // Apply crit modifier
 
                     event.setDamage(event.getDamage() * 1.75);
-                    showPhysicalDamage(event.getEntity().getLocation(), event.getFinalDamage(), DamageResult.CRIT);
+                    showDamageForCause(event.getEntity().getLocation(), event.getFinalDamage(), DamageResult.CRIT,
+                            event.getCause());
                     if (plungeActive) {
                         spawnCritParticles(event.getEntity());
                     }
@@ -607,14 +623,16 @@ public class CombatListener implements Listener {
                         playProjectileHitSound(event.getEntity(), DamageResult.CRIT);
                     }
                 } else {
-                    showPhysicalDamage(event.getEntity().getLocation(), event.getFinalDamage(), DamageResult.NORMAL);
+                    showDamageForCause(event.getEntity().getLocation(), event.getFinalDamage(), DamageResult.NORMAL,
+                            event.getCause());
                     if (projectileHit) {
                         playProjectileHitSound(event.getEntity(), DamageResult.NORMAL);
                     }
                 }
             }, () -> {
 
-                showPhysicalDamage(event.getEntity().getLocation(), event.getFinalDamage(), DamageResult.NORMAL);
+                showDamageForCause(event.getEntity().getLocation(), event.getFinalDamage(), DamageResult.NORMAL,
+                        event.getCause());
             });
 
         });

@@ -5,10 +5,10 @@ import java.util.Collections;
 import java.util.List;
 
 import dev.bukkit.utils.BukkitMessageSender;
+import dev.core.utils.LegacyColors;
 import dev.core.utils.MessageComponent;
 import me.kodysimpson.simpapi.command.CommandList;
 import me.kodysimpson.simpapi.command.SubCommand;
-import org.bukkit.ChatColor;
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
@@ -55,12 +55,12 @@ public class CoreCommand extends Command {
     }
 
     private void displayUsage(CommandSender sender) {
-        BukkitMessageSender.getInstance().sendLine(sender, ChatColor.AQUA.toString());
+        BukkitMessageSender.getInstance().sendLine(sender, LegacyColors.AQUA.toString());
         for(SubCommand subcommand : this.subcommands) {
             String syntax = subcommand.getSyntax();
-            BukkitMessageSender.getInstance().sendMessage(sender, MessageComponent.of(ChatColor.GREEN + syntax + ChatColor.GOLD + " - " + subcommand.getDescription()));
+            BukkitMessageSender.getInstance().sendMessage(sender, MessageComponent.of(LegacyColors.GREEN + syntax + LegacyColors.GOLD + " - " + subcommand.getDescription()));
         }
-        BukkitMessageSender.getInstance().sendLine(sender, ChatColor.AQUA.toString());
+        BukkitMessageSender.getInstance().sendLine(sender, LegacyColors.AQUA.toString());
     }
 
     public @NotNull List<String> tabComplete(@NotNull CommandSender sender, @NotNull String alias, String[] args) throws IllegalArgumentException {

@@ -107,8 +107,7 @@ public class BukkitWitherSkullLaunchEffect extends Effect {
                 Location next = skull.getLocation().clone().add(dir.clone().multiply(LAUNCH_SPEED));
 
                 // Block collision check
-                if (world.getBlockAt(next).getType() != Material.AIR
-                        && !world.getBlockAt(next).getType().isInteractable()) {
+                if (world.getBlockAt(next).getType().isOccluding()) {
                     onImpact(next, caster);
                     skull.remove();
                     cancel();

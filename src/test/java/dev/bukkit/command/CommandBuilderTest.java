@@ -4,7 +4,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
-import org.bukkit.ChatColor;
+import dev.core.utils.LegacyColors;
 import org.bukkit.command.CommandSender;
 import org.bukkit.entity.EntityType;
 import org.bukkit.entity.Player;
@@ -91,9 +91,9 @@ public class CommandBuilderTest {
                         SubCommandBuilder.startBuilding("showStats")
                                 .setDescription("to see your stats")
                                 .setCommandAction(0, (sender, args) -> {
-                                    sender.sendMessage(ChatColor.GOLD + "═══════════════════════════════════");
-                                    sender.sendMessage(ChatColor.LIGHT_PURPLE + "some stats");
-                                    sender.sendMessage(ChatColor.GOLD + "═══════════════════════════════════");
+                                    sender.sendMessage(LegacyColors.GOLD + "═══════════════════════════════════");
+                                    sender.sendMessage(LegacyColors.LIGHT_PURPLE + "some stats");
+                                    sender.sendMessage(LegacyColors.GOLD + "═══════════════════════════════════");
                                 })
                 )
                 .addSubCommand(

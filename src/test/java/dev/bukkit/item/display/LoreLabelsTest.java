@@ -8,7 +8,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
-import org.bukkit.ChatColor;
+import dev.core.utils.LegacyColors;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 
@@ -25,10 +25,10 @@ class LoreLabelsTest {
     @Test
     void format_usesBuiltInDefaultsWithoutLoad() {
         String levelLine = LoreLabels.format(LoreLabels.LEVEL_LINE, "level", 5, "type", "SWORD");
-        assertEquals(ChatColor.GOLD.toString() + ChatColor.BOLD.toString() + "LEVEL 5: SWORD ITEM", levelLine);
+        assertEquals(LegacyColors.GOLD.toString() + LegacyColors.BOLD.toString() + "LEVEL 5: SWORD ITEM", levelLine);
 
         String abilityLabel = LoreLabels.format(LoreLabels.ABILITY_LABEL, "name", "Fireball");
-        assertEquals(ChatColor.YELLOW.toString() + "Ability: Fireball", abilityLabel);
+        assertEquals(LegacyColors.YELLOW.toString() + "Ability: Fireball", abilityLabel);
     }
 
     @Test
@@ -37,10 +37,10 @@ class LoreLabelsTest {
         lore.put("level-line", "<red/>TIER {level} {type}");
         LoreLabels.load(provider(lore));
 
-        assertEquals(ChatColor.RED.toString() + "TIER 7 HELMET",
+        assertEquals(LegacyColors.RED.toString() + "TIER 7 HELMET",
                 LoreLabels.format(LoreLabels.LEVEL_LINE, "level", 7, "type", "HELMET"));
         // Untouched keys keep their defaults.
-        assertEquals(ChatColor.DARK_GRAY.toString() + "Cost:",
+        assertEquals(LegacyColors.DARK_GRAY.toString() + "Cost:",
                 LoreLabels.format(LoreLabels.COST_LABEL));
     }
 
@@ -50,10 +50,10 @@ class LoreLabelsTest {
         lore.put("passive-stats-header", "<blue/>Base Stats:");
         LoreLabels.load(provider(lore));
 
-        assertEquals(ChatColor.BLUE.toString() + "Base Stats:",
+        assertEquals(LegacyColors.BLUE.toString() + "Base Stats:",
                 LoreLabels.format(LoreLabels.PASSIVE_STATS_HEADER));
         // Keys absent from the config keep their defaults.
-        assertEquals(ChatColor.GOLD.toString() + "Item Abilities:",
+        assertEquals(LegacyColors.GOLD.toString() + "Item Abilities:",
                 LoreLabels.format(LoreLabels.ABILITIES_HEADER));
     }
 
@@ -61,14 +61,14 @@ class LoreLabelsTest {
     void load_withEmptyLoreSectionKeepsDefaults() {
         LoreLabels.load(provider(new HashMap<>()));
 
-        assertEquals(ChatColor.GOLD.toString() + ChatColor.BOLD.toString() + "LEVEL 2: BOW ITEM",
+        assertEquals(LegacyColors.GOLD.toString() + LegacyColors.BOLD.toString() + "LEVEL 2: BOW ITEM",
                 LoreLabels.format(LoreLabels.LEVEL_LINE, "level", 2, "type", "BOW"));
     }
 
     @Test
     void format_leavesUnknownPlaceholdersUntouched() {
         String result = LoreLabels.format(LoreLabels.ABILITY_LABEL, "name", "Blink {unknown}");
-        assertEquals(ChatColor.YELLOW.toString() + "Ability: Blink {unknown}", result);
+        assertEquals(LegacyColors.YELLOW.toString() + "Ability: Blink {unknown}", result);
     }
 
     // ------------------------------------------------------------------

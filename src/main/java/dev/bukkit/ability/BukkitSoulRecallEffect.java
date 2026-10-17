@@ -1,6 +1,5 @@
 package dev.bukkit.ability;
 
-import org.bukkit.ChatColor;
 import org.bukkit.Location;
 import org.bukkit.Sound;
 import org.bukkit.entity.Player;
@@ -12,6 +11,7 @@ import dev.core.ability.Effect;
 import dev.core.entity.EntityManager;
 import dev.core.entity.RPGEntity;
 import dev.core.entity.SummonRegistry;
+import dev.core.utils.LegacyColors;
 
 /**
  * Soul Recall — left-click on the Soul Tome: every active summon of the caster
@@ -57,12 +57,12 @@ public class BukkitSoulRecallEffect extends Effect {
         }
 
         if (recalled == 0) {
-            player.sendMessage(ChatColor.GRAY + "You have no active summons to recall.");
+            player.sendMessage(LegacyColors.GRAY + "You have no active summons to recall.");
             return; // no cooldown spent on an empty cast
         }
 
         player.getWorld().playSound(player.getLocation(), Sound.ENTITY_ENDERMAN_TELEPORT, 0.8f, 1.4f);
-        player.sendMessage(ChatColor.GREEN + "Recalled " + recalled + " summon"
+        player.sendMessage(LegacyColors.GREEN + "Recalled " + recalled + " summon"
                 + (recalled == 1 ? "" : "s") + " to your side.");
         cooldownSink.startCooldown();
     }

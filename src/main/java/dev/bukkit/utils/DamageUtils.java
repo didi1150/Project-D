@@ -18,10 +18,10 @@ import org.bukkit.damage.DamageSource;
 import org.bukkit.entity.LivingEntity;
 import org.bukkit.entity.Player;
 import org.bukkit.event.entity.EntityDamageByEntityEvent;
-import org.bukkit.event.entity.EntityDamageEvent.DamageCause;
 import org.bukkit.plugin.Plugin;
 import org.bukkit.scheduler.BukkitRunnable;
 
+import dev.bukkit.entity.BukkitEntityMetadata;
 import dev.bukkit.entity.VanillaEntityMeta;
 import dev.bukkit.summon.SoulSkull;
 import dev.core.entity.EntityManager;
@@ -29,6 +29,7 @@ import dev.core.entity.RPGDamageResult;
 import dev.core.entity.RPGEntity;
 import dev.core.event.impl.RPGEntityDamageEvent.DamageResult;
 import dev.core.event.impl.RPGEntityDamageEvent.DamageType;
+import dev.core.utils.AdventureText;
 import dev.core.utils.ColorCodes;
 
 public class DamageUtils {
@@ -147,26 +148,55 @@ public class DamageUtils {
     }
 
     public static void damageMob(LivingEntity le, double damage, LivingEntity source) {
+        damageMob(le, damage, source, org.bukkit.damage.DamageType.GENERIC, false);
+    }
+
+    /**
+     * Vanilla fallback for damage-over-time abilities that must land on EVERY
+     * call (e.g. the Focus Beam's per-tick channel), even when the victim still
+     * has Minecraft's hurt-resistance window from the previous tick.
+     *
+     * <p>
+     * Also takes an explicit Bukkit {@link org.bukkit.damage.DamageType}: using
+     * {@code GENERIC} together with a causing entity makes Paper report the
+     * event as {@code ENTITY_ATTACK}, which {@code CombatListener} treats as a
+     * melee swing and throttles to the attacker's ATTACK_SPEED (about once per
+     * second). A typed source such as {@code MAGIC} keeps ability ticks out of
+     * that melee gate.
+     *
+     * @param le                     the vanilla victim
+     * @param damage                 damage per call
+     * @param source                 attacking entity (may be {@code null})
+     * @param damageType             Bukkit damage type the event should carry
+     * @param bypassInvulnerability  clear the hurt-resistance window first
+     */
+    public static void damageMob(LivingEntity le, double damage, LivingEntity source,
+            org.bukkit.damage.DamageType damageType, boolean bypassInvulnerability) {
         // Soul skulls are collectibles, not combat entities: AoE abilities that
         // fall back to this vanilla-damage path must never hurt or remove them.
         if (SoulSkull.isSoulSkull(le)) {
             return;
         }
-        le.damage(0.001, source);
-        if (le.getHealth() > 0) {
-            le.setHealth(Math.max(le.getHealth() - damage, 0));
-            Bukkit.getPluginManager().callEvent(new EntityDamageByEntityEvent(source, le, DamageCause.CUSTOM,
-                    DamageSource.builder(org.bukkit.damage.DamageType.GENERIC).build(), damage));
+        if (bypassInvulnerability) {
+            // Same reset MobRPGEntity/BukkitBossEntity perform for their managed
+            // entities: without it vanilla swallows every follow-up hit inside
+            // the hurt-resistance window.
+            le.setNoDamageTicks(0);
+            le.setLastDamage(0);
         }
+        DamageSource.Builder damageSource = DamageSource.builder(damageType);
+        if (source != null) {
+            damageSource.withCausingEntity(source).withDirectEntity(source);
+        }
+        le.damage(damage, damageSource.build());
         updateName(le);
     }
 
     public static void updateName(LivingEntity entity) {
-        if (!entity.hasMetadata("VANILLA_META")) {
+        VanillaEntityMeta meta = BukkitEntityMetadata.get(entity, "VANILLA_META", VanillaEntityMeta.class).orElse(null);
+        if (meta == null) {
             return;
         }
-
-        VanillaEntityMeta meta = (VanillaEntityMeta) entity.getMetadata("VANILLA_META").get(0).value();
 
         double[] health = rpgHealthOf(entity);
         double displayCurrent = health[0];
@@ -191,7 +221,7 @@ public class DamageUtils {
         String name = color + "[Lvl " + meta.getLevel() + "] " + typePart + " [❤] " + Math.round(displayCurrent) + "/"
                 + Math.round(displayMax);
 
-        entity.setCustomName(name);
+        entity.customName(AdventureText.legacy(name));
         entity.setCustomNameVisible(true);
     }
 
@@ -377,8 +407,9 @@ public class DamageUtils {
             double velY = 0.4 + Math.random() * 0.6; // 0.4 to 1.0 upward
             double velZ = (Math.random() - 0.5) * 4.0; // -0.4 to 0.4
 
-            org.bukkit.entity.FallingBlock fallingBlock = world.spawnFallingBlock(spawnLoc,
-                    blockType.createBlockData());
+            org.bukkit.entity.FallingBlock fallingBlock = world.spawn(spawnLoc,
+                    org.bukkit.entity.FallingBlock.class,
+                    falling -> falling.setBlockData(blockType.createBlockData()));
 
             // Set velocity for upward/outward motion
             fallingBlock.setVelocity(new org.bukkit.util.Vector(velX, velY, velZ));

@@ -20,11 +20,11 @@ import org.bukkit.event.player.PlayerPortalEvent;
 import org.bukkit.event.player.PlayerTeleportEvent.TeleportCause;
 import org.bukkit.event.world.PortalCreateEvent;
 import org.bukkit.event.world.PortalCreateEvent.CreateReason;
-import org.bukkit.metadata.FixedMetadataValue;
 import org.bukkit.plugin.Plugin;
 
 import dev.bukkit.ability.BukkitSpiritSceptreBatEffect;
 import dev.bukkit.entity.BukkitEntityFactory;
+import dev.bukkit.entity.BukkitEntityMetadata;
 import dev.bukkit.entity.VanillaEntityMeta;
 import dev.bukkit.utils.DamageUtils;
 import dev.bukkit.utils.StealthRegistry;
@@ -80,7 +80,7 @@ public class CancelSubscriber {
             }
 
         } else {
-            if (event.getEntity().hasMetadata("DUNGEON") && target.hasMetadata("DUNGEON")) {
+            if (BukkitEntityMetadata.has(event.getEntity(), "DUNGEON") && BukkitEntityMetadata.has(target, "DUNGEON")) {
                 event.setCancelled(true);
             }
         }
@@ -108,13 +108,13 @@ public class CancelSubscriber {
             event.setCancelled(true);
         else {
             LivingEntity entity = event.getEntity();
-            if (entity.isInvisible() || entity.hasMetadata(BukkitSpiritSceptreBatEffect.METADATA)) {
+            if (entity.isInvisible() || BukkitEntityMetadata.has(entity, BukkitSpiritSceptreBatEffect.METADATA)) {
                 return; // summoned projectiles (e.g. the Spirit Sceptre bat) get no level/health
                         // nametag
             }
             VanillaEntityMeta meta = new VanillaEntityMeta(1, BukkitEntityFactory.getRelation(entity));
             // Store metadata
-            entity.setMetadata("VANILLA_META", new FixedMetadataValue(plugin, meta));
+            BukkitEntityMetadata.set(entity, "VANILLA_META", meta);
             entity.setNoDamageTicks(0);
             // Set initial custom name
             DamageUtils.updateName(entity);
@@ -156,7 +156,7 @@ public class CancelSubscriber {
         // Orb shroud blocks AGGRO only, not damage — no cancellation here for
         // shrouded victims; hits that connect despite untargetability land.
 
-        if (entity.hasMetadata("DUNGEON") && damager.hasMetadata("DUNGEON")) {
+        if (BukkitEntityMetadata.has(entity, "DUNGEON") && BukkitEntityMetadata.has(damager, "DUNGEON")) {
             event.setCancelled(true);
         }
     }

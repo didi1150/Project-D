@@ -29,7 +29,6 @@ import org.bukkit.potion.PotionEffect;
 import org.bukkit.potion.PotionEffectType;
 import org.bukkit.util.Transformation;
 import org.bukkit.util.Vector;
-import org.bukkit.metadata.FixedMetadataValue;
 import org.joml.Quaternionf;
 import org.joml.Vector3f;
 
@@ -55,6 +54,8 @@ import dev.core.event.impl.RPGEntityDeathEvent;
 import dev.core.stat.Stat;
 import dev.core.stat.StatManager;
 import dev.core.stat.StatType;
+import dev.bukkit.entity.BukkitEntityMetadata;
+import dev.core.utils.AdventureText;
 import dev.core.stat.impl.CombatStat;
 import dev.core.stat.impl.ResourceStat;
 
@@ -153,7 +154,7 @@ public class BukkitStalactiteEntity extends RPGEntity {
         double maxHealth = StalactiteConfig.MAX_HEALTH;
         stats.put(StatType.HEALTH_MAX, new CombatStat(StatType.HEALTH_MAX.name(), maxHealth));
         stats.put(StatType.HEALTH_RESOURCE,
-                new ResourceStat(StatType.HEALTH_RESOURCE.name(), t -> maxHealth, t -> 0.0, now));
+                new ResourceStat(StatType.HEALTH_RESOURCE.name(), _ -> maxHealth, _ -> 0.0, now));
         stats.put(StatType.HEALTH_REGEN, new CombatStat(StatType.HEALTH_REGEN.name(), 0));
         stats.put(StatType.ARMOR, new CombatStat(StatType.ARMOR.name(), 0));
         stats.put(StatType.MAGIC_RESIST, new CombatStat(StatType.MAGIC_RESIST.name(), 0));
@@ -235,7 +236,7 @@ public class BukkitStalactiteEntity extends RPGEntity {
             t.setInvulnerable(true);
             t.setGravity(false);
             t.setBackgroundColor(Color.fromARGB(120, 0, 0, 0));
-            t.setText(healthbarText());
+            t.text(AdventureText.legacy(healthbarText()));
             t.setTransformation(new Transformation(new Vector3f(0, 0, 0), new Quaternionf(), new Vector3f(1f, 1f, 1f),
                     new Quaternionf()));
         });
@@ -363,7 +364,7 @@ public class BukkitStalactiteEntity extends RPGEntity {
         }
         if (healthbar != null && healthbar.isValid()) {
             healthbar.teleport(ceiling.clone().add(0, 1.5, 0));
-            healthbar.setText(healthbarText());
+            healthbar.text(AdventureText.legacy(healthbarText()));
         }
         if (collider != null && collider.isValid()) {
             collider.teleport(StalactiteHitbox.computeColliderLocation(ceiling));
@@ -423,14 +424,14 @@ public class BukkitStalactiteEntity extends RPGEntity {
         try {
             Bukkit.getScheduler().runTask(DMain.getInstance(), () -> {
                 if (healthbar != null && healthbar.isValid())
-                    healthbar.setText(healthbarText());
+                    healthbar.text(AdventureText.legacy(healthbarText()));
                 if (getHealth() <= 0 && lifecycle == StalactiteLifecycle.ACTIVE)
                     startFalling();
             });
         } catch (Exception ignored) {
             // Fallback for tests/headless: try immediate (stale) update
             if (healthbar != null && healthbar.isValid())
-                healthbar.setText(healthbarText());
+                healthbar.text(AdventureText.legacy(healthbarText()));
         }
     }
 
@@ -448,7 +449,7 @@ public class BukkitStalactiteEntity extends RPGEntity {
         currentY = pivot.getY();
         setDamageImmune(true);
         if (healthbar != null && healthbar.isValid())
-            healthbar.setText(healthbarText());
+            healthbar.text(AdventureText.legacy(healthbarText()));
         Location loc = hitbox != null ? hitbox.getLocation() : pivot;
         World w = loc.getWorld();
         if (w != null) {
@@ -504,7 +505,7 @@ public class BukkitStalactiteEntity extends RPGEntity {
                     display.setTransformation(new Transformation(trans, new Quaternionf(), ns, new Quaternionf()));
                 }
                 if (healthbar != null && healthbar.isValid()) {
-                    healthbar.setText(healthbarText());
+                    healthbar.text(AdventureText.legacy(healthbarText()));
                     healthbar.teleport(pivot.clone().add(0, 1.5, 0));
                 }
                 updateHighlightsForRegrow(clamped);
@@ -655,7 +656,7 @@ public class BukkitStalactiteEntity extends RPGEntity {
                 }
                 s.getPersistentDataContainer().set(STALACTITE_INDEX_KEY, PersistentDataType.INTEGER, idx);
                 try {
-                    s.setMetadata(COLLIDER_METADATA, new FixedMetadataValue(DMain.getInstance(), true));
+                    BukkitEntityMetadata.set(s, COLLIDER_METADATA, true);
                 } catch (Exception ignored) {
                 }
             });

@@ -18,11 +18,11 @@ import org.bukkit.entity.Interaction;
 import org.bukkit.entity.LivingEntity;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.LeatherArmorMeta;
-import org.bukkit.metadata.FixedMetadataValue;
 import org.bukkit.util.RayTraceResult;
 import org.bukkit.util.Vector;
 
 import dev.bukkit.DMain;
+import dev.bukkit.entity.BukkitEntityMetadata;
 import dev.bukkit.entity.BukkitPlayerEntity;
 import dev.bukkit.entity.boss.BukkitStalactiteEntity;
 import dev.bukkit.event.bukkitListeners.CombatListener;
@@ -115,7 +115,7 @@ public class BukkitSpiritSceptreBatEffect extends Effect {
             meta.setColor(Color.RED);
             helmet.setItemMeta(meta);
             b.getEquipment().setHelmet(helmet);
-            b.setMetadata(METADATA, new FixedMetadataValue(DMain.getInstance(), true));
+            BukkitEntityMetadata.set(b, METADATA, true);
         });
 
         spawnLoc.getWorld().playSound(spawnLoc, Sound.ENTITY_BAT_TAKEOFF, new Random().nextFloat(0.3f, 0.6f),
@@ -340,8 +340,8 @@ public class BukkitSpiritSceptreBatEffect extends Effect {
         if (!(entity instanceof LivingEntity le)) {
             return false;
         }
-        if (le.hasMetadata(METADATA) || le.hasMetadata("BONEMERANG")
-                || le.hasMetadata(BukkitStalactiteEntity.COLLIDER_METADATA)) {
+        if (BukkitEntityMetadata.has(le, METADATA) || BukkitEntityMetadata.has(le, "BONEMERANG")
+                || BukkitEntityMetadata.has(le, BukkitStalactiteEntity.COLLIDER_METADATA)) {
             return false;
         }
         if (EntityManager.getInstance().isGhost(le.getUniqueId())) {
