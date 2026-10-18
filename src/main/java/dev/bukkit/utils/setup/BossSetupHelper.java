@@ -11,7 +11,6 @@ import org.bukkit.Material;
 import org.bukkit.Server;
 import org.bukkit.entity.Player;
 import org.bukkit.event.block.Action;
-import org.bukkit.event.player.PlayerInteractEntityEvent;
 import org.bukkit.event.player.PlayerInteractEvent;
 import org.bukkit.inventory.EquipmentSlot;
 import org.bukkit.inventory.ItemStack;
@@ -24,6 +23,7 @@ import dev.bukkit.utils.BukkitMessageSender;
 import dev.bukkit.utils.InterActionType;
 import dev.bukkit.utils.ItemAbilityLore;
 import dev.bukkit.utils.bossfight.ChainDisplay;
+import dev.bukkit.utils.bossfight.ResourceCrateSpawner;
 import dev.core.event.EventAction;
 import dev.core.event.EventBusInterface;
 import dev.core.game.coords.Point3D;
@@ -36,8 +36,10 @@ import dev.core.utils.MessageComponent;
 public class BossSetupHelper extends SetupHelper {
 
     private static final String DISPLAY_NAME_CHAIN_TEST = "Chain Test Tool";
+    private static final String DISPLAY_NAME_RESOURCE_PACKAGE_DROPPER = "Resource Package Dropper Tool";
 
     private final ChainDisplay chainTestDisplay = new ChainDisplay();
+    private ResourceCrateSpawner resourceCrateSpawner;
 
     public BossSetupHelper() {
         super("GameSetupMode");
@@ -54,9 +56,16 @@ public class BossSetupHelper extends SetupHelper {
                         ));
     }
 
+    private ItemStack getResourcePackageDropperTool() {
+        return SetupUtils.createSimpleItem(Material.BARREL, DISPLAY_NAME_RESOURCE_PACKAGE_DROPPER,
+                List.of(new ItemAbilityLore(InterActionType.LEFT_CLICK_BLOCK, "Select Block Position", ""),
+                        new ItemAbilityLore(InterActionType.RIGHT_CLICK, "Clear Pos Selection", "")
+                        ));
+    }
+
     @Override
     public void giveSetupItemsToPlayer(BukkitMessageSender ms, Player player) {
-        List<ItemStack> items = new ArrayList<>(List.of(getChainTestTool()));
+        List<ItemStack> items = getAllSetupItems();
         for (ItemStack item : items) {
             player.getInventory().addItem(item);
         }
@@ -72,8 +81,7 @@ public class BossSetupHelper extends SetupHelper {
     }
 
     private List<ItemStack> getAllSetupItems() {
-        List<ItemStack> items = new ArrayList<>(List.of(getChainTestTool()));
-        return items;
+        return new ArrayList<>(List.of(getChainTestTool(), getResourcePackageDropperTool()));
     }
 
     @Override
@@ -95,6 +103,10 @@ public class BossSetupHelper extends SetupHelper {
 
     private void clearDisplays() {
         chainTestDisplay.clearDisplays(true, null);
+        if (resourceCrateSpawner != null) {
+            resourceCrateSpawner.clearDisplay();
+            resourceCrateSpawner = null;
+        }
     }
 
     @Override
@@ -151,6 +163,14 @@ public class BossSetupHelper extends SetupHelper {
                 }
                 //any right click
                 if (event.getAction() == Action.RIGHT_CLICK_AIR || event.getAction() == Action.RIGHT_CLICK_BLOCK) {
+                    if (SetupUtils.hasItemInMainHand(player, DISPLAY_NAME_RESOURCE_PACKAGE_DROPPER)) {
+                        if (resourceCrateSpawner != null) {
+                            ms.sendMessage(player, MessageComponent.of("<yellow>Cleared pos</yellow>"));
+                            resourceCrateSpawner.clearDisplay();
+                            resourceCrateSpawner = null;
+                        }
+                        return;
+                    }
                     //sneak right click
                     if (player.isSneaking()) {
                         if (SetupUtils.hasItemInMainHand(player, DISPLAY_NAME_CHAIN_TEST)) {
@@ -180,6 +200,16 @@ public class BossSetupHelper extends SetupHelper {
                             Vector3Int pos = Vector3Int.fromPoint3D(point3D);
                             ms.sendMessage(player, MessageComponent.of("<green>Set firstPos to: <yellow>%s</yellow></green>", pos));
                             chainTestDisplay.setFirstPos(player.getWorld(), pos);
+                            return;
+                        }
+                        if (SetupUtils.hasItemInMainHand(player, DISPLAY_NAME_RESOURCE_PACKAGE_DROPPER)) {
+                            Vector3Int pos = Vector3Int.fromPoint3D(point3D);
+                            if (resourceCrateSpawner != null) {
+                                resourceCrateSpawner.clearDisplay();
+                            }
+                            ms.sendMessage(player, MessageComponent.of("<green>Set pos to: <yellow>%s</yellow></green>", pos));
+                            resourceCrateSpawner = new ResourceCrateSpawner(Material.QUARTZ, 5, 5, pos);
+                            resourceCrateSpawner.spawnDisplay(player.getWorld());
                             return;
                         }
                     }
@@ -215,9 +245,6 @@ public class BossSetupHelper extends SetupHelper {
                 event.setCancelled(false);
             }
         }, PlayerInteractEvent.class));
-        eventBus.subscribe(new EventAction<>(event -> {
-            event.getPlayer().sendMessage("Right clicked: " + event.getRightClicked().getType());
-        }, PlayerInteractEntityEvent.class));
     }
 
 }

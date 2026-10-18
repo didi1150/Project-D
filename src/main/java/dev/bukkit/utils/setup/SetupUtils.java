@@ -161,7 +161,7 @@ public class SetupUtils {
         textDisplay.setBillboard(Display.Billboard.CENTER);
         textDisplay.text(AdventureText.legacy(text));
         textDisplay.setSeeThrough(true);
-        textDisplay.setBackgroundColor(textDisplay.getBackgroundColor().setAlpha(0));
+        textDisplay.setBackgroundColor(Color.WHITE.setAlpha(0));
         Transformation transformation = textDisplay.getTransformation();
         transformation.getScale().set(new Vector3f(1.5f));
         textDisplay.setTransformation(transformation);
