@@ -9,7 +9,7 @@ import org.bukkit.entity.WitherSkull;
 import dev.bukkit.entity.BukkitPlayerEntity;
 import dev.core.entity.RPGEntity;
 import dev.core.entity.RPGMobEntity;
-import dev.core.entity.boss.AttackPattern;
+import dev.core.entity.strategy.AttackPattern;
 import dev.core.storage.config.ConfigSection;
 
 public class WitherSkullAttackPattern implements AttackPattern {

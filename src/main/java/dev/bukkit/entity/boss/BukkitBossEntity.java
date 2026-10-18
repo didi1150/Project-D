@@ -15,9 +15,9 @@ import dev.bukkit.stat.BukkitBossStatManager;
 import dev.bukkit.status.BukkitStatusEffectManager;
 import dev.core.entity.EntityManager;
 import dev.core.entity.RPGEntity;
-import dev.core.entity.boss.BossRuntime;
 import dev.core.entity.boss.BossStage;
 import dev.core.entity.boss.RPGBossEntity;
+import dev.core.event.EventAction;
 import dev.core.event.EventBusInterface;
 import dev.core.game.TaskScheduler;
 import dev.core.utils.AdventureText;
@@ -29,7 +29,8 @@ import dev.core.utils.ColorCodes;
  */
 public class BukkitBossEntity extends RPGBossEntity {
 
-    private final BossRuntime bossRuntime;
+    private final EventBusInterface eventBus;
+    private final EventAction<EntityDamageByEntityEvent> damageAction;
     private final BukkitBossStatManager bukkitStatManager;
     private final BossBarController bossBar;
 
@@ -40,15 +41,12 @@ public class BukkitBossEntity extends RPGBossEntity {
         if (entity == null) {
             throw new IllegalStateException("No bukkit entity exists for boss uuid " + uuid);
         }
+        setTargetingStrategy(BukkitBossStrategyRegistry.firstAlivePlayerTarget());
         this.bukkitStatManager = new BukkitBossStatManager(entity, getStatManager());
         this.bossBar = new BossBarController(name);
-        this.bossRuntime = new BossRuntime(eventBus) {
-            @Override
-            protected void registerBossTriggers() {
-                registerTrigger(BukkitBossEntity.this::handleDamage, EntityDamageByEntityEvent.class);
-            }
-        };
-        bossRuntime.register();
+        this.eventBus = eventBus;
+        this.damageAction = new EventAction<>(this::handleDamage, EntityDamageByEntityEvent.class);
+        this.eventBus.subscribe(damageAction);
     }
 
     public void onSpawn(Location location) {
@@ -136,12 +134,8 @@ public class BukkitBossEntity extends RPGBossEntity {
         bossBar.updateProgress(pct);
     }
 
-    public BossBarController getBossBar() {
-        return bossBar;
-    }
-
     public void shutdown() {
-        bossRuntime.unregister();
+        eventBus.unsubscribe(damageAction);
         bossBar.remove();
     }
 }

@@ -5,7 +5,6 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Set;
 
-import dev.core.game.coords.Point3D;
 import dev.core.game.coords.ViewPoint3D;
 import dev.core.storage.config.ConfigSection;
 
@@ -118,48 +117,6 @@ public final class FloorData {
         return out;
     }
 
-    public Point3D getPoint(String path) {
-        ConfigSection s = getSection(path);
-        if (s == null)
-            return null;
-        if (s.getKeys().isEmpty())
-            return null;
-        return toPoint(s);
-    }
-
-    public List<Point3D> getPointList(String path) {
-        List<ConfigSection> secs = getSectionList(path);
-        if (secs.isEmpty())
-            return Collections.emptyList();
-        List<Point3D> out = new ArrayList<>(secs.size());
-        for (ConfigSection sec : secs) {
-            out.add(toPoint(sec));
-        }
-        return out;
-    }
-
-    /**
-     * Require helper for fail-fast validation in stages / arena preparation.
-     * Broadcasts and throws if missing.
-     */
-    public static ViewPoint3D requireViewPoint(FloorData fd, String path) {
-        ViewPoint3D vp = fd.getViewPoint(path);
-        if (vp == null) {
-            throw new IllegalStateException(
-                    "Missing required floor-data key '" + path + "' for floor " + fd.getFloor());
-        }
-        return vp;
-    }
-
-    public static List<ViewPoint3D> requireViewPointList(FloorData fd, String path, int expected) {
-        List<ViewPoint3D> list = fd.getViewPointList(path);
-        if (list.size() != expected) {
-            throw new IllegalStateException("Invalid floor-data '" + path + "' for floor " + fd.getFloor()
-                    + ": expected " + expected + " but got " + list.size());
-        }
-        return list;
-    }
-
     private static ViewPoint3D toViewPoint(ConfigSection s) {
         String world = s.getString("world", null);
         int x = s.getInt("x", 0);
@@ -170,87 +127,4 @@ public final class FloorData {
         return new ViewPoint3D(x, y, z, world, yaw, pitch);
     }
 
-    private static Point3D toPoint(ConfigSection s) {
-        String world = s.getString("world", null);
-        int x = s.getInt("x", 0);
-        int y = s.getInt("y", 0);
-        int z = s.getInt("z", 0);
-        return new Point3D(x, y, z, world);
-    }
-
-    // ------------------------------------------------------------------
-    // Minion spawn areas: cuboids defined by {pos1:{x,y,z}, pos2:{x,y,z}}
-    // or flat {x1,y1,z1,x2,y2,z2}. Arena-relative if world omitted.
-    // ------------------------------------------------------------------
-
-    /**
-     * @return list of axis-aligned boxes, each {@code int[6]} = {minX,minY,minZ,maxX,maxY,maxZ}.
-     *         Empty if none configured.
-     */
-    public List<int[]> getMinionSpawnAreas(String path) {
-        List<ConfigSection> secs = getSectionList(path);
-        if (secs.isEmpty()) {
-            return Collections.emptyList();
-        }
-        List<int[]> out = new ArrayList<>(secs.size());
-        for (ConfigSection sec : secs) {
-            int[] box = parseBox(sec);
-            if (box != null) {
-                out.add(box);
-            }
-        }
-        return out;
-    }
-
-    public List<int[]> getMinionSpawnAreas() {
-        return getMinionSpawnAreas("minion-spawn-areas");
-    }
-
-    /**
-     * Fail-fast helper for spawn-area setup: expects at least one cuboid if used.
-     * Returns the boxes or throws if malformed entries exist.
-     */
-    public List<int[]> requireMinionSpawnAreas(String path) {
-        List<int[]> list = getMinionSpawnAreas(path);
-        // No strict size requirement – empty is allowed (means no minion waves)
-        // but malformed entries already filtered; just return what we have.
-        return list;
-    }
-
-    private static int[] parseBox(ConfigSection sec) {
-        if (sec == null || sec.getKeys().isEmpty()) {
-            return null;
-        }
-        // Supports {pos1:{x,y,z}, pos2:{x,y,z}}  and compact {pos1:{...}, pos2:{...}} with flat fallback
-        ConfigSection p1 = sec.getSection("pos1");
-        ConfigSection p2 = sec.getSection("pos2");
-        int x1, y1, z1, x2, y2, z2;
-        if (p1 != null && !p1.getKeys().isEmpty() && p2 != null && !p2.getKeys().isEmpty()) {
-            x1 = p1.getInt("x", 0);
-            y1 = p1.getInt("y", 0);
-            z1 = p1.getInt("z", 0);
-            x2 = p2.getInt("x", 0);
-            y2 = p2.getInt("y", 0);
-            z2 = p2.getInt("z", 0);
-        } else {
-            // flat format: {x1,y1,z1,x2,y2,z2} or legacy {minX.../maxX...}
-            boolean hasFlat = sec.getKeys().contains("x1") || sec.getKeys().contains("minX");
-            if (!hasFlat) {
-                return null;
-            }
-            x1 = sec.getInt("x1", sec.getInt("minX", 0));
-            y1 = sec.getInt("y1", sec.getInt("minY", 0));
-            z1 = sec.getInt("z1", sec.getInt("minZ", 0));
-            x2 = sec.getInt("x2", sec.getInt("maxX", 0));
-            y2 = sec.getInt("y2", sec.getInt("maxY", 0));
-            z2 = sec.getInt("z2", sec.getInt("maxZ", 0));
-        }
-        int minX = Math.min(x1, x2);
-        int minY = Math.min(y1, y2);
-        int minZ = Math.min(z1, z2);
-        int maxX = Math.max(x1, x2);
-        int maxY = Math.max(y1, y2);
-        int maxZ = Math.max(z1, z2);
-        return new int[]{minX, minY, minZ, maxX, maxY, maxZ};
-    }
 }

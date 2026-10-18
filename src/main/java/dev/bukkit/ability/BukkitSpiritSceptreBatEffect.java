@@ -24,7 +24,7 @@ import org.bukkit.util.Vector;
 import dev.bukkit.DMain;
 import dev.bukkit.entity.BukkitEntityMetadata;
 import dev.bukkit.entity.BukkitPlayerEntity;
-import dev.bukkit.entity.boss.BukkitStalactiteEntity;
+import dev.bukkit.game.boss.stalactite.BukkitStalactiteEntity;
 import dev.bukkit.event.bukkitListeners.CombatListener;
 import dev.bukkit.game.boss.stalactite.StalactiteHitbox;
 import dev.bukkit.utils.CombatRelation;

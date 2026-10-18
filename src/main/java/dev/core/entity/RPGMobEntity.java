@@ -4,12 +4,9 @@ import java.util.Optional;
 import java.util.UUID;
 
 import dev.core.ability.EffectManagerInterface;
-import dev.core.entity.boss.AttackPattern;
-import dev.core.entity.boss.FirstAlivePlayerTargetingStrategy;
-import dev.core.entity.boss.MeleeAttackPattern;
-import dev.core.entity.boss.MovementStrategy;
-import dev.core.entity.boss.NoopMovementStrategy;
-import dev.core.entity.boss.TargetingStrategy;
+import dev.core.entity.strategy.AttackPattern;
+import dev.core.entity.strategy.MovementStrategy;
+import dev.core.entity.strategy.TargetingStrategy;
 import dev.core.event.EventBusInterface;
 import dev.core.status.StatusEffectManagerInterface;
 
@@ -19,12 +16,6 @@ public class RPGMobEntity extends RPGEntity {
     private TargetingStrategy targetingStrategy;
     private AttackPattern attackPattern;
     private Optional<RPGEntity> currentTarget = Optional.empty();
-
-    public RPGMobEntity(UUID uuid, String name, EffectManagerInterface effectManager,
-            EventBusInterface eventBus) {
-        this(uuid, name, EntityType.MOB, effectManager, eventBus, new NoopMovementStrategy(),
-                new FirstAlivePlayerTargetingStrategy(), new MeleeAttackPattern());
-    }
 
     public RPGMobEntity(UUID uuid, String name, EntityType entityType, EffectManagerInterface effectManager,
             EventBusInterface eventBus, MovementStrategy movementStrategy, TargetingStrategy targetingStrategy,

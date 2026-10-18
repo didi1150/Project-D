@@ -19,7 +19,7 @@ public class BukkitBossStageTypeRegistry implements BossStageTypeRegistry {
         register(new SummonStageType());
     }
 
-    public void register(BossStageType type) {
+    private void register(BossStageType type) {
         types.put(type.getType().toUpperCase(), type);
     }
 

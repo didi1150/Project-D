@@ -37,7 +37,7 @@ import org.joml.AxisAngle4f;
 import org.joml.Vector3f;
 
 import dev.bukkit.DMain;
-import dev.bukkit.entity.boss.BukkitDisplayEntityRegistry;
+import dev.bukkit.entity.BukkitDisplayEntityRegistry;
 import dev.bukkit.event.bukkitListeners.CombatListener;
 import dev.bukkit.item.BukkitItemStackAdapter;
 import dev.bukkit.summon.SoulSkull;

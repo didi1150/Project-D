@@ -30,7 +30,7 @@ import org.bukkit.util.Transformation;
 import dev.bukkit.ability.behavior.ShadowWeaverBehavior;
 import dev.bukkit.event.BukkitEventBus;
 import dev.bukkit.entity.MobRPGEntity;
-import dev.bukkit.entity.boss.BukkitDisplayEntityRegistry;
+import dev.bukkit.entity.BukkitDisplayEntityRegistry;
 import dev.bukkit.item.BowArrowManager;
 import dev.bukkit.summon.SoulSkull;
 import dev.bukkit.summon.SummonedMobRPGEntity;

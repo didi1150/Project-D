@@ -12,7 +12,7 @@ import dev.core.entity.EntityManager;
 import dev.core.entity.EntityType;
 import dev.core.entity.RPGEntity;
 import dev.core.entity.RPGMobEntity;
-import dev.core.entity.boss.TargetingStrategy;
+import dev.core.entity.strategy.TargetingStrategy;
 
 public class NearestPlayerTargetingStrategy implements TargetingStrategy {
 

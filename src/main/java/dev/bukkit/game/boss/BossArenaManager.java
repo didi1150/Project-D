@@ -7,11 +7,7 @@ import java.nio.file.Path;
 import java.nio.file.SimpleFileVisitor;
 import java.nio.file.StandardCopyOption;
 import java.nio.file.attribute.BasicFileAttributes;
-import java.time.Duration;
-import java.time.Instant;
-import java.util.List;
 import java.util.Objects;
-import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.UUID;
@@ -46,7 +42,7 @@ public final class BossArenaManager {
     private final Path instanceRoot;
 
     // Single active arena instance for the server (global scope).
-    private volatile BossArena activeArena;
+    private volatile Arena activeArena;
     // Tracks an in-flight creation operation for serialization.
     private volatile CompletableFuture<World> pendingCreation;
     private final ExecutorService ioExecutor = Executors.newSingleThreadExecutor(runnable -> {
@@ -71,16 +67,6 @@ public final class BossArenaManager {
 
     public static BossArenaManager createDefault(Plugin plugin) {
         return new BossArenaManager(plugin);
-    }
-
-    /**
-     * Pre-warms a boss arena by beginning the template copy early.
-     * <p>
-     * Safe to call from any thread; the actual world load will always execute on
-     * the Bukkit main thread.
-     */
-    public CompletableFuture<World> prewarmInstance(String bossId) {
-        return createInstance(bossId);
     }
 
     /**
@@ -118,7 +104,7 @@ public final class BossArenaManager {
     }
 
     public CompletableFuture<Void> destroyInstance() {
-        BossArena arena = activeArena;
+        Arena arena = activeArena;
         if (arena == null) {
             return CompletableFuture.completedFuture(null);
         }
@@ -128,7 +114,7 @@ public final class BossArenaManager {
     }
 
     public void cleanupOrphanInstances() {
-        runOnMainThread(() -> null).thenRunAsync(() -> {
+        ioExecutor.execute(() -> {
             try {
                 if (Files.notExists(instanceRoot)) {
                     return;
@@ -146,18 +132,11 @@ public final class BossArenaManager {
             } catch (IOException e) {
                 logger.log(Level.WARNING, "Could not scan boss instance root for orphan cleanup.", e);
             }
-        }, ioExecutor);
+        });
     }
 
-    public Optional<BossArena> getArena() {
-        return Optional.ofNullable(activeArena);
-    }
-
-    public List<BossArena> getActiveArenas() {
-        if (activeArena == null) {
-            return List.of();
-        }
-        return List.of(activeArena);
+    public void shutdown() {
+        ioExecutor.shutdown();
     }
 
     private Path resolveTemplateFolder(String bossId) {
@@ -338,7 +317,7 @@ public final class BossArenaManager {
     private CompletableFuture<World> loadWorldAsync(String bossId, Path instanceFolder) {
         return runOnMainThread(() -> {
             String worldName = instanceFolder.getFileName().toString();
-            BossArena arena = new BossArena(bossId, worldName, Instant.now(), BossArena.State.LOADING);
+            Arena arena = new Arena(bossId, worldName, ArenaState.LOADING);
             synchronized (this) {
                 activeArena = arena;
             }
@@ -360,13 +339,13 @@ public final class BossArenaManager {
             world.setTime(0);
 
             synchronized (this) {
-                activeArena = activeArena.withState(BossArena.State.ACTIVE);
+                activeArena = activeArena.withState(ArenaState.ACTIVE);
             }
             return world;
         });
     }
 
-    private BossArena unloadArenaWorld(BossArena arena) {
+    private Arena unloadArenaWorld(Arena arena) {
         World world = Bukkit.getWorld(arena.worldName());
         if (world == null) {
             return arena;
@@ -392,12 +371,12 @@ public final class BossArenaManager {
             throw new IllegalStateException("Could not unload boss arena world: " + arena.worldName());
         }
         synchronized (this) {
-            activeArena = arena.withState(BossArena.State.DESTROYING);
+            activeArena = arena.withState(ArenaState.DESTROYING);
         }
         return arena;
     }
 
-    private CompletableFuture<Void> deleteInstanceFolderAsync(BossArena arena) {
+    private CompletableFuture<Void> deleteInstanceFolderAsync(Arena arena) {
         return CompletableFuture.runAsync(() -> {
             Path folder = instanceRoot.resolve(arena.worldName());
             try {
@@ -492,5 +471,15 @@ public final class BossArenaManager {
     @FunctionalInterface
     private interface SupplierWithException<T> {
         T get() throws Exception;
+    }
+
+    private record Arena(String bossId, String worldName, ArenaState state) {
+        private Arena withState(ArenaState state) {
+            return new Arena(bossId, worldName, state);
+        }
+    }
+
+    private enum ArenaState {
+        LOADING, ACTIVE, DESTROYING
     }
 }

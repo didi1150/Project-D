@@ -10,7 +10,7 @@ import org.bukkit.entity.Player;
 import dev.bukkit.entity.BukkitPlayerEntity;
 import dev.core.entity.RPGEntity;
 import dev.core.entity.RPGMobEntity;
-import dev.core.entity.boss.MovementStrategy;
+import dev.core.entity.strategy.MovementStrategy;
 import dev.core.storage.config.ConfigSection;
 
 public class TeleportMovementStrategy implements MovementStrategy {

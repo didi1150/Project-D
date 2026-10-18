@@ -1,7 +1,6 @@
 package dev.core.entity.boss;
 
 import java.util.List;
-import java.util.Optional;
 
 import dev.core.stat.StatManager;
 import lombok.Getter;
@@ -25,9 +24,5 @@ public class BossDefinition {
         this.defeatStageId = defeatStageId;
         this.baseStatManager = baseStatManager;
         this.stages = stages == null ? List.of() : List.copyOf(stages);
-    }
-
-    public Optional<BossStage> getStage(String stageId) {
-        return stages.stream().filter(stage -> stage.getId().equals(stageId)).findFirst();
     }
 }

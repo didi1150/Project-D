@@ -23,7 +23,7 @@ import org.bukkit.util.Transformation;
 import org.bukkit.util.Vector;
 import org.joml.Vector3f;
 
-import dev.bukkit.entity.boss.BukkitDisplayEntityRegistry;
+import dev.bukkit.entity.BukkitDisplayEntityRegistry;
 import dev.core.utils.AdventureText;
 
 import org.joml.AxisAngle4f;

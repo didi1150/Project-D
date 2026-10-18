@@ -3,7 +3,7 @@ package dev.bukkit.event.subscribers;
 import org.bukkit.entity.Display;
 import org.bukkit.event.entity.EntityRemoveEvent;
 
-import dev.bukkit.entity.boss.BukkitDisplayEntityRegistry;
+import dev.bukkit.entity.BukkitDisplayEntityRegistry;
 import dev.core.event.EventSubscriber;
 import dev.core.event.Subscribe;
 

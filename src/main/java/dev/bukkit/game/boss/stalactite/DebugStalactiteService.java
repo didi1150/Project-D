@@ -1,8 +1,6 @@
 package dev.bukkit.game.boss.stalactite;
 
 import java.util.ArrayList;
-import java.util.Iterator;
-import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
@@ -11,8 +9,6 @@ import org.bukkit.Bukkit;
 import org.bukkit.Location;
 import org.bukkit.World;
 import org.bukkit.entity.Player;
-
-import dev.bukkit.entity.boss.BukkitStalactiteEntity;
 
 /**
  * Debug harness for the stalactite system.
@@ -51,19 +47,6 @@ public final class DebugStalactiteService {
     private final Map<UUID, DebugSystem> systems = new ConcurrentHashMap<>();
 
     private DebugStalactiteService() {
-    }
-
-    /**
-     * Spawn a single-stalactite system 8 blocks above the player's current feet.
-     * Ceiling = player feet + CEILING_OFFSET_Y; ground = ceiling - FALL_DISTANCE.
-     * Uses the same visuals, health scaling and 20s regrow as the floor system.
-     *
-     * @return the spawned system id
-     */
-    public UUID spawnAt(Player player) {
-        // Default: single stalactite that doesn't regrow, no debug hitbox (per spec: no
-        // extra arg = single)
-        return spawnAt(player, false, false);
     }
 
     /**
@@ -170,17 +153,6 @@ public final class DebugStalactiteService {
     }
 
     /**
-     * Remove one debug system by id.
-     */
-    public boolean removeById(UUID id) {
-        DebugSystem sys = systems.remove(id);
-        if (sys == null)
-            return false;
-        sys.manager.destroy();
-        return true;
-    }
-
-    /**
      * Remove all debug systems.
      *
      * @return count removed
@@ -201,13 +173,6 @@ public final class DebugStalactiteService {
         return systems.size();
     }
 
-    public List<String> idShortList() {
-        List<String> out = new ArrayList<>();
-        for (UUID id : systems.keySet())
-            out.add(shortId(id));
-        return out;
-    }
-
     public void shutdownAll() {
         removeAll();
     }
@@ -221,30 +186,5 @@ public final class DebugStalactiteService {
     private static String blockStr(Location loc) {
         return String.format("%d, %d, %d in %s", loc.getBlockX(), loc.getBlockY(), loc.getBlockZ(),
                 loc.getWorld().getName());
-    }
-
-    // For testing / boss integration: expose system ids near location
-    public List<UUID> nearbySystems(World world, Location loc, double radius) {
-        List<UUID> out = new ArrayList<>();
-        double r2 = radius * radius;
-        for (Map.Entry<UUID, DebugSystem> e : systems.entrySet()) {
-            Location ceil = e.getValue().manager.getEntities().isEmpty() ? e.getValue().origin
-                    : e.getValue().manager.getEntities().get(0).getCeiling();
-            if (ceil != null && ceil.getWorld().equals(world) && ceil.distanceSquared(loc) <= r2)
-                out.add(e.getKey());
-        }
-        return out;
-    }
-
-    // iterator for onDisable safety: also purge any stale managers whose world
-    // unloaded
-    public void purgeStale() {
-        Iterator<Map.Entry<UUID, DebugSystem>> it = systems.entrySet().iterator();
-        while (it.hasNext()) {
-            var e = it.next();
-            boolean destroyed = e.getValue().manager.isDestroyed();
-            if (destroyed)
-                it.remove();
-        }
     }
 }

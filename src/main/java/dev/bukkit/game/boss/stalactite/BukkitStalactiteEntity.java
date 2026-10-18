@@ -1,8 +1,8 @@
-package dev.bukkit.entity.boss;
+package dev.bukkit.game.boss.stalactite;
 
 import java.util.ArrayList;
-import java.util.List;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Random;
 import java.util.UUID;
@@ -28,17 +28,15 @@ import org.bukkit.persistence.PersistentDataType;
 import org.bukkit.potion.PotionEffect;
 import org.bukkit.potion.PotionEffectType;
 import org.bukkit.util.Transformation;
-import org.bukkit.util.Vector;
 import org.joml.Quaternionf;
 import org.joml.Vector3f;
 
 import dev.bukkit.DMain;
 import dev.bukkit.ability.BukkitEffectManager;
+import dev.bukkit.entity.BukkitDisplayEntityRegistry;
+import dev.bukkit.entity.BukkitEntityMetadata;
 import dev.bukkit.event.BukkitEventBus;
 import dev.bukkit.event.bukkitListeners.CombatListener;
-import dev.bukkit.game.boss.stalactite.StalactiteConfig;
-import dev.bukkit.game.boss.stalactite.StalactiteHitbox;
-import dev.bukkit.game.boss.stalactite.StalactiteLifecycle;
 import dev.bukkit.item.BowArrowManager;
 import dev.bukkit.status.BukkitStatusEffectManager;
 import dev.core.entity.EntityManager;
@@ -54,10 +52,9 @@ import dev.core.event.impl.RPGEntityDeathEvent;
 import dev.core.stat.Stat;
 import dev.core.stat.StatManager;
 import dev.core.stat.StatType;
-import dev.bukkit.entity.BukkitEntityMetadata;
-import dev.core.utils.AdventureText;
 import dev.core.stat.impl.CombatStat;
 import dev.core.stat.impl.ResourceStat;
+import dev.core.utils.AdventureText;
 
 /**
  * Bukkit stalactite entity — owns growing / active / falling lifecycle, hitbox
@@ -90,7 +87,7 @@ public class BukkitStalactiteEntity extends RPGEntity {
     public BlockDisplay colliderHighlight;
     public final List<BlockDisplay> taperedHighlights = new ArrayList<>();
 
-    public StalactiteLifecycle lifecycle = StalactiteLifecycle.GROWING;
+    private Lifecycle lifecycle = Lifecycle.GROWING;
     public long stateSinceTick = 0;
     public long readyAtTick = 0;
     public double fallVelocity = 0.0;
@@ -170,18 +167,6 @@ public class BukkitStalactiteEntity extends RPGEntity {
      * Factory: spawns hitbox Interaction first to bind RPG uuid, then creates
      * entity and initializes remainder at GROWING state (scale 0 -> max).
      */
-    public static BukkitStalactiteEntity spawnNew(World world, Location ceiling, int idx, long nowTick,
-            Consumer<BukkitStalactiteEntity> impactHandler) {
-        return spawnNew(world, ceiling, ceiling, idx, nowTick, impactHandler,
-                StalactiteConfig.HITBOX_HIGHLIGHT_ENABLED);
-    }
-
-    /** Pivot-aware factory: stalactite visually grows downward from pivot. */
-    public static BukkitStalactiteEntity spawnNew(World world, Location ceiling, Location pivot, int idx, long nowTick,
-            Consumer<BukkitStalactiteEntity> impactHandler) {
-        return spawnNew(world, ceiling, pivot, idx, nowTick, impactHandler, StalactiteConfig.HITBOX_HIGHLIGHT_ENABLED);
-    }
-
     public static BukkitStalactiteEntity spawnNew(World world, Location ceiling, Location pivot, int idx, long nowTick,
             Consumer<BukkitStalactiteEntity> impactHandler, boolean showHighlights) {
         Location ce = ceiling.clone();
@@ -243,7 +228,7 @@ public class BukkitStalactiteEntity extends RPGEntity {
         this.healthbar = text;
 
         this.currentY = pivot.getY();
-        this.lifecycle = StalactiteLifecycle.GROWING;
+        this.lifecycle = Lifecycle.GROWING;
         this.stateSinceTick = nowTick;
         this.readyAtTick = nowTick + StalactiteConfig.REGROW_TICKS;
         this.tickCounter = nowTick;
@@ -268,7 +253,7 @@ public class BukkitStalactiteEntity extends RPGEntity {
     // ---- lifecycle helpers ----
 
     public boolean isDamageable() {
-        return lifecycle == StalactiteLifecycle.ACTIVE;
+        return lifecycle == Lifecycle.ACTIVE;
     }
 
     public boolean isPendingDespawn() {
@@ -289,10 +274,6 @@ public class BukkitStalactiteEntity extends RPGEntity {
 
     public World getWorld() {
         return world;
-    }
-
-    public StalactiteLifecycle getLifecycle() {
-        return lifecycle;
     }
 
     // ---- pivot-anchored helpers ----
@@ -334,12 +315,12 @@ public class BukkitStalactiteEntity extends RPGEntity {
     }
 
     public String healthbarText() {
-        if (lifecycle == StalactiteLifecycle.GROWING) {
+        if (lifecycle == Lifecycle.GROWING) {
             long remaining = Math.max(0, readyAtTick - tickCounter);
             double secs = remaining / 20.0;
             return "§7Regrowing §e" + String.format("%.1fs", secs);
         }
-        if (lifecycle == StalactiteLifecycle.FALLING) {
+        if (lifecycle == Lifecycle.FALLING) {
             return "§c§lFalling!";
         }
         double curHealth = getHealth();
@@ -352,7 +333,7 @@ public class BukkitStalactiteEntity extends RPGEntity {
     }
 
     private void becomeActive() {
-        lifecycle = StalactiteLifecycle.ACTIVE;
+        lifecycle = Lifecycle.ACTIVE;
         stateSinceTick = tickCounter;
         setDamageImmune(false);
         if (display != null && display.isValid()) {
@@ -401,7 +382,7 @@ public class BukkitStalactiteEntity extends RPGEntity {
     private void onRPGDeathEvent(RPGEntityDeathEvent event) {
         if (!event.getTarget().getUuid().equals(getUuid()))
             return;
-        if (lifecycle == StalactiteLifecycle.FALLING)
+        if (lifecycle == Lifecycle.FALLING)
             return;
         startFalling();
     }
@@ -425,7 +406,7 @@ public class BukkitStalactiteEntity extends RPGEntity {
             Bukkit.getScheduler().runTask(DMain.getInstance(), () -> {
                 if (healthbar != null && healthbar.isValid())
                     healthbar.text(AdventureText.legacy(healthbarText()));
-                if (getHealth() <= 0 && lifecycle == StalactiteLifecycle.ACTIVE)
+                if (getHealth() <= 0 && lifecycle == Lifecycle.ACTIVE)
                     startFalling();
             });
         } catch (Exception ignored) {
@@ -441,9 +422,9 @@ public class BukkitStalactiteEntity extends RPGEntity {
     }
 
     private void startFalling() {
-        if (lifecycle == StalactiteLifecycle.FALLING)
+        if (lifecycle == Lifecycle.FALLING)
             return;
-        lifecycle = StalactiteLifecycle.FALLING;
+        lifecycle = Lifecycle.FALLING;
         stateSinceTick = tickCounter;
         fallVelocity = StalactiteConfig.FALL_INITIAL_VELOCITY;
         currentY = pivot.getY();
@@ -609,14 +590,6 @@ public class BukkitStalactiteEntity extends RPGEntity {
             } catch (Exception ignored) {
             }
         }
-    }
-
-    public boolean isInsideTapered(Vector point, double margin) {
-        return StalactiteHitbox.isInsideTaperedStalactite(point, ceiling, margin);
-    }
-
-    public boolean rayIntersectsTapered(Vector start, Vector dir, double maxDist, double margin) {
-        return StalactiteHitbox.rayIntersectsTapered(start, dir, maxDist, ceiling, margin);
     }
 
     // ---- collider ----
@@ -1029,5 +1002,9 @@ public class BukkitStalactiteEntity extends RPGEntity {
         }
         removeCollider();
         removeHitboxHighlights();
+    }
+
+    private enum Lifecycle {
+        GROWING, ACTIVE, FALLING
     }
 }

@@ -13,6 +13,10 @@ import java.util.Set;
 
 import org.junit.jupiter.api.Test;
 
+import dev.core.entity.strategy.AttackPattern;
+import dev.core.entity.strategy.MovementStrategy;
+import dev.core.entity.strategy.NoopMovementStrategy;
+import dev.core.entity.strategy.TargetingStrategy;
 import dev.core.stat.StatType;
 import dev.core.storage.config.ConfigProvider;
 import dev.core.storage.config.ConfigSection;

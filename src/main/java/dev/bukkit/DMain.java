@@ -48,15 +48,14 @@ import dev.bukkit.ability.behavior.VampirismBehavior;
 import dev.bukkit.ability.behavior.WitherSkullOrbitBehavior;
 import dev.bukkit.command.CommandManager;
 import dev.bukkit.entity.DebugRpgEntityService;
-import dev.bukkit.entity.boss.BukkitBossStageTypeRegistry;
-import dev.bukkit.entity.boss.BukkitBossStrategyRegistry;
-import dev.bukkit.entity.boss.BukkitDisplayEntityRegistry;
+import dev.bukkit.entity.BukkitDisplayEntityRegistry;
 import dev.bukkit.event.BukkitEventBus;
 import dev.bukkit.event.bukkitListeners.CombatListener;
 import dev.bukkit.event.bukkitListeners.EventBusRegistry;
 import dev.bukkit.event.subscribers.ThreatPassiveSubscriber;
 import dev.bukkit.game.boss.BossArenaManager;
 import dev.bukkit.game.boss.stalactite.DebugStalactiteService;
+import dev.bukkit.reload.BossReloadService;
 import dev.bukkit.game.dungeon.DungeonPortalManager;
 import dev.bukkit.game.dungeon.buildassets.BuildAssetManager;
 import dev.bukkit.game.dungeon.proceduralDungeon.BukkitVoidWorldGenerator;
@@ -129,11 +128,6 @@ import dev.core.ability.impl.WitherSkullOrbitAbility;
 import dev.core.ability.passive.SetPassiveRegistry;
 import dev.core.ability.storage.AbilityLoader;
 import dev.core.entity.EntityManager;
-import dev.core.entity.boss.BossDefinitionLoader;
-import dev.core.entity.boss.BossDefinitionRegistry;
-import dev.core.entity.boss.FloorData;
-import dev.core.entity.boss.FloorDataLoader;
-import dev.core.entity.boss.FloorDataRegistry;
 import dev.core.entity.mob.MobDefinitionLoader;
 import dev.core.entity.mob.MobDefinitionRegistry;
 import dev.core.entity.rpgclass.RPGClassType;
@@ -325,17 +319,9 @@ public final class DMain extends JavaPlugin {
 
         // ==============================================[ Load bosses.yml
         // ]=====================================================
-        ConfigProvider bossesConfig = configManager.getProvider("bosses.yml");
-        BossDefinitionRegistry.getInstance().registerAll(BossDefinitionLoader.loadAll(bossesConfig,
-                new BukkitBossStageTypeRegistry(), new BukkitBossStrategyRegistry()));
-        // floor-data is sibling top-level key in bosses.yml: floor-data: <floor>: {
-        // free-form }
-        try {
-            Map<Integer, FloorData> floorDatas = FloorDataLoader.loadAll(bossesConfig);
-            FloorDataRegistry.getInstance().registerAll(floorDatas);
-            Bukkit.getConsoleSender().sendMessage("Loaded " + floorDatas.size() + " floor-data entries.");
-        } catch (Exception e) {
-            Bukkit.getLogger().warning("Failed to load floor-data: " + e.getMessage());
+        BossReloadService.ReloadResult bossReload = BossReloadService.reload(configManager);
+        if (!bossReload.success) {
+            Bukkit.getLogger().warning("Failed to load bosses.yml: " + bossReload.message);
         }
 
         // ==============================================[ Load dungeon-mobs.yml
@@ -353,6 +339,7 @@ public final class DMain extends JavaPlugin {
         gameSettingsLoader.load();
         // Initialize boss arena manager from setup config
         this.bossArenaManager = BossArenaManager.createDefault(this);
+        this.bossArenaManager.cleanupOrphanInstances();
         if (!gameSettings.isSetupMode() && gameSettings.getDungeonWorld() != null
                 && !gameSettings.getDungeonWorld().isBlank()) {
             File dungeonWorldFolder = new File(Bukkit.getWorldContainer(), gameSettings.getDungeonWorld());
@@ -462,6 +449,9 @@ public final class DMain extends JavaPlugin {
         effectManagerInterface.cancelAll();
         BukkitStatusEffectManager.getInstance().cancelAll();
         bukkitDisplayEntityRegistry.removeAllDisplays();
+        if (bossArenaManager != null) {
+            bossArenaManager.shutdown();
+        }
         HudOverlayService.getInstance().shutdown();
         if (playerGlowService != null) {
             try {

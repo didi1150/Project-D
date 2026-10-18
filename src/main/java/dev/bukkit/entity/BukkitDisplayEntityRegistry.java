@@ -1,4 +1,4 @@
-package dev.bukkit.entity.boss;
+package dev.bukkit.entity;
 
 import java.util.HashSet;
 import java.util.Iterator;

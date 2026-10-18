@@ -6,7 +6,7 @@ import org.bukkit.util.Vector;
 /**
  * Shared hitbox geometry for stalactites: a square frustum wide at the ceiling,
  * narrow at the tip. Used by
- * {@link dev.bukkit.entity.boss.BukkitStalactiteEntity} and
+ * {@link BukkitStalactiteEntity} and
  * {@link StalactiteManager}.
  */
 public final class StalactiteHitbox {

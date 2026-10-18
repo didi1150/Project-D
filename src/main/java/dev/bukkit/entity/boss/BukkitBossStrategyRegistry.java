@@ -2,13 +2,18 @@ package dev.bukkit.entity.boss;
 
 import java.util.Optional;
 
-import dev.core.entity.boss.AttackPattern;
+import org.bukkit.Bukkit;
+import org.bukkit.entity.Player;
+
+import dev.bukkit.utils.StealthRegistry;
+import dev.core.entity.EntityManager;
+import dev.core.entity.EntityType;
 import dev.core.entity.boss.BossStrategyRegistry;
-import dev.core.entity.boss.FirstAlivePlayerTargetingStrategy;
-import dev.core.entity.boss.MeleeAttackPattern;
-import dev.core.entity.boss.MovementStrategy;
-import dev.core.entity.boss.NoopMovementStrategy;
-import dev.core.entity.boss.TargetingStrategy;
+import dev.core.entity.strategy.AttackPattern;
+import dev.core.entity.strategy.MeleeAttackPattern;
+import dev.core.entity.strategy.MovementStrategy;
+import dev.core.entity.strategy.NoopMovementStrategy;
+import dev.core.entity.strategy.TargetingStrategy;
 import dev.core.storage.config.ConfigSection;
 
 public class BukkitBossStrategyRegistry implements BossStrategyRegistry {
@@ -33,12 +38,22 @@ public class BukkitBossStrategyRegistry implements BossStrategyRegistry {
         case "NONE":
             return Optional.of(mob -> Optional.empty());
         case "FIRST_ALIVE":
-            return Optional.of(new FirstAlivePlayerTargetingStrategy());
+            return Optional.of(firstAlivePlayerTarget());
         case "NEAREST":
             return Optional.of(new NearestPlayerTargetingStrategy());
         default:
             return Optional.empty();
         }
+    }
+
+    static TargetingStrategy firstAlivePlayerTarget() {
+        return mob -> EntityManager.getInstance().getAliveEntities().stream()
+                .filter(entity -> entity != mob && entity.getEntityType() == EntityType.PLAYER && entity.isAlive())
+                .filter(entity -> {
+                    Player player = Bukkit.getPlayer(entity.getUuid());
+                    return player == null || !StealthRegistry.shouldHideFromMob(player);
+                })
+                .findFirst();
     }
 
     @Override

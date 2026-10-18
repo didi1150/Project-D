@@ -30,7 +30,7 @@ import org.bukkit.scheduler.BukkitRunnable;
 import dev.bukkit.DMain;
 import dev.bukkit.command.CommandManager;
 import dev.bukkit.command.SubCommandBuilder;
-import dev.bukkit.entity.boss.BukkitDisplayEntityRegistry;
+import dev.bukkit.entity.BukkitDisplayEntityRegistry;
 import dev.core.game.dungeon.BoundingBox;
 import dev.core.game.dungeon.proceduralDungeon.AbstractDungeonGenerator;
 import dev.core.game.dungeon.proceduralDungeon.DungeonGenerationParameters;

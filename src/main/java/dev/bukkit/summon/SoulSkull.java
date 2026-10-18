@@ -29,7 +29,7 @@ import com.destroystokyo.paper.profile.PlayerProfile;
 import com.destroystokyo.paper.profile.ProfileProperty;
 
 import dev.bukkit.DMain;
-import dev.bukkit.entity.boss.BukkitDisplayEntityRegistry;
+import dev.bukkit.entity.BukkitDisplayEntityRegistry;
 import dev.core.entity.rpgclass.RPGClassType;
 import dev.core.utils.AdventureText;
 import dev.core.utils.LegacyColors;

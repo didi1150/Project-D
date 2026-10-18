@@ -4,8 +4,12 @@ import java.util.Optional;
 import java.util.UUID;
 
 import dev.core.ability.EffectManagerInterface;
+import dev.core.entity.EntityManager;
 import dev.core.entity.EntityType;
 import dev.core.entity.RPGMobEntity;
+import dev.core.entity.strategy.MeleeAttackPattern;
+import dev.core.entity.strategy.NoopMovementStrategy;
+import dev.core.entity.strategy.TargetingStrategy;
 import dev.core.event.EventBusInterface;
 import dev.core.game.TaskScheduler;
 import dev.core.status.StatusEffectManagerInterface;
@@ -19,26 +23,16 @@ public class RPGBossEntity extends RPGMobEntity {
     private FloorData floorData;
 
     public RPGBossEntity(UUID uuid, String name, EffectManagerInterface effectManager, EventBusInterface eventBus,
-            TaskScheduler scheduler) {
-        super(uuid, name, EntityType.BOSS, effectManager, eventBus, new NoopMovementStrategy(),
-                new FirstAlivePlayerTargetingStrategy(), new MeleeAttackPattern());
-        this.stageManager = new BossStageManager(this, scheduler);
-    }
-
-    public RPGBossEntity(UUID uuid, String name, EffectManagerInterface effectManager, EventBusInterface eventBus,
             TaskScheduler scheduler, StatusEffectManagerInterface statusEffects) {
         super(uuid, name, EntityType.BOSS, effectManager, eventBus, new NoopMovementStrategy(),
-                new FirstAlivePlayerTargetingStrategy(), new MeleeAttackPattern(), statusEffects);
+                firstAlivePlayerTarget(), new MeleeAttackPattern(), statusEffects);
         this.stageManager = new BossStageManager(this, scheduler);
     }
 
-    /**
-     * Applies a definition to this boss instance: stats, stages and the defeat
-     * stage. Must be called before the boss is ticked.
-     */
-    public void configure(BossDefinition definition, BossEntityContext context) {
-        FloorData fd = FloorDataRegistry.getInstance().getOrEmpty(definition.getFloor());
-        configure(definition, context, fd);
+    private static TargetingStrategy firstAlivePlayerTarget() {
+        return mob -> EntityManager.getInstance().getAliveEntities().stream()
+                .filter(entity -> entity != mob && entity.getEntityType() == EntityType.PLAYER && entity.isAlive())
+                .findFirst();
     }
 
     /**
@@ -130,14 +124,6 @@ public class RPGBossEntity extends RPGMobEntity {
 
     public String getDefeatStageId() {
         return defeatStageId;
-    }
-
-    public BossStageManager getStageManager() {
-        return stageManager;
-    }
-
-    public Optional<BossStage> getCurrentStage() {
-        return Optional.ofNullable(stageManager.getCurrentStage());
     }
 
     public FloorData getFloorData() {

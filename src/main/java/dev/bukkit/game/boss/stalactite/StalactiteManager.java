@@ -1,7 +1,6 @@
 package dev.bukkit.game.boss.stalactite;
 
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -23,7 +22,6 @@ import org.bukkit.util.BoundingBox;
 import org.bukkit.util.Vector;
 
 import dev.bukkit.DMain;
-import dev.bukkit.entity.boss.BukkitStalactiteEntity;
 import dev.bukkit.event.BukkitEventBus;
 import dev.core.event.EventAction;
 
@@ -50,42 +48,20 @@ public class StalactiteManager {
     private BukkitTask tickTask;
     private long tickCounter = 0;
     private EventAction<ProjectileHitEvent> projectileBlockHitAction;
-    private final List<BukkitTask> pendingRespawns = new ArrayList<>();
 
-    public StalactiteManager(World world, List<Location> ceilings, Consumer<BukkitStalactiteEntity> impactHandler) {
-        this(world, ceilings, impactHandler, true, false);
-    }
-
-    public StalactiteManager(World world, Location singleCeiling, Consumer<BukkitStalactiteEntity> impactHandler) {
-        this(world, new ArrayList<>(Arrays.asList(singleCeiling)), impactHandler, true, false);
-    }
-
-    public StalactiteManager(World world, List<Location> ceilings, Consumer<BukkitStalactiteEntity> impactHandler,
+    public StalactiteManager(World world, Location singleCeiling, Consumer<BukkitStalactiteEntity> impactHandler,
             boolean respawnEnabled, boolean debugHitbox) {
         this.world = world;
         this.impactHandler = impactHandler != null ? impactHandler : (e -> {
         });
         this.respawnEnabled = respawnEnabled;
         this.debugHitbox = debugHitbox;
-        for (Location ceil : ceilings) {
-            Location c = ceil.clone();
-            c.setWorld(world);
-            this.ceilings.add(c);
-        }
-    }
-
-    public StalactiteManager(World world, Location singleCeiling, Consumer<BukkitStalactiteEntity> impactHandler,
-            boolean respawnEnabled, boolean debugHitbox) {
-        this(world, new ArrayList<>(Arrays.asList(singleCeiling)), impactHandler, respawnEnabled, debugHitbox);
+        Location ceiling = singleCeiling.clone();
+        ceiling.setWorld(world);
+        this.ceilings.add(ceiling);
     }
 
     public List<BukkitStalactiteEntity> getEntities() {
-        return entities;
-    }
-
-    /** @deprecated use {@link #getEntities()} */
-    @Deprecated
-    public List<BukkitStalactiteEntity> getInstances() {
         return entities;
     }
 
@@ -372,13 +348,6 @@ public class StalactiteManager {
             }
         } catch (Exception ignored) {
         }
-        for (BukkitTask t : new ArrayList<>(pendingRespawns)) {
-            try {
-                t.cancel();
-            } catch (Exception ignored) {
-            }
-        }
-        pendingRespawns.clear();
         for (BukkitStalactiteEntity e : new ArrayList<>(entities)) {
             try {
                 hitboxMap.remove(e.hitbox != null ? e.hitbox.getUniqueId() : e.getUuid());
@@ -397,9 +366,5 @@ public class StalactiteManager {
         entities.clear();
         hitboxMap.clear();
         colliderMap.clear();
-    }
-
-    public boolean isDestroyed() {
-        return tickTask == null && entities.isEmpty();
     }
 }

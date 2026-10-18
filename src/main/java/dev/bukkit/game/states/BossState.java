@@ -75,13 +75,6 @@ public class BossState extends GameState {
         prepareBossArena(bossTemplate, settings, floorData);
     }
 
-    /**
-     * Exposed for reload / testing: returns the floor-data for the current floor.
-     */
-    public FloorData getFloorDataForCurrentFloor() {
-        return FloorDataRegistry.getInstance().getOrEmpty(GameSettings.getCurrentSettings().getFloor());
-    }
-
     @Override
     protected void onStop() {
         if (activeBoss != null) {
@@ -89,6 +82,11 @@ public class BossState extends GameState {
             activeBoss = null;
         }
         bossUuid = null;
+        DMain.getInstance().getBossArenaManager().destroyInstance().whenComplete((ignored, throwable) -> {
+            if (throwable != null) {
+                Bukkit.getLogger().warning("Failed to destroy boss arena: " + throwable.getMessage());
+            }
+        });
     }
 
     public boolean hasActiveBoss() {
@@ -97,10 +95,6 @@ public class BossState extends GameState {
 
     public UUID getBossUuid() {
         return bossUuid;
-    }
-
-    public BukkitBossEntity getActiveBoss() {
-        return activeBoss;
     }
 
     public void injectDebugBoss(BukkitBossEntity boss) {
@@ -219,11 +213,6 @@ public class BossState extends GameState {
         }
     }
 
-    private boolean spawnBoss(World world, Location spawnLocation) {
-        FloorData fd = FloorDataRegistry.getInstance().getOrEmpty(GameSettings.getCurrentSettings().getFloor());
-        return spawnBoss(world, spawnLocation, fd);
-    }
-
     private boolean spawnBoss(World world, Location spawnLocation, FloorData floorData) {
         if (activeBoss != null) {
             bossFactory.despawn(activeBoss);
@@ -250,11 +239,6 @@ public class BossState extends GameState {
                 .ifPresent(living -> BukkitEntityMetadata.set(living, "BOSS", true));
 
         return true;
-    }
-
-    private void prepareBossArena(String bossTemplate, GameSettings settings) {
-        FloorData fd = FloorDataRegistry.getInstance().getOrEmpty(settings.getFloor());
-        prepareBossArena(bossTemplate, settings, fd);
     }
 
     private void prepareBossArena(String bossTemplate, GameSettings settings, FloorData floorData) {
@@ -300,13 +284,5 @@ public class BossState extends GameState {
 
             BukkitText.broadcast("§cThe Wither boss has awakened in the dungeon's deepest room!");
         });
-    }
-
-    /**
-     * Public entry for external callers (e.g., tests or reload) that need to
-     * inspect or pre-warm the arena with explicit floor-data.
-     */
-    public void prepareBossArenaWithFloorData(String bossTemplate, GameSettings settings, FloorData floorData) {
-        prepareBossArena(bossTemplate, settings, floorData);
     }
 }

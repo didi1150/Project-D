@@ -1,4 +1,4 @@
-package dev.core.entity.boss;
+package dev.core.entity.strategy;
 
 import java.util.Optional;
 

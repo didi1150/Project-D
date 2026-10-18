@@ -2,6 +2,9 @@ package dev.core.entity.boss;
 
 import java.util.Optional;
 
+import dev.core.entity.strategy.AttackPattern;
+import dev.core.entity.strategy.MovementStrategy;
+import dev.core.entity.strategy.TargetingStrategy;
 import dev.core.storage.config.ConfigSection;
 
 /**

@@ -50,10 +50,6 @@ public class BossDefinitionRegistry {
         return definitions == null ? Optional.empty() : Optional.ofNullable(definitions.get(id));
     }
 
-    public List<BossDefinition> getAllForFloor(int floor) {
-        return Collections.unmodifiableList(byFloor.getOrDefault(floor, List.of()));
-    }
-
     public synchronized Optional<BossDefinition> getById(String id) {
         for (Map<String, BossDefinition> map : byFloorAndId.values()) {
             BossDefinition def = map.get(id);
@@ -62,17 +58,6 @@ public class BossDefinitionRegistry {
             }
         }
         return Optional.empty();
-    }
-
-    public synchronized List<BossDefinition> getAllById(String id) {
-        List<BossDefinition> result = new ArrayList<>();
-        for (Map<String, BossDefinition> map : byFloorAndId.values()) {
-            BossDefinition def = map.get(id);
-            if (def != null) {
-                result.add(def);
-            }
-        }
-        return Collections.unmodifiableList(result);
     }
 
     public synchronized int size() {

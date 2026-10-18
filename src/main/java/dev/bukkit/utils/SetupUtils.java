@@ -12,7 +12,7 @@ import org.bukkit.inventory.ItemFlag;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
 
-import dev.bukkit.entity.boss.BukkitDisplayEntityRegistry;
+import dev.bukkit.entity.BukkitDisplayEntityRegistry;
 import dev.bukkit.game.coords.LocToPoint;
 import dev.core.event.EventAction;
 import dev.core.event.EventBusInterface;

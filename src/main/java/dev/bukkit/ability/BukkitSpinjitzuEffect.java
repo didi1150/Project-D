@@ -20,7 +20,7 @@ import org.joml.AxisAngle4f;
 import org.joml.Vector3f;
 
 import dev.bukkit.entity.BukkitPlayerEntity;
-import dev.bukkit.entity.boss.BukkitDisplayEntityRegistry;
+import dev.bukkit.entity.BukkitDisplayEntityRegistry;
 import dev.bukkit.utils.CombatRelation;
 import dev.core.ability.CooldownSink;
 import dev.core.ability.Effect;

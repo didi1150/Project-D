@@ -62,21 +62,12 @@ public class BossStageManager {
 
         currentStage = nextStage;
         stageStartTime = now;
-        context.setState("lastStageChangeTime", now);
         boss.onStageTransition(nextStage);
         currentStage.onEnter(context);
     }
 
-    public BossStage getCurrentStage() {
-        return currentStage;
-    }
-
     public long getStageStartTime() {
         return stageStartTime;
-    }
-
-    public BossStageContext getContext() {
-        return context;
     }
 
     public TaskScheduler getScheduler() {

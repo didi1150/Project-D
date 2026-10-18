@@ -1,6 +1,6 @@
 package dev.bukkit.game.dungeon.buildassets;
 
-import dev.bukkit.entity.boss.BukkitDisplayEntityRegistry;
+import dev.bukkit.entity.BukkitDisplayEntityRegistry;
 import dev.core.game.dungeon.proceduralDungeon.util.Vector3Int;
 import org.bukkit.Location;
 import org.bukkit.Material;

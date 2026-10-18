@@ -33,7 +33,7 @@ import org.joml.Vector3f;
 import dev.bukkit.DMain;
 import dev.bukkit.command.CommandManager;
 import dev.bukkit.command.SubCommandBuilder;
-import dev.bukkit.entity.boss.BukkitDisplayEntityRegistry;
+import dev.bukkit.entity.BukkitDisplayEntityRegistry;
 import dev.bukkit.game.coords.LocToPoint;
 import dev.bukkit.game.coords.PointToLocation;
 import dev.bukkit.utils.setup.SetupHelper;

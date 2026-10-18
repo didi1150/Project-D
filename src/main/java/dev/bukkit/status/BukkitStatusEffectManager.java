@@ -15,7 +15,7 @@ import org.bukkit.util.Transformation;
 
 import dev.bukkit.DMain;
 import dev.bukkit.entity.BukkitPlayerEntity;
-import dev.bukkit.entity.boss.BukkitDisplayEntityRegistry;
+import dev.bukkit.entity.BukkitDisplayEntityRegistry;
 import dev.core.entity.EntityManager;
 import dev.core.entity.RPGEntity;
 import dev.core.status.ActiveStatusEffect;

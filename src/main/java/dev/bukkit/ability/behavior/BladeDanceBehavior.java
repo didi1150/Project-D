@@ -25,7 +25,7 @@ import org.joml.Quaternionf;
 import org.joml.Vector3f;
 
 import dev.bukkit.DMain;
-import dev.bukkit.entity.boss.BukkitDisplayEntityRegistry;
+import dev.bukkit.entity.BukkitDisplayEntityRegistry;
 import dev.bukkit.item.BukkitItemStackAdapter;
 import dev.core.ability.AbilityBehavior;
 import dev.core.ability.ActiveAbility;

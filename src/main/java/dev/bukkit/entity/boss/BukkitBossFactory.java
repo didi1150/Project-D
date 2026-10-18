@@ -1,5 +1,11 @@
 package dev.bukkit.entity.boss;
 
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Random;
+import java.util.UUID;
+import java.util.function.Supplier;
+
 import org.bukkit.Location;
 import org.bukkit.World;
 import org.bukkit.entity.Entity;
@@ -7,10 +13,11 @@ import org.bukkit.entity.EntityType;
 import org.bukkit.entity.LivingEntity;
 
 import dev.bukkit.entity.BukkitEntityMetadata;
+import dev.bukkit.utils.BukkitText;
 import dev.core.entity.EntityManager;
 import dev.core.entity.boss.BossDefinition;
+import dev.core.entity.boss.BossEntityContext;
 import dev.core.entity.boss.FloorData;
-import dev.core.entity.boss.FloorDataRegistry;
 import dev.core.event.EventBusInterface;
 import dev.core.game.TaskScheduler;
 import dev.core.utils.AdventureText;
@@ -27,11 +34,6 @@ public class BukkitBossFactory {
     public BukkitBossFactory(EventBusInterface eventBus, TaskScheduler scheduler) {
         this.eventBus = eventBus;
         this.scheduler = scheduler;
-    }
-
-    public BukkitBossEntity spawn(BossDefinition definition, World world, Location location) {
-        FloorData fd = FloorDataRegistry.getInstance().getOrEmpty(definition.getFloor());
-        return spawn(definition, world, location, fd);
     }
 
     public BukkitBossEntity spawn(BossDefinition definition, World world, Location location, FloorData floorData) {
@@ -56,7 +58,7 @@ public class BukkitBossFactory {
         BukkitBossEntity boss = new BukkitBossEntity(living.getUniqueId(), definition.getDisplayName(), eventBus,
                 scheduler);
         boss.configure(definition,
-                new BukkitBossEntityContext(() -> boss.getBukkitEntity().map(Entity::getLocation).orElse(null)),
+                new BossEntityContextImpl(() -> boss.getBukkitEntity().map(Entity::getLocation).orElse(null)),
                 floorData);
         boss.onSpawn(location);
         return boss;
@@ -90,6 +92,42 @@ public class BukkitBossFactory {
             break;
         default:
             break;
+        }
+    }
+
+    private static final class BossEntityContextImpl implements BossEntityContext {
+
+        private static final Random RANDOM = new Random();
+
+        private final Supplier<Location> bossLocation;
+
+        private BossEntityContextImpl(Supplier<Location> bossLocation) {
+            this.bossLocation = bossLocation;
+        }
+
+        @Override
+        public void broadcast(String message) {
+            BukkitText.broadcast(message);
+        }
+
+        @Override
+        public List<UUID> spawnAdd(String entityType, int count) {
+            Location origin = bossLocation.get();
+            if (origin == null || origin.getWorld() == null) {
+                return List.of();
+            }
+            EntityType type;
+            try {
+                type = EntityType.valueOf(entityType.toUpperCase());
+            } catch (IllegalArgumentException ignored) {
+                return List.of();
+            }
+            List<UUID> spawned = new ArrayList<>(count);
+            for (int i = 0; i < count; i++) {
+                Location loc = origin.clone().add(RANDOM.nextInt(5) - 2, 0.5, RANDOM.nextInt(5) - 2);
+                spawned.add(origin.getWorld().spawnEntity(loc, type).getUniqueId());
+            }
+            return spawned;
         }
     }
 }

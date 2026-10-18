@@ -23,7 +23,7 @@ import org.joml.Vector3f;
 
 import dev.bukkit.DMain;
 import dev.bukkit.entity.BukkitPlayerEntity;
-import dev.bukkit.entity.boss.BukkitDisplayEntityRegistry;
+import dev.bukkit.entity.BukkitDisplayEntityRegistry;
 import dev.bukkit.event.bukkitListeners.CombatListener;
 import dev.bukkit.utils.CombatRelation;
 import dev.bukkit.utils.DamageUtils;
