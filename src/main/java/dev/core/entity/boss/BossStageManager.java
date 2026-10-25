@@ -1,6 +1,7 @@
 package dev.core.entity.boss;
 
 import java.util.HashMap;
+import java.util.IdentityHashMap;
 import java.util.Map;
 
 import dev.core.game.TaskScheduler;
@@ -9,6 +10,7 @@ public class BossStageManager {
 
     private final RPGBossEntity boss;
     private final Map<String, BossStage> stages = new HashMap<>();
+    private final Map<BossStage, Object> stageStates = new IdentityHashMap<>();
     private BossStage currentStage;
     private BossStageContext context;
     private long stageStartTime;
@@ -64,6 +66,32 @@ public class BossStageManager {
         stageStartTime = now;
         boss.onStageTransition(nextStage);
         currentStage.onEnter(context);
+    }
+    
+    public void stop() {
+        if (currentStage != null) {
+            currentStage.onExit(context);
+            currentStage = null;
+        }
+        stageStates.clear();
+    }
+
+    public boolean hasStage(String stageId) {
+        return stageId != null && stages.containsKey(stageId);
+    }
+
+    public Object getState() {
+        return currentStage == null ? null : stageStates.get(currentStage);
+    }
+
+    public String getCurrentStageId() {
+        return currentStage == null ? null : currentStage.getId();
+    }
+
+    public void setState(Object state) {
+        if (currentStage != null) {
+            stageStates.put(currentStage, state);
+        }
     }
 
     public long getStageStartTime() {

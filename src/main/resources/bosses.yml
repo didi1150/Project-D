@@ -8,6 +8,13 @@
 #                the boss is defeated (used with `defeat-stage`)
 #   SUMMON     - spawns `summon-entity` minions every `interval-ticks` for
 #                `duration-ticks`, then transitions to `next-stage`
+#   GROW       - sealed ascent: intro rise, pillar-health-scaled ascent, then
+#                transitions to `wipe-stage` on failure. Reaching 0% height after
+#                the intro ends the encounter as a victory. Stalactite hits push
+#                the boss down by `stalactite-push-percent`; ground impacts deal
+#                `stalactite-explosion-percent` of max health in a 10-block radius.
+#   WIPE       - failure cinematic; pulls the party above a pentagram, raises the
+#                Sealed Hand, kills all players and ends the encounter.
 #
 # Strategy keys:
 #   movement:  NONE, PATHFIND, TELEPORT
@@ -29,6 +36,57 @@
 
 bosses:
   1:
+    sealed-entity:
+      display-name: "&c&lThe Sealed Entity"
+      entity-type: WITHER
+      stats:
+        HEALTH_MAX: 1000
+        MANA_MAX: 100
+        ARMOR: 0
+        MAGIC_RESIST: 0
+        ATTACK_DAMAGE: 0
+        ATTACK_SPEED: 1.0
+        MOVE_SPEED: 100
+        HEALTH_REGEN: 0
+        MANA_REGEN: 0
+        CRIT_CHANCE: 0.0
+        LETHALITY: 0
+        ARMOR_PENETRATION: 0
+      stages:
+        - type: GROW
+          id: grow
+          intro-ticks: 80
+          buried-depth: 2.0
+          half-height: 8.0
+          full-height: 16.0
+          ascent-base-rate: 0.15
+          ascent-max-rate: 1.5
+          pillar-count: 4
+          pillar-max-hp: 100.0
+          stalactite-push-percent: 10.0
+          stalactite-explosion-percent: 10.0
+          ground-material: BLACK_CONCRETE
+          wipe-stage: wipe
+        - type: WIPE
+          id: wipe
+          duration-ticks: 240
+          kill-ticks: 200
+          pull-ticks: 60
+          draw-ticks: 80
+          rise-start-ticks: 40
+          rise-ticks: 70
+          grip-start-ticks: 140
+          grip-ticks: 50
+          radius: 8.0
+          hover-height: 6.5
+          hand-depth: 3.0
+          hand-height: 6.0
+          kill-players: true
+          hand-material: SCULK
+          message: "§4The seal shatters. The Sealed Hand claims the party."
+
+  # Test floor: Wither King is kept for spawn/reload testing, not the Floor 1 boss.
+  99:
     wither-king:
       display-name: "&c&lWither King"
       entity-type: WITHER
@@ -72,5 +130,5 @@ bosses:
           tick-delay: 60
           lines:
             - "§cThe Wither King staggers... 'Impossible... you cannot defeat me!'"
-            - "§c'The dungeon... will consume you all...'" 
+            - "§c'The dungeon... will consume you all...'"
             - "§7The Wither King collapses into dust."

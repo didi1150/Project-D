@@ -1,4 +1,4 @@
-package dev.bukkit.entity.boss;
+package dev.bukkit.entity.boss.stage;
 
 import java.util.ArrayList;
 import java.util.List;

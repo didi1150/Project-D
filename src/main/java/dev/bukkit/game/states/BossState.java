@@ -2,6 +2,7 @@ package dev.bukkit.game.states;
 
 import java.util.Optional;
 import java.util.UUID;
+import java.util.logging.Level;
 
 import org.bukkit.Bukkit;
 import org.bukkit.GameMode;
@@ -9,6 +10,7 @@ import org.bukkit.Location;
 import org.bukkit.World;
 import org.bukkit.attribute.Attribute;
 import org.bukkit.entity.Entity;
+import org.bukkit.entity.EntityType;
 import org.bukkit.entity.Player;
 import org.bukkit.event.player.PlayerJoinEvent;
 import org.bukkit.event.player.PlayerQuitEvent;
@@ -33,6 +35,7 @@ import dev.core.entity.boss.FloorDataRegistry;
 import dev.core.entity.rpgclass.RPGClassType;
 import dev.core.event.EventAction;
 import dev.core.event.EventBusInterface;
+import dev.core.event.impl.BossEncounterEndedEvent;
 import dev.core.event.impl.RPGEntityDeathEvent;
 import dev.core.game.GameState;
 import dev.core.game.GameStateResult;
@@ -51,6 +54,7 @@ public class BossState extends GameState {
     private final TaskScheduler scheduler;
     private UUID bossUuid;
     private BukkitBossEntity activeBoss;
+    private boolean encounterFinished;
 
     public BossState(EventBusInterface eventBus, ClassProgressionService classProgressionService) {
         super(NAME, -1, eventBus);
@@ -62,6 +66,7 @@ public class BossState extends GameState {
 
     @Override
     protected void onStart() {
+        encounterFinished = false;
         GameSettings settings = GameSettings.getCurrentSettings();
         String bossTemplate = settings.getBossWorld();
         if (bossTemplate == null || bossTemplate.isBlank()) {
@@ -123,10 +128,13 @@ public class BossState extends GameState {
         EventAction<PlayerJoinEvent> joinAction = new EventAction<>(this::handleJoin, PlayerJoinEvent.class);
         EventAction<RPGEntityDeathEvent> deathAction = new EventAction<>(this::handleBossDeath,
                 RPGEntityDeathEvent.class);
+        EventAction<BossEncounterEndedEvent> encounterAction = new EventAction<>(this::handleEncounterEnded,
+                BossEncounterEndedEvent.class);
 
         addSubscriber(quitAction);
         addSubscriber(joinAction);
         addSubscriber(deathAction);
+        addSubscriber(encounterAction);
     }
 
     private void handleQuit(PlayerQuitEvent event) {
@@ -187,15 +195,39 @@ public class BossState extends GameState {
     }
 
     private void handleBossDeath(RPGEntityDeathEvent event) {
-        if (bossUuid == null) {
+        if (bossUuid == null || encounterFinished) {
             return;
         }
         if (!event.getTarget().getUuid().equals(bossUuid)) {
             return;
         }
 
+        encounterFinished = true;
         BukkitText.broadcast("§aThe End Boss has been defeated!");
         complete(GameStateResult.COMPLETE);
+    }
+
+    private void handleEncounterEnded(BossEncounterEndedEvent event) {
+        if (bossUuid == null || encounterFinished) {
+            return;
+        }
+        if (!event.getTarget().getUuid().equals(bossUuid)) {
+            return;
+        }
+
+        encounterFinished = true;
+        BossEncounterEndedEvent.Outcome outcome = event.getOutcome();
+        UUID expectedBoss = bossUuid;
+        scheduler.runTaskLater(() -> {
+            if (!active || bossUuid == null || !bossUuid.equals(expectedBoss)) {
+                return;
+            }
+            if (outcome == BossEncounterEndedEvent.Outcome.VICTORY) {
+                complete(GameStateResult.COMPLETE);
+            } else {
+                jumpToState(PostGameState.NAME);
+            }
+        }, 1L);
     }
 
     private void teleportPlayersToBossSpawn(World world, ViewPoint3D spawnPoint) {
@@ -232,6 +264,8 @@ public class BossState extends GameState {
             return false;
         }
 
+        removeLeftoverBossEntities(world, definition);
+
         BukkitBossEntity boss = bossFactory.spawn(definition, world, spawnLocation, floorData);
         this.activeBoss = boss;
         this.bossUuid = boss.getUuid();
@@ -239,6 +273,37 @@ public class BossState extends GameState {
                 .ifPresent(living -> BukkitEntityMetadata.set(living, "BOSS", true));
 
         return true;
+    }
+
+    /**
+     * Template worlds can contain a boss that was spawned while the arena was
+     * being built. Entity metadata is in-memory only, so a saved boss comes back
+     * without the "BOSS" tag and is neither managed by {@link EntityManager} nor
+     * invulnerable. Remove those leftovers before spawning the real encounter
+     * boss, otherwise the stale entity can be attacked (and killed) alongside it.
+     */
+    private void removeLeftoverBossEntities(World world, BossDefinition definition) {
+        EntityType bossType;
+        try {
+            bossType = EntityType.valueOf(definition.getEntityType().toUpperCase());
+        } catch (IllegalArgumentException e) {
+            return;
+        }
+        int removed = 0;
+        for (Entity entity : world.getEntities()) {
+            if (entity.getType() != bossType) {
+                continue;
+            }
+            if (EntityManager.getInstance().getEntity(entity.getUniqueId()).isPresent()) {
+                continue;
+            }
+            entity.remove();
+            removed++;
+        }
+        if (removed > 0) {
+            Bukkit.getLogger().info("[Boss] Removed " + removed + " leftover " + bossType
+                    + " entity/entities from arena before spawning " + definition.getId() + ".");
+        }
     }
 
     private void prepareBossArena(String bossTemplate, GameSettings settings, FloorData floorData) {
@@ -250,39 +315,48 @@ public class BossState extends GameState {
                 return;
             }
 
-            ViewPoint3D bossSpawnPoint = settings.getBossSpawnLocation(settings.getFloor());
-            if (bossSpawnPoint == null) {
-                BukkitText.broadcast(
-                        "§cBossState failed: no boss spawn configured for floor " + settings.getFloor());
+            try {
+                spawnBossForArena(world, settings, floorData);
+            } catch (RuntimeException t) {
+                Bukkit.getLogger().log(Level.SEVERE,
+                        "BossState failed while spawning the boss for floor " + settings.getFloor(), t);
+                BukkitText.broadcast("§cBossState failed: could not spawn boss. See console for details.");
                 complete(GameStateResult.COMPLETE);
-                return;
             }
-
-            ViewPoint3D playerSpawnPoint = settings.getBossPlayerSpawnLocation(settings.getFloor());
-            if (playerSpawnPoint == null) {
-                BukkitText.broadcast(
-                        "§cBossState failed: no boss player spawn configured for floor " + settings.getFloor());
-                complete(GameStateResult.COMPLETE);
-                return;
-            }
-
-            // FloorData is now available for floor-specific arena preparation.
-            // Example for Floor 1 Sealed Entity: validate required lists and spawn
-            // pillars/chains/stalactites/locks/material spawners here before boss spawn.
-            // Fail-fast with broadcast is handled by the floor's BossStage.onEnter as well,
-            // but early validation here gives immediate feedback.
-            // Floor-specific code can read floorData.getViewPointList("pillars") etc.
-
-            teleportPlayersToBossSpawn(world, playerSpawnPoint);
-            Location bossSpawn = new Location(world, bossSpawnPoint.getX() + 0.5, bossSpawnPoint.getY(),
-                    bossSpawnPoint.getZ() + 0.5, bossSpawnPoint.getYaw(), bossSpawnPoint.getPitch());
-            if (!spawnBoss(world, bossSpawn, floorData)) {
-                BukkitText.broadcast("§cBossState failed: could not spawn boss.");
-                complete(GameStateResult.COMPLETE);
-                return;
-            }
-
-            BukkitText.broadcast("§cThe Wither boss has awakened in the dungeon's deepest room!");
         });
+    }
+
+    private void spawnBossForArena(World world, GameSettings settings, FloorData floorData) {
+        ViewPoint3D bossSpawnPoint = settings.getBossSpawnLocation(settings.getFloor());
+        if (bossSpawnPoint == null) {
+            BukkitText.broadcast(
+                    "§cBossState failed: no boss spawn configured for floor " + settings.getFloor());
+            complete(GameStateResult.COMPLETE);
+            return;
+        }
+
+        ViewPoint3D playerSpawnPoint = settings.getBossPlayerSpawnLocation(settings.getFloor());
+        if (playerSpawnPoint == null) {
+            BukkitText.broadcast(
+                    "§cBossState failed: no boss player spawn configured for floor " + settings.getFloor());
+            complete(GameStateResult.COMPLETE);
+            return;
+        }
+
+        // FloorData is now available for floor-specific arena preparation.
+        // Example for Floor 1 Sealed Entity: validate required lists and spawn
+        // pillars/chains/stalactites/locks/material spawners here before boss spawn.
+        // Fail-fast with broadcast is handled by the floor's BossStage.onEnter as well,
+        // but early validation here gives immediate feedback.
+        // Floor-specific code can read floorData.getViewPointList("pillars") etc.
+
+        teleportPlayersToBossSpawn(world, playerSpawnPoint);
+        Location bossSpawn = new Location(world, bossSpawnPoint.getX() + 0.5, bossSpawnPoint.getY(),
+                bossSpawnPoint.getZ() + 0.5, bossSpawnPoint.getYaw(), bossSpawnPoint.getPitch());
+        if (!spawnBoss(world, bossSpawn, floorData)) {
+            BukkitText.broadcast("§cBossState failed: could not spawn boss.");
+            complete(GameStateResult.COMPLETE);
+            return;
+        }
     }
 }

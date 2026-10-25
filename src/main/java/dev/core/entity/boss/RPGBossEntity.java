@@ -11,7 +11,10 @@ import dev.core.entity.strategy.MeleeAttackPattern;
 import dev.core.entity.strategy.NoopMovementStrategy;
 import dev.core.entity.strategy.TargetingStrategy;
 import dev.core.event.EventBusInterface;
+import dev.core.event.impl.BossEncounterEndedEvent;
 import dev.core.game.TaskScheduler;
+import dev.core.stat.StatManager;
+import dev.core.stat.loader.StatLoader;
 import dev.core.status.StatusEffectManagerInterface;
 
 public class RPGBossEntity extends RPGMobEntity {
@@ -20,6 +23,7 @@ public class RPGBossEntity extends RPGMobEntity {
     private BossEntityContext bossEntityContext;
     private String defeatStageId;
     private boolean defeatTriggered;
+    private boolean encounterEnded;
     private FloorData floorData;
 
     public RPGBossEntity(UUID uuid, String name, EffectManagerInterface effectManager, EventBusInterface eventBus,
@@ -44,7 +48,12 @@ public class RPGBossEntity extends RPGMobEntity {
         this.bossEntityContext = context;
         this.defeatStageId = definition.getDefeatStageId();
         this.floorData = floorData != null ? floorData : FloorData.empty(definition.getFloor());
-        getStatManager().addAll(definition.getBaseStatManager().getStats());
+        StatManager baseStats = definition.getBaseStatManager();
+        if (baseStats != null) {
+            // Fresh stat objects per encounter: the definition's stats must stay
+            // immutable (health/resources are mutated while the boss is alive).
+            getStatManager().addAll(StatLoader.copyStats(baseStats.getStats()));
+        }
         for (BossStage stage : definition.getStages()) {
             stageManager.addStage(stage);
         }
@@ -110,6 +119,34 @@ public class RPGBossEntity extends RPGMobEntity {
      * Hook for the platform layer to clean up after the defeat is complete.
      */
     protected void onDefeatFinished() {
+    }
+
+    public void completeEncounter() {
+        if (!isAlive() || defeatTriggered) {
+            return;
+        }
+        defeatTriggered = true;
+        completeDefeat();
+    }
+
+    public void endEncounter(BossEncounterEndedEvent.Outcome outcome) {
+        if (encounterEnded) {
+            return;
+        }
+        encounterEnded = true;
+        getEventBus().sendEvent(new BossEncounterEndedEvent(this, outcome));
+    }
+
+    public void stopStages() {
+        stageManager.stop();
+    }
+
+    public Object getStageState() {
+        return stageManager.getState();
+    }
+
+    public String getCurrentStageId() {
+        return stageManager.getCurrentStageId();
     }
 
     /**

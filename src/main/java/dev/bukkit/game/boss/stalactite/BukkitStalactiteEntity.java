@@ -6,7 +6,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Random;
 import java.util.UUID;
-import java.util.function.Consumer;
 
 import org.bukkit.Bukkit;
 import org.bukkit.Color;
@@ -16,17 +15,22 @@ import org.bukkit.NamespacedKey;
 import org.bukkit.Particle;
 import org.bukkit.Sound;
 import org.bukkit.World;
+import org.bukkit.attribute.Attribute;
 import org.bukkit.block.data.BlockData;
 import org.bukkit.entity.BlockDisplay;
 import org.bukkit.entity.Display;
+import org.bukkit.entity.Entity;
 import org.bukkit.entity.Interaction;
 import org.bukkit.entity.LivingEntity;
+import org.bukkit.entity.Mob;
+import org.bukkit.entity.Player;
 import org.bukkit.entity.Projectile;
 import org.bukkit.entity.Slime;
 import org.bukkit.entity.TextDisplay;
 import org.bukkit.persistence.PersistentDataType;
 import org.bukkit.potion.PotionEffect;
 import org.bukkit.potion.PotionEffectType;
+import org.bukkit.util.BoundingBox;
 import org.bukkit.util.Transformation;
 import org.joml.Quaternionf;
 import org.joml.Vector3f;
@@ -35,14 +39,18 @@ import dev.bukkit.DMain;
 import dev.bukkit.ability.BukkitEffectManager;
 import dev.bukkit.entity.BukkitDisplayEntityRegistry;
 import dev.bukkit.entity.BukkitEntityMetadata;
+import dev.bukkit.entity.boss.BukkitBossEntity;
+import dev.bukkit.entity.boss.stage.BossGrowStageType;
 import dev.bukkit.event.BukkitEventBus;
 import dev.bukkit.event.bukkitListeners.CombatListener;
 import dev.bukkit.item.BowArrowManager;
 import dev.bukkit.status.BukkitStatusEffectManager;
+import dev.bukkit.utils.DamageUtils;
 import dev.core.entity.EntityManager;
 import dev.core.entity.EntityType;
 import dev.core.entity.RPGDamageResult;
 import dev.core.entity.RPGEntity;
+import dev.core.entity.boss.RPGBossEntity;
 import dev.core.entity.rpgclass.RPGClassType;
 import dev.core.event.EventAction;
 import dev.core.event.impl.RPGEntityDamageEvent;
@@ -69,7 +77,6 @@ public class BukkitStalactiteEntity extends RPGEntity {
     private final Location ceiling;
     private final Location ground;
     private final World world;
-    private final Consumer<BukkitStalactiteEntity> impactHandler;
     /**
      * Pivot from which the stalactite visually grows — top face stays fixed. By
      * default equals ceiling.
@@ -95,19 +102,23 @@ public class BukkitStalactiteEntity extends RPGEntity {
     public long tickCounter = 0;
     public boolean pendingDespawnAfterImpact = false;
     public int spawnIndex = 0;
+    public int fallTicks = 0;
+    private boolean impactResolved = false;
+    private ImpactReason impactReason = ImpactReason.NONE;
+    private Location lastImpactLocation;
+    private double lastPushPercent = 0.0;
+    private double lastExplosionPercent = 0.0;
 
     private EventAction<RPGEntityDamageEvent> damageAction;
     private EventAction<RPGEntityDeathEvent> deathAction;
     private final Random random = new Random();
 
-    private BukkitStalactiteEntity(UUID uuid, Location ceiling, Location ground, World world,
-            Consumer<BukkitStalactiteEntity> impactHandler) {
+    private BukkitStalactiteEntity(UUID uuid, Location ceiling, Location ground, World world) {
         super(createStatManager(), uuid, "Stalactite", EntityType.MOB, BukkitEffectManager.getInstance(),
                 BukkitEventBus.getInstance(), RPGClassType.NONE, BukkitStatusEffectManager.getInstance());
         this.ceiling = ceiling.clone();
-        this.ground = ground.clone();
+        this.ground = ground != null ? ground.clone() : null;
         this.world = world;
-        this.impactHandler = impactHandler;
         this.pivot = ceiling.clone();
         this.showHighlights = StalactiteConfig.HITBOX_HIGHLIGHT_ENABLED;
         this.currentY = ceiling.getY();
@@ -115,14 +126,12 @@ public class BukkitStalactiteEntity extends RPGEntity {
     }
 
     /** Custom pivot constructor — stalactite grows downward from pivot. */
-    private BukkitStalactiteEntity(UUID uuid, Location ceiling, Location ground, World world, Location pivot,
-            Consumer<BukkitStalactiteEntity> impactHandler) {
+    private BukkitStalactiteEntity(UUID uuid, Location ceiling, Location ground, World world, Location pivot) {
         super(createStatManager(), uuid, "Stalactite", EntityType.MOB, BukkitEffectManager.getInstance(),
                 BukkitEventBus.getInstance(), RPGClassType.NONE, BukkitStatusEffectManager.getInstance());
         this.ceiling = ceiling.clone();
-        this.ground = ground.clone();
+        this.ground = ground != null ? ground.clone() : null;
         this.world = world;
-        this.impactHandler = impactHandler;
         this.pivot = (pivot != null ? pivot.clone() : ceiling.clone());
         this.pivot.setWorld(world);
         this.showHighlights = StalactiteConfig.HITBOX_HIGHLIGHT_ENABLED;
@@ -131,13 +140,12 @@ public class BukkitStalactiteEntity extends RPGEntity {
     }
 
     private BukkitStalactiteEntity(UUID uuid, Location ceiling, Location ground, World world, Location pivot,
-            boolean showHighlights, Consumer<BukkitStalactiteEntity> impactHandler) {
+            boolean showHighlights) {
         super(createStatManager(), uuid, "Stalactite", EntityType.MOB, BukkitEffectManager.getInstance(),
                 BukkitEventBus.getInstance(), RPGClassType.NONE, BukkitStatusEffectManager.getInstance());
         this.ceiling = ceiling.clone();
-        this.ground = ground.clone();
+        this.ground = ground != null ? ground.clone() : null;
         this.world = world;
-        this.impactHandler = impactHandler;
         this.pivot = (pivot != null ? pivot.clone() : ceiling.clone());
         this.pivot.setWorld(world);
         this.showHighlights = showHighlights;
@@ -168,12 +176,12 @@ public class BukkitStalactiteEntity extends RPGEntity {
      * entity and initializes remainder at GROWING state (scale 0 -> max).
      */
     public static BukkitStalactiteEntity spawnNew(World world, Location ceiling, Location pivot, int idx, long nowTick,
-            Consumer<BukkitStalactiteEntity> impactHandler, boolean showHighlights) {
+            boolean showHighlights) {
         Location ce = ceiling.clone();
         ce.setWorld(world);
         Location piv = (pivot != null ? pivot.clone() : ce.clone());
         piv.setWorld(world);
-        Location ground = ce.clone().add(0, -StalactiteConfig.FALL_DISTANCE, 0);
+        Location ground = findGroundBelow(world, piv);
         Location hitboxLoc = StalactiteHitbox.computeHitboxLocation(ce);
         Interaction hitbox = world.spawn(hitboxLoc, Interaction.class, inter -> {
             inter.setInteractionWidth(StalactiteConfig.HITBOX_WIDTH);
@@ -184,11 +192,23 @@ public class BukkitStalactiteEntity extends RPGEntity {
             inter.setCustomNameVisible(false);
         });
         BukkitStalactiteEntity entity = new BukkitStalactiteEntity(hitbox.getUniqueId(), ce, ground, world, piv,
-                showHighlights, impactHandler);
+                showHighlights);
         entity.hitbox = hitbox;
         entity.spawnIndex = idx;
         entity.initialize(idx, nowTick);
         return entity;
+    }
+
+    private static Location findGroundBelow(World world, Location from) {
+        int x = from.getBlockX();
+        int z = from.getBlockZ();
+        int minY = world.getMinHeight();
+        for (int y = from.getBlockY() - 1; y >= minY; y--) {
+            if (world.getBlockAt(x, y, z).getType().isSolid()) {
+                return new Location(world, from.getX(), y + 1.0, from.getZ(), from.getYaw(), from.getPitch());
+            }
+        }
+        return null;
     }
 
     private void initialize(int idx, long nowTick) {
@@ -233,7 +253,13 @@ public class BukkitStalactiteEntity extends RPGEntity {
         this.readyAtTick = nowTick + StalactiteConfig.REGROW_TICKS;
         this.tickCounter = nowTick;
         this.fallVelocity = 0;
+        this.fallTicks = 0;
         this.pendingDespawnAfterImpact = false;
+        this.impactResolved = false;
+        this.impactReason = ImpactReason.NONE;
+        this.lastImpactLocation = null;
+        this.lastPushPercent = 0.0;
+        this.lastExplosionPercent = 0.0;
         setDamageImmune(true);
         setAlive(true);
         setHealth(getMaxHealth());
@@ -265,7 +291,11 @@ public class BukkitStalactiteEntity extends RPGEntity {
     }
 
     public Location getGround() {
-        return ground.clone();
+        return ground != null ? ground.clone() : null;
+    }
+
+    public boolean hasGround() {
+        return ground != null;
     }
 
     public Location getPivot() {
@@ -274,6 +304,26 @@ public class BukkitStalactiteEntity extends RPGEntity {
 
     public World getWorld() {
         return world;
+    }
+
+    public ImpactReason getImpactReason() {
+        return impactReason;
+    }
+
+    public Location getLastImpactLocation() {
+        return lastImpactLocation != null ? lastImpactLocation.clone() : null;
+    }
+
+    public double getLastPushPercent() {
+        return lastPushPercent;
+    }
+
+    public double getLastExplosionPercent() {
+        return lastExplosionPercent;
+    }
+
+    public boolean wasBossImpact() {
+        return impactReason == ImpactReason.BOSS;
     }
 
     // ---- pivot-anchored helpers ----
@@ -427,6 +477,12 @@ public class BukkitStalactiteEntity extends RPGEntity {
         lifecycle = Lifecycle.FALLING;
         stateSinceTick = tickCounter;
         fallVelocity = StalactiteConfig.FALL_INITIAL_VELOCITY;
+        fallTicks = 0;
+        impactResolved = false;
+        impactReason = ImpactReason.NONE;
+        lastImpactLocation = null;
+        lastPushPercent = 0.0;
+        lastExplosionPercent = 0.0;
         currentY = pivot.getY();
         setDamageImmune(true);
         if (healthbar != null && healthbar.isValid())
@@ -440,21 +496,144 @@ public class BukkitStalactiteEntity extends RPGEntity {
         }
     }
 
+    private boolean tryBossImpact(Location displayLoc) {
+        RPGBossEntity boss = findGrowBoss();
+        if (!(boss instanceof BukkitBossEntity bukkitBoss)) {
+            return false;
+        }
+        LivingEntity living = bukkitBoss.getLivingEntity().orElse(null);
+        if (living == null || living.isDead() || !world.equals(living.getWorld())) {
+            return false;
+        }
+        BoundingBox bossBox = living.getBoundingBox();
+        if (!StalactiteHitbox.intersectsTaperedStalactite(bossBox, displayLoc,
+                StalactiteConfig.BOSS_COLLISION_MARGIN)) {
+            return false;
+        }
+        if (!BossGrowStageType.stalactitePushDown(boss)) {
+            return false;
+        }
+        impactResolved = true;
+        impactReason = ImpactReason.BOSS;
+        lastImpactLocation = displayLoc.clone();
+        lastPushPercent = BossGrowStageType.stalactitePushPercent(boss);
+        playBossImpact(displayLoc);
+        pendingDespawnAfterImpact = true;
+        return true;
+    }
+
+    private RPGBossEntity findGrowBoss() {
+        for (RPGEntity entity : EntityManager.getInstance().getAliveEntities()) {
+            if (entity.getEntityType() != EntityType.BOSS || !(entity instanceof RPGBossEntity boss)) {
+                continue;
+            }
+            if (BossGrowStageType.growState(boss) == null || !(boss instanceof BukkitBossEntity bukkitBoss)) {
+                continue;
+            }
+            LivingEntity living = bukkitBoss.getLivingEntity().orElse(null);
+            if (living != null && !living.isDead() && world.equals(living.getWorld())) {
+                return boss;
+            }
+        }
+        return null;
+    }
+
+    private void playBossImpact(Location loc) {
+        World w = loc.getWorld();
+        if (w == null) {
+            return;
+        }
+        w.spawnParticle(Particle.BLOCK_CRUMBLE, loc, 22, 0.5, 0.6, 0.5, 0.08,
+                Material.POINTED_DRIPSTONE.createBlockData());
+        w.spawnParticle(Particle.CRIT, loc, 12, 0.4, 0.5, 0.4, 0.1);
+        w.playSound(loc, Sound.BLOCK_POINTED_DRIPSTONE_BREAK, 1.2f, 0.7f);
+        w.playSound(loc, Sound.ENTITY_GENERIC_EXPLODE, 0.7f, 1.3f);
+    }
+
     private void onImpact() {
-        Location impactLoc = ground.clone();
+        if (impactResolved) {
+            return;
+        }
+        impactResolved = true;
+        impactReason = ImpactReason.GROUND;
+        Location impactLoc = ground != null ? ground.clone()
+                : new Location(world, pivot.getX(), currentY, pivot.getZ(), pivot.getYaw(), pivot.getPitch());
+        lastImpactLocation = impactLoc.clone();
         World w = impactLoc.getWorld();
         if (w != null) {
-            w.spawnParticle(Particle.EXPLOSION, impactLoc.clone().add(0, 0.2, 0), 1, 0, 0, 0, 0);
-            w.spawnParticle(Particle.BLOCK_CRUMBLE, impactLoc, 16, 0.4, 0.2, 0.4, 0.1,
+            w.spawnParticle(Particle.EXPLOSION_EMITTER, impactLoc.clone().add(0, 0.5, 0), 1, 0, 0, 0, 0);
+            w.spawnParticle(Particle.EXPLOSION, impactLoc.clone().add(0, 0.2, 0), 3, 1.5, 0.4, 1.5, 0);
+            w.spawnParticle(Particle.CLOUD, impactLoc.clone().add(0, 0.6, 0), 24, 2.5, 1.0, 2.5, 0.08);
+            w.spawnParticle(Particle.BLOCK_CRUMBLE, impactLoc, 24, 0.8, 0.3, 0.8, 0.1,
                     Material.POINTED_DRIPSTONE.createBlockData());
-            w.playSound(impactLoc, Sound.ENTITY_GENERIC_EXPLODE, 0.6f, 1.2f);
-            w.playSound(impactLoc, Sound.BLOCK_ANVIL_LAND, 0.5f, 1.4f);
+            w.playSound(impactLoc, Sound.ENTITY_GENERIC_EXPLODE, 1.2f, 1.0f);
+            w.playSound(impactLoc, Sound.BLOCK_ANVIL_LAND, 0.7f, 1.4f);
         }
-        try {
-            if (impactHandler != null)
-                impactHandler.accept(this);
-        } catch (Exception e) {
-            Bukkit.getLogger().warning("[Stalactite] impact handler failed: " + e.getMessage());
+        explodeOnGround(impactLoc);
+        pendingDespawnAfterImpact = true;
+    }
+
+    private void explodeOnGround(Location impactLoc) {
+        RPGBossEntity boss = findGrowBoss();
+        double percent = boss != null ? BossGrowStageType.stalactiteExplosionPercent(boss)
+                : StalactiteConfig.EXPLOSION_PERCENT;
+        lastExplosionPercent = percent;
+        if (percent <= 0 || world == null) {
+            return;
+        }
+        double radius = StalactiteConfig.EXPLOSION_RADIUS;
+        double radiusSquared = radius * radius;
+        for (Entity entity : world.getNearbyEntities(impactLoc, radius, radius, radius)) {
+            if (!(entity instanceof LivingEntity living)) {
+                continue;
+            }
+            if (!(living instanceof Player) && !(living instanceof Mob)) {
+                continue;
+            }
+            if (living.isDead()) {
+                continue;
+            }
+            if (collider != null && living.getUniqueId().equals(collider.getUniqueId())) {
+                continue;
+            }
+            if (BukkitEntityMetadata.has(living, COLLIDER_METADATA)) {
+                continue;
+            }
+            if (EntityManager.getInstance().isGhost(living.getUniqueId())) {
+                continue;
+            }
+            if (living.getLocation().distanceSquared(impactLoc) > radiusSquared) {
+                continue;
+            }
+            double maxHealth = maxHealthOf(living);
+            double damage = maxHealth * (percent / 100.0);
+            if (damage > 0) {
+                DamageUtils.damageEntity(living, damage, null, DamageType.MAGIC);
+            }
+        }
+    }
+
+    private static double maxHealthOf(LivingEntity living) {
+        RPGEntity rpg = EntityManager.getInstance().getEntity(living.getUniqueId()).orElse(null);
+        if (rpg != null) {
+            return rpg.getMaxHealth();
+        }
+        var attribute = living.getAttribute(Attribute.MAX_HEALTH);
+        return attribute != null ? attribute.getValue() : 20.0;
+    }
+
+    private void onExpire() {
+        if (impactResolved) {
+            return;
+        }
+        impactResolved = true;
+        impactReason = ImpactReason.EXPIRED;
+        Location loc = new Location(world, pivot.getX(), currentY, pivot.getZ(), pivot.getYaw(), pivot.getPitch());
+        lastImpactLocation = loc.clone();
+        World w = loc.getWorld();
+        if (w != null) {
+            w.spawnParticle(Particle.POOF, loc, 12, 0.4, 0.4, 0.4, 0.02);
+            w.playSound(loc, Sound.BLOCK_POINTED_DRIPSTONE_BREAK, 1.0f, 0.7f);
         }
         pendingDespawnAfterImpact = true;
     }
@@ -511,6 +690,7 @@ public class BukkitStalactiteEntity extends RPGEntity {
             teleportHitboxHighlights(pivot);
         }
         case FALLING -> {
+            fallTicks++;
             fallVelocity += StalactiteConfig.FALL_GRAVITY_PER_TICK;
             currentY -= fallVelocity;
             Location displayLoc = new Location(world, pivot.getX(), currentY, pivot.getZ(), pivot.getYaw(),
@@ -529,9 +709,16 @@ public class BukkitStalactiteEntity extends RPGEntity {
                 healthbar.teleport(displayLoc.clone().add(0, 1.5, 0));
             teleportCollider(colliderLoc);
             teleportHitboxHighlights(displayLoc);
-            if (currentY <= ground.getY()) {
+            if (!impactResolved && tryBossImpact(displayLoc)) {
+                return;
+            }
+            if (!impactResolved && ground != null && currentY <= ground.getY()) {
                 currentY = ground.getY();
                 onImpact();
+                return;
+            }
+            if (!impactResolved && fallTicks >= StalactiteConfig.MAX_FALL_TICKS) {
+                onExpire();
             }
         }
         }
@@ -1002,6 +1189,10 @@ public class BukkitStalactiteEntity extends RPGEntity {
         }
         removeCollider();
         removeHitboxHighlights();
+    }
+
+    public enum ImpactReason {
+        NONE, BOSS, GROUND, EXPIRED
     }
 
     private enum Lifecycle {

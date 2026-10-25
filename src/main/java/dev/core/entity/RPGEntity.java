@@ -98,6 +98,10 @@ public abstract class RPGEntity {
         return classType;
     }
 
+    protected EventBusInterface getEventBus() {
+        return eventBusInterface;
+    }
+
     /**
      * Create a builder for constructing RPGEntity instances. Provides fluent API
      * for flexible entity configuration.

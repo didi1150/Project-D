@@ -13,7 +13,6 @@ import dev.bukkit.ability.BukkitEffectManager;
 import dev.bukkit.entity.MobRPGEntity;
 import dev.bukkit.stat.BukkitBossStatManager;
 import dev.bukkit.status.BukkitStatusEffectManager;
-import dev.core.entity.EntityManager;
 import dev.core.entity.RPGEntity;
 import dev.core.entity.boss.BossStage;
 import dev.core.entity.boss.RPGBossEntity;
@@ -25,7 +24,8 @@ import dev.core.utils.ColorCodes;
 
 /**
  * Bukkit wrapper around a boss entity. Shares the bukkit entity's uuid so that
- * {@link EntityManager} damage routing and this wrapper can communicate.
+ * {@link dev.core.entity.EntityManager} damage routing and this wrapper can
+ * communicate.
  */
 public class BukkitBossEntity extends RPGBossEntity {
 
@@ -33,14 +33,15 @@ public class BukkitBossEntity extends RPGBossEntity {
     private final EventAction<EntityDamageByEntityEvent> damageAction;
     private final BukkitBossStatManager bukkitStatManager;
     private final BossBarController bossBar;
+    private final LivingEntity bukkitEntity;
+    private Location spawnLocation;
+    private Float displayProgress;
+    private String displayLabel;
 
-    public BukkitBossEntity(UUID uuid, String name, EventBusInterface eventBus, TaskScheduler scheduler) {
-        super(uuid, name, BukkitEffectManager.getInstance(), eventBus, scheduler, BukkitStatusEffectManager.getInstance());
-        EntityManager.getInstance().registerEntity(this);
-        Entity entity = Bukkit.getEntity(uuid);
-        if (entity == null) {
-            throw new IllegalStateException("No bukkit entity exists for boss uuid " + uuid);
-        }
+    public BukkitBossEntity(LivingEntity entity, String name, EventBusInterface eventBus, TaskScheduler scheduler) {
+        super(entity.getUniqueId(), name, BukkitEffectManager.getInstance(), eventBus, scheduler,
+                BukkitStatusEffectManager.getInstance());
+        this.bukkitEntity = entity;
         setTargetingStrategy(BukkitBossStrategyRegistry.firstAlivePlayerTarget());
         this.bukkitStatManager = new BukkitBossStatManager(entity, getStatManager());
         this.bossBar = new BossBarController(name);
@@ -49,9 +50,26 @@ public class BukkitBossEntity extends RPGBossEntity {
         this.eventBus.subscribe(damageAction);
     }
 
+    public BukkitBossEntity(UUID uuid, String name, EventBusInterface eventBus, TaskScheduler scheduler) {
+        this(requireLivingEntity(uuid), name, eventBus, scheduler);
+    }
+
+    private static LivingEntity requireLivingEntity(UUID uuid) {
+        Entity entity = Bukkit.getEntity(uuid);
+        if (!(entity instanceof LivingEntity living)) {
+            throw new IllegalStateException("No living bukkit entity exists for boss uuid " + uuid);
+        }
+        return living;
+    }
+
     public void onSpawn(Location location) {
+        this.spawnLocation = location.clone();
         bossBar.setVisibleToPlayers(Bukkit.getOnlinePlayers());
         BossBarController.hideVanillaBossBar(getLivingEntity().orElse(null));
+    }
+
+    public Location getSpawnLocation() {
+        return spawnLocation == null ? null : spawnLocation.clone();
     }
 
     @Override
@@ -77,6 +95,11 @@ public class BukkitBossEntity extends RPGBossEntity {
     /** Show the boss's RPG health in its custom name as {@code [❤] current/max}. */
     private void updateName() {
         getLivingEntity().ifPresent(living -> {
+            if (displayLabel != null) {
+                living.customName(AdventureText.legacy(displayLabel));
+                living.setCustomNameVisible(true);
+                return;
+            }
             String base = ColorCodes.translate(getName());
             double current = getHealth();
             double max = getMaxHealth();
@@ -86,6 +109,16 @@ public class BukkitBossEntity extends RPGBossEntity {
                     .legacy(color + base + " [❤] " + Math.round(current + absorption) + "/" + Math.round(max)));
             living.setCustomNameVisible(true);
         });
+    }
+
+    public void setDisplayOverride(float progress, String label) {
+        this.displayProgress = Math.max(0.0f, Math.min(1.0f, progress));
+        this.displayLabel = label;
+    }
+
+    public void clearDisplayOverride() {
+        this.displayProgress = null;
+        this.displayLabel = null;
     }
 
     @Override
@@ -102,11 +135,23 @@ public class BukkitBossEntity extends RPGBossEntity {
     }
 
     public Optional<LivingEntity> getLivingEntity() {
+        // Do not gate on isValid(): Paper marks entities in non-entity-ticking
+        // chunks as invalid and masks them from Bukkit.getEntity(UUID), even
+        // though the entity exists and can be controlled. A boss spawned in a
+        // freshly loaded arena is often outside the players' ticking radius on
+        // its first tick; treating it as missing made the initial stage fail
+        // (e.g. Grow never applied its damage immunity).
+        if (!bukkitEntity.isDead()) {
+            return Optional.of(bukkitEntity);
+        }
         Entity entity = Bukkit.getEntity(getUuid());
-        return entity instanceof LivingEntity living ? Optional.of(living) : Optional.empty();
+        return entity instanceof LivingEntity living && !living.isDead() ? Optional.of(living) : Optional.empty();
     }
 
     public Optional<Entity> getBukkitEntity() {
+        if (!bukkitEntity.isDead()) {
+            return Optional.of(bukkitEntity);
+        }
         return Optional.ofNullable(Bukkit.getEntity(getUuid()));
     }
 
@@ -128,6 +173,10 @@ public class BukkitBossEntity extends RPGBossEntity {
     }
 
     private void updateBossBar() {
+        if (displayProgress != null) {
+            bossBar.update(displayLabel != null ? displayLabel : ColorCodes.translate(getName()), displayProgress);
+            return;
+        }
         double health = getHealth();
         double maxHealth = getMaxHealth();
         float pct = maxHealth <= 0 ? 0f : (float) Math.max(0.0, Math.min(1.0, health / maxHealth));
@@ -135,7 +184,14 @@ public class BukkitBossEntity extends RPGBossEntity {
     }
 
     public void shutdown() {
-        eventBus.unsubscribe(damageAction);
-        bossBar.remove();
+        try {
+            stopStages();
+        } finally {
+            try {
+                eventBus.unsubscribe(damageAction);
+            } finally {
+                bossBar.remove();
+            }
+        }
     }
 }

@@ -86,7 +86,7 @@ public class StalactiteManager {
             pivot.setWorld(world);
         Location usePivot = pivot != null ? pivot : ceiling;
         BukkitStalactiteEntity entity = BukkitStalactiteEntity.spawnNew(world, ceiling, usePivot, idx, tickCounter,
-                this::handleImpactAndScheduleRespawn, debugHitbox);
+                debugHitbox);
         entities.add(entity);
         if (entity.hitbox != null)
             hitboxMap.put(entity.hitbox.getUniqueId(), entity);

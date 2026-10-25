@@ -719,7 +719,8 @@ public class CommandManager {
                         try {
                             var boss = DebugRpgEntityService.getInstance().spawnBoss(bossDef, loc);
                             player.sendMessage("§aSpawned boss §e" + bossDef.getId() + " §a(floor " + bossDef.getFloor()
-                                    + ") (" + boss.getUuid().toString().substring(0, 8) + ")");
+                                    + ") stage=" + boss.getCurrentStageId() + " immune=" + boss.isDamageImmune()
+                                    + " (" + boss.getUuid().toString().substring(0, 8) + ")");
                             Bukkit.getLogger()
                                     .info("[entity spawn] " + player.getName() + " spawned boss " + bossDef.getId()
                                             + " floor " + bossDef.getFloor() + " at " + loc.getBlockX() + ","
@@ -769,7 +770,8 @@ public class CommandManager {
                         try {
                             var boss = DebugRpgEntityService.getInstance().spawnBoss(bossDef, loc);
                             player.sendMessage("§aSpawned boss §e" + bossDef.getId() + " §a(floor " + bossDef.getFloor()
-                                    + ") (" + boss.getUuid().toString().substring(0, 8) + ")");
+                                    + ") stage=" + boss.getCurrentStageId() + " immune=" + boss.isDamageImmune()
+                                    + " (" + boss.getUuid().toString().substring(0, 8) + ")");
                         } catch (Exception e) {
                             player.sendMessage("§cFailed to spawn boss '" + bossDef.getId() + "': " + e.getMessage());
                         }

@@ -5,24 +5,33 @@ import org.joml.Vector3f;
 
 /**
  * Tunable constants for the stalactite system. Values match the design spec:
- * flat 10% push, 20s regrow, BlockDisplay dripstone.
+ * default 10% push, 10% max-health explosion, 20s regrow, BlockDisplay dripstone.
+ * The GROW boss stage can override the push and explosion percentages.
  */
 public final class StalactiteConfig {
 
     public static final double MAX_HEALTH = 80.0;
+
+    /** Default boss push as percentage points of full ascent. */
     public static final double PUSH_AMOUNT_PERCENT = 10.0;
 
-    /** ticks for the fall animation player → ground */
-    public static final int FALL_DURATION_TICKS = 18;
+    /** Default ground-explosion damage as a percentage of the victim's max health. */
+    public static final double EXPLOSION_PERCENT = 10.0;
+
+    /** Ground-explosion radius in blocks (sphere). */
+    public static final double EXPLOSION_RADIUS = 10.0;
+
+    /** Extra tolerance when checking the falling stalactite against a boss hitbox. */
+    public static final double BOSS_COLLISION_MARGIN = 0.35;
+
+    /** Maximum time a stalactite may keep falling before it is removed. */
+    public static final int MAX_FALL_TICKS = 15 * 20;
 
     /** fixed regrow time once shattered — spec: 20s */
     public static final int REGROW_TICKS = 400;
 
     /** ceiling offset when spawning debug stalactite above player */
     public static final double CEILING_OFFSET_Y = 8.0;
-
-    /** fall distance (ceil Y - ground Y). If ground not found, falls this far */
-    public static final double FALL_DISTANCE = 8.0;
 
     /** visual */
     public static final Material DISPLAY_MATERIAL = Material.POINTED_DRIPSTONE;

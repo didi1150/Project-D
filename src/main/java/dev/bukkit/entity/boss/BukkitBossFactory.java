@@ -6,8 +6,10 @@ import java.util.Random;
 import java.util.UUID;
 import java.util.function.Supplier;
 
+import org.bukkit.Bukkit;
 import org.bukkit.Location;
 import org.bukkit.World;
+import org.bukkit.entity.EnderDragon;
 import org.bukkit.entity.Entity;
 import org.bukkit.entity.EntityType;
 import org.bukkit.entity.LivingEntity;
@@ -55,13 +57,41 @@ public class BukkitBossFactory {
         applySetup(living, definition);
         applyTypeSpecificSetup(living, bukkitType);
 
-        BukkitBossEntity boss = new BukkitBossEntity(living.getUniqueId(), definition.getDisplayName(), eventBus,
-                scheduler);
-        boss.configure(definition,
-                new BossEntityContextImpl(() -> boss.getBukkitEntity().map(Entity::getLocation).orElse(null)),
-                floorData);
-        boss.onSpawn(location);
+        BukkitBossEntity boss;
+        try {
+            boss = createBoss(living, definition, location, floorData);
+        } catch (RuntimeException e) {
+            living.remove();
+            throw e;
+        }
+        EntityManager.getInstance().registerEntity(boss);
+        if (definition.getStages().isEmpty()) {
+            Bukkit.getLogger().warning("[Boss] Definition '" + definition.getId()
+                    + "' has no stages; the boss will be damageable.");
+        }
+        Bukkit.getLogger().info("[Boss] Spawned " + definition.getId() + " (floor " + definition.getFloor()
+                + ") initialStage=" + boss.getCurrentStageId() + " damageImmune=" + boss.isDamageImmune()
+                + " stages=" + definition.getStages().size());
         return boss;
+    }
+
+    private BukkitBossEntity createBoss(LivingEntity living, BossDefinition definition, Location location,
+            FloorData floorData) {
+        BukkitBossEntity boss = new BukkitBossEntity(living, definition.getDisplayName(), eventBus, scheduler);
+        try {
+            boss.configure(definition,
+                    new BossEntityContextImpl(() -> boss.getBukkitEntity().map(Entity::getLocation).orElse(null)),
+                    floorData);
+            boss.onSpawn(location);
+            return boss;
+        } catch (RuntimeException e) {
+            try {
+                boss.shutdown();
+            } catch (RuntimeException suppressed) {
+                e.addSuppressed(suppressed);
+            }
+            throw e;
+        }
     }
 
     public void despawn(BukkitBossEntity boss) {
@@ -88,7 +118,7 @@ public class BukkitBossFactory {
         switch (type) {
         case ENDER_DRAGON:
             living.setGravity(false);
-            ((org.bukkit.entity.EnderDragon) living).setPhase(org.bukkit.entity.EnderDragon.Phase.HOVER);
+            ((EnderDragon) living).setPhase(EnderDragon.Phase.HOVER);
             break;
         default:
             break;

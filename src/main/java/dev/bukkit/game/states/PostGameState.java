@@ -34,7 +34,7 @@ import dev.core.progression.PlayerClassProgression;
 public class PostGameState extends GameState {
 
     private static final long DURATION = 20 * 60L;
-    private static final String NAME = "POSTSTATE";
+    public static final String NAME = "POSTSTATE";
     private ClassProgressionService classProgressionService;
     private Plugin plugin;
 

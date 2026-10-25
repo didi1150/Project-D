@@ -80,10 +80,19 @@ public final class DebugStalactiteService {
         // offline)
         StalactiteManager manager = new StalactiteManager(world, ceiling, (BukkitStalactiteEntity entity) -> {
             Player ownerPlayer = Bukkit.getPlayer(owner);
-            Location ground = entity.getGround();
+            Location impact = entity.getLastImpactLocation();
+            String where = impact != null
+                    ? String.format("%.1f, %.1f, %.1f", impact.getX(), impact.getY(), impact.getZ())
+                    : "unknown";
             // if owner offline, broadcast to world
-            String msg = "§a[Stalactite Debug] §eImpact! §7Stalactite slammed into the ground — boss would be pushed §c-10% §7(height) §8(stacking allowed) §7@ "
-                    + String.format("%.1f, %.1f, %.1f", ground.getX(), ground.getY(), ground.getZ());
+            String msg = switch (entity.getImpactReason()) {
+            case BOSS -> "§a[Stalactite Debug] §eBoss impact! §7Pushed down §c"
+                    + String.format("%.1f%%", entity.getLastPushPercent()) + " §8(stacking allowed) §7@ " + where;
+            case GROUND -> "§a[Stalactite Debug] §eGround impact! §7Explosion (10-block radius, §c"
+                    + String.format("%.1f%%", entity.getLastExplosionPercent()) + " §7max HP) @ " + where;
+            case EXPIRED -> "§a[Stalactite Debug] §7Fell for 15s without hitting ground or boss — removed @ " + where;
+            default -> "§a[Stalactite Debug] §eImpact @ " + where;
+            };
             if (ownerPlayer != null && ownerPlayer.isOnline()) {
                 ownerPlayer.sendMessage(msg);
                 if (respawn) {
@@ -102,9 +111,9 @@ public final class DebugStalactiteService {
         systems.put(sys.id, sys);
         String desc;
         if (respawn)
-            desc = "§7(grows/falls/regrows 20s, flat -10% on impact)";
+            desc = "§7(grows/falls/regrows 20s; hits push the GROW boss, ground hits explode)";
         else
-            desc = "§7(single, grows/falls, no regrow, flat -10% on impact)";
+            desc = "§7(single, grows/falls, no regrow; hits push the GROW boss, ground hits explode)";
         if (debug)
             desc += " §a[hitbox shown]";
         player.sendMessage("§a[Stalactite Debug] Spawned " + mode + " system §e" + shortId(sys.id) + " §aat "

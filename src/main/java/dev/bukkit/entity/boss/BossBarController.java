@@ -10,12 +10,14 @@ import org.bukkit.entity.Player;
 
 public class BossBarController {
 
-    private final String title;
+    private final String baseTitle;
+    private String title;
     private float progress = 1.0f;
 
     private final BossBar bossBar;
 
     public BossBarController(String title) {
+        this.baseTitle = title;
         this.title = title;
         this.bossBar = Bukkit.createBossBar(title, BarColor.RED, BarStyle.SOLID);
     }
@@ -29,6 +31,16 @@ public class BossBarController {
     }
 
     public void updateProgress(float progress) {
+        this.title = baseTitle;
+        apply(progress);
+    }
+
+    public void update(String title, float progress) {
+        this.title = title;
+        apply(progress);
+    }
+
+    private void apply(float progress) {
         this.progress = Math.max(0.0f, Math.min(1.0f, progress));
         bossBar.setTitle(title);
         bossBar.setProgress(this.progress);

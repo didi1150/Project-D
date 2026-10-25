@@ -1,6 +1,7 @@
 package dev.bukkit.game.boss.stalactite;
 
 import org.bukkit.Location;
+import org.bukkit.util.BoundingBox;
 import org.bukkit.util.Vector;
 
 /**
@@ -52,6 +53,45 @@ public final class StalactiteHitbox {
         double dx = Math.abs(point.getX() - centerX);
         double dz = Math.abs(point.getZ() - centerZ);
         return dx <= halfX && dz <= halfZ;
+    }
+
+    /**
+     * Whether a bounding box overlaps the tapered hitbox whose base (top face) is
+     * at {@code base}. The base may be the current falling display position.
+     */
+    public static boolean intersectsTaperedStalactite(BoundingBox box, Location base, double margin) {
+        if (box == null || base == null) {
+            return false;
+        }
+        double height = StalactiteConfig.MAX_DISPLAY_SCALE_Y;
+        if (height <= 0) {
+            return false;
+        }
+        double baseY = base.getY();
+        double tipY = baseY - height;
+        double low = Math.max(box.getMinY(), tipY - margin);
+        double high = Math.min(box.getMaxY(), baseY + margin);
+        if (low > high) {
+            return false;
+        }
+        double baseHalfX = StalactiteConfig.MAX_DISPLAY_SCALE_X / 2.0;
+        double baseHalfZ = StalactiteConfig.MAX_DISPLAY_SCALE_Z / 2.0;
+        double centerX = base.getX();
+        double centerZ = base.getZ();
+        double step = 0.25;
+        int steps = (int) Math.ceil((high - low) / step);
+        for (int i = 0; i <= steps; i++) {
+            double y = Math.min(low + i * step, high);
+            double t = (y - tipY) / height;
+            t = Math.max(0, Math.min(1, t));
+            double halfX = lerp(StalactiteConfig.HITBOX_TIP_HALF_X, baseHalfX, t) + margin;
+            double halfZ = lerp(StalactiteConfig.HITBOX_TIP_HALF_Z, baseHalfZ, t) + margin;
+            if (box.getMaxX() >= centerX - halfX && box.getMinX() <= centerX + halfX
+                    && box.getMaxZ() >= centerZ - halfZ && box.getMinZ() <= centerZ + halfZ) {
+                return true;
+            }
+        }
+        return false;
     }
 
     public static boolean rayIntersectsTapered(Vector start, Vector dir, double maxDist, Location ceiling,

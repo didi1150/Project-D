@@ -36,7 +36,7 @@ public class BukkitBossStrategyRegistry implements BossStrategyRegistry {
     public Optional<TargetingStrategy> targeting(String key, ConfigSection params) {
         switch (key.toUpperCase()) {
         case "NONE":
-            return Optional.of(mob -> Optional.empty());
+            return Optional.of(new NoTargetStrategy());
         case "FIRST_ALIVE":
             return Optional.of(firstAlivePlayerTarget());
         case "NEAREST":
@@ -52,8 +52,7 @@ public class BukkitBossStrategyRegistry implements BossStrategyRegistry {
                 .filter(entity -> {
                     Player player = Bukkit.getPlayer(entity.getUuid());
                     return player == null || !StealthRegistry.shouldHideFromMob(player);
-                })
-                .findFirst();
+                }).findFirst();
     }
 
     @Override

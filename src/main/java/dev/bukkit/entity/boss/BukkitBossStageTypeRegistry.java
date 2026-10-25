@@ -4,6 +4,9 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
 
+import dev.bukkit.entity.boss.stage.BossGrowStageType;
+import dev.bukkit.entity.boss.stage.SummonStageType;
+import dev.bukkit.entity.boss.stage.WipeStageType;
 import dev.core.entity.boss.BossStageType;
 import dev.core.entity.boss.BossStageTypeRegistry;
 import dev.core.entity.boss.MonologueStageType;
@@ -17,6 +20,8 @@ public class BukkitBossStageTypeRegistry implements BossStageTypeRegistry {
         register(new ThresholdStageType());
         register(new MonologueStageType());
         register(new SummonStageType());
+        register(new BossGrowStageType());
+        register(new WipeStageType());
     }
 
     private void register(BossStageType type) {

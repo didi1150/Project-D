@@ -7,6 +7,7 @@ import java.nio.file.Path;
 import java.nio.file.SimpleFileVisitor;
 import java.nio.file.StandardCopyOption;
 import java.nio.file.attribute.BasicFileAttributes;
+import java.util.Locale;
 import java.util.Objects;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
@@ -15,6 +16,8 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+
+import dev.bukkit.game.dungeon.proceduralDungeon.BukkitVoidWorldGenerator;
 
 import org.bukkit.Bukkit;
 import org.bukkit.World;
@@ -34,7 +37,9 @@ import org.bukkit.plugin.Plugin;
  * </ul>
  */
 public final class BossArenaManager {
-    private static final Set<String> SKIPPED_TEMPLATE_FILES = Set.of("uid.dat", "session.lock", "session.lock_old");
+    private static final Set<String> SKIPPED_TEMPLATE_FILES = Set.of("uid.dat", "session.lock", "session.lock_old",
+            "metadata.dat");
+    private static final String VOID_FLAT_SETTINGS = "{\"layers\":[],\"biome\":\"minecraft:plains\",\"lakes\":false,\"features\":false,\"structure_overrides\":[]}";
 
     private final Plugin plugin;
     private final Logger logger;
@@ -151,8 +156,31 @@ public final class BossArenaManager {
         return "boss_template_edit_" + bossId.replaceAll("[^A-Za-z0-9_-]", "_");
     }
 
-    private Path resolveEditLiveFolder(String bossId) {
+    private Path resolveLegacyEditFolder(String bossId) {
         return plugin.getServer().getWorldContainer().toPath().resolve(editWorldName(bossId));
+    }
+
+    private Path resolveDimensionFolder(String worldName) {
+        String dimensionName = worldName.toLowerCase(Locale.ROOT).replace(" ", "_");
+        return plugin.getServer().getLevelDirectory().resolve("dimensions").resolve("minecraft").resolve(dimensionName);
+    }
+
+    private boolean isLegacyTemplate(Path templateFolder) {
+        return Files.isRegularFile(templateFolder.resolve("level.dat"))
+                || Files.isRegularFile(templateFolder.resolve("level.dat_old"));
+    }
+
+    private void stageTemplateForLoad(Path templateFolder, String worldName, Path legacyFolder) throws IOException {
+        Path dimensionFolder = resolveDimensionFolder(worldName);
+        if (isLegacyTemplate(templateFolder)) {
+            deleteDirectory(dimensionFolder);
+            deleteDirectory(legacyFolder);
+            copyDirectory(templateFolder, legacyFolder);
+        } else {
+            deleteDirectory(legacyFolder);
+            deleteDirectory(dimensionFolder);
+            copyDirectory(templateFolder, dimensionFolder);
+        }
     }
 
     public Path getTemplateRoot() {
@@ -186,21 +214,62 @@ public final class BossArenaManager {
         });
     }
 
+    /**
+     * Creates a new, empty (void) boss template and opens it as an editable world.
+     * <p>
+     * Fails if a template with the given id already exists so prebuilt template
+     * maps are never overwritten. Existing prebuilt templates should continue to be
+     * opened with {@link #loadTemplateEditWorld(String)}.
+     */
+    public CompletableFuture<World> createEmptyTemplateEditWorld(String bossId) {
+        Objects.requireNonNull(bossId, "bossId");
+        if (!bossId.matches("[A-Za-z0-9_-]+")) {
+            return CompletableFuture.failedFuture(new IllegalArgumentException("Invalid boss template id: " + bossId));
+        }
+        if (Files.exists(templateRoot.resolve(bossId))) {
+            return CompletableFuture
+                    .failedFuture(new IllegalArgumentException("Boss template already exists: " + bossId));
+        }
+
+        String worldName = editWorldName(bossId);
+        return runOnMainThread(() -> Bukkit.getWorld(worldName)).thenCompose(existing -> {
+            if (existing != null) {
+                return CompletableFuture.completedFuture(existing);
+            }
+            return CompletableFuture.runAsync(() -> deleteStaleEditFolder(bossId), ioExecutor)
+                    .thenCompose(ignored -> runOnMainThread(() -> createVoidEditWorld(worldName)));
+        }).thenCompose(world -> saveTemplateEditWorld(bossId).thenApply(ignored -> world))
+                .thenCompose(ignored -> loadTemplateEditWorld(bossId));
+    }
+
+    private Void deleteStaleEditFolder(String bossId) {
+        Path legacyFolder = resolveLegacyEditFolder(bossId);
+        Path dimensionFolder = resolveDimensionFolder(editWorldName(bossId));
+        try {
+            deleteDirectory(legacyFolder);
+            deleteDirectory(dimensionFolder);
+            return null;
+        } catch (IOException e) {
+            throw new IllegalStateException("Could not clear stale template edit world: " + dimensionFolder, e);
+        }
+    }
+
+    private World createVoidEditWorld(String worldName) {
+        WorldCreator creator = new WorldCreator(worldName).generator(new BukkitVoidWorldGenerator())
+                .generatorSettings(VOID_FLAT_SETTINGS).environment(Bukkit.getWorlds().get(0).getEnvironment())
+                .type(WorldType.FLAT).generateStructures(false);
+        World world = creator.createWorld();
+        if (world == null) {
+            throw new IllegalStateException("Failed to create empty boss template edit world: " + worldName);
+        }
+        world.setSpawnLocation(0, 65, 0);
+        world.setAutoSave(true);
+        return world;
+    }
+
     private Void prepareEditFolders(String bossId, Path templateFolder) {
         try {
-            Path liveFolder = resolveEditLiveFolder(bossId);
-            Files.createDirectories(liveFolder.getParent());
-
-            if (Files.notExists(liveFolder)) {
-                copyDirectory(templateFolder, liveFolder);
-            } else if (Files.isSymbolicLink(liveFolder) || Files.isRegularFile(liveFolder)) {
-                Files.deleteIfExists(liveFolder);
-                copyDirectory(templateFolder, liveFolder);
-            } else if (!Files.isDirectory(liveFolder)) {
-                throw new IllegalStateException("The edit world path is not a directory: " + liveFolder);
-            } else {
-                copyDirectory(templateFolder, liveFolder);
-            }
+            stageTemplateForLoad(templateFolder, editWorldName(bossId), resolveLegacyEditFolder(bossId));
             return null;
         } catch (IOException e) {
             throw new IllegalStateException("Could not prepare template edit folder for boss: " + bossId + " ("
@@ -209,51 +278,75 @@ public final class BossArenaManager {
     }
 
     public CompletableFuture<Void> saveTemplateEditWorld(String bossId) {
-        Objects.requireNonNull(bossId, "bossId");
-        Path liveFolder = resolveEditLiveFolder(bossId);
-        if (!Files.isDirectory(liveFolder)) {
-            return CompletableFuture
-                    .failedFuture(new IllegalArgumentException("Edit world does not exist for boss: " + bossId));
-        }
+        return saveTemplateEditWorldAndGetFolder(bossId).thenApply(liveFolder -> null);
+    }
 
-        return runOnMainThread(() -> {
-            World world = Bukkit.getWorld(editWorldName(bossId));
+    private CompletableFuture<Path> saveTemplateEditWorldAndGetFolder(String bossId) {
+        Objects.requireNonNull(bossId, "bossId");
+        String worldName = editWorldName(bossId);
+
+        CompletableFuture<Path> future = runOnMainThread(() -> {
+            World world = Bukkit.getWorld(worldName);
+            Path liveFolder;
             if (world != null) {
-                Bukkit.unloadWorld(world, true);
+                liveFolder = world.getWorldPath();
+                World fallback = Bukkit.getWorlds().isEmpty() ? null : Bukkit.getWorlds().get(0);
+                if (fallback != null && !fallback.equals(world)) {
+                    world.getPlayers().forEach(player -> player.teleport(fallback.getSpawnLocation()));
+                }
+                if (!Bukkit.unloadWorld(world, true)) {
+                    throw new IllegalStateException("Failed to unload template edit world: " + worldName);
+                }
+            } else {
+                Path dimensionFolder = resolveDimensionFolder(worldName);
+                liveFolder = Files.isDirectory(dimensionFolder) ? dimensionFolder : resolveLegacyEditFolder(bossId);
             }
-            return null;
-        }).thenRunAsync(() -> {
-            Path templateFolder = templateRoot.resolve(bossId);
-            Path tempStaging = templateFolder
-                    .resolveSibling(templateFolder.getFileName() + ".tmp-" + UUID.randomUUID());
-            try {
-                copyDirectory(liveFolder, tempStaging);
-                Path backup = Files.exists(templateFolder)
-                        ? templateFolder.resolveSibling(templateFolder.getFileName() + ".bak-" + UUID.randomUUID())
-                        : null;
-                if (backup != null) {
-                    Files.move(templateFolder, backup, StandardCopyOption.ATOMIC_MOVE);
-                }
-                try {
-                    Files.move(tempStaging, templateFolder, StandardCopyOption.ATOMIC_MOVE);
-                } catch (IOException moveFailure) {
-                    if (backup != null) {
-                        Files.move(backup, templateFolder, StandardCopyOption.ATOMIC_MOVE);
-                    }
-                    throw moveFailure;
-                }
-                if (backup != null) {
-                    deleteDirectory(backup);
-                }
-            } catch (IOException e) {
-                try {
-                    deleteDirectory(tempStaging);
-                } catch (IOException cleanupFailure) {
-                    logger.log(Level.WARNING, "Failed cleaning staged template save: " + tempStaging, cleanupFailure);
-                }
-                throw new IllegalStateException("Could not save boss template from edit world: " + bossId, e);
+            if (!Files.isDirectory(liveFolder)) {
+                throw new IllegalArgumentException("Edit world does not exist for boss: " + bossId);
             }
+            return liveFolder;
+        }).thenApplyAsync(liveFolder -> {
+            saveFolderAsTemplate(bossId, liveFolder);
+            return liveFolder;
         }, ioExecutor);
+
+        return future.whenComplete((folder, throwable) -> {
+            if (throwable != null) {
+                logger.log(Level.WARNING, "Failed to save boss template '" + bossId + "'", throwable);
+            }
+        });
+    }
+
+    private void saveFolderAsTemplate(String bossId, Path liveFolder) {
+        Path templateFolder = templateRoot.resolve(bossId);
+        Path tempStaging = templateFolder.resolveSibling(templateFolder.getFileName() + ".tmp-" + UUID.randomUUID());
+        try {
+            copyDirectory(liveFolder, tempStaging);
+            Path backup = Files.exists(templateFolder)
+                    ? templateFolder.resolveSibling(templateFolder.getFileName() + ".bak-" + UUID.randomUUID())
+                    : null;
+            if (backup != null) {
+                Files.move(templateFolder, backup, StandardCopyOption.ATOMIC_MOVE);
+            }
+            try {
+                Files.move(tempStaging, templateFolder, StandardCopyOption.ATOMIC_MOVE);
+            } catch (IOException moveFailure) {
+                if (backup != null) {
+                    Files.move(backup, templateFolder, StandardCopyOption.ATOMIC_MOVE);
+                }
+                throw moveFailure;
+            }
+            if (backup != null) {
+                deleteDirectory(backup);
+            }
+        } catch (IOException e) {
+            try {
+                deleteDirectory(tempStaging);
+            } catch (IOException cleanupFailure) {
+                logger.log(Level.WARNING, "Failed cleaning staged template save: " + tempStaging, cleanupFailure);
+            }
+            throw new IllegalStateException("Could not save boss template from edit world: " + bossId, e);
+        }
     }
 
     public CompletableFuture<Void> quitTemplateEditWorld(String bossId, World fallbackWorld) {
@@ -263,7 +356,7 @@ public final class BossArenaManager {
         String worldName = editWorldName(bossId);
 
         // 1. First, save the current changes back to the main template folder
-        return saveTemplateEditWorld(bossId).thenCompose(__ -> runOnMainThread(() -> {
+        return saveTemplateEditWorldAndGetFolder(bossId).thenCompose(liveFolder -> runOnMainThread(() -> {
             World editWorld = Bukkit.getWorld(worldName);
             if (editWorld != null) {
                 // 2. Teleport players out of the edit world to the fallback world
@@ -277,16 +370,21 @@ public final class BossArenaManager {
                 }
             }
             return null;
-        })).thenRunAsync(() -> {
+        }).thenRunAsync(() -> {
             // 4. Delete the live edit world directory from the server root container
-            Path liveFolder = resolveEditLiveFolder(bossId);
             try {
                 deleteDirectory(liveFolder);
+                deleteDirectory(resolveLegacyEditFolder(bossId));
                 logger.log(Level.INFO, "Successfully removed edit world container folder for boss: {0}", bossId);
             } catch (IOException e) {
                 throw new IllegalStateException("Could not delete live edit world folder: " + liveFolder, e);
             }
-        }, ioExecutor);
+        }, ioExecutor));
+    }
+
+    private String instanceWorldName(String bossId) {
+        String safeBossId = bossId.replaceAll("[^A-Za-z0-9_-]", "_");
+        return "boss_" + safeBossId + "_instance";
     }
 
     private CompletableFuture<Path> copyTemplateAsync(String bossId, Path templateFolder) {
@@ -294,17 +392,15 @@ public final class BossArenaManager {
             if (activeArena != null && activeArena.bossId().equals(bossId)) {
                 throw new IllegalStateException("An active arena already exists for boss: " + bossId);
             }
-            Path destination = createInstanceFolder(bossId);
+            String worldName = instanceWorldName(bossId);
+            Path destination = resolveInstanceFolder(bossId);
             try {
-                // ensure clean destination
-                if (Files.exists(destination)) {
-                    deleteDirectory(destination);
-                }
-                copyDirectory(templateFolder, destination);
+                stageTemplateForLoad(templateFolder, worldName, destination);
                 return destination;
             } catch (IOException e) {
                 try {
                     deleteDirectory(destination);
+                    deleteDirectory(resolveDimensionFolder(worldName));
                 } catch (IOException cleanupFailure) {
                     logger.log(Level.WARNING, "Failed cleaning partial boss arena copy: " + destination,
                             cleanupFailure);
@@ -379,23 +475,18 @@ public final class BossArenaManager {
     private CompletableFuture<Void> deleteInstanceFolderAsync(Arena arena) {
         return CompletableFuture.runAsync(() -> {
             Path folder = instanceRoot.resolve(arena.worldName());
+            Path dimensionFolder = resolveDimensionFolder(arena.worldName());
             try {
                 deleteDirectory(folder);
+                deleteDirectory(dimensionFolder);
             } catch (IOException e) {
-                throw new IllegalStateException("Failed to delete boss arena folder: " + folder, e);
+                throw new IllegalStateException("Failed to delete boss arena folder: " + dimensionFolder, e);
             }
         }, ioExecutor);
     }
 
-    private Path createInstanceFolder(String bossId) {
-        String safeBossId = bossId.replaceAll("[^A-Za-z0-9_-]", "_");
-        String instanceName = "boss_" + safeBossId + "_instance";
-        Path target = instanceRoot.resolve(instanceName);
-        try {
-            return Files.createDirectories(target);
-        } catch (IOException e) {
-            throw new IllegalStateException("Could not create instance folder: " + target, e);
-        }
+    private Path resolveInstanceFolder(String bossId) {
+        return instanceRoot.resolve(instanceWorldName(bossId));
     }
 
     private boolean isOrphanInstanceFolder(Path path) {

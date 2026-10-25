@@ -189,7 +189,7 @@ public class GameSetupHelper extends SetupHelper {
     @Override
     public void registerCommand(CommandManager cm, BukkitMessageSender ms) {
         // ==============================================================
-        // setup tree -> /d setup <toggle|prelobby|selectionspawn|holecenter|classblock|dungeonworld|bossworld|minplayers|bossspawn|bossplayerspawn|loadbossworld|tpbossworld|savebossworld|quitbossworld|status>
+        // setup tree -> /d setup <toggle|prelobby|selectionspawn|holecenter|classblock|dungeonworld|bossworld|minplayers|bossspawn|bossplayerspawn|createbossworld|loadbossworld|tpbossworld|savebossworld|quitbossworld|status>
         // ==============================================================
         cm.addSubCommand("project-d", SubCommandBuilder.startBuilding("setup")
                 .setDescription("Setup controls")
@@ -269,6 +269,17 @@ public class GameSetupHelper extends SetupHelper {
 //                        ms.sendLine(player, "<red></red>");
 //                    }
 //                }))
+                .setPlayerCommandAction(2, "createbossworld", perm("projectd.setup.set", (player, args) -> {
+                    String worldId = args[1];
+                    DMain.getInstance().getBossArenaManager().createEmptyTemplateEditWorld(worldId).whenComplete((world, throwable) -> {
+                        if (throwable != null) {
+                            ms.sendCenteredMessage(player, MessageComponent.of("<red>Could not create empty boss template world <yellow>%s</yellow>. %s</red>", worldId, throwable.getMessage()));
+                            return;
+                        }
+                        ms.sendCenteredMessage(player, MessageComponent.of("<green>Created and loaded empty void boss template world <yellow>%s</yellow>.</green>", worldId));
+                        player.teleport(world.getSpawnLocation());
+                    });
+                }))
                 .setPlayerCommandAction(2, "loadbossworld", perm("projectd.setup.set", (player, args) -> {
                     String worldId = args[1];
                     DMain.getInstance().getBossArenaManager().loadTemplateEditWorld(worldId).whenComplete((world, throwable) -> {
@@ -297,7 +308,7 @@ public class GameSetupHelper extends SetupHelper {
                             ms.sendCenteredMessage(player, MessageComponent.of("<red>Could not save boss template world <yellow>%s</yellow>.</red>", worldId));
                             return;
                         }
-                        ms.sendCenteredMessage(player, MessageComponent.of("<green>Boss template world <yellow>%s</yellow> saved back to template.</green>", worldId));
+                        ms.sendCenteredMessage(player, MessageComponent.of("<green>Boss template world <yellow>%s</yellow> saved back to template. The edit world was unloaded; use <yellow>/d setup loadbossworld %s</yellow> to reopen it.</green>", worldId, worldId));
                     });
                 }))
                 .setPlayerCommandAction(2, "quitbossworld", perm("projectd.setup.set", (player, args) -> {
@@ -340,7 +351,7 @@ public class GameSetupHelper extends SetupHelper {
                 }))
                 .setCommandArgumentsList(0, Arrays.asList("toggle",
 //                        "prelobby","selectionspawn","holecenter","classblock","bossspawn","bossplayerspawn",
-                        "dungeonworld","bossworld","minplayers","loadbossworld","tpbossworld","savebossworld","quitbossworld","status", "toggleSetupMode"))
+                        "dungeonworld","bossworld","minplayers","createbossworld","loadbossworld","tpbossworld","savebossworld","quitbossworld","status", "toggleSetupMode"))
 //                .setCommandArgumentsList(1, "classblock", Arrays.asList(RPGClassType.validTypes()).stream().map(type -> type.toString()).toList())
         );
     }

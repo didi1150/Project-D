@@ -22,7 +22,7 @@ public class BossDefinition {
         this.entityType = entityType;
         this.floor = floor;
         this.defeatStageId = defeatStageId;
-        this.baseStatManager = baseStatManager;
+        this.baseStatManager = baseStatManager != null ? baseStatManager : new StatManager(null);
         this.stages = stages == null ? List.of() : List.copyOf(stages);
     }
 }

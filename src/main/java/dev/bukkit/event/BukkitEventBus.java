@@ -1,8 +1,8 @@
 package dev.bukkit.event;
 
-import java.util.ArrayList;
 import java.util.List;
 import java.util.NoSuchElementException;
+import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.function.Function;
 import java.util.function.Predicate;
 import java.util.stream.Collectors;
@@ -27,7 +27,7 @@ public class BukkitEventBus implements EventBusInterface {
     private final List<EventAction<?>> subscribed;
 
     private BukkitEventBus() {
-        subscribed = new ArrayList<>();
+        subscribed = new CopyOnWriteArrayList<>();
     }
 
     public List<EventAction<?>> getSubscribed() {

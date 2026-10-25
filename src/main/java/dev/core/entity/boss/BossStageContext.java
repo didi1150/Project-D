@@ -1,5 +1,7 @@
 package dev.core.entity.boss;
 
+import dev.core.event.impl.BossEncounterEndedEvent;
+
 public class BossStageContext {
 
     private final RPGBossEntity boss;
@@ -28,5 +30,21 @@ public class BossStageContext {
 
     public void broadcast(String message) {
         boss.getBossEntityContext().ifPresent(ctx -> ctx.broadcast(message));
+    }
+
+    public void completeEncounter() {
+        boss.completeEncounter();
+    }
+
+    public void endEncounter(BossEncounterEndedEvent.Outcome outcome) {
+        boss.endEncounter(outcome);
+    }
+
+    public Object getState() {
+        return stageManager.getState();
+    }
+
+    public void setState(Object state) {
+        stageManager.setState(state);
     }
 }

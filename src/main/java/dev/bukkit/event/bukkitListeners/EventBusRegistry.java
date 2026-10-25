@@ -45,12 +45,15 @@ import org.bukkit.plugin.Plugin;
 import org.bukkit.plugin.PluginManager;
 
 import dev.bukkit.event.BukkitEventBus;
+import io.papermc.paper.event.player.AsyncChatEvent;
 
 public class EventBusRegistry {
     private record Reg(Class<? extends Event> type, EventPriority priority, boolean ignoreCancelled) {
     }
 
-    private static final List<Reg> FORWARDED = List.of(new Reg(PlayerJoinEvent.class, EventPriority.MONITOR, false),
+    private static final List<Reg> FORWARDED = List.of(
+            new Reg(AsyncChatEvent.class, EventPriority.LOWEST, false),
+            new Reg(PlayerJoinEvent.class, EventPriority.MONITOR, false),
             new Reg(PlayerQuitEvent.class, EventPriority.NORMAL, false),
             new Reg(PlayerInteractEvent.class, EventPriority.NORMAL, false),
             new Reg(PlayerPortalEvent.class, EventPriority.LOW, false),
