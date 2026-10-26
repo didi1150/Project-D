@@ -852,6 +852,24 @@ items:
       policy: STACK
     abilities:
     - BONE_SWING
+  SNIPER_BOW:
+    unlockLevel: 0
+    name: Sniper Bow
+    material: BOW
+    slot: MAIN_HAND
+    itemType: BOW
+    requiresArrows: false
+    usage: mob_only
+    allowed-classes: []
+    passive-stats: []
+    active-stats:
+    - amount: 8.0
+      statType: ATTACK_DAMAGE
+      modifierType: FLAT
+      statTarget: BOTH
+      policy: STACK
+    abilities:
+    - SNIPER_PASSIVE
   HUNTERS_BOW:
     # Sova-inspired hunter bow: shift while drawing to charge bounces (0..3, wraps),
     # left-click to arm a shock charge. The next arrow carries both modifiers:

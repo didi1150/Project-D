@@ -7,6 +7,7 @@ import java.util.Set;
 import dev.core.game.dungeon.proceduralDungeon.util.SpawnTier;
 import dev.core.item.equipment.EquipmentSlot;
 import dev.core.stat.StatManager;
+import dev.core.storage.config.ConfigSection;
 
 /**
  * Data-driven definition of a dungeon mob, loaded from {@code dungeon-mobs.yml}.
@@ -26,23 +27,23 @@ public class MobDefinition {
     private final double abilityDamageMultiplier;
     private final int abilityCastInterval;
     private final boolean miniBoss;
-    private final boolean bossBar;
     private final String behaviorId;
+    private final ConfigSection behaviorParams;
     private final Map<EquipmentSlot, String> armor;
     private final List<MobEffect> effects;
     private final Set<Integer> floors;
 
     public MobDefinition(String id, String entityType, int weight, Set<SpawnTier> tiers, String displayName,
             StatManager baseStats, String mainHandItemId, double abilityDamageMultiplier,
-            int abilityCastInterval, boolean miniBoss, boolean bossBar, String behaviorId,
+            int abilityCastInterval, boolean miniBoss, String behaviorId, ConfigSection behaviorParams,
             Map<EquipmentSlot, String> armor, List<MobEffect> effects) {
         this(id, entityType, weight, tiers, displayName, baseStats, mainHandItemId, abilityDamageMultiplier,
-                abilityCastInterval, miniBoss, bossBar, behaviorId, armor, effects, Set.of());
+                abilityCastInterval, miniBoss, behaviorId, behaviorParams, armor, effects, Set.of());
     }
 
     public MobDefinition(String id, String entityType, int weight, Set<SpawnTier> tiers, String displayName,
             StatManager baseStats, String mainHandItemId, double abilityDamageMultiplier,
-            int abilityCastInterval, boolean miniBoss, boolean bossBar, String behaviorId,
+            int abilityCastInterval, boolean miniBoss, String behaviorId, ConfigSection behaviorParams,
             Map<EquipmentSlot, String> armor, List<MobEffect> effects, Set<Integer> floors) {
         this.id = id;
         this.entityType = entityType;
@@ -54,8 +55,8 @@ public class MobDefinition {
         this.abilityDamageMultiplier = abilityDamageMultiplier;
         this.abilityCastInterval = Math.max(1, abilityCastInterval);
         this.miniBoss = miniBoss;
-        this.bossBar = bossBar;
         this.behaviorId = behaviorId;
+        this.behaviorParams = behaviorParams;
         this.armor = armor == null ? Map.of() : Map.copyOf(armor);
         this.effects = effects == null ? List.of() : List.copyOf(effects);
         this.floors = floors == null || floors.isEmpty() ? Set.of() : Set.copyOf(floors);
@@ -105,11 +106,6 @@ public class MobDefinition {
         return miniBoss;
     }
 
-    /** Whether a boss bar should be shown for this mob's health. */
-    public boolean isBossBar() {
-        return bossBar;
-    }
-
     /**
      * Optional id of a Java {@code MobBehavior} (registered in
      * {@code MobBehaviorRegistry}) that drives this mob's custom logic. {@code null}
@@ -117,6 +113,10 @@ public class MobDefinition {
      */
     public String getBehaviorId() {
         return behaviorId;
+    }
+
+    public ConfigSection getBehaviorParams() {
+        return behaviorParams;
     }
 
     /** RPG item ids per armor slot ({@code HEAD}/{@code CHEST}/{@code LEGS}/{@code FEET}). */

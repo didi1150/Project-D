@@ -39,6 +39,7 @@ import dev.bukkit.ability.behavior.HealAuraBehavior;
 import dev.bukkit.ability.behavior.HunterBowBehavior;
 import dev.bukkit.ability.behavior.ManaDiscountBehavior;
 import dev.bukkit.ability.behavior.ShadowWeaverBehavior;
+import dev.bukkit.ability.behavior.SniperPassiveBehavior;
 import dev.bukkit.ability.behavior.StackerBehavior;
 import dev.bukkit.ability.behavior.StealthPassiveBehavior;
 import dev.bukkit.ability.behavior.SupportStaffBehavior;
@@ -112,6 +113,7 @@ import dev.core.ability.impl.ParticleTestAbility;
 import dev.core.ability.impl.ShadowWeaverStaffAbility;
 import dev.core.ability.impl.ShieldBashAbility;
 import dev.core.ability.impl.SmashAbility;
+import dev.core.ability.impl.SniperPassiveAbility;
 import dev.core.ability.impl.SmokeShroudAbility;
 import dev.core.ability.impl.SoulCollectorAbility;
 import dev.core.ability.impl.SoulRecallAbility;
@@ -218,6 +220,7 @@ public final class DMain extends JavaPlugin {
         // Wither Guard set abilities (orbit + launch)
         AbilityRegistry.register(new WitherSkullOrbitAbility()); // PASSIVE, no effect factory
         AbilityRegistry.register(new WitherSkullLaunchAbility(), BukkitWitherSkullLaunchEffect::new);
+        AbilityRegistry.register(new SniperPassiveAbility());
         // Support Staff abilities
         AbilityRegistry.register(SupportStaffAbility.use(), BukkitSupportStaffUseEffect::new);
         AbilityRegistry.register(SupportStaffAbility.toggle(), BukkitSupportStaffToggleEffect::new);
@@ -240,6 +243,7 @@ public final class DMain extends JavaPlugin {
         AbilityBehaviorRegistry.register(VampirismBehavior.PASSIVE_ID, VampirismBehavior::new);
         AbilityBehaviorRegistry.register(StackerAbility.ID, StackerBehavior::new);
         AbilityBehaviorRegistry.register(WitherSkullOrbitAbility.ID, WitherSkullOrbitBehavior::new);
+        AbilityBehaviorRegistry.register(SniperPassiveAbility.ID, SniperPassiveBehavior::new);
         AbilityBehaviorRegistry.register(SupportStaffAbility.USE_ID, SupportStaffBehavior::new);
         AbilityBehaviorRegistry.register(SupportStaffAbility.TOGGLE_ID, SupportStaffBehavior::new);
 

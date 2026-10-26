@@ -18,9 +18,8 @@ import dev.core.stat.loader.StatLoader;
  *
  * <p>
  * Tier gating: a soul tier may only be captured when the Support player's level
- * is at least {@link SpawnTier#getMinLevel()}. Summon stats scale with the
- * soul's tier and the Support level (a level 10 Support can capture and field
- * stronger summons than a level 1 Support).
+ * meets {@link #captureLevelFor(SpawnTier)}. Summon stats scale with the soul's
+ * tier and the Support level.
  */
 public final class SummonStats {
 
@@ -42,9 +41,21 @@ public final class SummonStats {
         return Math.max(1, level);
     }
 
+    public static int captureLevelFor(SpawnTier tier) {
+        if (tier == null) {
+            return 1;
+        }
+        return switch (tier) {
+        case BASIC -> 1;
+        case ADVANCED -> 2;
+        case ELITE -> 3;
+        case BOSS_MINION -> 4;
+        };
+    }
+
     /** {@code true} when the Support player may capture a soul of the given tier. */
     public static boolean canCapture(int level, SpawnTier tier) {
-        return tier == null || effectiveLevel(level) >= tier.getMinLevel();
+        return tier == null || effectiveLevel(level) >= captureLevelFor(tier);
     }
 
     /** Soul slots available at the given Support level. */

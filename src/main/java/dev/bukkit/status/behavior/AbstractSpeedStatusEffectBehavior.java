@@ -5,8 +5,6 @@ import java.util.Map;
 import java.util.UUID;
 
 import org.bukkit.Bukkit;
-import org.bukkit.attribute.Attribute;
-import org.bukkit.attribute.AttributeInstance;
 import org.bukkit.entity.LivingEntity;
 import org.bukkit.potion.PotionEffect;
 import org.bukkit.potion.PotionEffectType;
@@ -83,15 +81,11 @@ public abstract class AbstractSpeedStatusEffectBehavior implements StatusEffectB
 		}
 	}
 
-	private void syncSpeed(LivingEntity living, RPGEntity rpg) {
-		if (Bukkit.getServer() == null) {
-			return; // attribute sync needs a live server (headless tests skip it)
-		}
-		AttributeInstance attribute = living.getAttribute(Attribute.MOVEMENT_SPEED);
-		if (attribute == null) {
-			return;
-		}
-		double value = rpg.getStatEngineAdapter().getCurrentValue(StatType.MOVE_SPEED, System.currentTimeMillis());
-		attribute.setBaseValue(BukkitStatManager.computeMoveSpeed(value));
-	}
+    private void syncSpeed(LivingEntity living, RPGEntity rpg) {
+        if (Bukkit.getServer() == null) {
+            return; // attribute sync needs a live server (headless tests skip it)
+        }
+        double value = rpg.getStatEngineAdapter().getCurrentValue(StatType.MOVE_SPEED, System.currentTimeMillis());
+        BukkitStatManager.applyMoveSpeedFromStat(living, value);
+    }
 }

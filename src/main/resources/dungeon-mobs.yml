@@ -2,9 +2,9 @@
 #
 # Every mob is a full RPG entity: it is registered in the EntityManager with its
 # own StatManager (the `stats` block, same format as bosses.yml), so all damage
-# routes through the RPG damage system and the mob's name/boss bar show its RPG
-# health. The mob's AI stays vanilla; the RPG facade syncs health, casts
-# abilities, and refreshes the name.
+# routes through the RPG damage system and the mob's name shows its RPG health.
+# The mob's AI stays vanilla; the RPG facade syncs health, casts abilities, and
+# refreshes the name.
 #
 # A mob is selected at spawn time from the pool matching the spawn location's
 # tier (BASIC / ADVANCED / ELITE / BOSS_MINION), weighted by `weight`.
@@ -27,7 +27,6 @@
 #   ability-damage-multiplier: damage multiplier for abilities this mob triggers
 #   ability-cast-interval:     ticks between ability casts while a target is in range (default 80)
 #   mini-boss:               only spawned at mini-boss spawn spots (ELITE rooms)
-#   boss-bar:                show a boss bar for this mob's health (default false)
 #   behavior:                optional id of a Java MobBehavior (registered in
 #                            MobBehaviorRegistry) driving this mob's custom logic
 #                            (e.g. "lost-adventurer"). The hybrid config+Java model:
@@ -42,7 +41,7 @@ dungeon-mobs:
   basic-zombie:
     entity-type: ZOMBIE
     weight: 10
-    tiers: [BASIC]
+    tiers: [BASIC, ADVANCED, ELITE]
     display-name: "&7Dungeon Zombie"
     stats:
       HEALTH_MAX: 20
@@ -53,7 +52,7 @@ dungeon-mobs:
   basic-skeleton:
     entity-type: SKELETON
     weight: 8
-    tiers: [BASIC]
+    tiers: [BASIC, ADVANCED, ELITE]
     display-name: "&7Dungeon Skeleton"
     stats:
       HEALTH_MAX: 16
@@ -82,7 +81,7 @@ dungeon-mobs:
       ATTACK_SPEED: 1
   bonemerang-zombie:
     entity-type: ZOMBIE
-    weight: 4
+    weight: 2
     tiers: [ADVANCED, ELITE]
     display-name: "&eBonemerang Thrower"
     main-hand-item: BONEMERANG
@@ -114,13 +113,47 @@ dungeon-mobs:
       ATTACK_DAMAGE: 9
       ARMOR: 2
       ATTACK_SPEED: 1
+  sniper-skeleton:
+    entity-type: SKELETON
+    weight: 1
+    tiers: [ELITE]
+    display-name: "&2&lSniper Skeleton"
+    mini-boss: true
+    behavior: sniper-skeleton
+    main-hand-item: SNIPER_BOW
+    stats:
+      HEALTH_MAX: 28
+      ATTACK_DAMAGE: 6
+      MOVE_SPEED: 120
+      ARMOR: 0
+      ATTACK_SPEED: 1
+    armor:
+      head: BASIC_ARCHER_HELMET
+      chest: BASIC_ARCHER_CHESTPLATE
+      legs: BASIC_ARCHER_LEGGINGS
+      feet: BASIC_ARCHER_BOOTS
+    behavior-params:
+      shoot-interval-ticks: 120
+      aggro-range: 32
+      shoot-range: 24
+      preferred-min-distance: 8
+      preferred-max-distance: 18
+      repath-ticks: 10
+      move-speed: 1.0
+      strafe-in-range: true
+      strafe-distance: 5
+      arrow-speed: 3.5
+      arrow-lifetime-ticks: 100
+      base-damage-multiplier: 1.0
+      distance-damage-growth: 0.05
+      max-distance-damage-multiplier: 5.0
+      pierce-count: 8
   skull-king:
     entity-type: WITHER_SKELETON
     weight: 1
     tiers: [ELITE]
     display-name: "&5&lSkull King"
     mini-boss: true
-    boss-bar: true
     behavior: lost-adventurer
     main-hand-item: BONEMERANG
     ability-damage-multiplier: 0.7

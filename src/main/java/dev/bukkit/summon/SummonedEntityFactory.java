@@ -101,9 +101,9 @@ public final class SummonedEntityFactory {
             BukkitEntityFactory.applyDefinitionEffects(summon, definition);
         }
 
-        double moveSpeed = stats.getStats().get(dev.core.stat.StatType.MOVE_SPEED) == null ? 100.0
-                : stats.getStats().get(dev.core.stat.StatType.MOVE_SPEED).getCurrent(System.currentTimeMillis());
-        setAttribute(living, Attribute.MOVEMENT_SPEED, BukkitStatManager.computeMoveSpeed(moveSpeed));
+        double moveSpeed = summon.getStatEngineAdapter().getCurrentValue(dev.core.stat.StatType.MOVE_SPEED,
+                System.currentTimeMillis());
+        BukkitStatManager.applyMoveSpeedFromStat(living, moveSpeed);
         setAttribute(living, Attribute.KNOCKBACK_RESISTANCE, 0.5);
         living.addPotionEffect(new PotionEffect(PotionEffectType.GLOWING, Integer.MAX_VALUE, 0, false, false));
 
@@ -130,22 +130,22 @@ public final class SummonedEntityFactory {
     /**
      * The definition the summon facade runs on: a copy of the captured mob's
      * definition (same weapon, armor, cast interval, ability multiplier, spawn
-     * effects) with a unique id, and without miniboss/boss-bar/boss behavior —
-     * the summon fights for the player with vanilla AI, not the mob's scripted
-     * boss mechanics.
+     * effects) with a unique id, and without miniboss/boss behavior — the summon
+     * fights for the player with vanilla AI, not the mob's scripted boss
+     * mechanics.
      */
     private static MobDefinition summonDefinition(MobDefinition original, SoulFragment fragment, SpawnTier tier,
             StatManager stats) {
         if (original == null) {
             return new MobDefinition("SUMMON_" + UUID.randomUUID(), fragment.mobType().name(), 1,
                     Set.of(tier), "Summoned " + humanName(fragment.mobType()), stats, null, 1.0, 1,
-                    false, false, null, Map.of(), List.<MobEffect>of());
+                    false, null, null, Map.of(), List.<MobEffect>of());
         }
         String displayName = "Summoned " + humanName(fragment.mobType());
         return new MobDefinition("SUMMON_" + UUID.randomUUID(), original.getEntityType(), 1,
                 original.getTiers(), displayName, original.getBaseStats(), original.getMainHandItemId(),
                 original.getAbilityDamageMultiplier(), original.getAbilityCastInterval(),
-                false, false, null, original.getArmor(), original.getEffects());
+                false, null, null, original.getArmor(), original.getEffects());
     }
 
     /**

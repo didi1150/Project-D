@@ -36,10 +36,12 @@ class SummonStatsTest {
     @Test
     void tierGatesCaptureBySupportLevel() {
         assertTrue(SummonStats.canCapture(1, SpawnTier.BASIC));
-        assertFalse(SummonStats.canCapture(4, SpawnTier.ADVANCED));
-        assertTrue(SummonStats.canCapture(5, SpawnTier.ADVANCED));
-        assertFalse(SummonStats.canCapture(9, SpawnTier.ELITE));
-        assertTrue(SummonStats.canCapture(10, SpawnTier.ELITE));
+        assertFalse(SummonStats.canCapture(1, SpawnTier.ADVANCED));
+        assertTrue(SummonStats.canCapture(2, SpawnTier.ADVANCED));
+        assertFalse(SummonStats.canCapture(2, SpawnTier.ELITE));
+        assertTrue(SummonStats.canCapture(3, SpawnTier.ELITE));
+        assertFalse(SummonStats.canCapture(3, SpawnTier.BOSS_MINION));
+        assertTrue(SummonStats.canCapture(4, SpawnTier.BOSS_MINION));
     }
 
     @Test

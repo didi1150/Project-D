@@ -11,9 +11,11 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import org.junit.jupiter.api.Test;
 
+import dev.core.game.coords.Point3D;
 import dev.core.game.dungeon.BoundingBox;
 import dev.core.game.dungeon.proceduralDungeon.util.DungeonRoom;
 import dev.core.game.dungeon.proceduralDungeon.util.SpawnLocation;
+import dev.core.game.dungeon.proceduralDungeon.util.SpawnTier;
 import dev.core.game.dungeon.proceduralDungeon.util.Vector3Int;
 import dev.core.game.settings.GameSettings;
 
@@ -70,6 +72,43 @@ class RoomFirstDungeonGenerator3DTest {
         List<SpawnLocation> spawnLocations = (List<SpawnLocation>) method.invoke(generator, roomFloor, possibleSpawnPositions, startRoom, new Random(42));
 
         assertEquals(0, spawnLocations.size());
+    }
+
+    @Test
+    void assignMiniBossSpawnLocationsSelectsExactlyEightEliteSpawns() {
+        RoomFirstDungeonGenerator3D generator = new RoomFirstDungeonGenerator3D();
+        DungeonRoom first = roomWithEliteSpawns(0, 5);
+        DungeonRoom second = roomWithEliteSpawns(100, 5);
+
+        generator.assignMiniBossSpawnLocations(List.of(first, second), new Random(42));
+
+        List<SpawnLocation> all = List.of(first, second).stream()
+                .flatMap(room -> room.getSpawnPositions().stream())
+                .toList();
+        List<SpawnLocation> miniBosses = all.stream().filter(SpawnLocation::isMiniBossSpawn).toList();
+        assertEquals(RoomFirstDungeonGenerator3D.MINI_BOSS_SPAWN_COUNT, miniBosses.size());
+        assertTrue(miniBosses.stream().allMatch(spawn -> spawn.getSpawnChance() == 1.0));
+        assertTrue(miniBosses.stream().allMatch(spawn -> spawn.getTier() == SpawnTier.ELITE));
+    }
+
+    @Test
+    void assignMiniBossSpawnLocationsUsesAllEliteSpawnsWhenFewerThanEight() {
+        RoomFirstDungeonGenerator3D generator = new RoomFirstDungeonGenerator3D();
+        DungeonRoom room = roomWithEliteSpawns(0, 3);
+
+        generator.assignMiniBossSpawnLocations(List.of(room), new Random(42));
+
+        long miniBosses = room.getSpawnPositions().stream().filter(SpawnLocation::isMiniBossSpawn).count();
+        assertEquals(3, miniBosses);
+    }
+
+    private static DungeonRoom roomWithEliteSpawns(int xOffset, int count) {
+        List<SpawnLocation> spawns = new java.util.ArrayList<>();
+        for (int i = 0; i < count; i++) {
+            spawns.add(new SpawnLocation(new Point3D(xOffset + i, 0, 0), SpawnTier.ELITE, 0.4, 10, false));
+        }
+        return new DungeonRoom(new BoundingBox(xOffset, 0, 0, xOffset + count, 0, 1), new LinkedHashSet<>(),
+                spawns);
     }
 
     @Test

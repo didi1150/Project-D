@@ -245,7 +245,8 @@ public final class SoulSkull {
         int level = DMain.getInstance().getProgressionService().getProgression(playerId, RPGClassType.SUPPORT)
                 .getLevel();
         if (!SummonStats.canCapture(level, fragment.tier())) {
-            player.sendMessage(LegacyColors.RED + "This soul is too powerful for your Support level to capture.");
+            player.sendMessage(LegacyColors.RED + "This soul requires Support level "
+                    + SummonStats.captureLevelFor(fragment.tier()) + " to capture.");
             return false;
         }
 

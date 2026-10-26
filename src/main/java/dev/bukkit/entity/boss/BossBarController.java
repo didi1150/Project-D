@@ -62,14 +62,4 @@ public class BossBarController {
             }
         }
     }
-
-    /** Restores the vanilla boss bar previously hidden by {@link #hideVanillaBossBar}. */
-    public static void showVanillaBossBar(Entity entity) {
-        if (entity instanceof Boss boss) {
-            BossBar bar = boss.getBossBar();
-            if (bar != null) {
-                bar.setVisible(true);
-            }
-        }
-    }
 }

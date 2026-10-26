@@ -11,6 +11,7 @@ import dev.core.ability.impl.ParticleTestAbility;
 import dev.core.ability.impl.ShieldBashAbility;
 import dev.core.ability.impl.ShadowWeaverStaffAbility;
 import dev.core.ability.impl.SmashAbility;
+import dev.core.ability.impl.SniperPassiveAbility;
 import dev.core.ability.impl.SpinjitzuAbility;
 import dev.core.ability.impl.SpiritSceptreAbility;
 import dev.core.ability.impl.SwingBoneAbility;
@@ -41,6 +42,7 @@ public class AbilityRegistry {
 		register(new SpinjitzuAbility());
 		register(new SmashAbility());
 		register(new ShieldBashAbility());
+		register(new SniperPassiveAbility());
 		register(ShadowWeaverStaffAbility.place());
 		register(ShadowWeaverStaffAbility.dash());
 		register(new ArcaneManaRestoreAbility());

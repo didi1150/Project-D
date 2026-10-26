@@ -29,6 +29,7 @@ public final class MobBehaviorRegistry {
     /** Registers the built-in behaviors shipped with the plugin. */
     private void registerDefaults() {
         register("lost-adventurer", new LostAdventurerBehavior());
+        register("sniper-skeleton", new SniperSkeletonBehavior());
     }
 
     /** Register (or replace) a behavior under an id referenced by mob configs. */

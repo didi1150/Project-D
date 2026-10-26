@@ -138,14 +138,14 @@ public class BukkitEntityFactory {
                 BukkitEventBus.getInstance());
         EntityManager.getInstance().registerEntity(rpgMob);
 
-        Stat moveSpeedStat = stats.getStats().get(StatType.MOVE_SPEED);
-        double moveSpeedValue = moveSpeedStat == null ? 100.0 : moveSpeedStat.getCurrent(System.currentTimeMillis());
-        setAttributeValue(livingEntity, Attribute.MOVEMENT_SPEED, BukkitStatManager.computeMoveSpeed(moveSpeedValue));
         setAttributeValue(livingEntity, Attribute.KNOCKBACK_RESISTANCE, Math.min(1.0, (safeLevel - 1) * 0.02));
 
         applyDefinitionEffects(rpgMob, definition);
         applyMainHandItem(livingEntity, rpgMob, definition);
         applyArmor(livingEntity, rpgMob, definition);
+        double moveSpeed = rpgMob.getStatEngineAdapter().getCurrentValue(StatType.MOVE_SPEED,
+                System.currentTimeMillis());
+        BukkitStatManager.applyMoveSpeedFromStat(livingEntity, moveSpeed);
 
         BukkitEntityMetadata.set(livingEntity, "VANILLA_META", vanillaEntityMeta);
         BukkitEntityMetadata.set(livingEntity, "DUNGEON", true);
@@ -155,12 +155,6 @@ public class BukkitEntityFactory {
             mob.setRemoveWhenFarAway(false);
         }
         DamageUtils.updateName(livingEntity);
-
-        if (definition.isBossBar()) {
-            String title = definition.getDisplayName() != null ? definition.getDisplayName()
-                    : formatMobName(entityType, safeLevel, false);
-            MiniBossBar.track(title, livingEntity);
-        }
 
         rpgMob.triggerSpawnBehavior(livingEntity);
         livingEntity.setNoDamageTicks(0);
@@ -201,13 +195,6 @@ public class BukkitEntityFactory {
                     BukkitEventBus.getInstance());
             EntityManager.getInstance().registerEntity(rpgMob);
 
-            // Vanilla MOVEMENT_SPEED derived from the (level-scaled) MOVE_SPEED stat
-            // (default base 100)
-            Stat moveSpeedStat = stats.getStats().get(StatType.MOVE_SPEED);
-            double moveSpeedValue = moveSpeedStat == null ? 100.0
-                    : moveSpeedStat.getCurrent(System.currentTimeMillis());
-            setAttributeValue(livingEntity, Attribute.MOVEMENT_SPEED,
-                    BukkitStatManager.computeMoveSpeed(moveSpeedValue));
             setAttributeValue(livingEntity, Attribute.KNOCKBACK_RESISTANCE,
                     Math.min(1.0, (level - 1) * 0.02 + (spawnLocation.isEliteSpawn() ? 0.05 : 0.0)));
 
@@ -225,6 +212,9 @@ public class BukkitEntityFactory {
 
             // Armor slots equipped from RPG items
             applyArmor(livingEntity, rpgMob, definition);
+            double moveSpeed = rpgMob.getStatEngineAdapter().getCurrentValue(StatType.MOVE_SPEED,
+                    System.currentTimeMillis());
+            BukkitStatManager.applyMoveSpeedFromStat(livingEntity, moveSpeed);
 
             // Store metadata
         BukkitEntityMetadata.set(livingEntity, "VANILLA_META", vanillaEntityMeta);
@@ -235,13 +225,6 @@ public class BukkitEntityFactory {
                 ((Mob) livingEntity).setRemoveWhenFarAway(false);
             }
             DamageUtils.updateName(livingEntity);
-
-            // Boss-bar health display for mini-bosses
-            if (definition.isBossBar()) {
-                String title = definition.getDisplayName() != null ? definition.getDisplayName()
-                        : formatMobName(entityType, level, spawnLocation.isEliteSpawn());
-                MiniBossBar.track(title, livingEntity);
-            }
 
             // Run any Java-side miniboss behavior (hybrid config + Java model).
             rpgMob.triggerSpawnBehavior(livingEntity);
@@ -390,33 +373,6 @@ public class BukkitEntityFactory {
             // Equip on the RPG entity too so the armor's stats apply.
             rpgMob.getEquipmentManager().equipItem(entry.getKey(), item.get());
         }
-    }
-
-    private static String formatMobName(EntityType entityType, int level, boolean isElite) {
-        String mobName = formatEntityName(entityType.name());
-        String prefix = isElite ? "§6Elite " : "§7";
-        String levelText = "§f[Lvl " + level + "]";
-
-        return prefix + mobName + " " + levelText;
-    }
-
-    private static String formatEntityName(String entityTypeName) {
-        if (entityTypeName == null || entityTypeName.isEmpty()) {
-            return "";
-        }
-
-        // Lowercase and replace underscores with spaces
-        String base = entityTypeName.toLowerCase().replace('_', ' ');
-
-        // Capitalize each word
-        StringBuilder result = new StringBuilder();
-        for (String word : base.split(" ")) {
-            if (!word.isEmpty()) {
-                result.append(Character.toUpperCase(word.charAt(0))).append(word.substring(1)).append(" ");
-            }
-        }
-
-        return result.toString().trim();
     }
 
     public static RelationType getRelation(EntityType type) {

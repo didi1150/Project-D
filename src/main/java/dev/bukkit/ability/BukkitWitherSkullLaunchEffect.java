@@ -28,7 +28,9 @@ import dev.bukkit.utils.DamageUtils;
 import dev.core.ability.CooldownSink;
 import dev.core.ability.Effect;
 import dev.core.entity.EntityManager;
+import dev.core.entity.RPGDamageResult;
 import dev.core.entity.RPGEntity;
+import dev.core.event.impl.RPGEntityDamageEvent.DamageResult;
 import dev.core.event.impl.RPGEntityDamageEvent.DamageType;
 import dev.core.stat.StatType;
 import dev.core.status.StatusEffectType;
@@ -46,8 +48,8 @@ public class BukkitWitherSkullLaunchEffect extends Effect {
     private static final double EXPLOSION_RADIUS = 3.0;
     private static final double EXPLOSION_BASE_DAMAGE = 15.0;
     private static final double EXPLOSION_AD_RATIO = 0.2;
-    private static final double WITHER_BASE_DAMAGE = 5.0;
-    private static final long WITHER_DURATION_MS = 4000L;
+    private static final double WITHER_BASE_DAMAGE = 10.0;
+    private static final long WITHER_DURATION_MS = 6000L;
     private static final double MAX_REACH = 6.0;
 
     public BukkitWitherSkullLaunchEffect(String cooldownKey) {
@@ -170,12 +172,13 @@ public class BukkitWitherSkullLaunchEffect extends Effect {
             if (!CombatRelation.isEnemy(caster, ent))
                 continue;
 
-            // Deal explosion damage
-            DamageUtils.damageEntity(le, explosionDamage, caster, DamageType.MAGIC);
+            RPGDamageResult result = DamageUtils.damageEntity(le, explosionDamage, caster, DamageType.MAGIC);
+            if (result.getResult() == DamageResult.DENY) {
+                continue;
+            }
 
-            // Apply wither DoT via status effect system
             RPGEntity targetRpg = EntityManager.getInstance().getEntity(le.getUniqueId()).orElse(null);
-            if (targetRpg != null) {
+            if (targetRpg != null && targetRpg.isAlive() && !le.isDead()) {
                 targetRpg.getStatusEffectManager().apply(targetRpg, StatusEffectType.WITHER, WITHER_DURATION_MS, true,
                         WITHER_BASE_DAMAGE, caster.getUuid());
             }

@@ -45,6 +45,8 @@ public class RoomFirstDungeonGenerator3D extends SimpleRandomWalkDungeonGenerato
 
     protected int corridorWidth = 2;
 
+    public static final int MINI_BOSS_SPAWN_COUNT = 8;
+
     protected List<BoundingBox> rooms = new LinkedList<>();
     protected List<DungeonRoom> dungeonRooms = new LinkedList<>();
     protected List<BoundingBox> notConnectedRooms = new LinkedList<>();
@@ -345,6 +347,7 @@ public class RoomFirstDungeonGenerator3D extends SimpleRandomWalkDungeonGenerato
                     dungeonRoom.setSpawnPositions(createRoomSpawnLocations(dungeonRoom.getRoomFloor(),
                             safeSpawnLocations, dungeonRoom, random));
                 }
+                assignMiniBossSpawnLocations(dungeonRooms, random);
 
                 DungeonSpawnManager.getInstance().reset();
                 dungeonRooms.stream().flatMap(room -> room.getSpawnPositions().stream())
@@ -385,6 +388,29 @@ public class RoomFirstDungeonGenerator3D extends SimpleRandomWalkDungeonGenerato
 
         return selectedPositions.stream().map(pos -> createSpawnLocation(pos, room, random))
                 .collect(Collectors.toCollection(LinkedList::new));
+    }
+
+    void assignMiniBossSpawnLocations(List<DungeonRoom> rooms, Random random) {
+        List<SpawnLocation> eliteSpawns = rooms.stream()
+                .filter(room -> !notConnectedRooms.contains(room.getRoom()))
+                .flatMap(room -> room.getSpawnPositions().stream())
+                .filter(spawn -> spawn.getTier() == SpawnTier.ELITE && !spawn.isMiniBossSpawn())
+                .collect(Collectors.toCollection(LinkedList::new));
+        Collections.shuffle(eliteSpawns, random);
+
+        int count = Math.min(MINI_BOSS_SPAWN_COUNT, eliteSpawns.size());
+        if (count < MINI_BOSS_SPAWN_COUNT) {
+            printInfo("Only " + count + " elite spawn location(s) available for "
+                    + MINI_BOSS_SPAWN_COUNT + " mini-bosses; the dungeon may have fewer eyes.");
+        }
+        Set<SpawnLocation> selected = new LinkedHashSet<>(eliteSpawns.subList(0, count));
+
+        for (DungeonRoom room : rooms) {
+            List<SpawnLocation> updated = room.getSpawnPositions().stream()
+                    .map(spawn -> selected.contains(spawn) ? spawn.asMiniBossSpawn() : spawn)
+                    .collect(Collectors.toCollection(LinkedList::new));
+            room.setSpawnPositions(updated);
+        }
     }
 
     private int calculateRoomSpawnCount(DungeonRoom room) {
@@ -436,10 +462,8 @@ public class RoomFirstDungeonGenerator3D extends SimpleRandomWalkDungeonGenerato
         };
         double spawnChance = Math.max(0.1, Math.min(1.0, baseChance + (random.nextDouble() - 0.5) * 0.2));
         int maxEnemyLevel = tier.getMinLevel() + Math.max(0, room.getRealSize() / 40);
-        // ~15% of ELITE spawn spots are mini-boss spots (which are also elite).
-        boolean miniBoss = tier == SpawnTier.ELITE && random.nextDouble() < 0.15;
-        boolean isElite = miniBoss || (tier == SpawnTier.ELITE && random.nextDouble() < 0.2);
-        return new SpawnLocation(pos.convertToPoint3D(), tier, spawnChance, maxEnemyLevel, isElite, miniBoss);
+        boolean isElite = tier == SpawnTier.ELITE && random.nextDouble() < 0.2;
+        return new SpawnLocation(pos.convertToPoint3D(), tier, spawnChance, maxEnemyLevel, isElite, false);
     }
 
     private SpawnTier determineSpawnTier(DungeonRoom room) {

@@ -45,7 +45,7 @@ class MobDefinitionLoaderTest {
         def.set("ability-damage-multiplier", 0.5);
         def.set("ability-cast-interval", 80);
         def.set("mini-boss", true);
-        def.set("boss-bar", true);
+        def.getSection("behavior-params").set("shoot-interval-ticks", 120);
         ConfigSection armor = def.getSection("armor");
         armor.set("head", "SOME_HELMET");
         armor.set("chest", "SOME_CHESTPLATE");
@@ -68,7 +68,7 @@ class MobDefinitionLoaderTest {
         assertEquals(0.5, mob.getAbilityDamageMultiplier(), 0.001);
         assertEquals(80, mob.getAbilityCastInterval());
         assertTrue(mob.isMiniBoss());
-        assertTrue(mob.isBossBar());
+        assertEquals(120, mob.getBehaviorParams().getInt("shoot-interval-ticks", 0));
         assertEquals("SOME_HELMET", mob.getArmor().get(EquipmentSlot.HEAD));
         assertEquals("SOME_CHESTPLATE", mob.getArmor().get(EquipmentSlot.CHEST));
     }

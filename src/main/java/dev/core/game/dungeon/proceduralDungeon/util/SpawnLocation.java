@@ -50,6 +50,10 @@ public class SpawnLocation {
         return isMiniBossSpawn;
     }
 
+    public SpawnLocation asMiniBossSpawn() {
+        return new SpawnLocation(position, tier, 1.0, maxEnemyLevel, true, true);
+    }
+
     @Override
     public String toString() {
         return String.format("SpawnLocation{pos=%s, tier=%s, maxLvl=%d, elite=%s}", position, tier, maxEnemyLevel,

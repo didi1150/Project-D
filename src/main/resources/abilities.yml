@@ -136,6 +136,17 @@ abilities:
     action: RIGHT_CLICK
     cooldownScope: ITEM
     cooldown: 3000
+  SNIPER_PASSIVE:
+    name: Sniper's Mark
+    description:
+      - "Arrows pierce through players and"
+      - "their summons, dealing physical"
+      - "damage that grows exponentially"
+      - "with distance from the shooter."
+    triggerType: PASSIVE
+    action: NONE
+    cooldownScope: PLAYER
+    cooldown: 0
   PARTICLE_TEST_ABILITY:
     name: Particle Test
     description:

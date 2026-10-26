@@ -72,14 +72,15 @@ public class MobDefinitionLoader {
         double abilityDamageMultiplier = section.getDouble("ability-damage-multiplier", 1.0);
         int abilityCastInterval = section.getInt("ability-cast-interval", 80);
         boolean miniBoss = section.getBoolean("mini-boss", false);
-        boolean bossBar = section.getBoolean("boss-bar", false);
         String behaviorId = section.getString("behavior", null);
+        ConfigSection behaviorParams = section.getSection("behavior-params");
         Map<EquipmentSlot, String> armor = loadArmor(section);
         List<MobEffect> effects = loadEffects(section);
         Set<Integer> floors = parseFloors(section);
 
         return new MobDefinition(id, entityType, weight, tiers, displayName, baseStats, mainHandItemId,
-                abilityDamageMultiplier, abilityCastInterval, miniBoss, bossBar, behaviorId, armor, effects, floors);
+                abilityDamageMultiplier, abilityCastInterval, miniBoss, behaviorId, behaviorParams, armor, effects,
+                floors);
     }
 
     private static Map<EquipmentSlot, String> loadArmor(ConfigSection section) {

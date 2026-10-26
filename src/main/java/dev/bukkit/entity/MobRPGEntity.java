@@ -56,6 +56,10 @@ public class MobRPGEntity extends RPGEntity {
 
     @Override
     public void tick(long now) {
+        if (isAlive() && vanilla.isDead()) {
+            onDeath();
+            return;
+        }
         super.tick(now); // statManager + equipmentManager + checkAlive (may trigger onDeath)
         if (!isAlive()) {
             return;

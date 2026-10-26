@@ -1,5 +1,6 @@
 package dev.bukkit.game.dungeon;
 
+import dev.bukkit.entity.MobRPGEntity;
 import dev.bukkit.game.states.ClearState;
 import dev.bukkit.item.BukkitItemStackAdapter;
 import dev.bukkit.utils.BukkitMessageSender;
@@ -119,19 +120,20 @@ public class DungeonPortalManager {
             }
         }, PlayerPortalEvent.class));
         eventBus.subscribe(new EventAction<>(event -> {
-            if (isInClearState()) {
-                Entity victim = Bukkit.getEntity(event.getTarget().getUuid());
-                if (victim != null && AdventureText.plain(victim.customName()) != null
-                        && AdventureText.plain(victim.customName()).contains("Skull King")) {
-                    RPGItem rpgItem = RPGItemRegistry.getInstance().getItem("EYE_OF_CLARITY").get();
-                    ItemStack item = BukkitItemStackAdapter.toItemStack(rpgItem, event.getKiller());
-                    Location loc = victim.getLocation();
-                    loc.getWorld().dropItem(loc, item, i -> {
-                        i.setGlowing(true);
-                        i.setUnlimitedLifetime(true);
-                    });
-                }
+            if (!isInClearState() || !(event.getTarget() instanceof MobRPGEntity mob)) {
+                return;
             }
+            if (!mob.getDefinition().isMiniBoss()) {
+                return;
+            }
+            RPGItem rpgItem = RPGItemRegistry.getInstance().getItem("EYE_OF_CLARITY").get();
+            ItemStack item = BukkitItemStackAdapter.toItemStack(rpgItem, event.getKiller());
+            Location loc = mob.getVanilla().getLocation();
+            loc.getWorld().dropItem(loc, item, i -> {
+                i.setGlowing(true);
+                i.setUnlimitedLifetime(true);
+                i.setInvulnerable(true);
+            });
         }, RPGEntityDeathEvent.class));
         eventBus.subscribe(new EventAction<>(event -> {
             if (isInClearState()) {

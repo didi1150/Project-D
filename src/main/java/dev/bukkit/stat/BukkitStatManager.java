@@ -12,11 +12,14 @@ import org.bukkit.attribute.AttributeModifier;
 import org.bukkit.entity.Entity;
 import org.bukkit.entity.LivingEntity;
 
+import dev.bukkit.entity.BukkitEntityMetadata;
 import dev.core.stat.Stat;
 import dev.core.stat.StatManager;
 import dev.core.stat.StatType;
 
 public class BukkitStatManager {
+
+    private static final String BASE_MOVEMENT_SPEED_KEY = "BASE_MOVEMENT_SPEED";
 
     private UUID uuid;
     private StatManager statManager;
@@ -116,14 +119,35 @@ public class BukkitStatManager {
      * (100 = the base custom speed). Shared by mob spawning and per-entity ticks.
      */
     public static double computeMoveSpeed(double moveSpeedStat) {
-        double defaultSpeed = 0.1;
+        return computeMoveSpeed(moveSpeedStat, 0.1);
+    }
+
+    public static double computeMoveSpeed(double moveSpeedStat, double baseSpeed) {
         double ratio;
         if (moveSpeedStat <= 100) {
             ratio = moveSpeedStat / 100.0; // linear up to 100
         } else {
             ratio = 1.0 + (Math.sqrt(moveSpeedStat - 100) / 10.0); // softer after 100
         }
-        return defaultSpeed * ratio;
+        return baseSpeed * ratio;
+    }
+
+    public static double applyMoveSpeedFromStat(LivingEntity entity, double moveSpeedStat) {
+        AttributeInstance attribute = entity.getAttribute(Attribute.MOVEMENT_SPEED);
+        if (attribute == null) {
+            return 0;
+        }
+        Double storedBase = BukkitEntityMetadata.get(entity, BASE_MOVEMENT_SPEED_KEY, Double.class).orElse(null);
+        double baseSpeed;
+        if (storedBase == null) {
+            baseSpeed = attribute.getValue();
+            BukkitEntityMetadata.set(entity, BASE_MOVEMENT_SPEED_KEY, baseSpeed);
+        } else {
+            baseSpeed = storedBase;
+        }
+        double value = computeMoveSpeed(moveSpeedStat, baseSpeed);
+        attribute.setBaseValue(value);
+        return value;
     }
 
 }
