@@ -50,6 +50,10 @@ public class ResourceCrateSpawner {
         }, TickEvent.class));
     }
 
+    public Vector3Int getPos() {
+        return pos;
+    }
+
     public void spawnDisplay(World world) {
         this.world = world;
         cooldownDisplay = spawnCooldownDisplay(world, new Vector3f(pos.toVector3f()).add(0.5f, 4, 0.5f), "Crate in: " + dropCooldownInSec + " secs", 2f);
@@ -192,7 +196,7 @@ public class ResourceCrateSpawner {
             BukkitEventBus.getInstance().subscribe(new EventAction<>(event -> {
                 //TODO fix bug where first hit doesnt register correctly / doesnt trigger anim
                 Entity entity = event.getEntity();
-                if (entity.getType() == EntityType.INTERACTION && event.getDamager().getType() == EntityType.PLAYER) {
+                if (interactionEntity != null && entity.getUniqueId().equals(interactionEntity.getUniqueId()) && event.getDamager().getType() == EntityType.PLAYER) {
                     if (attackAnimTicks > 0) {
                         return;
                     }

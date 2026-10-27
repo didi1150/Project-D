@@ -18,4 +18,8 @@ public class ViewPoint3D extends Point3D {
         this.pitch = pitch;
     }
 
+    @Override
+    public String toString() {
+        return super.toString() + String.format(" (%.2f %.2f)", yaw, pitch);
+    }
 }
