@@ -32,7 +32,6 @@ import dev.core.entity.boss.BossDefinition;
 import dev.core.entity.boss.BossDefinitionRegistry;
 import dev.core.entity.boss.FloorData;
 import dev.core.entity.boss.FloorDataRegistry;
-import dev.core.entity.rpgclass.RPGClassType;
 import dev.core.event.EventAction;
 import dev.core.event.EventBusInterface;
 import dev.core.event.impl.BossEncounterEndedEvent;
@@ -42,7 +41,6 @@ import dev.core.game.GameStateResult;
 import dev.core.game.TaskScheduler;
 import dev.core.game.coords.ViewPoint3D;
 import dev.core.game.settings.GameSettings;
-import dev.core.progression.PlayerClassProgression;
 
 public class BossState extends GameState {
     private final static String NAME = "BOSSSTATE";
@@ -158,14 +156,7 @@ public class BossState extends GameState {
         BukkitPlayerEntity playerEntity = (BukkitPlayerEntity) optional.get();
         playerEntity.syncState();
         BukkitInventorySync.syncInventory(playerEntity, player);
-        for (RPGClassType rpgClassType : RPGClassType.values()) {
-            PlayerClassProgression progression = playerEntity.getPlayerProgression().getProgression(rpgClassType);
-            PlayerClassProgression cachedProgression = classProgressionService.getProgression(player.getUniqueId(),
-                    rpgClassType);
-            progression.setLevel(cachedProgression.getLevel());
-            progression.setUsableItems(cachedProgression.getUsableItems());
-            progression.setXp(cachedProgression.getXp());
-        }
+        classProgressionService.refreshFromStore(playerEntity.getPlayerProgression());
         playerEntity.getPlayerProgression().setActiveClass(classProgressionService.getActiveClass(player.getUniqueId()),
                 playerEntity.getStatManager());
     }

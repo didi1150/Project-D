@@ -6,6 +6,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.TreeMap;
 import java.util.UUID;
 
@@ -29,6 +30,7 @@ import org.bukkit.inventory.meta.ItemMeta;
 
 import dev.bukkit.entity.BukkitPlayerEntity;
 import dev.bukkit.item.BukkitItemStackAdapter;
+import dev.bukkit.storage.progression.ClassProgressionService;
 import dev.core.entity.EntityManager;
 import dev.core.entity.RPGEntity;
 import dev.core.entity.rpgclass.RPGClassType;
@@ -60,9 +62,11 @@ public class SelectItemState extends GameState {
      * taken.
      */
     private final Map<UUID, Map<String, Integer>> selections = new HashMap<>();
+    private final ClassProgressionService progressionService;
 
-    public SelectItemState(EventBusInterface eventBus) {
+    public SelectItemState(EventBusInterface eventBus, ClassProgressionService progressionService) {
         super(NAME, DURATION, eventBus);
+        this.progressionService = progressionService;
     }
 
     @Override
@@ -90,22 +94,58 @@ public class SelectItemState extends GameState {
         RPGClassType playerClass = activeClassOf(player);
         int playerLevel = levelOf(player);
         Map<String, Integer> owned = selections.computeIfAbsent(player.getUniqueId(), _ -> new HashMap<>());
+        Set<String> unlocked = progressionService == null ? Set.of()
+                : progressionService.getUnlockedItems(player.getUniqueId());
 
+        List<RPGItem> available = new ArrayList<>(RPGItemRegistry.getInstance().allItems().values());
+        available.removeIf(item -> !item.isAllowedForClass(playerClass));
+        available.sort(Comparator.comparing(RPGItem::getId));
+
+        List<RPGItem> rewardItems = available.stream().filter(RPGItem::isRewardOnly).toList();
         Map<Integer, List<RPGItem>> byLevel = new TreeMap<>();
-        for (RPGItem item : RPGItemRegistry.getInstance().allItems().values()) {
-            if (!item.isAllowedForClass(playerClass)) {
+        for (RPGItem item : available) {
+            if (item.isRewardOnly()) {
                 continue;
             }
             byLevel.computeIfAbsent(Math.max(0, item.getUnlockLevel()), _ -> new ArrayList<>()).add(item);
         }
 
         int slot = 0;
+        if (!rewardItems.isEmpty()) {
+            shop.setItem(slot++, rewardLabel());
+            int rewardSlot = slot;
+            for (RPGItem item : rewardItems) {
+                if (rewardSlot >= 54) {
+                    break;
+                }
+                if (rewardSlot % SHOP_COLUMNS == 0) {
+                    rewardSlot++;
+                    continue;
+                }
+                if (!unlocked.contains(item.getId())) {
+                    shop.setItem(rewardSlot++, BukkitItemStackAdapter.toLockedRewardItemStack(item));
+                    continue;
+                }
+                int count = owned.getOrDefault(item.getId(), 0);
+                ItemStack stack = BukkitItemStackAdapter.toItemStack(item, rpgEntityOf(player));
+                stack.setAmount(Math.max(1, count));
+                if (count > 0) {
+                    applyGlow(stack);
+                }
+                shop.setItem(rewardSlot++, stack);
+            }
+            slot = (rewardSlot + SHOP_COLUMNS - 1) / SHOP_COLUMNS * SHOP_COLUMNS;
+        }
+
         int levelIndex = 0;
         for (Map.Entry<Integer, List<RPGItem>> entry : byLevel.entrySet()) {
             List<RPGItem> items = entry.getValue();
             items.sort(Comparator.comparing(RPGItem::getId));
             if (slot % SHOP_COLUMNS != 0) {
                 slot = slot / SHOP_COLUMNS * SHOP_COLUMNS + SHOP_COLUMNS; // each level gets its own row
+            }
+            if (slot >= 54) {
+                break;
             }
             shop.setItem(slot++, unlockLevelLabel(entry.getKey(), levelIndex));
             for (RPGItem item : items) {
@@ -149,6 +189,15 @@ public class SelectItemState extends GameState {
         ItemMeta meta = label.getItemMeta();
         meta.displayName(AdventureText.withoutItalic(
                 AdventureText.legacy(level <= 0 ? "§7No level required" : "§bRequires Level " + level)));
+        label.setItemMeta(meta);
+        return label;
+    }
+
+    /** Row header for the reward-only item section. */
+    private static ItemStack rewardLabel() {
+        ItemStack label = new ItemStack(Material.CYAN_STAINED_GLASS_PANE);
+        ItemMeta meta = label.getItemMeta();
+        meta.displayName(AdventureText.withoutItalic(AdventureText.legacy("§dBoss Rewards")));
         label.setItemMeta(meta);
         return label;
     }
@@ -327,6 +376,11 @@ public class SelectItemState extends GameState {
                 return; // mob-only / class-gated items can't be taken
             }
 
+            if (item.isRewardOnly() && !isRewardUnlocked(player, item)) {
+                player.sendMessage("§cThis item is locked behind boss rewards.");
+                return;
+            }
+
             // Level gate: locked items are barrier stacks that can't be taken.
             if (!item.isUsableAtLevel(levelOf(player))) {
                 player.sendMessage("§cThis item requires level " + item.getUnlockLevel() + ".");
@@ -441,6 +495,10 @@ public class SelectItemState extends GameState {
             Optional<RPGItem> itemOpt = RPGItemRegistry.getInstance().getItem(itemId);
             if (itemOpt.isPresent()) {
                 RPGItem item = itemOpt.get();
+                if (item.isRewardOnly() && !isRewardUnlocked(player, item)) {
+                    shop.setItem(i, BukkitItemStackAdapter.toLockedRewardItemStack(item));
+                    return;
+                }
                 if (!item.isUsableAtLevel(levelOf(player))) {
                     shop.setItem(i, BukkitItemStackAdapter.toLockedItemStack(item));
                     return;
@@ -454,6 +512,10 @@ public class SelectItemState extends GameState {
             }
             return;
         }
+    }
+
+    private boolean isRewardUnlocked(Player player, RPGItem item) {
+        return progressionService != null && progressionService.isItemUnlocked(player.getUniqueId(), item.getId());
     }
 
     private void handleDamage(EntityDamageEvent event) {

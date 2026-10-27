@@ -59,6 +59,7 @@ import dev.core.item.equipment.EquipmentSlot;
 import dev.core.item.loader.RPGItemLoader;
 import dev.core.item.loader.RPGItemRegistry;
 import dev.core.progression.PlayerClassProgression;
+import dev.core.reward.RewardConfigLoader;
 import dev.core.stat.StatType;
 import dev.core.storage.config.ConfigProvider;
 import dev.core.utils.LegacyColors;
@@ -311,6 +312,55 @@ public class CommandManager {
                         "itemName"));
 
         // ==============================================================
+        // caseopening tree -> /d caseopening [chest|unlock|reload]
+        // Temporary debug wiring for the reward-case mechanisms. A future
+        // RewardState can call RewardCaseService directly.
+        // ==============================================================
+        addSubCommand("project-d",
+                SubCommandBuilder.startBuilding("caseopening").setDescription("Reward case debug controls")
+                        .setPlayerCommandAction(0, perm("projectd.caseopening", (player, args) -> {
+                            if (DMain.getInstance().getRewardCaseService() == null) {
+                                player.sendMessage("§cReward case service is not initialized.");
+                                return;
+                            }
+                            DMain.getInstance().getRewardCaseService().openCase(player);
+                        })).setPlayerCommandAction(1, "chest", perm("projectd.caseopening", (player, args) -> {
+                            if (DMain.getInstance().getRewardCaseService() == null) {
+                                player.sendMessage("§cReward case service is not initialized.");
+                                return;
+                            }
+                            if (DMain.getInstance().getRewardCaseService().spawnChestInFront(player) == null) {
+                                player.sendMessage("§cCould not spawn the reward chest here.");
+                            } else {
+                                player.sendMessage("§aSpawned a reward cache. Right-click it to open the case.");
+                            }
+                        })).setPlayerCommandAction(1, "reload", perm("projectd.caseopening", (player, args) -> {
+                            try {
+                                var provider = DMain.getInstance().getConfigManager().reloadProvider("rewards.yml");
+                                DMain.getInstance().getRewardCaseService().reload(RewardConfigLoader.load(provider));
+                                player.sendMessage("§aReloaded rewards.yml.");
+                            } catch (Exception e) {
+                                player.sendMessage("§cReward reload failed: " + e.getMessage());
+                            }
+                        })).setPlayerCommandAction(2, "unlock", perm("projectd.caseopening", (player, args) -> {
+                            String itemId = args[1];
+                            var rewardItem = RPGItemRegistry.getInstance().getItem(itemId).orElse(null);
+                            if (rewardItem == null || !rewardItem.isRewardOnly()) {
+                                player.sendMessage("§c'" + itemId + "' is not a registered reward-only item.");
+                                return;
+                            }
+                            boolean added = DMain.getInstance().getProgressionService().unlockItem(player.getUniqueId(),
+                                    itemId);
+                            player.sendMessage(added ? "§aUnlocked reward item §e" + itemId
+                                    : "§eItem §f" + itemId + "§e was already unlocked.");
+                        }))
+                        .setCommandArgumentsList(0, Arrays.asList("chest", "reload", "unlock"))
+                        .setCommandArgumentsList(1, "unlock",
+                                () -> RPGItemRegistry.getInstance().allItems().values().stream()
+                                        .filter(RPGItem::isRewardOnly).map(RPGItem::getId).toList(),
+                                "rewardItemId"));
+
+        // ==============================================================
         // player tree -> /d player <showProgress|showStats|selectActive|setXp|revive>
         // ==============================================================
         addSubCommand("project-d", SubCommandBuilder.startBuilding("player").setDescription("Player controls")
@@ -379,9 +429,7 @@ public class CommandManager {
                         try {
                             RPGClassType targetClass = RPGClassType.valueOf(args[1]);
                             int newXp = Integer.valueOf(args[2]);
-                            playerEntity.getPlayerProgression().getProgression(targetClass).setXp(newXp);
-                            classProgressionService.saveClassProgression(playerEntity.getUuid(),
-                                    playerEntity.getPlayerProgression().getProgression(targetClass));
+                            classProgressionService.setExperience(playerEntity.getUuid(), targetClass, newXp);
                             messageSender.sendMessage(MessageComponent.of(MessageLevel.INFO_LEVEL,
                                     "Set the %s-Class-XP to %s", RPGClassType.valueOf(args[1]), newXp));
                         } catch (Exception e) {

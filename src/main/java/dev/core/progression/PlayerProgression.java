@@ -1,7 +1,10 @@
 package dev.core.progression;
 
+import java.util.Collection;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 
 import dev.core.entity.rpgclass.RPGClassType;
@@ -16,10 +19,12 @@ public class PlayerProgression {
     private final UUID playerId;
     private RPGClassType activeClass;
     private final Map<RPGClassType, PlayerClassProgression> progressions;
+    private final Set<String> unlockedItems;
 
     public PlayerProgression(UUID playerId) {
         this.playerId = playerId;
         this.progressions = new HashMap<>();
+        this.unlockedItems = new HashSet<>();
 
         for (RPGClassType rpgClassType : RPGClassType.values()) {
             unlockClass(rpgClassType);
@@ -28,6 +33,31 @@ public class PlayerProgression {
 
     public void unlockClass(RPGClassType type) {
         progressions.putIfAbsent(type, new PlayerClassProgression(type));
+    }
+
+    /** Adds a reward-only RPG item to this player's permanent unlock set. */
+    public boolean unlockItem(String itemId) {
+        return itemId != null && !itemId.isBlank() && unlockedItems.add(itemId);
+    }
+
+    public boolean isItemUnlocked(String itemId) {
+        return itemId != null && unlockedItems.contains(itemId);
+    }
+
+    public Set<String> getUnlockedItems() {
+        return Set.copyOf(unlockedItems);
+    }
+
+    public void replaceUnlockedItems(Collection<String> itemIds) {
+        unlockedItems.clear();
+        if (itemIds == null) {
+            return;
+        }
+        for (String itemId : itemIds) {
+            if (itemId != null && !itemId.isBlank()) {
+                unlockedItems.add(itemId);
+            }
+        }
     }
 
     public PlayerClassProgression getProgression(RPGClassType type) {

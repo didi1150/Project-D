@@ -156,6 +156,29 @@ public class BukkitItemStackAdapter {
         return locked;
     }
 
+    /**
+     * Renders a reward-only item as a locked barrier until it has been unlocked
+     * through the boss reward case. The original item id is kept in the PDC so
+     * click handling and re-renders can resolve it.
+     */
+    public static ItemStack toLockedRewardItemStack(RPGItem rpgItem) {
+        ItemStack locked = new ItemStack(Material.BARRIER);
+        ItemMeta meta = locked.getItemMeta();
+        if (meta == null) {
+            return locked;
+        }
+        meta.displayName(AdventureText.withoutItalic(
+                AdventureText.legacy("§d" + rpgItem.getName() + " §7(Boss Reward)")));
+        List<String> lore = new ArrayList<>();
+        lore.add("§7Unlocked from a boss reward case.");
+        lore.add("§7Obtain it once to permanently unlock it.");
+        meta.lore(AdventureText.itemLoreLines(lore));
+        meta.addItemFlags(ItemFlag.HIDE_ATTRIBUTES, ItemFlag.HIDE_ENCHANTS);
+        meta.getPersistentDataContainer().set(ITEM_ID_KEY, PersistentDataType.STRING, rpgItem.getId());
+        locked.setItemMeta(meta);
+        return locked;
+    }
+
     public static String getRpgItemId(ItemStack itemStack) {
         if (itemStack == null || !itemStack.hasItemMeta()) {
             return null;

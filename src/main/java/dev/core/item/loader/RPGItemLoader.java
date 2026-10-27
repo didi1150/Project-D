@@ -128,6 +128,7 @@ public class RPGItemLoader {
                 System.out.println("Unknown allowed class '" + className + "' for item " + id + "; ignored.");
             }
         }
+        boolean rewardOnly = section.getBoolean("reward-only", false);
         boolean mobOnly = section.getBoolean("mob-only", false);
         ItemUsage usage;
         String usageRaw = section.getString("usage", null);
@@ -154,7 +155,7 @@ public class RPGItemLoader {
         return RPGItem.builder(id, name, slot).withMaterial(material).withPassiveStats(passive).withActiveStats(active)
                 .withAbilities(abilities).withRpgClassType(classType).withUnlockLevel(unlockLevel)
                 .withAllowedClasses(allowedClasses).usage(usage)
-                .withItemType(itemType).requiresArrows(requiresArrows)
+                .withItemType(itemType).requiresArrows(requiresArrows).rewardOnly(rewardOnly)
                 .withLeatherColor(RPGItem.parseRgbColor(section.getString("leather-color", null)))
                 .withSkullOwner(section.getString("skull-owner", null))
                 .withSkullTexture(section.getString("skull-texture", null))
@@ -243,6 +244,9 @@ public class RPGItemLoader {
             section.set("unlockLevel", item.getUnlockLevel());
             section.set("itemType", item.getItemType().name());
             section.set("requiresArrows", item.requiresArrows());
+            if (item.isRewardOnly()) {
+                section.set("reward-only", true);
+            }
             if (!item.getAllowedClasses().isEmpty()) {
                 section.set("allowed-classes", item.getAllowedClasses().stream().map(Enum::name).toList());
             }
@@ -297,6 +301,9 @@ public class RPGItemLoader {
         section.set("unlockLevel", item.getUnlockLevel());
         section.set("itemType", item.getItemType().name());
         section.set("requiresArrows", item.requiresArrows());
+        if (item.isRewardOnly()) {
+            section.set("reward-only", true);
+        }
         if (!item.getAllowedClasses().isEmpty()) {
             section.set("allowed-classes", item.getAllowedClasses().stream().map(Enum::name).toList());
         }

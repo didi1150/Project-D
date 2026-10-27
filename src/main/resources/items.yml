@@ -36,6 +36,11 @@
 #   unlockLevel     Minimum player level (active class) needed to obtain the
 #                   item. 0 or absent = no requirement. Items a player has not
 #                   unlocked yet appear as locked barrier stacks in the shop.
+#   reward-only     true = this item is obtainable only through the boss reward
+#                   case. It ignores unlockLevel, appears as a locked barrier in
+#                   the shop, and becomes selectable once the player unlocks it
+#                   from a reward. Pair it with an ITEM_UNLOCK entry in
+#                   rewards.yml.
 #   usage           "both" (default, players + mobs) or "mob_only" (mobs only;
 #                   never listed or obtainable by players).
 #   allowed-classes List of classes that may select this item, e.g. [TANK, MAGE].
@@ -1409,6 +1414,59 @@ items:
     passive-stats: []
     active-stats: []
     abilities: []
+
+  # ---- Reward-only items ---------------------------------------------------
+  # These never enter the normal level/class unlock path. They are rolled from
+  # rewards.yml and permanently unlocked for a player the first time they are
+  # claimed. The sample entries use existing abilities so they work immediately.
+  SEALBREAKER:
+    reward-only: true
+    name: Sealbreaker
+    material: NETHERITE_SWORD
+    slot: MAIN_HAND
+    itemType: SWORD
+    allowed-classes: []
+    description:
+    - "<aqua>A blade forged from a broken seal.</aqua>"
+    - "<gray>Right-click to release its shockwave.</gray>"
+    passive-stats: []
+    active-stats:
+    - amount: 45.0
+      statType: ATTACK_DAMAGE
+      modifierType: FLAT
+      statTarget: BOTH
+      policy: STACK
+    - amount: 15.0
+      statType: ABILITY_HASTE
+      modifierType: FLAT
+      statTarget: BOTH
+      policy: STACK
+    abilities:
+    - SMASH
+  SEALED_SCEPTRE:
+    reward-only: true
+    name: Sealed Sceptre
+    material: BLAZE_ROD
+    slot: MAIN_HAND
+    itemType: STAFF
+    allowed-classes: []
+    description:
+    - "<light_purple>A sceptre humming with imprisoned light.</light_purple>"
+    - "<gray>Right-click to channel a focus beam.</gray>"
+    passive-stats: []
+    active-stats:
+    - amount: 100.0
+      statType: MANA_MAX
+      modifierType: FLAT
+      statTarget: BOTH
+      policy: STACK
+    - amount: 40.0
+      statType: ABILITY_POWER
+      modifierType: FLAT
+      statTarget: BOTH
+      policy: STACK
+    abilities:
+    - FOCUS_BEAM
 
 # ---- Basic Archer Set (item set bonus: full 4/4 set) -----------------------
 # Full set passive: +10% projectile damage dealt (arrows, projectiles and the

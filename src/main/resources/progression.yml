@@ -1,0 +1,23 @@
+# ============================================================================
+# PLAYER PROGRESSION PERSISTENCE
+# ============================================================================
+# This file is written by the plugin. Do not edit it while the server is
+# running; the in-memory player progression is the source of truth during a
+# run and is flushed here on quit, at run boundaries and on shutdown.
+#
+# Structure:
+#
+# players:
+#   <player-uuid>:
+#     activeClass: MAGE
+#     unlocked-items:
+#     - SEALBREAKER
+#     classes:
+#       MAGE:
+#         level: 3
+#         xp: 420
+#         usableItems: 7
+#
+# `unlocked-items` stores reward-only RPG item ids unlocked through the boss
+# reward case. Those items appear unlocked in the SelectItemState shop.
+# ============================================================================

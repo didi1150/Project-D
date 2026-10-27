@@ -35,7 +35,6 @@ import dev.bukkit.item.BukkitInventorySync;
 import dev.bukkit.storage.progression.ClassProgressionService;
 import dev.core.entity.EntityManager;
 import dev.core.entity.RPGEntity;
-import dev.core.entity.rpgclass.RPGClassType;
 import dev.core.event.EventAction;
 import dev.core.event.EventBusInterface;
 import dev.core.game.GameState;
@@ -47,7 +46,6 @@ import dev.core.game.dungeon.proceduralDungeon.util.DungeonSpawnManager;
 import dev.core.game.dungeon.proceduralDungeon.util.SpawnLocation;
 import dev.core.game.dungeon.proceduralDungeon.util.Vector3Int;
 import dev.core.game.settings.GameSettings;
-import dev.core.progression.PlayerClassProgression;
 import dev.core.utils.MessageSenderInterface;
 
 public class ClearState extends GameState {
@@ -261,14 +259,7 @@ public class ClearState extends GameState {
         BukkitPlayerEntity playerEntity = (BukkitPlayerEntity) optional.get();
         playerEntity.syncState();
         BukkitInventorySync.syncInventory(playerEntity, player);
-        for (RPGClassType rpgClassType : RPGClassType.values()) {
-            PlayerClassProgression progression = playerEntity.getPlayerProgression().getProgression(rpgClassType);
-            PlayerClassProgression cachedProgression = classProgressionService.getProgression(player.getUniqueId(),
-                    rpgClassType);
-            progression.setLevel(cachedProgression.getLevel());
-            progression.setUsableItems(cachedProgression.getUsableItems());
-            progression.setXp(cachedProgression.getXp());
-        }
+        classProgressionService.refreshFromStore(playerEntity.getPlayerProgression());
         playerEntity.getPlayerProgression().setActiveClass(classProgressionService.getActiveClass(player.getUniqueId()),
                 playerEntity.getStatManager());
     }

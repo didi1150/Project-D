@@ -37,6 +37,7 @@ public class RPGItem {
     private final Optional<String> skullTexture;
     private final ItemType itemType;
     private final boolean requiresArrows;
+    private final boolean rewardOnly;
 
     private RPGItem(Builder builder) {
         this.id = builder.id;
@@ -57,6 +58,7 @@ public class RPGItem {
         this.skullTexture = builder.skullTexture;
         this.itemType = builder.itemType;
         this.requiresArrows = builder.requiresArrows;
+        this.rewardOnly = builder.rewardOnly;
     }
 
     public RPGItem(String id, String name, String material, EquipmentSlot equipmentSlot,
@@ -175,6 +177,9 @@ public class RPGItem {
         if (usage == ItemUsage.MOB_ONLY) {
             data.put("usage", usage.name());
         }
+        if (rewardOnly) {
+            data.put("reward-only", true);
+        }
 
         // Item set
         if (itemSet.isPresent()) {
@@ -259,6 +264,12 @@ public class RPGItem {
             usage = ItemUsage.MOB_ONLY;
         }
         builder.usage(usage);
+
+        if (data.get("reward-only") instanceof Boolean rewardOnly) {
+            builder.rewardOnly(rewardOnly);
+        } else if (data.get("reward-only") instanceof String rewardOnly) {
+            builder.rewardOnly(Boolean.parseBoolean(rewardOnly.trim()));
+        }
 
         // Item type with BOW automatically requiring arrows unless overridden
         // (e.g. the Bonemerang is a bow that fires without arrows).
@@ -512,6 +523,15 @@ public class RPGItem {
         return usage != ItemUsage.MOB_ONLY && (allowedClasses.isEmpty() || allowedClasses.contains(classType));
     }
 
+    /**
+     * Whether this item is only obtainable through the boss reward unlock path.
+     * Reward-only items ignore level gating; their shop availability is driven
+     * by the player's persisted unlock set instead.
+     */
+    public boolean isRewardOnly() {
+        return rewardOnly;
+    }
+
     /** Whether this item occupies an armor slot (HEAD, CHEST, LEGS or FEET). */
     public boolean isArmor() {
         return equipmentSlot == EquipmentSlot.HEAD || equipmentSlot == EquipmentSlot.CHEST
@@ -523,7 +543,7 @@ public class RPGItem {
      * unlockLevel} of 0 (or an absent config value) means no level requirement.
      */
     public boolean isUsableAtLevel(int level) {
-        return unlockLevel <= 0 || level >= unlockLevel;
+        return rewardOnly || unlockLevel <= 0 || level >= unlockLevel;
     }
 
     @Override
@@ -562,6 +582,7 @@ public class RPGItem {
         private Optional<String> skullTexture = Optional.empty();
         private ItemType itemType = ItemType.MISC;
         private boolean requiresArrows = false;
+        private boolean rewardOnly = false;
 
         public Builder(String id, String name, EquipmentSlot equipmentSlot) {
             this.id = id;
@@ -683,6 +704,15 @@ public class RPGItem {
          */
         public Builder requiresArrows(boolean requiresArrows) {
             this.requiresArrows = requiresArrows;
+            return this;
+        }
+
+        /**
+         * Marks the item as obtainable only through the reward unlock path.
+         * Level gating is bypassed for reward-only items.
+         */
+        public Builder rewardOnly(boolean rewardOnly) {
+            this.rewardOnly = rewardOnly;
             return this;
         }
 

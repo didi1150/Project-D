@@ -243,21 +243,19 @@ public class SelectClassState extends GameState {
         }
 
         for (Player player : Bukkit.getOnlinePlayers()) {
-            BukkitPlayerEntity playerEntity = new BukkitPlayerEntity(player);
-            EntityManager.getInstance().registerEntity(playerEntity);
-            // Update reference
-            playerEntity = (BukkitPlayerEntity) EntityManager.getInstance().getEntity(playerEntity.getUuid()).get();
+            var existing = EntityManager.getInstance().getEntity(player.getUniqueId());
+            BukkitPlayerEntity playerEntity;
+            if (existing.isPresent() && existing.get() instanceof BukkitPlayerEntity existingPlayer) {
+                playerEntity = existingPlayer;
+            } else {
+                playerEntity = new BukkitPlayerEntity(player);
+                EntityManager.getInstance().registerEntity(playerEntity);
+                // Update reference
+                playerEntity = (BukkitPlayerEntity) EntityManager.getInstance().getEntity(playerEntity.getUuid()).get();
+                DMain.getInstance().getProgressionService().hydrate(playerEntity.getPlayerProgression());
+            }
             playerEntity.syncState();
             BukkitInventorySync.syncInventory(playerEntity, player);
-//                for (RPGClassType rpgClassType : RPGClassType.values()) {
-//                    PlayerClassProgression progression = playerEntity.getPlayerProgression()
-//                            .getProgression(rpgClassType);
-//                    PlayerClassProgression cachedProgression = classProgressionService
-//                            .getProgression(player.getUniqueId(), rpgClassType);
-//                    progression.setLevel(cachedProgression.getLevel());
-//                    progression.setUsableItems(cachedProgression.getUsableItems());
-//                    progression.setXp(cachedProgression.getXp());
-//                }
             player.setLevel(0);
             player.setExp(0);
             String selection = playerSelections.get(player.getUniqueId());

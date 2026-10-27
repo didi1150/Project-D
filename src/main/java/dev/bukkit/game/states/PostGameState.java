@@ -24,12 +24,10 @@ import dev.bukkit.storage.progression.ClassProgressionService;
 import dev.bukkit.summon.SummonedEntityFactory;
 import dev.core.entity.EntityManager;
 import dev.core.entity.RPGEntity;
-import dev.core.entity.rpgclass.RPGClassType;
 import dev.core.event.EventAction;
 import dev.core.event.EventBusInterface;
 import dev.core.game.GameState;
 import dev.core.game.settings.GameSettings;
-import dev.core.progression.PlayerClassProgression;
 
 public class PostGameState extends GameState {
 
@@ -51,6 +49,7 @@ public class PostGameState extends GameState {
         // new run begins), so a Support can carry dungeon souls into the boss
         // fight; this only runs after the boss fight has ended.
         SummonedEntityFactory.despawnAll();
+        classProgressionService.saveAllRegisteredPlayers();
 
         SimpleDungeonBuilderBukkit simpleDungeonBuilderBukkit = new SimpleDungeonBuilderBukkit(plugin,
                 Bukkit.getWorld(GameSettings.getCurrentSettings().getDungeonWorld()));
@@ -127,14 +126,7 @@ public class PostGameState extends GameState {
         BukkitPlayerEntity playerEntity = (BukkitPlayerEntity) optional.get();
         playerEntity.syncState();
         BukkitInventorySync.syncInventory(playerEntity, player);
-        for (RPGClassType rpgClassType : RPGClassType.values()) {
-            PlayerClassProgression progression = playerEntity.getPlayerProgression().getProgression(rpgClassType);
-            PlayerClassProgression cachedProgression = classProgressionService.getProgression(player.getUniqueId(),
-                    rpgClassType);
-            progression.setLevel(cachedProgression.getLevel());
-            progression.setUsableItems(cachedProgression.getUsableItems());
-            progression.setXp(cachedProgression.getXp());
-        }
+        classProgressionService.refreshFromStore(playerEntity.getPlayerProgression());
         playerEntity.getPlayerProgression().setActiveClass(classProgressionService.getActiveClass(player.getUniqueId()),
                 playerEntity.getStatManager());
     }

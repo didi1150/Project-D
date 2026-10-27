@@ -57,6 +57,7 @@ import dev.bukkit.event.subscribers.ThreatPassiveSubscriber;
 import dev.bukkit.game.boss.BossArenaManager;
 import dev.bukkit.game.boss.stalactite.DebugStalactiteService;
 import dev.bukkit.reload.BossReloadService;
+import dev.bukkit.reward.RewardCaseService;
 import dev.bukkit.game.dungeon.DungeonPortalManager;
 import dev.bukkit.game.dungeon.buildassets.BuildAssetManager;
 import dev.bukkit.game.dungeon.proceduralDungeon.BukkitVoidWorldGenerator;
@@ -143,6 +144,8 @@ import dev.core.item.RPGItem;
 import dev.core.item.RPGItemSet;
 import dev.core.item.loader.RPGItemLoader;
 import dev.core.item.loader.RPGItemRegistry;
+import dev.core.reward.RewardConfig;
+import dev.core.reward.RewardConfigLoader;
 import dev.core.stat.DefaultStats;
 import dev.core.stat.Stat;
 import dev.core.stat.StatType;
@@ -168,6 +171,7 @@ public final class DMain extends JavaPlugin {
     private MessageSenderInterface messageSenderInterface;
     private GameStateController gameStateController;
     private BossArenaManager bossArenaManager;
+    private RewardCaseService rewardCaseService;
 
     private BuildAssetManager buildAssetManager;
 
@@ -366,6 +370,13 @@ public final class DMain extends JavaPlugin {
         ProgressionDatabaseStrategy database = new BukkitConfigProgressionDatabase(provider);
         progressionService = new ClassProgressionService(cache, database);
 
+        // ==============================================[ Reward Case
+        // ]=================================================
+        RewardConfig rewardConfig = RewardConfigLoader.load(configManager.getProvider("rewards.yml"));
+        rewardCaseService = RewardCaseService.getInstance();
+        rewardCaseService.init(this, rewardConfig, progressionService);
+        Bukkit.getLogger().info("Loaded " + rewardConfig.getRewards().size() + " reward definition(s).");
+
         // ==============================================[ Events
         // ]=============================================================
         eventBusInterface = BukkitEventBus.getInstance();
@@ -385,7 +396,7 @@ public final class DMain extends JavaPlugin {
                 15, eventBusInterface));
         gameStateController.addState(new SelectClassState(gameSettings.getHoleCenter(),
                 gameSettings.getSelectionSpawn(), gameSettings.getSelectionLocations(), eventBusInterface));
-        gameStateController.addState(new SelectItemState(eventBusInterface));
+        gameStateController.addState(new SelectItemState(eventBusInterface, progressionService));
         gameStateController.addState(new ClearState(gameSettings.getHoleCenter(), eventBusInterface, progressionService,
                 messageSenderInterface, this));
         gameStateController.addState(new BossState(eventBusInterface, progressionService));
@@ -449,6 +460,9 @@ public final class DMain extends JavaPlugin {
             DebugStalactiteService.getInstance().shutdownAll();
         } catch (Exception ignored) {
         }
+        if (rewardCaseService != null) {
+            rewardCaseService.shutdown();
+        }
         gameStateController.stop();
         effectManagerInterface.cancelAll();
         BukkitStatusEffectManager.getInstance().cancelAll();
@@ -472,6 +486,9 @@ public final class DMain extends JavaPlugin {
         } catch (Exception ignored) {
         }
         combatListener.cleanup();
+        if (progressionService != null) {
+            progressionService.saveAllRegisteredPlayers();
+        }
         configManager.saveAll();
         eventBusInterface.getSubscribed().clear();
         SetupManager.getInstance().cleanUpSetupHelpers(this.getServer());
@@ -499,6 +516,10 @@ public final class DMain extends JavaPlugin {
 
     public ClassProgressionService getProgressionService() {
         return progressionService;
+    }
+
+    public RewardCaseService getRewardCaseService() {
+        return rewardCaseService;
     }
 
     public BukkitConfigManager getConfigManager() {

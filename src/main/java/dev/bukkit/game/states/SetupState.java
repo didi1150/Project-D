@@ -5,6 +5,7 @@ import org.bukkit.entity.Player;
 import org.bukkit.event.player.PlayerJoinEvent;
 import org.bukkit.event.player.PlayerQuitEvent;
 
+import dev.bukkit.DMain;
 import dev.bukkit.entity.BukkitPlayerEntity;
 import dev.bukkit.item.BukkitInventorySync;
 import dev.core.entity.EntityManager;
@@ -50,6 +51,7 @@ public class SetupState extends GameState{
         }
         BukkitPlayerEntity playerEntity = new BukkitPlayerEntity(player);
         EntityManager.getInstance().registerEntity(playerEntity);
+        DMain.getInstance().getProgressionService().hydrate(playerEntity.getPlayerProgression());
         playerEntity.syncState();
         BukkitInventorySync.syncInventory(playerEntity, player);
     }

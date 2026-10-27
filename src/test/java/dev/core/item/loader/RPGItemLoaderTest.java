@@ -384,6 +384,46 @@ class RPGItemLoaderTest {
                 "non-bow items without the key default to not requiring arrows");
     }
 
+    @Test
+    void load_readsRewardOnlyFlag() {
+        TestConfigProvider provider = new TestConfigProvider();
+        ConfigSection itemSection = provider.getRoot().getSection("items.REWARD_SWORD");
+        itemSection.set("name", "Reward Sword");
+        itemSection.set("material", "IRON_SWORD");
+        itemSection.set("slot", "MAIN_HAND");
+        itemSection.set("reward-only", true);
+
+        RPGItem item = RPGItemLoader.load("REWARD_SWORD", itemSection);
+
+        assertTrue(item.isRewardOnly());
+        assertTrue(item.isUsableAtLevel(0), "reward-only items ignore level gating");
+    }
+
+    @Test
+    void saveItem_writesRewardOnlyFlag() {
+        TestConfigProvider provider = new TestConfigProvider();
+        RPGItem item = RPGItem.builder("REWARD_SWORD", "Reward Sword", EquipmentSlot.MAIN_HAND)
+                .withMaterial("IRON_SWORD")
+                .rewardOnly(true)
+                .build();
+
+        RPGItemLoader.saveItem(provider, item);
+
+        ConfigSection saved = provider.getRoot().getSection("items").getSection("REWARD_SWORD");
+        assertTrue(saved.getBoolean("reward-only", false));
+    }
+
+    @Test
+    void deserialize_roundTripsRewardOnlyFlag() {
+        RPGItem original = RPGItem.builder("REWARD_SWORD", "Reward Sword", "IRON_SWORD", EquipmentSlot.MAIN_HAND)
+                .rewardOnly(true)
+                .build();
+
+        RPGItem restored = RPGItem.deserialize("REWARD_SWORD", original.serialize());
+
+        assertTrue(restored.isRewardOnly());
+    }
+
     /** Minimal ability impl for registry test. */
     private static final class TestAbility extends Ability {
         TestAbility(String id) {

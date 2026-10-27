@@ -4,6 +4,7 @@ import java.util.Optional;
 
 import org.bukkit.Bukkit;
 import org.bukkit.GameMode;
+import org.bukkit.Sound;
 import org.bukkit.entity.Player;
 import org.bukkit.entity.Projectile;
 import org.bukkit.event.entity.EntityPickupItemEvent;
@@ -43,6 +44,7 @@ import dev.core.entity.RPGEntity;
 import dev.core.event.EventAction;
 import dev.core.event.EventSubscriber;
 import dev.core.event.Subscribe;
+import dev.core.event.impl.PlayerClassXpChangedEvent;
 import dev.core.utils.AdventureText;
 import dev.core.utils.LegacyColors;
 import dev.core.utils.MessageComponent;
@@ -110,6 +112,20 @@ public class PlayerSubscriber {
 //			BukkitMessageSender.getInstance().sendMessage(event.getPlayer(), MessageComponent.of("&a&m                                                                              "), false);
 //			BukkitMessageSender.getInstance().sendLine(event.getPlayer(), LegacyColors.AQUA.toString());
 //			BukkitMessageSender.getInstance().sendCenteredDebugMessage(event.getPlayer(), MessageComponent.of( "If no <diff-option> is provided, the default behavior will be given by the stash.showStat, and stash.showPatch config variables. You can also use stash.showIncludeUntracked to set whether --include-untracked is enabled by default. Show the changes recorded in the stash entry as a diff between the stashed contents and the commit back when the stash entry was first created. By default, the command shows the diffstat, but it will accept any format known to git diff (e.g., git stash show -p stash@{1} to view the second most recent entry in patch form). If no <diff-option> is provided, the default behavior will be given by the stash.showStat, and stash.showPatch config variables. You can also use stash.showIncludeUntracked to set whether --include-untracked is enabled by default."));
+    }
+
+    @Subscribe
+    public void onClassXpChanged(PlayerClassXpChangedEvent event) {
+        if (!event.isLevelUp()) {
+            return;
+        }
+        Player player = Bukkit.getPlayer(event.getPlayerId());
+        if (player == null) {
+            return;
+        }
+        player.sendMessage("§d§lLevel up! §f" + event.getClassType().getDisplayName()
+                + " §7is now level §f" + event.getNewLevel());
+        player.playSound(player.getLocation(), Sound.ENTITY_PLAYER_LEVELUP, 0.7f, 1.1f);
     }
 
     @Subscribe
