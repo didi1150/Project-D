@@ -36,7 +36,12 @@ import dev.core.utils.MessageComponent;
 public class BossSetupHelper extends SetupHelper {
 
     private static final String DISPLAY_NAME_CHAIN_TEST = "Chain Test Tool";
-    private static final String DISPLAY_NAME_RESOURCE_PACKAGE_DROPPER = "Resource Package Dropper Tool";
+    private static final String DISPLAY_NAME_RESOURCE_CRATE_SPAWNER = "Resource Crate Spawner Tool";
+    private static final String DISPLAY_NAME_PILLAR_LOCATION_SELECTOR = "Pillar Location Selector Tool";
+    private static final String DISPLAY_NAME_CHAIN_LINK_LOCATION_SELECTOR = "Chain Link Location Selector Tool";
+    private static final String DISPLAY_NAME_HEIGHT_THRESHOLD_SELECTOR = "Height Threshold Selector Tool";
+    private static final String DISPLAY_NAME_STALACTITE_LOCATION_SELECTOR = "Stalactite Location Selector Tool";
+    private static final String DISPLAY_NAME_MOB_WAVES_SPAWN_LOCATION_SELECTOR = "Mob Waves Spawn Location Selector Tool";
 
     private final ChainDisplay chainTestDisplay = new ChainDisplay();
     private ResourceCrateSpawner resourceCrateSpawner;
@@ -53,19 +58,59 @@ public class BossSetupHelper extends SetupHelper {
                         new ItemAbilityLore(InterActionType.RIGHT_CLICK_AIR, "Clear 2. Pos Selection", ""),
                         new ItemAbilityLore(InterActionType.SNEAK_LEFT_CLICK, "Change the sag of the chain", "Current sag: " + 0f),
                         new ItemAbilityLore(InterActionType.SNEAK_RIGHT_CLICK, "Change the scale of the chain", "Current scale: " + 1f)
-                        ));
+                ));
     }
 
-    private ItemStack getResourcePackageDropperTool() {
-        return SetupUtils.createSimpleItem(Material.BARREL, DISPLAY_NAME_RESOURCE_PACKAGE_DROPPER,
+    private ItemStack getResourceCrateSpawnerTool() {
+        return SetupUtils.createSimpleItem(Material.BARREL, DISPLAY_NAME_RESOURCE_CRATE_SPAWNER,
                 List.of(new ItemAbilityLore(InterActionType.LEFT_CLICK_BLOCK, "Select Block Position", ""),
                         new ItemAbilityLore(InterActionType.RIGHT_CLICK, "Clear Pos Selection", "")
-                        ));
+                ));
+    }
+
+    private ItemStack getPillarLocationSelectorTool(int pillar) {
+        return SetupUtils.createSimpleItem(Material.QUARTZ_PILLAR, DISPLAY_NAME_PILLAR_LOCATION_SELECTOR,
+                List.of(new ItemAbilityLore(InterActionType.SNEAK_LEFT_CLICK, "Switch Pillar number", "Current selected pillar: " + pillar),
+                        new ItemAbilityLore(InterActionType.LEFT_CLICK_BLOCK, "Select Block Position", "Set Block Position as base-level of the pillar"),
+                        new ItemAbilityLore(InterActionType.RIGHT_CLICK, "Clear Selection", "")
+                ));
+    }
+
+    private ItemStack getChainLinkLocationSelectorTool(int link) {
+        return SetupUtils.createSimpleItem(Material.IRON_CHAIN, DISPLAY_NAME_CHAIN_LINK_LOCATION_SELECTOR,
+                List.of(new ItemAbilityLore(InterActionType.SNEAK_LEFT_CLICK, "Switch Chain Link number", "Current selected link: " + link),
+                        new ItemAbilityLore(InterActionType.LEFT_CLICK_BLOCK, "Select Block Position", "Set Block Position as start of the chain holding the boss"),
+                        new ItemAbilityLore(InterActionType.RIGHT_CLICK, "Clear Selection", "")
+                ));
+    }
+
+    private ItemStack getHeightThresholdSelectorTool() {
+        return SetupUtils.createSimpleItem(Material.GLOBE_BANNER_PATTERN, DISPLAY_NAME_HEIGHT_THRESHOLD_SELECTOR,
+                List.of(new ItemAbilityLore(InterActionType.LEFT_CLICK, "Select 50%-Height Y-Position", ""),
+                        new ItemAbilityLore(InterActionType.SNEAK_LEFT_CLICK, "Clear 50%-Height Pos Selection", ""),
+                        new ItemAbilityLore(InterActionType.RIGHT_CLICK, "Select 100%-Height Y-Position", ""),
+                        new ItemAbilityLore(InterActionType.SNEAK_RIGHT_CLICK, "Clear 100%-Height Pos Selection", "")
+                ));
+    }
+
+    private ItemStack getStalactiteLocationSelectorTool() {
+        return SetupUtils.createSimpleItem(Material.POINTED_DRIPSTONE, DISPLAY_NAME_STALACTITE_LOCATION_SELECTOR,
+                List.of(new ItemAbilityLore(InterActionType.LEFT_CLICK_BLOCK, "Add Block Position", ""),
+                        new ItemAbilityLore(InterActionType.RIGHT_CLICK_BLOCK, "Remove Block Position", "")
+                ));
+    }
+
+    private ItemStack getMobWavesSpawnLocationSelectorTool() {
+        return SetupUtils.createSimpleItem(Material.ZOMBIE_SPAWN_EGG, DISPLAY_NAME_MOB_WAVES_SPAWN_LOCATION_SELECTOR,
+                List.of(new ItemAbilityLore(InterActionType.LEFT_CLICK_BLOCK, "Add Block Position", ""),
+                        new ItemAbilityLore(InterActionType.RIGHT_CLICK_BLOCK, "Remove Block Position", "")
+                ));
     }
 
     @Override
     public void giveSetupItemsToPlayer(BukkitMessageSender ms, Player player) {
-        List<ItemStack> items = getAllSetupItems();
+        ArrayList<ItemStack> items = new ArrayList<>(List.of(getChainTestTool(), getResourceCrateSpawnerTool(), getHeightThresholdSelectorTool(),
+                getStalactiteLocationSelectorTool(), getMobWavesSpawnLocationSelectorTool(), getPillarLocationSelectorTool(1), getChainLinkLocationSelectorTool(1)));
         for (ItemStack item : items) {
             player.getInventory().addItem(item);
         }
@@ -81,7 +126,13 @@ public class BossSetupHelper extends SetupHelper {
     }
 
     private List<ItemStack> getAllSetupItems() {
-        return new ArrayList<>(List.of(getChainTestTool(), getResourcePackageDropperTool()));
+        ArrayList<ItemStack> items = new ArrayList<>(List.of(getChainTestTool(), getResourceCrateSpawnerTool(), getHeightThresholdSelectorTool(),
+                getStalactiteLocationSelectorTool(), getMobWavesSpawnLocationSelectorTool()));
+        for (int i = 1; i <= 4; i++) {
+            items.add(getPillarLocationSelectorTool(i));
+            items.add(getChainLinkLocationSelectorTool(i));
+        }
+        return items;
     }
 
     @Override
@@ -138,7 +189,7 @@ public class BossSetupHelper extends SetupHelper {
                 event.setCancelled(true);
 
                 //any left click
-                if (event.getAction() == Action.LEFT_CLICK_AIR || event.getAction() == Action.LEFT_CLICK_BLOCK) {
+                if (event.getAction().isLeftClick()) {
                     //sneak left click
                     if (player.isSneaking()) {
                         if (SetupUtils.hasItemInMainHand(player, DISPLAY_NAME_CHAIN_TEST)) {
@@ -162,8 +213,8 @@ public class BossSetupHelper extends SetupHelper {
 
                 }
                 //any right click
-                if (event.getAction() == Action.RIGHT_CLICK_AIR || event.getAction() == Action.RIGHT_CLICK_BLOCK) {
-                    if (SetupUtils.hasItemInMainHand(player, DISPLAY_NAME_RESOURCE_PACKAGE_DROPPER)) {
+                if (event.getAction().isRightClick()) {
+                    if (SetupUtils.hasItemInMainHand(player, DISPLAY_NAME_RESOURCE_CRATE_SPAWNER)) {
                         if (resourceCrateSpawner != null) {
                             ms.sendMessage(player, MessageComponent.of("<yellow>Cleared pos</yellow>"));
                             resourceCrateSpawner.clearDisplay();
@@ -202,7 +253,7 @@ public class BossSetupHelper extends SetupHelper {
                             chainTestDisplay.setFirstPos(player.getWorld(), pos);
                             return;
                         }
-                        if (SetupUtils.hasItemInMainHand(player, DISPLAY_NAME_RESOURCE_PACKAGE_DROPPER)) {
+                        if (SetupUtils.hasItemInMainHand(player, DISPLAY_NAME_RESOURCE_CRATE_SPAWNER)) {
                             Vector3Int pos = Vector3Int.fromPoint3D(point3D);
                             if (resourceCrateSpawner != null) {
                                 resourceCrateSpawner.clearDisplay();

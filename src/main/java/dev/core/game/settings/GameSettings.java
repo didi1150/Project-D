@@ -36,8 +36,15 @@ public class GameSettings {
     
     private String bossWorld;
 
+    private Map<Integer, BossSettings> bossSettings = new HashMap<>();
+
     private GameSettings() {
         selectionLocations = new HashMap<RPGClassType, Point3D>();
+        bossSettings.put(1, new Floor1BossSettings(1));
+    }
+
+    public BossSettings getBossSettings(int floor) {
+        return bossSettings.get(floor);
     }
 
     public void setSelectionLocations(Map<RPGClassType, Point3D> selectionLocations) {
