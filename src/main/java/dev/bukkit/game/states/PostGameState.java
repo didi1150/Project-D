@@ -65,6 +65,12 @@ public class PostGameState extends GameState {
             EntityManager.getInstance().getDeadEntities().forEach(
                     entity -> EntityManager.getInstance().revive(entity.getUuid()));
         });
+
+        DMain.getInstance().getBossArenaManager().destroyInstance().whenComplete((ignored, throwable) -> {
+            if (throwable != null) {
+                Bukkit.getLogger().warning("Failed to destroy boss arena: " + throwable.getMessage());
+            }
+        });
     }
 
     @Override

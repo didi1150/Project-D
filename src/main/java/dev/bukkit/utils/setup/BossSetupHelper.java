@@ -4,7 +4,6 @@ import java.util.*;
 import java.util.stream.Collectors;
 
 import dev.bukkit.DMain;
-import dev.bukkit.game.coords.PointToLocation;
 import dev.bukkit.reload.BossReloadService;
 import dev.core.game.coords.ViewPoint3D;
 import dev.core.game.settings.GameSettingsLoader;
@@ -417,7 +416,8 @@ public class BossSetupHelper extends SetupHelper {
 //                    }
                     if (SetupUtils.hasItemInMainHand(player, DISPLAY_NAME_REWARD_PLAYER_SPAWN_LOCATION_SELECTOR)) {
                         Location loc = player.getLocation();
-                        ViewPoint3D point3D = LocToPoint.viewToLoc(loc);
+                        ViewPoint3D point3D = new ViewPoint3D(loc.getBlockX(), loc.getBlockY(), loc.getBlockZ(),
+                                null, loc.getYaw(), loc.getPitch());
                         ms.sendMessage(player, MessageComponent.of("<green>Set pos: <yellow>%s</yellow></green>", point3D));
                         if (rewardPlayerSpawn != null) {
                             rewardPlayerSpawn.clearDisplays();
@@ -582,7 +582,8 @@ public class BossSetupHelper extends SetupHelper {
                             }
                             rewardChest = new BlockPositionDisplay("Reward Chest", Material.YELLOW_STAINED_GLASS, Color.YELLOW, pos);
                             rewardChest.spawnDisplay(player.getWorld());
-                            gameSettingsLoader.setRewardChestLocation(floor, point3D);
+                            gameSettingsLoader.setRewardChestLocation(floor,
+                                    new Point3D(loc.getBlockX(), loc.getBlockY(), loc.getBlockZ()));
                             return;
                         }
                     }
@@ -735,7 +736,8 @@ public class BossSetupHelper extends SetupHelper {
 
         public void spawnDisplay(World world) {
             Vector3Int pos = Vector3Int.fromPoint3D(point);
-            Location loc = PointToLocation.viewToLoc(point);
+            Location loc = new Location(world, point.getX(), point.getY(), point.getZ(), point.getYaw(),
+                    point.getPitch());
             if (boundingBox == null) {
                 boundingBox = SetupUtils.spawnGlowingBlockDisplay(world, pos, pos.add(0,1,0), material, glowColor);
                 nameDisplay = SetupUtils.spawnTextDisplayInBlockCenter(world, pos, name);

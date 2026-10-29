@@ -83,57 +83,39 @@ public class ChainDisplay {
     }
 
     public void updateDisplays(World world) {
-        if (firstPos == null || secondPos == null){
-            clearDisplays(false, null);
-            return;
-        }
-        if (parts.isEmpty()) {
-            createChainParts(world, firstPos, secondPos, sag);
-        } else {
-            clearDisplays(true, null);
-            createChainParts(world, firstPos, secondPos ,sag);
-        }
+        refreshChainParts(world);
     }
 
     public void spawnDisplay(World world) {
-        if (firstPos == null || secondPos == null){
+        if (firstPos == null || secondPos == null) {
             System.err.println("ChainDisplay: didn't set all the positions");
             return;
         }
-        if (parts.isEmpty()) {
-            createChainParts(world, firstPos, secondPos, sag);
-        } else {
-            clearDisplays(true, null);
-            createChainParts(world, firstPos, secondPos ,sag);
-        }
+        refreshChainParts(world);
     }
 
-    private void createChainParts(World world, Vector3Int firstPos, Vector3Int secondPos, float sag) {
-        Vector3Int dir = secondPos.sub(firstPos);
+    private void refreshChainParts(World world) {
+        if (firstPos == null || secondPos == null) {
+            clearDisplays(false, null);
+            return;
+        }
         Vector3f start = firstPos.toVector3f();
         Vector3f end = secondPos.toVector3f();
         float ropeLength = start.distance(end) * (1 + sag);
         int segmentCount = (int) (ropeLength / scale) + (ropeLength % scale == 0 ? 0 : 1);
         Vector3f[] points = generateRope(start, end, ropeLength, segmentCount);
-        for (int i = 0; i < points.length - 1; i++) {
-            Vector3f a = points[i];
-            Vector3f b = points[i + 1];
-            ChainPartDisplay part = new ChainPartDisplay(material);
-            parts.add(part);
-            part.updateDisplays(world, a, b, scale);
-//                System.out.println("created chain from: " + a + " to " + b);
-
-//                Vector3f size = new Vector3f(b).sub(a).add(1, 1, 1);
-//                Vector3f c = new Vector3f(a).add(new Vector3f(size).mul(0.5f));
-//                Interaction interaction = (Interaction) world.spawnEntity(new Location(world, c.x, a.y, c.z), EntityType.INTERACTION);
-//                interaction.setInteractionHeight(size.y);
-//                interaction.setInteractionWidth(Math.max(size.x, size.z));
+        if (parts.size() != segmentCount) {
+            clearDisplays(true, null);
+            for (int i = 0; i < points.length - 1; i++) {
+                ChainPartDisplay part = new ChainPartDisplay(material);
+                parts.add(part);
+                part.updateDisplays(world, points[i], points[i + 1], scale);
+            }
+            return;
         }
-
-//            System.out.println("dir: " + dir);
-//            System.out.println("ropeLength: " + ropeLength);
-//            System.out.println("segmentCount: " + segmentCount);
-//            System.out.println("created " + parts.size() + " chains");
+        for (int i = 0; i < parts.size(); i++) {
+            parts.get(i).reposition(world, points[i], points[i + 1], scale);
+        }
     }
 
     public static Vector3f[] generateRope(Vector3f start, Vector3f end, float ropeLength, int segmentCount) {
@@ -281,28 +263,39 @@ public class ChainDisplay {
         }
 
         public void updateDisplays(World world, Vector3f firstPos, Vector3f secondPos, float scale) {
-            if (display == null) {
+            if (display == null || !display.isValid()) {
                 display = spawnChainDisplay(world, firstPos, secondPos, scale);
             } else {
-//                SetupUtils.repositionBlockDisplay(world, pos, display);
+                applyTransform(display, world, firstPos, secondPos, scale);
             }
+        }
+
+        public void reposition(World world, Vector3f firstPos, Vector3f secondPos, float scale) {
+            updateDisplays(world, firstPos, secondPos, scale);
         }
 
         private BlockDisplay spawnChainDisplay(World world, Vector3f firstPos, Vector3f secondPos, float scale) {
             Vector3f dir = new Vector3f(secondPos).sub(firstPos);
             scale = dir.length() + 0.1f;
-            Vector3f offset = new Vector3f(scale / 2);
             Vector3f spawnPoint = new Vector3f(firstPos).add(new Vector3f(dir).mul(0.5f)).add(new Vector3f(0.5f));
             Location loc = new Location(world, spawnPoint.x, spawnPoint.y, spawnPoint.z);
             BlockDisplay blockDisplay = (BlockDisplay) world.spawnEntity(loc, EntityType.BLOCK_DISPLAY);
             blockDisplay.setBlock(Bukkit.createBlockData(material));
             blockDisplay.setBrightness(new Display.Brightness(15,15));
-//            blockDisplay.setGlowing(true);
-//            blockDisplay.setGlowColorOverride(glowColor);
+            applyTransform(blockDisplay, world, firstPos, secondPos, scale);
+            return blockDisplay;
+        }
+
+        private void applyTransform(BlockDisplay blockDisplay, World world, Vector3f firstPos, Vector3f secondPos,
+                float scale) {
+            Vector3f dir = new Vector3f(secondPos).sub(firstPos);
+            scale = dir.length() + 0.1f;
+            Vector3f spawnPoint = new Vector3f(firstPos).add(new Vector3f(dir).mul(0.5f)).add(new Vector3f(0.5f));
+            Location loc = new Location(world, spawnPoint.x, spawnPoint.y, spawnPoint.z);
+            blockDisplay.teleport(loc);
 
             Transformation transformation = blockDisplay.getTransformation();
             transformation.getTranslation().set(new Vector3f(scale * 0.5f).mul(-1));
-//            System.out.println("scale: " + scale + " -> " + dir.length() + " - " + dir);
             transformation.getScale().set(new Vector3f(scale));
             blockDisplay.setTransformation(transformation);
             float yaw = (float) Math.toDegrees(Math.atan2(-dir.x, dir.z));
@@ -314,7 +307,6 @@ public class ChainDisplay {
                 pitch += 90;
             }
             blockDisplay.setRotation(yaw, pitch);
-            return blockDisplay;
         }
 
         public void clearDisplays(boolean force, Player ignoredPlayer) {

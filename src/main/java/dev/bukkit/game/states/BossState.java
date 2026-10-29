@@ -85,11 +85,6 @@ public class BossState extends GameState {
             activeBoss = null;
         }
         bossUuid = null;
-        DMain.getInstance().getBossArenaManager().destroyInstance().whenComplete((ignored, throwable) -> {
-            if (throwable != null) {
-                Bukkit.getLogger().warning("Failed to destroy boss arena: " + throwable.getMessage());
-            }
-        });
     }
 
     public boolean hasActiveBoss() {
@@ -195,7 +190,7 @@ public class BossState extends GameState {
 
         encounterFinished = true;
         BukkitText.broadcast("§aThe End Boss has been defeated!");
-        complete(GameStateResult.COMPLETE);
+        jumpToState(RewardState.NAME);
     }
 
     private void handleEncounterEnded(BossEncounterEndedEvent event) {
@@ -214,7 +209,7 @@ public class BossState extends GameState {
                 return;
             }
             if (outcome == BossEncounterEndedEvent.Outcome.VICTORY) {
-                complete(GameStateResult.COMPLETE);
+                jumpToState(RewardState.NAME);
             } else {
                 jumpToState(PostGameState.NAME);
             }

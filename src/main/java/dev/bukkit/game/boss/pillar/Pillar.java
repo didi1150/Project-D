@@ -55,6 +55,7 @@ final class Pillar {
     private Interaction hitbox;
     private TextDisplay healthbar;
     private ChainDisplay chain;
+    private Vector3Int chainBossPos;
     private float chainSag = -1.0f;
 
     Pillar(PillarManager manager, World world, int index, Location base, PillarConfig config) {
@@ -181,11 +182,30 @@ final class Pillar {
         if (link == null) {
             return;
         }
+        Location bossLocation = manager.getBossLocation();
+        Vector3Int bossPos = new Vector3Int(base.getBlockX(), base.getBlockY() + config.height(), base.getBlockZ());
+        if (bossLocation != null && world.equals(bossLocation.getWorld())) {
+            bossPos = new Vector3Int(bossLocation.getBlockX(), bossLocation.getBlockY(), bossLocation.getBlockZ());
+        }
+        chainBossPos = bossPos;
         float sag = (float) PillarMath.chainSag(healthFraction(), config.tautSag(), config.slackSag());
-        chain = new ChainDisplay(new Vector3Int(base.getBlockX(), base.getBlockY() + config.height(), base.getBlockZ()),
+        chain = new ChainDisplay(bossPos,
                 new Vector3Int(link.getBlockX(), link.getBlockY(), link.getBlockZ()), 1.0f, sag);
         chain.spawnDisplay(world);
         chainSag = sag;
+    }
+
+    void updateChainBossLocation(Location bossLocation) {
+        if (chain == null || bossLocation == null || !world.equals(bossLocation.getWorld())) {
+            return;
+        }
+        Vector3Int bossPos = new Vector3Int(bossLocation.getBlockX(), bossLocation.getBlockY(),
+                bossLocation.getBlockZ());
+        if (bossPos.equals(chainBossPos)) {
+            return;
+        }
+        chainBossPos = bossPos;
+        chain.setFirstPos(world, bossPos);
     }
 
     boolean damage(double amount) {
@@ -426,6 +446,7 @@ final class Pillar {
         if (chain != null) {
             chain.clearDisplays(true, null);
             chain = null;
+            chainBossPos = null;
             chainSag = -1.0f;
         }
     }

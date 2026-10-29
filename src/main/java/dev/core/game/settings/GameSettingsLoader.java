@@ -91,10 +91,11 @@ public class GameSettingsLoader {
             if (!legacySection.getKeys().isEmpty()) {
                 ViewPoint3D legacy = loadViewCoords(legacySection);
                 rewardPlayerSpawns.put(1, legacy);
-                writeViewLocation(LOCATIONS_REWARDPLAYERSPAWN + ".1", legacy);
+                writeRewardViewLocation(LOCATIONS_REWARDPLAYERSPAWN + ".1", legacy);
                 floor1.set("rewardplayerspawnlocation", null);
             }
         }
+        rewardPlayerSpawns.replaceAll((floorLevel, point) -> withoutWorld(point));
 
         Map<Integer, Point3D> rewardChests = loadFloorBlockLocations(LOCATIONS_REWARDCHEST);
         if (rewardChests.isEmpty()) {
@@ -102,11 +103,14 @@ public class GameSettingsLoader {
             if (!legacySection.getKeys().isEmpty()) {
                 Point3D legacy = loadBlockCoords(legacySection);
                 rewardChests.put(1, legacy);
-                writeBlockLocation(LOCATIONS_REWARDCHEST + ".1", legacy);
+                writeRewardBlockLocation(LOCATIONS_REWARDCHEST + ".1", legacy);
                 floor1.set("rewardchestlocation", null);
             }
         }
+        rewardChests.replaceAll((floorLevel, point) -> withoutWorld(point));
 
+        stripWorldFields(LOCATIONS_REWARDPLAYERSPAWN);
+        stripWorldFields(LOCATIONS_REWARDCHEST);
         configProvider.save();
 
         gameSettings.setMinPlayers(minPlayers);
@@ -230,6 +234,39 @@ public class GameSettingsLoader {
         section.set("world", point3D.getWorld());
     }
 
+    private void writeRewardViewLocation(String path, ViewPoint3D viewPoint3D) {
+        ConfigSection section = configProvider.getSection(path);
+        section.set("x", viewPoint3D.getX());
+        section.set("y", viewPoint3D.getY());
+        section.set("z", viewPoint3D.getZ());
+        section.set("yaw", viewPoint3D.getYaw());
+        section.set("pitch", viewPoint3D.getPitch());
+        section.set("world", null);
+    }
+
+    private void writeRewardBlockLocation(String path, Point3D point3D) {
+        ConfigSection section = configProvider.getSection(path);
+        section.set("x", point3D.getX());
+        section.set("y", point3D.getY());
+        section.set("z", point3D.getZ());
+        section.set("world", null);
+    }
+
+    private void stripWorldFields(String path) {
+        ConfigSection section = configProvider.getSection(path);
+        for (String key : section.getKeys()) {
+            section.getSection(key).set("world", null);
+        }
+    }
+
+    private static ViewPoint3D withoutWorld(ViewPoint3D point) {
+        return new ViewPoint3D(point.getX(), point.getY(), point.getZ(), null, point.getYaw(), point.getPitch());
+    }
+
+    private static Point3D withoutWorld(Point3D point) {
+        return new Point3D(point.getX(), point.getY(), point.getZ());
+    }
+
     public void setDungeonWorld(String world) {
         gameSettings.setDungeonWorld(world);
         configProvider.getRoot().set("dungeonworld", world);
@@ -298,8 +335,9 @@ public class GameSettingsLoader {
     }
 
     public void setRewardPlayerSpawnLocation(int floorLevel, ViewPoint3D viewPoint3D) {
-        gameSettings.setRewardPlayerSpawnLocation(floorLevel, viewPoint3D);
-        writeViewLocation(LOCATIONS_REWARDPLAYERSPAWN + "." + floorLevel, viewPoint3D);
+        ViewPoint3D worldless = withoutWorld(viewPoint3D);
+        gameSettings.setRewardPlayerSpawnLocation(floorLevel, worldless);
+        writeRewardViewLocation(LOCATIONS_REWARDPLAYERSPAWN + "." + floorLevel, worldless);
         configProvider.save();
     }
 
@@ -314,8 +352,9 @@ public class GameSettingsLoader {
     }
 
     public void setRewardChestLocation(int floorLevel, Point3D point3D) {
-        gameSettings.setRewardChestLocation(floorLevel, point3D);
-        writeBlockLocation(LOCATIONS_REWARDCHEST + "." + floorLevel, point3D);
+        Point3D worldless = withoutWorld(point3D);
+        gameSettings.setRewardChestLocation(floorLevel, worldless);
+        writeRewardBlockLocation(LOCATIONS_REWARDCHEST + "." + floorLevel, worldless);
         configProvider.save();
     }
 

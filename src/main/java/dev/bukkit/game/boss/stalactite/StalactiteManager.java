@@ -51,14 +51,26 @@ public class StalactiteManager {
 
     public StalactiteManager(World world, Location singleCeiling, Consumer<BukkitStalactiteEntity> impactHandler,
             boolean respawnEnabled, boolean debugHitbox) {
+        this(world, List.of(singleCeiling), impactHandler, respawnEnabled, debugHitbox);
+    }
+
+    public StalactiteManager(World world, Collection<Location> ceilings, Consumer<BukkitStalactiteEntity> impactHandler,
+            boolean respawnEnabled, boolean debugHitbox) {
         this.world = world;
         this.impactHandler = impactHandler != null ? impactHandler : (e -> {
         });
         this.respawnEnabled = respawnEnabled;
         this.debugHitbox = debugHitbox;
-        Location ceiling = singleCeiling.clone();
-        ceiling.setWorld(world);
-        this.ceilings.add(ceiling);
+        if (ceilings != null) {
+            for (Location ceiling : ceilings) {
+                if (ceiling == null) {
+                    continue;
+                }
+                Location copy = ceiling.clone();
+                copy.setWorld(world);
+                this.ceilings.add(copy);
+            }
+        }
     }
 
     public List<BukkitStalactiteEntity> getEntities() {

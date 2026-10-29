@@ -108,6 +108,14 @@ public final class BossArenaManager {
         }
     }
 
+    public World getActiveWorld() {
+        Arena arena = activeArena;
+        if (arena == null || arena.state() != ArenaState.ACTIVE) {
+            return null;
+        }
+        return Bukkit.getWorld(arena.worldName());
+    }
+
     public CompletableFuture<Void> destroyInstance() {
         Arena arena = activeArena;
         if (arena == null) {

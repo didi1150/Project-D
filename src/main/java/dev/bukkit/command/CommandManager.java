@@ -24,6 +24,7 @@ import org.jetbrains.annotations.Nullable;
 import dev.bukkit.DMain;
 import dev.bukkit.entity.BukkitPlayerEntity;
 import dev.bukkit.entity.DebugRpgEntityService;
+import dev.bukkit.entity.boss.stage.BossGrowStageType;
 import dev.bukkit.game.boss.pillar.DebugPillarService;
 import dev.bukkit.game.boss.pillar.PillarManager;
 import dev.bukkit.game.boss.stalactite.DebugStalactiteService;
@@ -197,6 +198,13 @@ public class CommandManager {
             }
         }
         reportPillars(player, manager);
+    }
+
+    private void sendMobSpawnStatus(CommandSender sender) {
+        boolean enabled = BossGrowStageType.areMobWavesEnabled();
+        BukkitMessageSender.getInstance().sendMessage(sender,
+                MessageComponent.of(enabled ? "<green>GROW-stage mob waves are ENABLED.</green>"
+                        : "<red>GROW-stage mob waves are DISABLED.</red>"));
     }
 
     private static void giveItemSetToPlayer(Player player, String setId) {
@@ -624,7 +632,25 @@ public class CommandManager {
                                 MessageComponent.of("<red>Boss reload failed: %s</red>", e.getMessage()));
                         e.printStackTrace();
                     }
-                })));
+                }))
+                .setCommandAction(1, "mobspawns", permAny("projectd.boss.mobspawns", (sender, args) -> {
+                    sendMobSpawnStatus(sender);
+                }))
+                .setCommandAction(2, "mobspawns", permAny("projectd.boss.mobspawns", (sender, args) -> {
+                    switch (args[1].toLowerCase(java.util.Locale.ROOT)) {
+                    case "on" -> BossGrowStageType.setMobWavesEnabled(true);
+                    case "off" -> BossGrowStageType.setMobWavesEnabled(false);
+                    case "toggle" -> BossGrowStageType.toggleMobWaves();
+                    default -> {
+                        BukkitMessageSender.getInstance().sendMessage(sender,
+                                MessageComponent.of("<red>Usage: /d boss mobspawns <on|off|toggle></red>"));
+                        return;
+                    }
+                    }
+                    sendMobSpawnStatus(sender);
+                }))
+                .setCommandArgumentsList(0, Arrays.asList("reload", "mobspawns"))
+                .setCommandArgumentsList(1, "mobspawns", Arrays.asList("on", "off", "toggle")));
 
         // ==============================================================
         // mob tree -> /d mob reload (dungeon-mobs.yml)

@@ -177,8 +177,8 @@ dungeon-mobs:
     main-hand-item: MINER_PICKAXE
     stats:
       HEALTH_MAX: 200
-      ATTACK_DAMAGE: 16
+      ATTACK_DAMAGE: 2
       MOVE_SPEED: 130
       ARMOR: 6
-      ATTACK_SPEED: 1
+      ATTACK_SPEED: 0.5
       CRIT_CHANCE: 0

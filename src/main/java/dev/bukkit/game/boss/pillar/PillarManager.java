@@ -41,6 +41,7 @@ public final class PillarManager {
 
     private final World world;
     private final Location bossBase;
+    private Location bossLocation;
     private final PillarConfig config;
     private final List<Location> bases;
     private final List<Location> chainLinks;
@@ -62,6 +63,7 @@ public final class PillarManager {
             List<Location> chainLinks, List<Location> crateLocations, boolean debugManager) {
         this.world = world;
         this.bossBase = bossBase != null ? bossBase.clone() : null;
+        this.bossLocation = this.bossBase != null ? this.bossBase.clone() : null;
         this.config = config;
         this.bases = bases != null ? new ArrayList<>(bases) : List.of();
         this.chainLinks = chainLinks != null ? new ArrayList<>(chainLinks) : List.of();
@@ -393,13 +395,27 @@ public final class PillarManager {
                     item.setAmount(remaining);
                 }
             }
-            Location location = pillar.getBase().add(0.5, config.height() / 2.0, 0.5);
-            world.spawnParticle(Particle.HAPPY_VILLAGER, location, 12, 0.8, 0.6, 0.8, 0.02);
-            world.playSound(location, Sound.BLOCK_AMETHYST_BLOCK_CHIME, 1.5f, 1.2f);
+            playRepairFeedback(pillar, player);
             player.sendActionBar(AdventureText.legacy("§aPillar " + pillar.getIndex() + " repaired §e+"
                     + format(config.repairHpPerResource()) + " §7("
                     + Math.round(pillar.getHealthFraction() * 100.0) + "%)"));
         }
+    }
+
+    private void playRepairFeedback(Pillar pillar, Player player) {
+        double height = config.height();
+        Location center = pillar.getBase().add(0.5, height / 2.0, 0.5);
+        Location top = pillar.getBase().add(0.5, height + 0.5, 0.5);
+
+        world.spawnParticle(Particle.HAPPY_VILLAGER, center, 45, 1.1, height / 2.0, 1.1, 0.03);
+        world.spawnParticle(Particle.END_ROD, center, 35, 0.9, height / 2.0, 0.9, 0.04);
+        world.spawnParticle(Particle.CRIT, center, 25, 1.0, height / 2.0, 1.0, 0.12);
+        world.spawnParticle(Particle.HEART, top, 10, 0.7, 0.3, 0.7, 0.02);
+
+        world.playSound(center, Sound.BLOCK_AMETHYST_BLOCK_CHIME, 2.0f, 1.6f);
+        world.playSound(center, Sound.BLOCK_BEACON_ACTIVATE, 1.1f, 1.8f);
+        world.playSound(center, Sound.ENTITY_EXPERIENCE_ORB_PICKUP, 1.2f, 1.5f);
+        player.playSound(player.getLocation(), Sound.ENTITY_PLAYER_LEVELUP, 0.7f, 1.4f);
     }
 
     private Pillar findPillarAt(Location location) {
@@ -534,6 +550,20 @@ public final class PillarManager {
 
     Location getBossBase() {
         return bossBase;
+    }
+
+    Location getBossLocation() {
+        return bossLocation != null ? bossLocation.clone() : null;
+    }
+
+    public void updateBossLocation(Location location) {
+        if (location == null || location.getWorld() == null || !location.getWorld().equals(world)) {
+            return;
+        }
+        bossLocation = location.clone();
+        for (Pillar pillar : pillars.values()) {
+            pillar.updateChainBossLocation(bossLocation);
+        }
     }
 
     private static String format(double value) {

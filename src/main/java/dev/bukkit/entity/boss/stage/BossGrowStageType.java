@@ -3,8 +3,10 @@ package dev.bukkit.entity.boss.stage;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
+import java.util.Random;
 import java.util.UUID;
 
+import org.bukkit.Bukkit;
 import org.bukkit.Location;
 import org.bukkit.Material;
 import org.bukkit.Particle;
@@ -13,6 +15,7 @@ import org.bukkit.World;
 import org.bukkit.block.data.BlockData;
 import org.bukkit.entity.BlockDisplay;
 import org.bukkit.entity.Display;
+import org.bukkit.entity.Entity;
 import org.bukkit.entity.LivingEntity;
 import org.bukkit.entity.Player;
 import org.bukkit.util.Transformation;
@@ -20,6 +23,7 @@ import org.joml.Quaternionf;
 import org.joml.Vector3f;
 
 import dev.bukkit.entity.BukkitDisplayEntityRegistry;
+import dev.bukkit.entity.BukkitEntityFactory;
 import dev.bukkit.entity.boss.BukkitBossEntity;
 import dev.bukkit.entity.boss.NoTargetStrategy;
 import dev.bukkit.event.BukkitEventBus;
@@ -27,7 +31,13 @@ import dev.bukkit.game.boss.pillar.PillarConfig;
 import dev.bukkit.game.boss.pillar.PillarManager;
 import dev.bukkit.game.boss.pillar.PillarMath;
 import dev.bukkit.game.boss.stalactite.StalactiteConfig;
+import dev.bukkit.game.boss.stalactite.StalactiteManager;
+import dev.core.entity.mob.MobDefinition;
+import dev.core.entity.mob.MobDefinitionRegistry;
 import dev.core.game.coords.Point3D;
+import dev.core.game.dungeon.proceduralDungeon.util.SpawnLocation;
+import dev.core.game.dungeon.proceduralDungeon.util.SpawnTier;
+import dev.core.game.settings.GameSettings;
 import dev.core.entity.boss.BossStage;
 import dev.core.entity.boss.BossStageContext;
 import dev.core.entity.boss.BossStageType;
@@ -42,6 +52,21 @@ import dev.core.utils.ColorCodes;
 import io.papermc.paper.event.player.AsyncChatEvent;
 
 public class BossGrowStageType implements BossStageType {
+
+    private static volatile boolean mobWavesEnabled = true;
+
+    public static boolean areMobWavesEnabled() {
+        return mobWavesEnabled;
+    }
+
+    public static void setMobWavesEnabled(boolean enabled) {
+        mobWavesEnabled = enabled;
+    }
+
+    public static boolean toggleMobWaves() {
+        mobWavesEnabled = !mobWavesEnabled;
+        return mobWavesEnabled;
+    }
 
     @Override
     public String getType() {
@@ -78,10 +103,12 @@ public class BossGrowStageType implements BossStageType {
                 params.getDouble("stalactite-push-percent", StalactiteConfig.PUSH_AMOUNT_PERCENT));
         double stalactiteExplosionPercent = clampPercent(
                 params.getDouble("stalactite-explosion-percent", StalactiteConfig.EXPLOSION_PERCENT));
+        int mobWaveIntervalTicks = Math.max(20, params.getInt("mob-wave-interval-ticks", 200));
+        int mobWaveLevel = Math.max(1, params.getInt("mob-wave-level", 1));
         BossGrowStageLocations locations = BossGrowStageLocations.from(params);
         return new BossGrowStage(id, introTicks, buriedDepth, halfHeight, fullHeight, baseRate, maxRate,
                 pillarCount, pillarConfig, wipeStageId, groundMaterial, stalactitePushPercent,
-                stalactiteExplosionPercent, locations);
+                stalactiteExplosionPercent, mobWaveIntervalTicks, mobWaveLevel, locations);
     }
 
     private static double clampPercent(double value) {
@@ -141,7 +168,11 @@ public class BossGrowStageType implements BossStageType {
         boolean ended;
         boolean wipeTransition;
         long lastTickMs;
+        long nextMobWaveAtTick;
+        boolean mobWaveWarningSent;
+        final List<UUID> waveMobs = new ArrayList<>();
         PillarManager pillarManager;
+        StalactiteManager stalactiteManager;
         BossGrowStageLocations locations = BossGrowStageLocations.empty();
         double stalactitePushFraction = StalactiteConfig.PUSH_AMOUNT_PERCENT / 100.0;
         double stalactiteExplosionFraction = StalactiteConfig.EXPLOSION_PERCENT / 100.0;
@@ -222,12 +253,15 @@ final class BossGrowStage implements BossStage {
     private final Material groundMaterial;
     private final double stalactitePushPercent;
     private final double stalactiteExplosionPercent;
+    private final int mobWaveIntervalTicks;
+    private final int mobWaveLevel;
     private final BossGrowStageLocations locations;
+    private final Random random = new Random();
 
     BossGrowStage(String id, int introTicks, double buriedDepth, double halfHeight, double fullHeight,
             double baseRate, double maxRate, int pillarCount, PillarConfig pillarConfig, String wipeStageId,
             Material groundMaterial, double stalactitePushPercent, double stalactiteExplosionPercent,
-            BossGrowStageLocations locations) {
+            int mobWaveIntervalTicks, int mobWaveLevel, BossGrowStageLocations locations) {
         this.id = id;
         this.introTicks = introTicks;
         this.buriedDepth = buriedDepth;
@@ -241,6 +275,8 @@ final class BossGrowStage implements BossStage {
         this.groundMaterial = groundMaterial;
         this.stalactitePushPercent = stalactitePushPercent;
         this.stalactiteExplosionPercent = stalactiteExplosionPercent;
+        this.mobWaveIntervalTicks = Math.max(20, mobWaveIntervalTicks);
+        this.mobWaveLevel = Math.max(1, mobWaveLevel);
         this.locations = locations != null ? locations : BossGrowStageLocations.empty();
     }
 
@@ -274,11 +310,16 @@ final class BossGrowStage implements BossStage {
         state.locations = locations;
         state.stalactitePushFraction = stalactitePushPercent / 100.0;
         state.stalactiteExplosionFraction = stalactiteExplosionPercent / 100.0;
+        state.nextMobWaveAtTick = introTicks + mobWaveIntervalTicks;
         state.crackDisplayId = spawnCrackDisplay(world, base);
         state.pillarManager = createPillarManager(world, base);
         if (state.pillarManager == null || !state.pillarManager.start()) {
             state.pillarManager = null;
             context.broadcast("§c[Grow] Pillar locations are incomplete; the boss has no anchors.");
+        }
+        state.stalactiteManager = createStalactiteManager(world, state);
+        if (state.stalactiteManager != null) {
+            state.stalactiteManager.start();
         }
         context.setState(state);
 
@@ -294,6 +335,7 @@ final class BossGrowStage implements BossStage {
         Location start = base.clone();
         start.setY(state.startY);
         living.teleport(start);
+        updateChains(state, living);
 
         boss.setDisplayOverride(0f, label(boss, 0));
         context.broadcast("§4The sealing chamber trembles... something is waking below.");
@@ -348,7 +390,15 @@ final class BossGrowStage implements BossStage {
         double y = state.base.getY() + state.heightFraction * fullHeight;
         state.currentY = y;
         teleportY(living, state.base, y);
+        updateChains(state, living);
         boss.setDisplayOverride((float) state.heightFraction, label(boss, state.heightFraction));
+
+        if (state.heightFraction < 1.0 && elapsedTicks >= state.nextMobWaveAtTick) {
+            if (BossGrowStageType.areMobWavesEnabled()) {
+                spawnMobWave(context, state, world);
+            }
+            state.nextMobWaveAtTick = (long) elapsedTicks + mobWaveIntervalTicks;
+        }
 
         if (elapsedTicks % 4 == 0) {
             world.spawnParticle(Particle.BLOCK_CRUMBLE, state.base.clone().add(0, 0.2, 0), 6, 1.2, 0.1, 1.2, 0.02,
@@ -382,6 +432,72 @@ final class BossGrowStage implements BossStage {
         return new PillarManager(world, base, pillarConfig, bases, chains, crates, false);
     }
 
+    private StalactiteManager createStalactiteManager(World world, BossGrowStageType.GrowState state) {
+        List<Location> ceilings = new ArrayList<>();
+        for (Point3D point : state.locations.stalactiteLocations()) {
+            ceilings.add(new Location(world, point.getX() + 0.5, point.getY(), point.getZ() + 0.5));
+        }
+        if (ceilings.isEmpty()) {
+            return null;
+        }
+        return new StalactiteManager(world, ceilings, entity -> {
+        }, true, false);
+    }
+
+    private void spawnMobWave(BossStageContext context, BossGrowStageType.GrowState state, World world) {
+        if (!BossGrowStageType.areMobWavesEnabled()) {
+            return;
+        }
+        List<Point3D> spawns = new ArrayList<>(state.locations.mobWaveSpawnLocations());
+        if (spawns.isEmpty()) {
+            if (!state.mobWaveWarningSent) {
+                state.mobWaveWarningSent = true;
+                context.broadcast("§c[Grow] No mob wave spawn locations are configured.");
+            }
+            return;
+        }
+        MobDefinition miner = MobDefinitionRegistry.getInstance().get("miner-skeleton").orElse(null);
+        if (miner == null) {
+            if (!state.mobWaveWarningSent) {
+                state.mobWaveWarningSent = true;
+                context.broadcast("§c[Grow] Mob definition 'miner-skeleton' is missing.");
+            }
+            return;
+        }
+        Point3D origin = spawns.get(random.nextInt(spawns.size()));
+        for (int i = 0; i < 5; i++) {
+            int x = origin.getX() + random.nextInt(5) - 2;
+            int z = origin.getZ() + random.nextInt(5) - 2;
+            spawnWaveMob(state, miner, new Point3D(x, origin.getY(), z), SpawnTier.BOSS_MINION, false, world);
+        }
+        int floor = GameSettings.getCurrentSettings().getFloor();
+        List<MobDefinition> minibosses = MobDefinitionRegistry.getInstance().snapshot().values().stream()
+                .filter(MobDefinition::isMiniBoss)
+                .filter(definition -> definition.isAllowedForFloor(floor))
+                .toList();
+        if (!minibosses.isEmpty()) {
+            MobDefinition miniboss = minibosses.get(random.nextInt(minibosses.size()));
+            spawnWaveMob(state, miniboss, origin, SpawnTier.ELITE, true, world);
+        }
+    }
+
+    private void spawnWaveMob(BossGrowStageType.GrowState state, MobDefinition definition, Point3D position, SpawnTier tier,
+            boolean miniBoss, World world) {
+        SpawnLocation spawnLocation = new SpawnLocation(position, tier, 1.0, mobWaveLevel, false, miniBoss);
+        Entity entity = BukkitEntityFactory.spawnDungeonMob(definition, mobWaveLevel, spawnLocation, world);
+        if (entity != null) {
+            state.waveMobs.add(entity.getUniqueId());
+        }
+    }
+
+    private static void updateChains(BossGrowStageType.GrowState state, LivingEntity living) {
+        if (state.pillarManager == null) {
+            return;
+        }
+        Location body = living.getLocation().add(0, living.getHeight() * 0.5, 0);
+        state.pillarManager.updateBossLocation(body);
+    }
+
     private void triggerWipe(BossStageContext context, BossGrowStageType.GrowState state) {
         if (wipeStageId != null && !wipeStageId.isBlank() && context.getStageManager().hasStage(wipeStageId)) {
             state.wipeTransition = true;
@@ -399,6 +515,7 @@ final class BossGrowStage implements BossStage {
         state.currentY = y;
         state.heightFraction = SealedGrowMath.clamp01((y - state.base.getY()) / fullHeight);
         teleportY(living, state.base, y);
+        updateChains(state, living);
         boss.setDisplayOverride((float) state.heightFraction, label(boss, state.heightFraction));
 
         if (elapsedTicks % 2 == 0) {
@@ -447,9 +564,22 @@ final class BossGrowStage implements BossStage {
             BukkitDisplayEntityRegistry.getInstance().removeDisplayEntity(state.crackDisplayId);
             state.crackDisplayId = null;
         }
+        if (state != null && state.stalactiteManager != null) {
+            state.stalactiteManager.destroy();
+            state.stalactiteManager = null;
+        }
         if (state != null && state.pillarManager != null) {
             state.pillarManager.shutdown(false);
             state.pillarManager = null;
+        }
+        if (state != null) {
+            for (UUID uuid : state.waveMobs) {
+                Entity entity = Bukkit.getEntity(uuid);
+                if (entity != null && entity.isValid()) {
+                    entity.remove();
+                }
+            }
+            state.waveMobs.clear();
         }
         if (context.getBoss() instanceof BukkitBossEntity boss) {
             boss.clearDisplayOverride();

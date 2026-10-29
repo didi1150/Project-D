@@ -1,6 +1,7 @@
 package dev.core.game.settings;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNull;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -10,6 +11,8 @@ import java.util.Set;
 
 import org.junit.jupiter.api.Test;
 
+import dev.core.game.coords.Point3D;
+import dev.core.game.coords.ViewPoint3D;
 import dev.core.storage.config.ConfigProvider;
 import dev.core.storage.config.ConfigSection;
 
@@ -47,6 +50,25 @@ class GameSettingsLoaderTest {
         assertEquals(20, settings.getRewardPlayerSpawnLocation(2).getZ());
         assertEquals(4, settings.getRewardChestLocation(2).getX());
         assertEquals(6, settings.getRewardChestLocation(2).getZ());
+        assertNull(settings.getRewardPlayerSpawnLocation(2).getWorld());
+        assertNull(settings.getRewardChestLocation(2).getWorld());
+        assertNull(provider.getSection("locations.rewardplayerspawn.2").getString("world", null));
+        assertNull(provider.getSection("locations.rewardchest.2").getString("world", null));
+    }
+
+    @Test
+    void setRewardLocations_omitsWorldField() {
+        TestConfigProvider provider = new TestConfigProvider();
+        GameSettings settings = GameSettings.getCurrentSettings();
+        GameSettingsLoader loader = new GameSettingsLoader(settings, provider);
+
+        loader.setRewardPlayerSpawnLocation(2, new ViewPoint3D(10, 65, 20, "boss", 90f, 45f));
+        loader.setRewardChestLocation(2, new Point3D(4, 64, 6, "boss"));
+
+        assertNull(settings.getRewardPlayerSpawnLocation(2).getWorld());
+        assertNull(settings.getRewardChestLocation(2).getWorld());
+        assertNull(provider.getSection("locations.rewardplayerspawn.2").getString("world", null));
+        assertNull(provider.getSection("locations.rewardchest.2").getString("world", null));
     }
 
     private static final class TestConfigProvider implements ConfigProvider {

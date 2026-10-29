@@ -81,6 +81,10 @@ bosses:
           mob-wave-spawn-locations: []
           stalactite-push-percent: 10.0
           stalactite-explosion-percent: 10.0
+          # Mob waves spawn 5 miner skeletons + 1 random miniboss at a random
+          # configured mob-wave-spawn-location every interval.
+          mob-wave-interval-ticks: 200
+          mob-wave-level: 1
           ground-material: BLACK_CONCRETE
           wipe-stage: wipe
         - type: WIPE
