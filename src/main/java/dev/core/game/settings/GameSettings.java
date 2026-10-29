@@ -26,6 +26,8 @@ public class GameSettings {
     private Map<Integer, ViewPoint3D> bossSpawnLocations = new HashMap<>();
     private Map<Integer, String> bossWorlds = new HashMap<>();
     private Map<Integer, ViewPoint3D> bossPlayerSpawnLocations = new HashMap<>();
+    private Map<Integer, ViewPoint3D> rewardPlayerSpawnLocations = new HashMap<>();
+    private Map<Integer, Point3D> rewardChestLocations = new HashMap<>();
     private int minPlayers;
     private boolean setupMode;
 
@@ -101,6 +103,38 @@ public class GameSettings {
 
     public void setBossPlayerSpawnLocations(Map<Integer, ViewPoint3D> locations) {
         this.bossPlayerSpawnLocations = locations;
+    }
+
+    public Map<Integer, ViewPoint3D> getRewardPlayerSpawnLocations() {
+        return rewardPlayerSpawnLocations;
+    }
+
+    public void setRewardPlayerSpawnLocations(Map<Integer, ViewPoint3D> locations) {
+        this.rewardPlayerSpawnLocations = locations;
+    }
+
+    public ViewPoint3D getRewardPlayerSpawnLocation(int floorLevel) {
+        return rewardPlayerSpawnLocations.get(floorLevel);
+    }
+
+    public void setRewardPlayerSpawnLocation(int floorLevel, ViewPoint3D point3D) {
+        rewardPlayerSpawnLocations.put(floorLevel, point3D);
+    }
+
+    public Map<Integer, Point3D> getRewardChestLocations() {
+        return rewardChestLocations;
+    }
+
+    public void setRewardChestLocations(Map<Integer, Point3D> locations) {
+        this.rewardChestLocations = locations;
+    }
+
+    public Point3D getRewardChestLocation(int floorLevel) {
+        return rewardChestLocations.get(floorLevel);
+    }
+
+    public void setRewardChestLocation(int floorLevel, Point3D point3D) {
+        rewardChestLocations.put(floorLevel, point3D);
     }
 
     public String getBossWorld() {

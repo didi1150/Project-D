@@ -24,6 +24,8 @@ import org.jetbrains.annotations.Nullable;
 import dev.bukkit.DMain;
 import dev.bukkit.entity.BukkitPlayerEntity;
 import dev.bukkit.entity.DebugRpgEntityService;
+import dev.bukkit.game.boss.pillar.DebugPillarService;
+import dev.bukkit.game.boss.pillar.PillarManager;
 import dev.bukkit.game.boss.stalactite.DebugStalactiteService;
 import dev.bukkit.game.states.SelectItemState;
 import dev.bukkit.hud.HudConfig;
@@ -122,6 +124,79 @@ public class CommandManager {
             }
             action.perform(sender, args);
         };
+    }
+
+    private static void reportPillars(Player player, PillarManager manager) {
+        if (manager == null) {
+            player.sendMessage("§c[Pillar Debug] No active pillar system nearby.");
+            return;
+        }
+        player.sendMessage(manager.describeStatus());
+        for (String line : manager.describePillars()) {
+            player.sendMessage(line);
+        }
+    }
+
+    private static void applyPillarHp(Player player, String target, String amountText) {
+        PillarManager manager = DebugPillarService.getInstance().find(player);
+        if (manager == null) {
+            player.sendMessage("§c[Pillar Debug] No active pillar system nearby.");
+            return;
+        }
+        try {
+            double amount = Double.parseDouble(amountText);
+            if (target.equalsIgnoreCase("all")) {
+                manager.setAllHp(amount);
+            } else if (!manager.setHp(Integer.parseInt(target), amount)) {
+                player.sendMessage("§c[Pillar Debug] No living pillar with that index.");
+                return;
+            }
+            reportPillars(player, manager);
+        } catch (NumberFormatException e) {
+            player.sendMessage("§c[Pillar Debug] Usage: /d pillar hp <1|2|3|4|all> <amount>");
+        }
+    }
+
+    private static void applyPillarDamage(Player player, String target, String amountText) {
+        PillarManager manager = DebugPillarService.getInstance().find(player);
+        if (manager == null) {
+            player.sendMessage("§c[Pillar Debug] No active pillar system nearby.");
+            return;
+        }
+        try {
+            double amount = Double.parseDouble(amountText);
+            if (target.equalsIgnoreCase("all")) {
+                manager.damageAll(amount);
+            } else if (!manager.damage(Integer.parseInt(target), amount)) {
+                player.sendMessage("§c[Pillar Debug] No living pillar with that index.");
+                return;
+            }
+            reportPillars(player, manager);
+        } catch (NumberFormatException e) {
+            player.sendMessage("§c[Pillar Debug] Usage: /d pillar damage <1|2|3|4|all> <amount>");
+        }
+    }
+
+    private static void applyPillarRevive(Player player, String target) {
+        PillarManager manager = DebugPillarService.getInstance().find(player);
+        if (manager == null) {
+            player.sendMessage("§c[Pillar Debug] No active pillar system nearby.");
+            return;
+        }
+        if (target.equalsIgnoreCase("all")) {
+            manager.reviveAll();
+        } else {
+            try {
+                if (!manager.revive(Integer.parseInt(target))) {
+                    player.sendMessage("§c[Pillar Debug] No pillar with that index.");
+                    return;
+                }
+            } catch (NumberFormatException e) {
+                player.sendMessage("§c[Pillar Debug] Usage: /d pillar revive <1|2|3|4|all>");
+                return;
+            }
+        }
+        reportPillars(player, manager);
     }
 
     private static void giveItemSetToPlayer(Player player, String setId) {
@@ -719,6 +794,54 @@ public class CommandManager {
                         .setCommandArgumentsList(2, "spawn", Arrays.asList("debug", "respawn"))
                         .setCommandArgumentsList(1, "debug", Arrays.asList("respawn"))
                         .setCommandArgumentsList(1, "respawn", Arrays.asList("debug")));
+
+        // ==============================================================
+        // pillar tree -> /d pillar [status|spawn|hp|damage|revive|remove]
+        // ==============================================================
+        addSubCommand("project-d",
+                SubCommandBuilder.startBuilding("pillar").setDescription("Debug pillar controls")
+                        .setPlayerCommandAction(0, perm("projectd.pillar.debug", (player, args) -> {
+                            reportPillars(player, DebugPillarService.getInstance().find(player));
+                        }))
+                        .setPlayerCommandAction(1, "status", perm("projectd.pillar.debug", (player, args) -> {
+                            reportPillars(player, DebugPillarService.getInstance().find(player));
+                        }))
+                        .setPlayerCommandAction(1, "spawn", perm("projectd.pillar.debug", (player, args) -> {
+                            PillarManager manager = DebugPillarService.getInstance().spawnAt(player, 4);
+                            if (manager == null) {
+                                player.sendMessage("§c[Pillar Debug] Could not spawn debug pillars.");
+                            } else {
+                                player.sendMessage("§a[Pillar Debug] Spawned 4 debug pillars. Use §e/d pillar status§a.");
+                            }
+                        }))
+                        .setPlayerCommandAction(3, "hp", perm("projectd.pillar.debug", (player, args) -> {
+                            applyPillarHp(player, args[1], args[2]);
+                        }))
+                        .setPlayerCommandAction(3, "damage", perm("projectd.pillar.debug", (player, args) -> {
+                            applyPillarDamage(player, args[1], args[2]);
+                        }))
+                        .setPlayerCommandAction(2, "revive", perm("projectd.pillar.debug", (player, args) -> {
+                            applyPillarRevive(player, args[1]);
+                        }))
+                        .setPlayerCommandAction(1, "remove", perm("projectd.pillar.debug", (player, args) -> {
+                            int removed = DebugPillarService.getInstance().removeAt(player);
+                            if (removed > 0) {
+                                player.sendMessage("§a[Pillar Debug] Removed the nearest debug pillar system.");
+                            } else {
+                                player.sendMessage("§c[Pillar Debug] No debug pillar system nearby.");
+                            }
+                        }))
+                        .setPlayerCommandAction(1, "removeAll", perm("projectd.pillar.debug", (player, args) -> {
+                            int removed = DebugPillarService.getInstance().removeAll();
+                            player.sendMessage("§a[Pillar Debug] Removed " + removed + " debug pillar system(s).");
+                        }))
+                        .setCommandArgumentsList(0,
+                                Arrays.asList("status", "spawn", "hp", "damage", "revive", "remove", "removeAll"))
+                        .setCommandArgumentsList(1, "hp", Arrays.asList("1", "2", "3", "4", "all"))
+                        .setCommandArgumentsList(2, "hp", "amount(Double)")
+                        .setCommandArgumentsList(1, "damage", Arrays.asList("1", "2", "3", "4", "all"))
+                        .setCommandArgumentsList(2, "damage", "amount(Double)")
+                        .setCommandArgumentsList(1, "revive", Arrays.asList("1", "2", "3", "4", "all")));
 
         // ==============================================================
         // give tree -> /d give itemset <setName>

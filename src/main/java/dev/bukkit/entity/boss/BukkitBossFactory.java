@@ -155,7 +155,9 @@ public class BukkitBossFactory {
             List<UUID> spawned = new ArrayList<>(count);
             for (int i = 0; i < count; i++) {
                 Location loc = origin.clone().add(RANDOM.nextInt(5) - 2, 0.5, RANDOM.nextInt(5) - 2);
-                spawned.add(origin.getWorld().spawnEntity(loc, type).getUniqueId());
+                Entity entity = origin.getWorld().spawnEntity(loc, type);
+                BukkitEntityMetadata.set(entity, "BOSS_MINION", true);
+                spawned.add(entity.getUniqueId());
             }
             return spawned;
         }

@@ -1,5 +1,7 @@
 package dev.bukkit.entity.boss.stage;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Locale;
 import java.util.UUID;
 
@@ -21,7 +23,11 @@ import dev.bukkit.entity.BukkitDisplayEntityRegistry;
 import dev.bukkit.entity.boss.BukkitBossEntity;
 import dev.bukkit.entity.boss.NoTargetStrategy;
 import dev.bukkit.event.BukkitEventBus;
+import dev.bukkit.game.boss.pillar.PillarConfig;
+import dev.bukkit.game.boss.pillar.PillarManager;
+import dev.bukkit.game.boss.pillar.PillarMath;
 import dev.bukkit.game.boss.stalactite.StalactiteConfig;
+import dev.core.game.coords.Point3D;
 import dev.core.entity.boss.BossStage;
 import dev.core.entity.boss.BossStageContext;
 import dev.core.entity.boss.BossStageType;
@@ -52,7 +58,17 @@ public class BossGrowStageType implements BossStageType {
         double baseRate = Math.max(0, params.getDouble("ascent-base-rate", 0.15));
         double maxRate = Math.max(baseRate, params.getDouble("ascent-max-rate", 1.5));
         int pillarCount = Math.max(1, params.getInt("pillar-count", 4));
-        double pillarMaxHp = Math.max(1, params.getDouble("pillar-max-hp", 100.0));
+        PillarConfig pillarConfig = new PillarConfig(
+                Math.max(1, params.getDouble("pillar-max-hp", 100.0)),
+                Math.max(1, params.getInt("pillar-height", 12)),
+                Math.max(1, params.getInt("pillar-break-ticks", 40)),
+                PillarMath.clamp01(params.getDouble("pillar-hold-threshold", 0.95)),
+                params.getDouble("repair-hp-per-resource", 10.0),
+                params.getDouble("mob-damage-scale", 1.0),
+                params.getDouble("siege-aggro-percent", 40.0),
+                Math.max(1, params.getInt("siege-aggro-interval-ticks", 40)),
+                params.getDouble("chain-taut-sag", 0.02),
+                params.getDouble("chain-slack-sag", 0.45));
         String wipeStageId = params.getString("wipe-stage", "wipe");
         Material groundMaterial = Material.matchMaterial(params.getString("ground-material", "BLACK_CONCRETE"));
         if (groundMaterial == null) {
@@ -62,9 +78,10 @@ public class BossGrowStageType implements BossStageType {
                 params.getDouble("stalactite-push-percent", StalactiteConfig.PUSH_AMOUNT_PERCENT));
         double stalactiteExplosionPercent = clampPercent(
                 params.getDouble("stalactite-explosion-percent", StalactiteConfig.EXPLOSION_PERCENT));
+        BossGrowStageLocations locations = BossGrowStageLocations.from(params);
         return new BossGrowStage(id, introTicks, buriedDepth, halfHeight, fullHeight, baseRate, maxRate,
-                pillarCount, pillarMaxHp, wipeStageId, groundMaterial, stalactitePushPercent,
-                stalactiteExplosionPercent);
+                pillarCount, pillarConfig, wipeStageId, groundMaterial, stalactitePushPercent,
+                stalactiteExplosionPercent, locations);
     }
 
     private static double clampPercent(double value) {
@@ -103,8 +120,8 @@ public class BossGrowStageType implements BossStageType {
     }
 
     public static boolean damagePillars(RPGBossEntity boss, double amount) {
-        if (boss.getStageState() instanceof GrowState state) {
-            state.damagePillars(amount);
+        if (boss.getStageState() instanceof GrowState state && state.pillarManager != null) {
+            state.pillarManager.damageAll(amount);
             return true;
         }
         return false;
@@ -124,8 +141,8 @@ public class BossGrowStageType implements BossStageType {
         boolean ended;
         boolean wipeTransition;
         long lastTickMs;
-        double pillarCurrentHp;
-        double pillarMaxHp;
+        PillarManager pillarManager;
+        BossGrowStageLocations locations = BossGrowStageLocations.empty();
         double stalactitePushFraction = StalactiteConfig.PUSH_AMOUNT_PERCENT / 100.0;
         double stalactiteExplosionFraction = StalactiteConfig.EXPLOSION_PERCENT / 100.0;
         UUID crackDisplayId;
@@ -144,15 +161,15 @@ public class BossGrowStageType implements BossStageType {
         }
 
         public double getPillarHealthFraction() {
-            return pillarMaxHp <= 0 ? 0 : pillarCurrentHp / pillarMaxHp;
+            return pillarManager != null ? pillarManager.getAggregateHealthFraction() : 0.0;
         }
 
-        public double getPillarCurrentHp() {
-            return pillarCurrentHp;
+        public PillarManager getPillarManager() {
+            return pillarManager;
         }
 
-        public double getPillarMaxHp() {
-            return pillarMaxHp;
+        public BossGrowStageLocations getLocations() {
+            return locations;
         }
 
         public void pushDown(double fractionDelta) {
@@ -160,21 +177,6 @@ public class BossGrowStageType implements BossStageType {
                 return;
             }
             heightFraction = Math.max(0, heightFraction - fractionDelta);
-        }
-
-        public void damagePillars(double amount) {
-            if (amount <= 0) {
-                return;
-            }
-            pillarCurrentHp = Math.max(0, pillarCurrentHp - amount);
-        }
-
-        public void setPillarHp(double hp) {
-            pillarCurrentHp = Math.max(0, Math.min(pillarMaxHp, hp));
-        }
-
-        public void setPillarHealthFraction(double fraction) {
-            pillarCurrentHp = pillarMaxHp * SealedGrowMath.clamp01(fraction);
         }
     }
 }
@@ -191,14 +193,6 @@ final class SealedGrowMath {
 
     static double introY(double startY, double targetY, double progress) {
         return startY + (targetY - startY) * smoothstep(progress);
-    }
-
-    static double ascentSpeed(double baseRate, double maxRate, double currentHp, double maxHp) {
-        if (maxHp <= 0) {
-            return maxRate;
-        }
-        double ratio = clamp01(currentHp / maxHp);
-        return baseRate + (maxRate - baseRate) * (1 - ratio);
     }
 
     static double nextFraction(double fraction, double speed, double deltaSeconds, double fullHeight) {
@@ -223,15 +217,17 @@ final class BossGrowStage implements BossStage {
     private final double baseRate;
     private final double maxRate;
     private final int pillarCount;
-    private final double pillarMaxHp;
+    private final PillarConfig pillarConfig;
     private final String wipeStageId;
     private final Material groundMaterial;
     private final double stalactitePushPercent;
     private final double stalactiteExplosionPercent;
+    private final BossGrowStageLocations locations;
 
     BossGrowStage(String id, int introTicks, double buriedDepth, double halfHeight, double fullHeight,
-            double baseRate, double maxRate, int pillarCount, double pillarMaxHp, String wipeStageId,
-            Material groundMaterial, double stalactitePushPercent, double stalactiteExplosionPercent) {
+            double baseRate, double maxRate, int pillarCount, PillarConfig pillarConfig, String wipeStageId,
+            Material groundMaterial, double stalactitePushPercent, double stalactiteExplosionPercent,
+            BossGrowStageLocations locations) {
         this.id = id;
         this.introTicks = introTicks;
         this.buriedDepth = buriedDepth;
@@ -240,11 +236,12 @@ final class BossGrowStage implements BossStage {
         this.baseRate = baseRate;
         this.maxRate = maxRate;
         this.pillarCount = pillarCount;
-        this.pillarMaxHp = pillarMaxHp;
+        this.pillarConfig = pillarConfig;
         this.wipeStageId = wipeStageId;
         this.groundMaterial = groundMaterial;
         this.stalactitePushPercent = stalactitePushPercent;
         this.stalactiteExplosionPercent = stalactiteExplosionPercent;
+        this.locations = locations != null ? locations : BossGrowStageLocations.empty();
     }
 
     @Override
@@ -274,11 +271,15 @@ final class BossGrowStage implements BossStage {
         state.currentY = state.startY;
         state.heightFraction = 0;
         state.lastTickMs = System.currentTimeMillis();
-        state.pillarMaxHp = pillarCount * pillarMaxHp;
-        state.pillarCurrentHp = state.pillarMaxHp;
+        state.locations = locations;
         state.stalactitePushFraction = stalactitePushPercent / 100.0;
         state.stalactiteExplosionFraction = stalactiteExplosionPercent / 100.0;
         state.crackDisplayId = spawnCrackDisplay(world, base);
+        state.pillarManager = createPillarManager(world, base);
+        if (state.pillarManager == null || !state.pillarManager.start()) {
+            state.pillarManager = null;
+            context.broadcast("§c[Grow] Pillar locations are incomplete; the boss has no anchors.");
+        }
         context.setState(state);
 
         boss.setMovementStrategy(new NoopMovementStrategy());
@@ -321,14 +322,12 @@ final class BossGrowStage implements BossStage {
         double deltaSeconds = Math.min(0.25, deltaMs / 1000.0);
         double elapsedTicks = Math.max(0, now - context.getStageStartTime()) / 50.0;
 
-        if (!state.introComplete) {
-            tickIntro(context, boss, living, world, state, elapsedTicks);
-            return;
+        if (state.pillarManager != null) {
+            state.pillarManager.tick();
         }
 
-        boolean allDestroyed = state.pillarMaxHp > 0 && state.pillarCurrentHp <= 0;
-        if (allDestroyed) {
-            triggerWipe(context, state);
+        if (!state.introComplete) {
+            tickIntro(context, boss, living, world, state, elapsedTicks);
             return;
         }
 
@@ -342,8 +341,10 @@ final class BossGrowStage implements BossStage {
             return;
         }
 
-        double speed = SealedGrowMath.ascentSpeed(baseRate, maxRate, state.pillarCurrentHp, state.pillarMaxHp);
-        state.heightFraction = SealedGrowMath.nextFraction(state.heightFraction, speed, deltaSeconds, fullHeight);
+        double heightIncrease = state.pillarManager != null
+                ? state.pillarManager.calculateBossHeightIncrease(deltaSeconds, baseRate, maxRate, fullHeight)
+                : SealedGrowMath.nextFraction(0, maxRate, deltaSeconds, fullHeight);
+        state.heightFraction = SealedGrowMath.clamp01(state.heightFraction + heightIncrease);
         double y = state.base.getY() + state.heightFraction * fullHeight;
         state.currentY = y;
         teleportY(living, state.base, y);
@@ -359,6 +360,26 @@ final class BossGrowStage implements BossStage {
         if (state.heightFraction >= 1.0) {
             triggerWipe(context, state);
         }
+    }
+
+    private PillarManager createPillarManager(World world, Location base) {
+        List<Location> bases = new ArrayList<>();
+        List<Location> chains = new ArrayList<>();
+        for (int i = 1; i <= pillarCount; i++) {
+            Point3D point = locations.pillarLocations().get(i);
+            if (point == null) {
+                return null;
+            }
+            bases.add(new Location(world, point.getX(), point.getY(), point.getZ()));
+            Point3D chain = locations.chainLinkLocations().get(i);
+            chains.add(chain == null ? null : new Location(world, chain.getX(), chain.getY(), chain.getZ()));
+        }
+
+        List<Location> crates = new ArrayList<>();
+        for (Point3D point : locations.crateSpawnerLocations()) {
+            crates.add(new Location(world, point.getX(), point.getY(), point.getZ()));
+        }
+        return new PillarManager(world, base, pillarConfig, bases, chains, crates, false);
     }
 
     private void triggerWipe(BossStageContext context, BossGrowStageType.GrowState state) {
@@ -426,6 +447,10 @@ final class BossGrowStage implements BossStage {
             BukkitDisplayEntityRegistry.getInstance().removeDisplayEntity(state.crackDisplayId);
             state.crackDisplayId = null;
         }
+        if (state != null && state.pillarManager != null) {
+            state.pillarManager.shutdown(false);
+            state.pillarManager = null;
+        }
         if (context.getBoss() instanceof BukkitBossEntity boss) {
             boss.clearDisplayOverride();
         }
@@ -475,12 +500,18 @@ final class BossGrowStage implements BossStage {
             return;
         }
 
+        PillarManager manager = state.pillarManager;
+        if (manager == null) {
+            player.sendMessage("§c[Pillars] No pillar manager is active.");
+            return;
+        }
+
         String[] parts = args.split("\\s+");
         String action = parts[0].toLowerCase(Locale.ROOT);
         try {
             switch (action) {
             case "reset" -> {
-                state.setPillarHealthFraction(1.0);
+                manager.resetAll();
                 reportPillars(player, state);
             }
             case "damage" -> {
@@ -488,7 +519,7 @@ final class BossGrowStage implements BossStage {
                     pillarsUsage(player);
                     return;
                 }
-                state.damagePillars(Double.parseDouble(parts[1]));
+                manager.damageAll(Double.parseDouble(parts[1]));
                 reportPillars(player, state);
             }
             case "hp", "set" -> {
@@ -496,11 +527,11 @@ final class BossGrowStage implements BossStage {
                     pillarsUsage(player);
                     return;
                 }
-                state.setPillarHp(Double.parseDouble(parts[1]));
+                manager.setAllHp(Double.parseDouble(parts[1]));
                 reportPillars(player, state);
             }
             default -> {
-                state.setPillarHealthFraction(Double.parseDouble(action) / 100.0);
+                manager.setAllHealthFraction(Double.parseDouble(action) / 100.0);
                 reportPillars(player, state);
             }
             }
@@ -510,23 +541,19 @@ final class BossGrowStage implements BossStage {
     }
 
     private static void reportPillars(Player player, BossGrowStageType.GrowState state) {
-        double current = state.getPillarCurrentHp();
-        double max = state.getPillarMaxHp();
-        int percent = (int) Math.round(state.getPillarHealthFraction() * 100.0);
-        player.sendMessage("§a[Pillars] §e" + formatPillarValue(current) + "§7/§e" + formatPillarValue(max)
-                + " §7(" + percent + "%)");
+        if (state.pillarManager == null) {
+            player.sendMessage("§c[Pillars] No pillar manager is active.");
+            return;
+        }
+        player.sendMessage(state.pillarManager.describeStatus());
+        for (String line : state.pillarManager.describePillars()) {
+            player.sendMessage(line);
+        }
     }
 
     private static void pillarsUsage(Player player) {
         player.sendMessage("§e[Pillars] Usage: §f!pillars §7| §f!pillars <0-100> §7| §f!pillars hp <amount> §7| "
-                + "§f!pillars damage <amount> §7| §f!pillars reset");
-    }
-
-    private static String formatPillarValue(double value) {
-        if (value == Math.rint(value)) {
-            return String.valueOf((long) value);
-        }
-        return String.format(Locale.ROOT, "%.1f", value);
+                + "§f!pillars damage <amount> §7| §f!pillars reset §7(or use §f/d pillar§7)");
     }
 
     private UUID spawnCrackDisplay(World world, Location base) {

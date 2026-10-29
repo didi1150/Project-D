@@ -28,6 +28,27 @@ class GameSettingsLoaderTest {
         assertEquals("boss-arena", settings.getBossWorld());
     }
 
+    @Test
+    void load_readsFloorRewardLocations() {
+        TestConfigProvider provider = new TestConfigProvider();
+        provider.getRoot().set("locations.rewardplayerspawn.2.x", 10);
+        provider.getRoot().set("locations.rewardplayerspawn.2.y", 65);
+        provider.getRoot().set("locations.rewardplayerspawn.2.z", 20);
+        provider.getRoot().set("locations.rewardplayerspawn.2.world", "boss");
+        provider.getRoot().set("locations.rewardchest.2.x", 4);
+        provider.getRoot().set("locations.rewardchest.2.y", 64);
+        provider.getRoot().set("locations.rewardchest.2.z", 6);
+        provider.getRoot().set("locations.rewardchest.2.world", "boss");
+
+        GameSettings settings = GameSettings.getCurrentSettings();
+        new GameSettingsLoader(settings, provider).load();
+
+        assertEquals(10, settings.getRewardPlayerSpawnLocation(2).getX());
+        assertEquals(20, settings.getRewardPlayerSpawnLocation(2).getZ());
+        assertEquals(4, settings.getRewardChestLocation(2).getX());
+        assertEquals(6, settings.getRewardChestLocation(2).getZ());
+    }
+
     private static final class TestConfigProvider implements ConfigProvider {
         private final TestConfigSection root = new TestConfigSection(new HashMap<>());
 
@@ -91,10 +112,14 @@ class GameSettingsLoaderTest {
         }
 
         @Override
+        @SuppressWarnings("unchecked")
         public ConfigSection getSection(String path) {
             Object value = resolve(path);
             if (value instanceof TestConfigSection section) {
                 return section;
+            }
+            if (value instanceof Map<?, ?> map) {
+                return new TestConfigSection((Map<String, Object>) map);
             }
             TestConfigSection section = new TestConfigSection(new HashMap<>());
             set(path, section);

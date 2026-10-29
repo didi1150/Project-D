@@ -48,16 +48,15 @@ import dev.bukkit.ability.behavior.TriVolleyBehavior;
 import dev.bukkit.ability.behavior.VampirismBehavior;
 import dev.bukkit.ability.behavior.WitherSkullOrbitBehavior;
 import dev.bukkit.command.CommandManager;
-import dev.bukkit.entity.DebugRpgEntityService;
 import dev.bukkit.entity.BukkitDisplayEntityRegistry;
+import dev.bukkit.entity.DebugRpgEntityService;
 import dev.bukkit.event.BukkitEventBus;
 import dev.bukkit.event.bukkitListeners.CombatListener;
 import dev.bukkit.event.bukkitListeners.EventBusRegistry;
 import dev.bukkit.event.subscribers.ThreatPassiveSubscriber;
 import dev.bukkit.game.boss.BossArenaManager;
+import dev.bukkit.game.boss.pillar.DebugPillarService;
 import dev.bukkit.game.boss.stalactite.DebugStalactiteService;
-import dev.bukkit.reload.BossReloadService;
-import dev.bukkit.reward.RewardCaseService;
 import dev.bukkit.game.dungeon.DungeonPortalManager;
 import dev.bukkit.game.dungeon.buildassets.BuildAssetManager;
 import dev.bukkit.game.dungeon.proceduralDungeon.BukkitVoidWorldGenerator;
@@ -78,6 +77,8 @@ import dev.bukkit.hud.HunterHudFormatter;
 import dev.bukkit.hud.StaffHudFormatter;
 import dev.bukkit.hud.TriHomingHudFormatter;
 import dev.bukkit.item.display.LoreLabels;
+import dev.bukkit.reload.BossReloadService;
+import dev.bukkit.reward.RewardCaseService;
 import dev.bukkit.status.BukkitStatusEffectManager;
 import dev.bukkit.status.StatusEffectBehaviorRegistry;
 import dev.bukkit.status.behavior.AbsorptionStatusEffectBehavior;
@@ -95,6 +96,8 @@ import dev.bukkit.utils.BukkitMessageSender;
 import dev.bukkit.utils.HealAuraUtils;
 import dev.bukkit.utils.ManaDiscountUtils;
 import dev.bukkit.utils.setup.BossSetupHelper;
+import dev.bukkit.utils.setup.BossStageLocationConfig;
+import dev.bukkit.utils.setup.BossStageLocationMigration;
 import dev.bukkit.utils.setup.BuildAssetHelper;
 import dev.bukkit.utils.setup.GameSetupHelper;
 import dev.bukkit.utils.setup.SetupManager;
@@ -114,8 +117,8 @@ import dev.core.ability.impl.ParticleTestAbility;
 import dev.core.ability.impl.ShadowWeaverStaffAbility;
 import dev.core.ability.impl.ShieldBashAbility;
 import dev.core.ability.impl.SmashAbility;
-import dev.core.ability.impl.SniperPassiveAbility;
 import dev.core.ability.impl.SmokeShroudAbility;
+import dev.core.ability.impl.SniperPassiveAbility;
 import dev.core.ability.impl.SoulCollectorAbility;
 import dev.core.ability.impl.SoulRecallAbility;
 import dev.core.ability.impl.SoulRecallShiftAbility;
@@ -345,6 +348,14 @@ public final class DMain extends JavaPlugin {
         GameSettings gameSettings = GameSettings.getCurrentSettings();
         GameSettingsLoader gameSettingsLoader = new GameSettingsLoader(gameSettings, setupConfig);
         gameSettingsLoader.load();
+        BossStageLocationConfig stageLocationConfig = new BossStageLocationConfig(
+                configManager.getProvider("bosses.yml"));
+        int migratedStageLocations = BossStageLocationMigration.migrate(stageLocationConfig, setupConfig, 1);
+        if (migratedStageLocations > 0) {
+            Bukkit.getLogger().info("Migrated " + migratedStageLocations
+                    + " boss stage location(s) from setup.yml to bosses.yml.");
+            BossReloadService.reload(configManager);
+        }
         // Initialize boss arena manager from setup config
         this.bossArenaManager = BossArenaManager.createDefault(this);
         this.bossArenaManager.cleanupOrphanInstances();
@@ -410,7 +421,7 @@ public final class DMain extends JavaPlugin {
         buildAssetManager = new BuildAssetManager(this, "buildAssets/");
         BuildAssetHelper buildAssetHelper = new BuildAssetHelper(buildAssetManager);
         GameSetupHelper gameSetupHelper = new GameSetupHelper(gameSettingsLoader);
-        BossSetupHelper bossSetupHelper = new BossSetupHelper(gameSettingsLoader);
+        BossSetupHelper bossSetupHelper = new BossSetupHelper(gameSettingsLoader, stageLocationConfig);
         SetupManager.getInstance().registerSetupHelpers(commandManager, eventBusInterface,
                 (BukkitMessageSender) messageSenderInterface);
 
@@ -458,6 +469,10 @@ public final class DMain extends JavaPlugin {
         }
         try {
             DebugStalactiteService.getInstance().shutdownAll();
+        } catch (Exception ignored) {
+        }
+        try {
+            DebugPillarService.getInstance().shutdownAll();
         } catch (Exception ignored) {
         }
         if (rewardCaseService != null) {

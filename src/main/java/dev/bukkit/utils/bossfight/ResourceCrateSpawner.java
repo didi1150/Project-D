@@ -1,6 +1,7 @@
 package dev.bukkit.utils.bossfight;
 
 import dev.bukkit.event.BukkitEventBus;
+import dev.bukkit.game.boss.pillar.PillarResourceKeys;
 import dev.core.event.EventAction;
 import dev.core.event.impl.TickEvent;
 import dev.core.game.dungeon.proceduralDungeon.util.Vector3Int;
@@ -13,6 +14,8 @@ import org.bukkit.inventory.ItemStack;
 import org.bukkit.util.Transformation;
 import org.joml.Vector3f;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Random;
 
 public class ResourceCrateSpawner {
@@ -24,6 +27,7 @@ public class ResourceCrateSpawner {
     private TextDisplay cooldownDisplay;
     private SpinningBlockDisplay showcaseDisplay;
     private ResourceCrateDisplay crateDisplay;
+    private final List<EventAction<?>> subscriptions = new ArrayList<>();
 
     private final Vector3Int pos;
 
@@ -36,7 +40,7 @@ public class ResourceCrateSpawner {
         this.amount = amount;
         this.dropCooldownInSec = dropCooldownInSec;
         this.pos = pos;
-        BukkitEventBus.getInstance().subscribe(new EventAction<>(event -> {
+        subscribe(new EventAction<>(event -> {
             if (crateDisplay != null) {
                 if (!crateDisplay.isSpawned()) {
                     ticksSinceLastDrop += event.getTickDelta();
@@ -48,6 +52,21 @@ public class ResourceCrateSpawner {
                 }
             }
         }, TickEvent.class));
+    }
+
+    private <E> EventAction<E> subscribe(EventAction<E> action) {
+        BukkitEventBus.getInstance().subscribe(action);
+        subscriptions.add(action);
+        return action;
+    }
+
+    public void destroy() {
+        clearDisplay();
+        for (EventAction<?> action : subscriptions) {
+            BukkitEventBus.getInstance().unsubscribe(action);
+        }
+        subscriptions.clear();
+        world = null;
     }
 
     public Vector3Int getPos() {
@@ -121,7 +140,7 @@ public class ResourceCrateSpawner {
             this.pos = pos;
             this.scale = scale;
             this.rotationSpeed = rotationSpeed;
-            BukkitEventBus.getInstance().subscribe(new EventAction<>(event -> {
+            subscribe(new EventAction<>(event -> {
                 onTick(event.getTickDelta());
             }, TickEvent.class));
         }
@@ -193,7 +212,7 @@ public class ResourceCrateSpawner {
             super(material, pos, scale, rotationSpeed);
             this.resourceMaterial = resourceMaterial;
             this.resourceAmount = resourceAmount;
-            BukkitEventBus.getInstance().subscribe(new EventAction<>(event -> {
+            subscribe(new EventAction<>(event -> {
                 //TODO fix bug where first hit doesnt register correctly / doesnt trigger anim
                 Entity entity = event.getEntity();
                 if (interactionEntity != null && entity.getUniqueId().equals(interactionEntity.getUniqueId()) && event.getDamager().getType() == EntityType.PLAYER) {
@@ -267,6 +286,7 @@ public class ResourceCrateSpawner {
                             openingStage = 0;
                             Location loc = new Location(world, pos.x + 0.5, pos.y + 0.5 , pos.z + 0.5);
                             ItemStack item = new ItemStack(resourceMaterial, resourceAmount);
+                            PillarResourceKeys.tagRepairResource(item);
                             world.dropItem(loc, item);
                             world.playSound(loc, Sound.BLOCK_BARREL_OPEN, 2, 2);
                             clearDisplay();

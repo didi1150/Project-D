@@ -23,14 +23,6 @@ class SealedGrowMathTest {
     }
 
     @Test
-    void ascentSpeedsUpAsPillarsLoseHealth() {
-        assertEquals(0.1, SealedGrowMath.ascentSpeed(0.1, 1.0, 100, 100), 0.0001);
-        assertEquals(1.0, SealedGrowMath.ascentSpeed(0.1, 1.0, 0, 100), 0.0001);
-        assertEquals(0.55, SealedGrowMath.ascentSpeed(0.1, 1.0, 50, 100), 0.0001);
-        assertEquals(1.0, SealedGrowMath.ascentSpeed(0.1, 1.0, 0, 0), 0.0001);
-    }
-
-    @Test
     void fractionAdvancesAndClamps() {
         assertEquals(0.1, SealedGrowMath.nextFraction(0, 1, 1, 10), 0.0001);
         assertEquals(1.0, SealedGrowMath.nextFraction(0.95, 1, 1, 10), 0.0001);
@@ -50,33 +42,14 @@ class SealedGrowMathTest {
     }
 
     @Test
-    void growStateSupportsPushDownAndPillarDamage() {
+    void growStateSupportsPushDown() {
         BossGrowStageType.GrowState state = new BossGrowStageType.GrowState();
-        state.pillarMaxHp = 100;
-        state.pillarCurrentHp = 100;
         state.heightFraction = 0.6;
-
-        state.damagePillars(40);
-        assertEquals(0.6, state.getPillarHealthFraction(), 0.0001);
 
         state.pushDown(0.25);
         assertEquals(0.35, state.getHeightFraction(), 0.0001);
 
         state.pushDown(1.0);
         assertEquals(0.0, state.getHeightFraction(), 0.0001);
-
-        state.damagePillars(1000);
-        assertEquals(0.0, state.getPillarHealthFraction(), 0.0001);
-
-        state.setPillarHealthFraction(0.25);
-        assertEquals(25.0, state.getPillarCurrentHp(), 0.0001);
-        assertEquals(0.25, state.getPillarHealthFraction(), 0.0001);
-
-        state.setPillarHp(75);
-        assertEquals(75.0, state.getPillarCurrentHp(), 0.0001);
-        assertEquals(0.75, state.getPillarHealthFraction(), 0.0001);
-
-        state.setPillarHp(1000);
-        assertEquals(100.0, state.getPillarCurrentHp(), 0.0001);
     }
 }

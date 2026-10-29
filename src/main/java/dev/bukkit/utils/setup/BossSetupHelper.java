@@ -3,9 +3,10 @@ package dev.bukkit.utils.setup;
 import java.util.*;
 import java.util.stream.Collectors;
 
+import dev.bukkit.DMain;
 import dev.bukkit.game.coords.PointToLocation;
+import dev.bukkit.reload.BossReloadService;
 import dev.core.game.coords.ViewPoint3D;
-import dev.core.game.settings.Floor1BossSettings;
 import dev.core.game.settings.GameSettingsLoader;
 import org.bukkit.*;
 import org.bukkit.entity.BlockDisplay;
@@ -40,6 +41,8 @@ import org.joml.Vector3f;
 public class BossSetupHelper extends SetupHelper {
 
     private final GameSettingsLoader gameSettingsLoader;
+    private final BossStageLocationConfig stageLocationConfig;
+    private final Map<UUID, Integer> playerFloors = new HashMap<>();
 
     private static final String DISPLAY_NAME_CHAIN_TEST = "Chain Test Tool";
     private static final String DISPLAY_NAME_RESOURCE_CRATE_SPAWNER = "Resource Crate Spawner Tool";
@@ -60,9 +63,10 @@ public class BossSetupHelper extends SetupHelper {
     private SpawnPositionDisplay rewardPlayerSpawn;
     private BlockPositionDisplay rewardChest;
 
-    public BossSetupHelper(GameSettingsLoader gameSettingsLoader) {
+    public BossSetupHelper(GameSettingsLoader gameSettingsLoader, BossStageLocationConfig stageLocationConfig) {
         super("GameSetupMode");
         this.gameSettingsLoader = gameSettingsLoader;
+        this.stageLocationConfig = stageLocationConfig;
     }
 
     private ItemStack getChainTestTool() {
@@ -138,9 +142,17 @@ public class BossSetupHelper extends SetupHelper {
 
     @Override
     public void giveSetupItemsToPlayer(BukkitMessageSender ms, Player player) {
-        ArrayList<ItemStack> items = new ArrayList<>(List.of(getChainTestTool(), getResourceCrateSpawnerTool(),
-                getStalactiteLocationSelectorTool(), getMobWavesSpawnLocationSelectorTool(), getPillarLocationSelectorTool(1),
-                getChainLinkLocationSelectorTool(1), getRewardPlayerSpawnLocationSelectorTool(), getRewardChestLocationSelectorTool()));
+        ArrayList<ItemStack> items = new ArrayList<>();
+        if (getSetupFloor(player) == 1) {
+            items.add(getChainTestTool());
+            items.add(getResourceCrateSpawnerTool());
+            items.add(getStalactiteLocationSelectorTool());
+            items.add(getMobWavesSpawnLocationSelectorTool());
+            items.add(getPillarLocationSelectorTool(1));
+            items.add(getChainLinkLocationSelectorTool(1));
+        }
+        items.add(getRewardPlayerSpawnLocationSelectorTool());
+        items.add(getRewardChestLocationSelectorTool());
         for (ItemStack item : items) {
             player.getInventory().addItem(item);
         }
@@ -168,12 +180,22 @@ public class BossSetupHelper extends SetupHelper {
     @Override
     public boolean removePlayerFromMode(Player player) {
         if (super.removePlayerFromMode(player)) {
+            playerFloors.remove(player.getUniqueId());
             if (playersInMode.isEmpty()) {
                 clearDisplays();
             }
             return true;
         }
         return false;
+    }
+
+    private int getSetupFloor(Player player) {
+        Integer floor = playerFloors.get(player.getUniqueId());
+        if (floor != null && floor > 0) {
+            return floor;
+        }
+        int currentFloor = GameSettings.getCurrentSettings().getFloor();
+        return currentFloor > 0 ? currentFloor : 1;
     }
 
     @Override
@@ -193,7 +215,7 @@ public class BossSetupHelper extends SetupHelper {
         });
         chainLinks.clear();
         for (Pair<ResourceCrateSpawner, BlockPositionDisplay> pair : resourceCrateSpawners) {
-            pair.first.clearDisplay();
+            pair.first.destroy();
             pair.second.clearDisplays();
         }
         resourceCrateSpawners.clear();
@@ -219,49 +241,53 @@ public class BossSetupHelper extends SetupHelper {
             removePlayerFromMode(player);
     }
 
-    private void loadDisplaysFromFile(World world) {
+    private void loadDisplaysFromFile(World world, int floor) {
         gameSettingsLoader.load();
         GameSettings gameSettings = GameSettings.getCurrentSettings();
-        Floor1BossSettings bossSettings = ((Floor1BossSettings) gameSettings.getBossSettings(1));
-        bossSettings.getPillarLocations().forEach((pillar, point3D) -> {
-            Vector3Int pos = Vector3Int.fromPoint3D(point3D);
-            BlockPositionDisplay blockPositionDisplay = new BlockPositionDisplay("Pillar " + pillar, Material.WHITE_STAINED_GLASS, Color.WHITE, pos);
-            blockPositionDisplay.spawnDisplay(world);
-            pillars.put(pillar, blockPositionDisplay);
+
+        stageLocationConfig.load(floor).ifPresent(locations -> {
+            locations.pillarLocations().forEach((pillar, point3D) -> {
+                Vector3Int pos = Vector3Int.fromPoint3D(point3D);
+                BlockPositionDisplay blockPositionDisplay = new BlockPositionDisplay("Pillar " + pillar, Material.WHITE_STAINED_GLASS, Color.WHITE, pos);
+                blockPositionDisplay.spawnDisplay(world);
+                pillars.put(pillar, blockPositionDisplay);
+            });
+            locations.chainLinkLocations().forEach((chainLink, point3D) -> {
+                Vector3Int pos = Vector3Int.fromPoint3D(point3D);
+                BlockPositionDisplay blockPositionDisplay = new BlockPositionDisplay("Chain " + chainLink, Material.GRAY_STAINED_GLASS, Color.GRAY, pos);
+                blockPositionDisplay.spawnDisplay(world);
+                chainLinks.put(chainLink, blockPositionDisplay);
+            });
+            for (Point3D point3D : locations.crateSpawnerLocations()) {
+                Vector3Int pos = Vector3Int.fromPoint3D(point3D);
+                ResourceCrateSpawner crateSpawner = new ResourceCrateSpawner(Material.QUARTZ, 5, 5, pos);
+                crateSpawner.spawnDisplay(world);
+                BlockPositionDisplay blockPositionDisplay = new BlockPositionDisplay("Crate", Material.BROWN_STAINED_GLASS, Color.MAROON, pos);
+                blockPositionDisplay.spawnDisplay(world);
+                resourceCrateSpawners.add(new Pair<>(crateSpawner, blockPositionDisplay));
+            }
+            for (Point3D point3D : locations.stalactiteLocations()) {
+                Vector3Int pos = Vector3Int.fromPoint3D(point3D);
+                BlockPositionDisplay blockPositionDisplay = new BlockPositionDisplay("Stalactite", Material.GREEN_STAINED_GLASS, Color.GREEN, pos);
+                blockPositionDisplay.spawnDisplay(world);
+                stalactites.add(blockPositionDisplay);
+            }
+            for (Point3D point3D : locations.mobWaveSpawnLocations()) {
+                Vector3Int pos = Vector3Int.fromPoint3D(point3D);
+                BlockPositionDisplay blockPositionDisplay = new BlockPositionDisplay("Mob Spawn", Material.RED_STAINED_GLASS, Color.RED, pos);
+                blockPositionDisplay.spawnDisplay(world);
+                mobWaveSpawns.add(blockPositionDisplay);
+            }
         });
-        bossSettings.getChainLinkLocations().forEach((chainLink, point3D) -> {
-            Vector3Int pos = Vector3Int.fromPoint3D(point3D);
-            BlockPositionDisplay blockPositionDisplay = new BlockPositionDisplay("Chain " + chainLink, Material.GRAY_STAINED_GLASS, Color.GRAY, pos);
-            blockPositionDisplay.spawnDisplay(world);
-            chainLinks.put(chainLink, blockPositionDisplay);
-        });
-        for (Point3D point3D : bossSettings.getCrateSpawnerLocations()) {
-            Vector3Int pos = Vector3Int.fromPoint3D(point3D);
-            ResourceCrateSpawner crateSpawner = new ResourceCrateSpawner(Material.QUARTZ, 5, 5, pos);
-            crateSpawner.spawnDisplay(world);
-            BlockPositionDisplay blockPositionDisplay = new BlockPositionDisplay("Crate", Material.BROWN_STAINED_GLASS, Color.MAROON, pos);
-            blockPositionDisplay.spawnDisplay(world);
-            resourceCrateSpawners.add(new Pair<>(crateSpawner, blockPositionDisplay));
-        }
-        for (Point3D point3D : bossSettings.getStalactiteLocations()) {
-            Vector3Int pos = Vector3Int.fromPoint3D(point3D);
-            BlockPositionDisplay blockPositionDisplay = new BlockPositionDisplay("Stalactite", Material.GREEN_STAINED_GLASS, Color.GREEN, pos);
-            blockPositionDisplay.spawnDisplay(world);
-            stalactites.add(blockPositionDisplay);
-        }
-        for (Point3D point3D : bossSettings.getMobWaveSpawnLocations()) {
-            Vector3Int pos = Vector3Int.fromPoint3D(point3D);
-            BlockPositionDisplay blockPositionDisplay = new BlockPositionDisplay("Mob Spawn", Material.RED_STAINED_GLASS, Color.RED, pos);
-            blockPositionDisplay.spawnDisplay(world);
-            mobWaveSpawns.add(blockPositionDisplay);
-        }
-        if (bossSettings.getRewardPlayerSpawnLocation() != null) {
-            ViewPoint3D point = bossSettings.getRewardPlayerSpawnLocation();
-            rewardPlayerSpawn = new SpawnPositionDisplay("Reward Player Spawn", Material.ORANGE_STAINED_GLASS, Color.ORANGE, point);
+
+        ViewPoint3D rewardPlayerSpawnPoint = gameSettings.getRewardPlayerSpawnLocation(floor);
+        if (rewardPlayerSpawnPoint != null) {
+            rewardPlayerSpawn = new SpawnPositionDisplay("Reward Player Spawn", Material.ORANGE_STAINED_GLASS, Color.ORANGE, rewardPlayerSpawnPoint);
             rewardPlayerSpawn.spawnDisplay(world);
         }
-        if (bossSettings.getRewardChestLocation() != null) {
-            Vector3Int pos = Vector3Int.fromPoint3D(bossSettings.getRewardChestLocation());
+        Point3D rewardChestPoint = gameSettings.getRewardChestLocation(floor);
+        if (rewardChestPoint != null) {
+            Vector3Int pos = Vector3Int.fromPoint3D(rewardChestPoint);
             rewardChest = new BlockPositionDisplay("Reward Chest", Material.YELLOW_STAINED_GLASS, Color.YELLOW, pos);
             rewardChest.spawnDisplay(world);
         }
@@ -270,14 +296,18 @@ public class BossSetupHelper extends SetupHelper {
     @Override
     public void registerCommand(CommandManager cm, BukkitMessageSender ms) {
         cm.addSubCommand("project-d", SubCommandBuilder.startBuilding("bossSetup")
-                        .setPlayerCommandAction(1, "toggleSetupMode", ((player, _) -> {
-                            if (isPlayerInMode(player, ms, false)) {
-                                removePlayerFromMode(player);
-                            } else {
-                                setPlayerInMode(ms, player);
-                                if (playersInMode.size() == 1) {
-                                    loadDisplaysFromFile(player.getWorld());
+                        .setPlayerCommandAction(1, "toggleSetupMode",
+                                ((player, _) -> toggleSetupMode(ms, player, defaultSetupFloor())))
+                        .setPlayerCommandAction(2, "toggleSetupMode", ((player, args) -> {
+                            try {
+                                int floor = Integer.parseInt(args[1]);
+                                if (floor <= 0) {
+                                    ms.sendMessage(player, MessageComponent.of("<red>Floor must be greater than 0.</red>"));
+                                    return;
                                 }
+                                toggleSetupMode(ms, player, floor);
+                            } catch (NumberFormatException e) {
+                                ms.sendMessage(player, MessageComponent.of("<red>Usage: /d bossSetup toggleSetupMode [floor]</red>"));
                             }
                         }))
                         .setPlayerCommandAction(3, "setHeightThreshold", ((player, args) -> {
@@ -292,10 +322,40 @@ public class BossSetupHelper extends SetupHelper {
                                 }
                             }
                         }))
+                        .setCommandArgumentsList(1, "toggleSetupMode", List.of("1", "2", "3", "4", "5"))
                         .setCommandArgumentsList(1, "setHeightThreshold", List.of("50", "100"))
                         .setCommandArgumentsList(2, "setHeightThreshold", "relativeHeight(Integer)")
                         .setCommandArgumentsList(0, List.of("toggleSetupMode", "setHeightThreshold"))
         );
+    }
+
+    private void toggleSetupMode(BukkitMessageSender ms, Player player, int floor) {
+        if (isPlayerInMode(player, ms, false)) {
+            removePlayerFromMode(player);
+            return;
+        }
+        playerFloors.put(player.getUniqueId(), floor);
+        if (!setPlayerInMode(ms, player)) {
+            playerFloors.remove(player.getUniqueId());
+            return;
+        }
+        if (playersInMode.size() == 1) {
+            loadDisplaysFromFile(player.getWorld(), floor);
+        }
+    }
+
+    private int defaultSetupFloor() {
+        int floor = GameSettings.getCurrentSettings().getFloor();
+        return floor > 0 ? floor : 1;
+    }
+
+    private void sendStageConfigError(BukkitMessageSender ms, Player player, int floor) {
+        ms.sendMessage(player, MessageComponent.of(
+                "<red>Could not save stage locations: no GROW stage found for floor %s.</red>", floor));
+    }
+
+    private void reloadBossStages() {
+        BossReloadService.reload(DMain.getInstance().getConfigManager());
     }
 
     @Override
@@ -305,6 +365,7 @@ public class BossSetupHelper extends SetupHelper {
             Player player = event.getPlayer();
             if (event.getHand() == EquipmentSlot.HAND && isPlayerInMode(player, ms, false)) {
                 event.setCancelled(true);
+                int floor = getSetupFloor(player);
 
                 //any left click
                 if (event.getAction().isLeftClick()) {
@@ -363,7 +424,7 @@ public class BossSetupHelper extends SetupHelper {
                         }
                         rewardPlayerSpawn = new SpawnPositionDisplay("Reward Player Spawn", Material.ORANGE_STAINED_GLASS, Color.ORANGE, point3D);
                         rewardPlayerSpawn.spawnDisplay(player.getWorld());
-                        gameSettingsLoader.setRewardPlayerSpawnLocation(1, point3D);
+                        gameSettingsLoader.setRewardPlayerSpawnLocation(floor, point3D);
                         return;
                     }
                 }
@@ -396,18 +457,22 @@ public class BossSetupHelper extends SetupHelper {
 //                        }
                     }
                     if (SetupUtils.hasItemInMainHand(player, DISPLAY_NAME_REWARD_PLAYER_SPAWN_LOCATION_SELECTOR)) {
-                        if (gameSettingsLoader.removeRewardPlayerSpawnLocation(1)) {
+                        if (gameSettingsLoader.removeRewardPlayerSpawnLocation(floor)) {
                             ms.sendMessage(player, MessageComponent.of("<yellow>Cleared pos</yellow>"));
-                            rewardPlayerSpawn.clearDisplays();
-                            rewardPlayerSpawn = null;
+                            if (rewardPlayerSpawn != null) {
+                                rewardPlayerSpawn.clearDisplays();
+                                rewardPlayerSpawn = null;
+                            }
                         }
                         return;
                     }
                     if (SetupUtils.hasItemInMainHand(player, DISPLAY_NAME_REWARD_CHEST_LOCATION_SELECTOR)) {
-                        if (gameSettingsLoader.removeRewardChestLocation(1)) {
+                        if (gameSettingsLoader.removeRewardChestLocation(floor)) {
                             ms.sendMessage(player, MessageComponent.of("<yellow>Cleared pos</yellow>"));
-                            rewardChest.clearDisplays();
-                            rewardChest = null;
+                            if (rewardChest != null) {
+                                rewardChest.clearDisplays();
+                                rewardChest = null;
+                            }
                         }
                         return;
                     }
@@ -430,6 +495,11 @@ public class BossSetupHelper extends SetupHelper {
                         }
                         if (SetupUtils.hasItemInMainHand(player, DISPLAY_NAME_PILLAR_LOCATION_SELECTOR)) {
                             int pillar = Integer.parseInt(SetupUtils.getValueFromItemLore(event.getItem(), 1));
+                            if (!stageLocationConfig.setPillarLocation(floor, pillar, point3D)) {
+                                sendStageConfigError(ms, player, floor);
+                                return;
+                            }
+                            reloadBossStages();
                             if (pillars.containsKey(pillar)) {
                                 pillars.get(pillar).clearDisplays();
                             }
@@ -437,11 +507,15 @@ public class BossSetupHelper extends SetupHelper {
                             BlockPositionDisplay blockPositionDisplay = new BlockPositionDisplay("Pillar " + pillar, Material.WHITE_STAINED_GLASS, Color.WHITE, pos);
                             blockPositionDisplay.spawnDisplay(player.getWorld());
                             pillars.put(pillar, blockPositionDisplay);
-                            gameSettingsLoader.setPillarLocation(1, pillar, point3D);
                             return;
                         }
                         if (SetupUtils.hasItemInMainHand(player, DISPLAY_NAME_CHAIN_LINK_LOCATION_SELECTOR)) {
                             int chainLink = Integer.parseInt(SetupUtils.getValueFromItemLore(event.getItem(), 1));
+                            if (!stageLocationConfig.setChainLinkLocation(floor, chainLink, point3D)) {
+                                sendStageConfigError(ms, player, floor);
+                                return;
+                            }
+                            reloadBossStages();
                             if (chainLinks.containsKey(chainLink)) {
                                 chainLinks.get(chainLink).clearDisplays();
                             }
@@ -449,7 +523,6 @@ public class BossSetupHelper extends SetupHelper {
                             BlockPositionDisplay blockPositionDisplay = new BlockPositionDisplay("Chain " + chainLink, Material.GRAY_STAINED_GLASS, Color.GRAY, pos);
                             blockPositionDisplay.spawnDisplay(player.getWorld());
                             chainLinks.put(chainLink, blockPositionDisplay);
-                            gameSettingsLoader.setChainLinkLocation(1, chainLink, point3D);
                             return;
                         }
                         if (SetupUtils.hasItemInMainHand(player, DISPLAY_NAME_RESOURCE_CRATE_SPAWNER)) {
@@ -457,13 +530,17 @@ public class BossSetupHelper extends SetupHelper {
                                 ms.sendMessage(player, MessageComponent.of("<red>Already added this pos!</red>", pos));
                                 return;
                             }
+                            if (!stageLocationConfig.addCrateSpawnerLocation(floor, point3D)) {
+                                sendStageConfigError(ms, player, floor);
+                                return;
+                            }
+                            reloadBossStages();
                             ms.sendMessage(player, MessageComponent.of("<green>Added pos: <yellow>%s</yellow></green>", pos));
                             ResourceCrateSpawner crateSpawner = new ResourceCrateSpawner(Material.QUARTZ, 5, 5, pos);
                             crateSpawner.spawnDisplay(player.getWorld());
                             BlockPositionDisplay blockPositionDisplay = new BlockPositionDisplay("Crate", Material.BROWN_STAINED_GLASS, Color.MAROON, pos);
                             blockPositionDisplay.spawnDisplay(player.getWorld());
                             resourceCrateSpawners.add(new Pair<>(crateSpawner, blockPositionDisplay));
-                            gameSettingsLoader.addCrateSpawnerLocation(1, point3D);
                             return;
                         }
                         if (SetupUtils.hasItemInMainHand(player, DISPLAY_NAME_STALACTITE_LOCATION_SELECTOR)) {
@@ -471,11 +548,15 @@ public class BossSetupHelper extends SetupHelper {
                                 ms.sendMessage(player, MessageComponent.of("<red>Already added this pos!</red>", pos));
                                 return;
                             }
+                            if (!stageLocationConfig.addStalactiteLocation(floor, point3D)) {
+                                sendStageConfigError(ms, player, floor);
+                                return;
+                            }
+                            reloadBossStages();
                             ms.sendMessage(player, MessageComponent.of("<green>Added pos: <yellow>%s</yellow></green>", pos));
                             BlockPositionDisplay blockPositionDisplay = new BlockPositionDisplay("Stalactite", Material.GREEN_STAINED_GLASS, Color.GREEN, pos);
                             blockPositionDisplay.spawnDisplay(player.getWorld());
                             stalactites.add(blockPositionDisplay);
-                            gameSettingsLoader.addStalactiteLocation(1, point3D);
                             return;
                         }
                         if (SetupUtils.hasItemInMainHand(player, DISPLAY_NAME_MOB_WAVES_SPAWN_LOCATION_SELECTOR)) {
@@ -483,11 +564,15 @@ public class BossSetupHelper extends SetupHelper {
                                 ms.sendMessage(player, MessageComponent.of("<red>Already added this pos!</red>", pos));
                                 return;
                             }
+                            if (!stageLocationConfig.addMobWaveSpawnLocation(floor, point3D)) {
+                                sendStageConfigError(ms, player, floor);
+                                return;
+                            }
+                            reloadBossStages();
                             ms.sendMessage(player, MessageComponent.of("<green>Added pos: <yellow>%s</yellow></green>", pos));
                             BlockPositionDisplay blockPositionDisplay = new BlockPositionDisplay("Mob Spawn", Material.RED_STAINED_GLASS, Color.RED, pos);
                             blockPositionDisplay.spawnDisplay(player.getWorld());
                             mobWaveSpawns.add(blockPositionDisplay);
-                            gameSettingsLoader.addMobWaveSpawnLocation(1, point3D);
                             return;
                         }
                         if (SetupUtils.hasItemInMainHand(player, DISPLAY_NAME_REWARD_CHEST_LOCATION_SELECTOR)) {
@@ -497,7 +582,7 @@ public class BossSetupHelper extends SetupHelper {
                             }
                             rewardChest = new BlockPositionDisplay("Reward Chest", Material.YELLOW_STAINED_GLASS, Color.YELLOW, pos);
                             rewardChest.spawnDisplay(player.getWorld());
-                            gameSettingsLoader.setRewardChestLocation(1, point3D);
+                            gameSettingsLoader.setRewardChestLocation(floor, point3D);
                             return;
                         }
                     }
@@ -511,7 +596,8 @@ public class BossSetupHelper extends SetupHelper {
                             return;
                         }
                         if (SetupUtils.hasItemInMainHand(player, DISPLAY_NAME_PILLAR_LOCATION_SELECTOR)) {
-                            if (gameSettingsLoader.removePillarLocation(1, point3D)) {
+                            if (stageLocationConfig.removePillarLocation(floor, point3D)) {
+                                reloadBossStages();
                                 ms.sendMessage(player, MessageComponent.of("<yellow>Cleared pos</yellow>"));
                                 int pillar = pillars.keySet().stream().filter(p -> pillars.get(p).pos.equals(pos)).findFirst().orElse(0);
                                 if (pillar != 0) {
@@ -522,7 +608,8 @@ public class BossSetupHelper extends SetupHelper {
                             return;
                         }
                         if (SetupUtils.hasItemInMainHand(player, DISPLAY_NAME_CHAIN_LINK_LOCATION_SELECTOR)) {
-                            if (gameSettingsLoader.removeChainLinkLocation(1, point3D)) {
+                            if (stageLocationConfig.removeChainLinkLocation(floor, point3D)) {
+                                reloadBossStages();
                                 ms.sendMessage(player, MessageComponent.of("<yellow>Cleared pos</yellow>"));
                                 int chainLink = chainLinks.keySet().stream().filter(p -> chainLinks.get(p).pos.equals(pos)).findFirst().orElse(0);
                                 if (chainLink != 0) {
@@ -533,11 +620,12 @@ public class BossSetupHelper extends SetupHelper {
                             return;
                         }
                         if (SetupUtils.hasItemInMainHand(player, DISPLAY_NAME_RESOURCE_CRATE_SPAWNER)) {
-                            if (gameSettingsLoader.removeCrateSpawnerLocation(1, point3D)) {
+                            if (stageLocationConfig.removeCrateSpawnerLocation(floor, point3D)) {
+                                reloadBossStages();
                                 ms.sendMessage(player, MessageComponent.of("<yellow>Removed pos</yellow>"));
-                                Pair<ResourceCrateSpawner, BlockPositionDisplay> pair = resourceCrateSpawners.stream().filter(c -> pos.equals(c.first.getPos())).findFirst().orElse(new Pair<>(null,null));
+                                Pair<ResourceCrateSpawner, BlockPositionDisplay> pair = resourceCrateSpawners.stream().filter(c -> pos.equals(c.first.getPos())).findFirst().orElse(null);
                                 if (pair != null) {
-                                    pair.first.clearDisplay();
+                                    pair.first.destroy();
                                     pair.second.clearDisplays();
                                     resourceCrateSpawners.remove(pair);
                                 }
@@ -545,7 +633,8 @@ public class BossSetupHelper extends SetupHelper {
                             return;
                         }
                         if (SetupUtils.hasItemInMainHand(player, DISPLAY_NAME_STALACTITE_LOCATION_SELECTOR)) {
-                            if (gameSettingsLoader.removeStalactiteLocation(1, point3D)) {
+                            if (stageLocationConfig.removeStalactiteLocation(floor, point3D)) {
+                                reloadBossStages();
                                 ms.sendMessage(player, MessageComponent.of("<yellow>Removed pos</yellow>"));
                                 BlockPositionDisplay blockPositionDisplay = stalactites.stream().filter(b -> b.pos.equals(pos)).findFirst().orElse(null);
                                 if (blockPositionDisplay != null) {
@@ -556,7 +645,8 @@ public class BossSetupHelper extends SetupHelper {
                             return;
                         }
                         if (SetupUtils.hasItemInMainHand(player, DISPLAY_NAME_MOB_WAVES_SPAWN_LOCATION_SELECTOR)) {
-                            if (gameSettingsLoader.removeMobWaveSpawnLocation(1, point3D)) {
+                            if (stageLocationConfig.removeMobWaveSpawnLocation(floor, point3D)) {
+                                reloadBossStages();
                                 ms.sendMessage(player, MessageComponent.of("<yellow>Removed pos</yellow>"));
                                 BlockPositionDisplay blockPositionDisplay = mobWaveSpawns.stream().filter(b -> b.pos.equals(pos)).findFirst().orElse(null);
                                 if (blockPositionDisplay != null) {

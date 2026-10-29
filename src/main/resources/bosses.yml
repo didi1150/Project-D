@@ -63,6 +63,22 @@ bosses:
           ascent-max-rate: 1.5
           pillar-count: 4
           pillar-max-hp: 100.0
+          pillar-height: 12
+          pillar-break-ticks: 40
+          pillar-hold-threshold: 0.95
+          repair-hp-per-resource: 10.0
+          mob-damage-scale: 1.0
+          siege-aggro-percent: 40.0
+          siege-aggro-interval-ticks: 40
+          chain-taut-sag: 0.02
+          chain-slack-sag: 0.45
+          # Arena layout for this stage. Edited in-game with the Boss Setup tools
+          # (/d bossSetup toggleSetupMode 1). Numbers are pillar/chain-link indexes.
+          pillar-locations: {}
+          chain-link-locations: {}
+          crate-spawner-locations: []
+          stalactite-locations: []
+          mob-wave-spawn-locations: []
           stalactite-push-percent: 10.0
           stalactite-explosion-percent: 10.0
           ground-material: BLACK_CONCRETE

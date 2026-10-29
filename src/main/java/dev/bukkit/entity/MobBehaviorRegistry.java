@@ -30,6 +30,7 @@ public final class MobBehaviorRegistry {
     private void registerDefaults() {
         register("lost-adventurer", new LostAdventurerBehavior());
         register("sniper-skeleton", new SniperSkeletonBehavior());
+        register("miner-skeleton", new MinerSkeletonBehavior());
     }
 
     /** Register (or replace) a behavior under an id referenced by mob configs. */

@@ -173,7 +173,7 @@ dungeon-mobs:
     tiers: [BOSS_MINION]
     floors: [1]
     display-name: "&7Miner Skeleton"
-    behavior: no-op
+    behavior: miner-skeleton
     main-hand-item: MINER_PICKAXE
     stats:
       HEALTH_MAX: 200

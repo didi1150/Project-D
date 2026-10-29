@@ -25,4 +25,6 @@ locations:
     z: 0
   selectionclasses: {}
   bossspawn: {}
-  bossplayrespawn: {}
+  bossplayerspawn: {}
+  rewardplayerspawn: {}
+  rewardchest: {}
