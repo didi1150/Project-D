@@ -66,6 +66,7 @@ import dev.bukkit.game.states.BossState;
 import dev.bukkit.game.states.ClearState;
 import dev.bukkit.game.states.PostGameState;
 import dev.bukkit.game.states.PreLobbyState;
+import dev.bukkit.game.states.RewardState;
 import dev.bukkit.game.states.SelectClassState;
 import dev.bukkit.game.states.SelectItemState;
 import dev.bukkit.game.states.SetupState;
@@ -352,8 +353,8 @@ public final class DMain extends JavaPlugin {
                 configManager.getProvider("bosses.yml"));
         int migratedStageLocations = BossStageLocationMigration.migrate(stageLocationConfig, setupConfig, 1);
         if (migratedStageLocations > 0) {
-            Bukkit.getLogger().info("Migrated " + migratedStageLocations
-                    + " boss stage location(s) from setup.yml to bosses.yml.");
+            Bukkit.getLogger().info(
+                    "Migrated " + migratedStageLocations + " boss stage location(s) from setup.yml to bosses.yml.");
             BossReloadService.reload(configManager);
         }
         // Initialize boss arena manager from setup config
@@ -411,6 +412,7 @@ public final class DMain extends JavaPlugin {
         gameStateController.addState(new ClearState(gameSettings.getHoleCenter(), eventBusInterface, progressionService,
                 messageSenderInterface, this));
         gameStateController.addState(new BossState(eventBusInterface, progressionService));
+        gameStateController.addState(new RewardState(eventBusInterface));
         gameStateController.addState(new PostGameState(eventBusInterface, progressionService, this));
         gameStateController.start();
 
@@ -442,9 +444,9 @@ public final class DMain extends JavaPlugin {
     }
 
     /**
-     * Removes the scoreboard team used by older absorption builds. It persisted
-     * in the world scoreboard and could conflict with the staff's client-only
-     * glow teams, causing client-side team removal protocol errors.
+     * Removes the scoreboard team used by older absorption builds. It persisted in
+     * the world scoreboard and could conflict with the staff's client-only glow
+     * teams, causing client-side team removal protocol errors.
      */
     private void removeLegacyAbsorptionTeam() {
         try {
@@ -522,8 +524,8 @@ public final class DMain extends JavaPlugin {
     }
 
     /**
-     * Returns the per-player glow service, or null if it failed to initialize.
-     * Used by {@link SupportStaffBehavior} for targeting outlines.
+     * Returns the per-player glow service, or null if it failed to initialize. Used
+     * by {@link SupportStaffBehavior} for targeting outlines.
      */
     public PlayerGlowService getPlayerGlowService() {
         return playerGlowService;

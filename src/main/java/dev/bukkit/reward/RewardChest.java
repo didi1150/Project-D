@@ -2,6 +2,7 @@ package dev.bukkit.reward;
 
 import java.util.UUID;
 
+import org.bukkit.Bukkit;
 import org.bukkit.Color;
 import org.bukkit.Location;
 import org.bukkit.Material;
@@ -92,7 +93,7 @@ public final class RewardChest {
         });
 
         RewardChest chest = new RewardChest(owner, base, display, label, interaction);
-        chest.task = org.bukkit.Bukkit.getScheduler().runTaskTimer(plugin, chest::tick, 0L, 2L);
+        chest.task = Bukkit.getScheduler().runTaskTimer(plugin, chest::tick, 0L, 2L);
         return chest;
     }
 
