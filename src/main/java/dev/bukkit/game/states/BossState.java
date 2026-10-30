@@ -115,6 +115,27 @@ public class BossState extends GameState {
         }
     }
 
+    /**
+     * Debug/testing hook: immediately finishes the active encounter as a
+     * victory, which transitions into the reward state.
+     *
+     * @return true when an active encounter was completed
+     */
+    public boolean forceVictory() {
+        if (encounterFinished || activeBoss == null) {
+            return false;
+        }
+
+        activeBoss.completeEncounter();
+        if (!encounterFinished) {
+            // The boss was already in its defeat sequence; finish it now.
+            encounterFinished = true;
+            BukkitText.broadcast("§aThe End Boss has been defeated!");
+            jumpToState(RewardState.NAME);
+        }
+        return true;
+    }
+
     @Override
     protected void registerSubscribers() {
         EventAction<PlayerQuitEvent> quitAction = new EventAction<>(this::handleQuit, PlayerQuitEvent.class);

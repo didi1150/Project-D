@@ -56,12 +56,14 @@ public class RewardState extends GameState {
         Location playerSpawn = new Location(arenaWorld, playerSpawnPoint.getX(), playerSpawnPoint.getY(),
                 playerSpawnPoint.getZ(), playerSpawnPoint.getYaw(), playerSpawnPoint.getPitch());
         Location chestSpawn = new Location(arenaWorld, chestSpawnPoint.getX(), chestSpawnPoint.getY(),
-                chestSpawnPoint.getZ());
+                chestSpawnPoint.getZ()).add(0, 1.5, 0);
 
-        Bukkit.getOnlinePlayers().forEach(p -> {
-            rewardChests.add(RewardCaseService.getInstance().spawnChest(p, chestSpawn.clone().add(0, 1.5, 0)));
-            p.teleport(playerSpawn);
-        });
+        List<Player> players = new ArrayList<>(Bukkit.getOnlinePlayers());
+        for (int i = 0; i < players.size(); i++) {
+            Player player = players.get(i);
+            rewardChests.add(RewardCaseService.getInstance().spawnChest(player, chestSpawn));
+            player.teleport(playerSpawn);
+        }
 
     }
 

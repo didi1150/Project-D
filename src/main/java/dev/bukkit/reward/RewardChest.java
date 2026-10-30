@@ -69,6 +69,7 @@ public final class RewardChest {
             d.setGravity(false);
             d.setViewRange(48f);
             d.setBrightness(new Display.Brightness(15, 15));
+            d.setVisibleByDefault(false);
             d.setTransformation(new Transformation(new Vector3f(), new Quaternionf(),
                     new Vector3f(1.15f), new Quaternionf()));
         });
@@ -83,6 +84,7 @@ public final class RewardChest {
                     d.setInvulnerable(true);
                     d.setGravity(false);
                     d.setViewRange(48f);
+                    d.setVisibleByDefault(false);
                 });
 
         Interaction interaction = world.spawn(base.clone().add(0, 1.1, 0), Interaction.class, hitbox -> {
@@ -90,11 +92,32 @@ public final class RewardChest {
             hitbox.setInteractionHeight(2.2f);
             hitbox.setResponsive(true);
             hitbox.setPersistent(false);
+            hitbox.setVisibleByDefault(false);
         });
 
         RewardChest chest = new RewardChest(owner, base, display, label, interaction);
+        chest.applyVisibility(plugin, owner);
         chest.task = Bukkit.getScheduler().runTaskTimer(plugin, chest::tick, 0L, 2L);
         return chest;
+    }
+
+    /**
+     * Every chest is a private per-player object, so it is only shown to its
+     * owner. {@code setVisibleByDefault(false)} also keeps late joiners from
+     * ever receiving the chest entities.
+     */
+    private void applyVisibility(Plugin plugin, Player owner) {
+        owner.showEntity(plugin, display);
+        owner.showEntity(plugin, label);
+        owner.showEntity(plugin, interaction);
+        for (Player other : Bukkit.getOnlinePlayers()) {
+            if (other.getUniqueId().equals(ownerId)) {
+                continue;
+            }
+            other.hideEntity(plugin, display);
+            other.hideEntity(plugin, label);
+            other.hideEntity(plugin, interaction);
+        }
     }
 
     public UUID getOwnerId() {
@@ -150,16 +173,20 @@ public final class RewardChest {
         if (world == null) {
             return;
         }
+        Player owner = Bukkit.getPlayer(ownerId);
+        if (owner == null || !owner.isOnline() || !owner.getWorld().equals(world)) {
+            return;
+        }
         for (int i = 0; i < 12; i++) {
             double a = angle * 1.4 + (Math.PI * 2 * i / 12.0);
             double x = Math.cos(a) * 0.9;
             double z = Math.sin(a) * 0.9;
             double y = 1.05 + Math.sin(angle * 2.0 + i) * 0.18;
             Location particle = base.clone().add(x, y, z);
-            world.spawnParticle(Particle.DUST, particle, 1, 0, 0, 0, 0, PARTICLE_DUST);
+            owner.spawnParticle(Particle.DUST, particle, 1, 0, 0, 0, 0, PARTICLE_DUST);
         }
         if (((int) (angle * 10)) % 8 == 0) {
-            world.spawnParticle(Particle.END_ROD, base.clone().add(0, 1.3 + bob, 0), 2, 0.3, 0.3, 0.3, 0.01);
+            owner.spawnParticle(Particle.END_ROD, base.clone().add(0, 1.3 + bob, 0), 2, 0.3, 0.3, 0.3, 0.01);
         }
     }
 

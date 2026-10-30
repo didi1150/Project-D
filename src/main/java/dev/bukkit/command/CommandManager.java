@@ -28,6 +28,7 @@ import dev.bukkit.entity.boss.stage.BossGrowStageType;
 import dev.bukkit.game.boss.pillar.DebugPillarService;
 import dev.bukkit.game.boss.pillar.PillarManager;
 import dev.bukkit.game.boss.stalactite.DebugStalactiteService;
+import dev.bukkit.game.states.BossState;
 import dev.bukkit.game.states.SelectItemState;
 import dev.bukkit.hud.HudConfig;
 import dev.bukkit.hud.HudConfigLoader;
@@ -607,7 +608,7 @@ public class CommandManager {
                 })).setCommandArgumentsList(0, Arrays.asList("reload")));
 
         // ==============================================================
-        // boss tree -> /d boss <reload|minion> (bosses.yml + floor-data, minion areas)
+        // boss tree -> /d boss <reload|mobspawns|win> (bosses.yml + floor-data, minion areas)
         // ==============================================================
         addSubCommand("project-d", SubCommandBuilder.startBuilding("boss").setDescription("Boss controls")
                 .setCommandAction(1, "reload", permAny("projectd.boss.reload", (sender, args) -> {
@@ -649,7 +650,23 @@ public class CommandManager {
                     }
                     sendMobSpawnStatus(sender);
                 }))
-                .setCommandArgumentsList(0, Arrays.asList("reload", "mobspawns"))
+                .setCommandAction(1, "win", permAny("projectd.boss.win", (sender, args) -> {
+                    GameState current = gameStateController.getCurrentState();
+                    if (!(current instanceof BossState bossState)) {
+                        BukkitMessageSender.getInstance().sendMessage(sender,
+                                MessageComponent.of("<red>You are not in a boss fight.</red>"));
+                        return;
+                    }
+                    if (!bossState.forceVictory()) {
+                        BukkitMessageSender.getInstance().sendMessage(sender,
+                                MessageComponent.of("<red>The boss encounter is not active.</red>"));
+                        return;
+                    }
+                    BukkitMessageSender.getInstance().sendMessage(sender,
+                            MessageComponent.of(
+                                    "<green>Boss fight won. Transitioning to the reward state.</green>"));
+                }))
+                .setCommandArgumentsList(0, Arrays.asList("reload", "mobspawns", "win"))
                 .setCommandArgumentsList(1, "mobspawns", Arrays.asList("on", "off", "toggle")));
 
         // ==============================================================
