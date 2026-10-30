@@ -1,0 +1,77 @@
+# ============================================================================
+# SPECIAL REWARD ITEM SETTINGS
+# ============================================================================
+# Random buffs granted by:
+#   - Gambler's Note when the guess is correct
+#   - Tic Tac Toe when a player wins
+#
+# Each buff is a set of temporary RPG stat modifiers. They use the same stat
+# types as stats.yml/items.yml and expire automatically after duration-seconds.
+#
+# stat-modifiers keys:
+#   statType       Any StatType name, e.g. MOVE_SPEED, ATTACK_DAMAGE, ARMOR.
+#   amount         Modifier value.
+#   modifierType   FLAT, PERCENT_ADD, MULTIPLY or OVERRIDE.
+#   statTarget     CURRENT, MAX or BOTH (default BOTH).
+#   policy         STACK by default, or another StatModifier stack policy.
+# ============================================================================
+buffs:
+  SWIFTNESS:
+    display-name: Swiftness
+    duration-seconds: 10
+    stat-modifiers:
+    - statType: MOVE_SPEED
+      amount: 25.0
+      modifierType: FLAT
+      statTarget: BOTH
+      policy: STACK
+  MIGHT:
+    display-name: Might
+    duration-seconds: 10
+    stat-modifiers:
+    - statType: ATTACK_DAMAGE
+      amount: 25.0
+      modifierType: FLAT
+      statTarget: BOTH
+      policy: STACK
+  FOCUS:
+    display-name: Focus
+    duration-seconds: 10
+    stat-modifiers:
+    - statType: ABILITY_HASTE
+      amount: 25.0
+      modifierType: FLAT
+      statTarget: BOTH
+      policy: STACK
+  BULWARK:
+    display-name: Bulwark
+    duration-seconds: 10
+    stat-modifiers:
+    - statType: ARMOR
+      amount: 25.0
+      modifierType: FLAT
+      statTarget: BOTH
+      policy: STACK
+    - statType: MAGIC_RESIST
+      amount: 25.0
+      modifierType: FLAT
+      statTarget: BOTH
+      policy: STACK
+  LIFEDRAIN:
+    display-name: Lifedrain
+    duration-seconds: 10
+    stat-modifiers:
+    - statType: LIFESTEAL
+      amount: 0.05
+      modifierType: FLAT
+      statTarget: BOTH
+      policy: STACK
+  RECOVERY:
+    display-name: Recovery
+    duration-seconds: 10
+    stat-modifiers:
+    - statType: HEALTH_REGEN
+      amount: 10.0
+      modifierType: FLAT
+      statTarget: BOTH
+      policy: STACK

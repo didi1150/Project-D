@@ -60,15 +60,33 @@ rewards:
     display-name: Abyssal Dye
     description:
     - "§7The seal remembers those who break it."
-  UNLOCK_SEALBREAKER:
+  UNLOCK_SLIME_BOOTS:
+    type: ITEM_UNLOCK
+    weight: 10
+    display-name: Slime Boots
+    item-id: SLIME_BOOTS
+    give-item: true
+  UNLOCK_GAMBLERS_NOTE:
     type: ITEM_UNLOCK
     weight: 8
-    display-name: Sealbreaker
-    item-id: SEALBREAKER
+    display-name: Gambler's Note
+    item-id: GAMBLERS_NOTE
     give-item: true
-  UNLOCK_SEALED_SCEPTRE:
+  UNLOCK_TELEPORTATION_INCIDENT:
+    type: ITEM_UNLOCK
+    weight: 8
+    display-name: Teleportation Incident
+    item-id: TELEPORTATION_INCIDENT
+    give-item: true
+  UNLOCK_TIC_TAC_TOE:
     type: ITEM_UNLOCK
     weight: 7
-    display-name: Sealed Sceptre
-    item-id: SEALED_SCEPTRE
+    display-name: Tic Tac Toe
+    item-id: TIC_TAC_TOE
+    give-item: true
+  UNLOCK_TELEPORTATION_STAFF:
+    type: ITEM_UNLOCK
+    weight: 6
+    display-name: Teleportation Staff
+    item-id: TELEPORTATION_STAFF
     give-item: true

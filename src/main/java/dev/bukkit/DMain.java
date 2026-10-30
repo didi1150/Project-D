@@ -15,6 +15,7 @@ import dev.bukkit.ability.BukkitBouncyArrowEffect;
 import dev.bukkit.ability.BukkitEffectManager;
 import dev.bukkit.ability.BukkitExplosiveArrowEffect;
 import dev.bukkit.ability.BukkitFocusBeamEffect;
+import dev.bukkit.ability.BukkitGamblersNoteEffect;
 import dev.bukkit.ability.BukkitParticleTestEffect;
 import dev.bukkit.ability.BukkitShadowWeaverDashEffect;
 import dev.bukkit.ability.BukkitShadowWeaverPlaceEffect;
@@ -29,6 +30,9 @@ import dev.bukkit.ability.BukkitSpiritSceptreBatEffect;
 import dev.bukkit.ability.BukkitSupportStaffToggleEffect;
 import dev.bukkit.ability.BukkitSupportStaffUseEffect;
 import dev.bukkit.ability.BukkitSwingBoneEffect;
+import dev.bukkit.ability.BukkitTeleportationIncidentEffect;
+import dev.bukkit.ability.BukkitTeleportationStaffEffect;
+import dev.bukkit.ability.BukkitTicTacToeEffect;
 import dev.bukkit.ability.BukkitTriVolleyEffect;
 import dev.bukkit.ability.BukkitWitherSkullLaunchEffect;
 import dev.bukkit.ability.behavior.ArcaneCleaveBehavior;
@@ -39,11 +43,14 @@ import dev.bukkit.ability.behavior.HealAuraBehavior;
 import dev.bukkit.ability.behavior.HunterBowBehavior;
 import dev.bukkit.ability.behavior.ManaDiscountBehavior;
 import dev.bukkit.ability.behavior.ShadowWeaverBehavior;
+import dev.bukkit.ability.behavior.SlimeBootsBehavior;
 import dev.bukkit.ability.behavior.SniperPassiveBehavior;
 import dev.bukkit.ability.behavior.StackerBehavior;
 import dev.bukkit.ability.behavior.StealthPassiveBehavior;
 import dev.bukkit.ability.behavior.SupportStaffBehavior;
+import dev.bukkit.ability.behavior.TeleportationStaffTargetBehavior;
 import dev.bukkit.ability.behavior.ThreatBehavior;
+import dev.bukkit.ability.behavior.TicTacToeTargetBehavior;
 import dev.bukkit.ability.behavior.TriVolleyBehavior;
 import dev.bukkit.ability.behavior.VampirismBehavior;
 import dev.bukkit.ability.behavior.WitherSkullOrbitBehavior;
@@ -80,6 +87,10 @@ import dev.bukkit.hud.TriHomingHudFormatter;
 import dev.bukkit.item.display.LoreLabels;
 import dev.bukkit.reload.BossReloadService;
 import dev.bukkit.reward.RewardCaseService;
+import dev.bukkit.reward.special.GamblersNoteService;
+import dev.bukkit.reward.special.SpecialItemBuffService;
+import dev.bukkit.reward.special.TeleportationStaffService;
+import dev.bukkit.reward.special.TicTacToeService;
 import dev.bukkit.status.BukkitStatusEffectManager;
 import dev.bukkit.status.StatusEffectBehaviorRegistry;
 import dev.bukkit.status.behavior.AbsorptionStatusEffectBehavior;
@@ -113,10 +124,12 @@ import dev.core.ability.impl.BladeDanceAbility;
 import dev.core.ability.impl.BouncyArrowAbility;
 import dev.core.ability.impl.ExplosiveArrowAbility;
 import dev.core.ability.impl.FocusBeamAbility;
+import dev.core.ability.impl.GamblersNoteAbility;
 import dev.core.ability.impl.OrbStealthPassiveAbility;
 import dev.core.ability.impl.ParticleTestAbility;
 import dev.core.ability.impl.ShadowWeaverStaffAbility;
 import dev.core.ability.impl.ShieldBashAbility;
+import dev.core.ability.impl.SlimeBootsAbility;
 import dev.core.ability.impl.SmashAbility;
 import dev.core.ability.impl.SmokeShroudAbility;
 import dev.core.ability.impl.SniperPassiveAbility;
@@ -129,6 +142,9 @@ import dev.core.ability.impl.SpiritSceptreAbility;
 import dev.core.ability.impl.StackerAbility;
 import dev.core.ability.impl.SupportStaffAbility;
 import dev.core.ability.impl.SwingBoneAbility;
+import dev.core.ability.impl.TeleportationIncidentAbility;
+import dev.core.ability.impl.TeleportationStaffAbility;
+import dev.core.ability.impl.TicTacToeAbility;
 import dev.core.ability.impl.TriVolleyAbility;
 import dev.core.ability.impl.WitherSkullLaunchAbility;
 import dev.core.ability.impl.WitherSkullOrbitAbility;
@@ -150,6 +166,7 @@ import dev.core.item.loader.RPGItemLoader;
 import dev.core.item.loader.RPGItemRegistry;
 import dev.core.reward.RewardConfig;
 import dev.core.reward.RewardConfigLoader;
+import dev.core.reward.special.SpecialItemBuffConfigLoader;
 import dev.core.stat.DefaultStats;
 import dev.core.stat.Stat;
 import dev.core.stat.StatType;
@@ -232,6 +249,12 @@ public final class DMain extends JavaPlugin {
         // Support Staff abilities
         AbilityRegistry.register(SupportStaffAbility.use(), BukkitSupportStaffUseEffect::new);
         AbilityRegistry.register(SupportStaffAbility.toggle(), BukkitSupportStaffToggleEffect::new);
+        // Reward-case special items
+        AbilityRegistry.register(new SlimeBootsAbility()); // PASSIVE, behavior-driven
+        AbilityRegistry.register(new GamblersNoteAbility(), BukkitGamblersNoteEffect::new);
+        AbilityRegistry.register(new TeleportationIncidentAbility(), BukkitTeleportationIncidentEffect::new);
+        AbilityRegistry.register(new TicTacToeAbility(), BukkitTicTacToeEffect::new);
+        AbilityRegistry.register(new TeleportationStaffAbility(), BukkitTeleportationStaffEffect::new);
 
         // ---- Per-holder ability behaviors ----
         AbilityBehaviorRegistry.register(ArcaneManaRestoreAbility.ID, ArcaneManaRestoreBehavior::new);
@@ -254,6 +277,9 @@ public final class DMain extends JavaPlugin {
         AbilityBehaviorRegistry.register(SniperPassiveAbility.ID, SniperPassiveBehavior::new);
         AbilityBehaviorRegistry.register(SupportStaffAbility.USE_ID, SupportStaffBehavior::new);
         AbilityBehaviorRegistry.register(SupportStaffAbility.TOGGLE_ID, SupportStaffBehavior::new);
+        AbilityBehaviorRegistry.register(SlimeBootsAbility.ID, SlimeBootsBehavior::new);
+        AbilityBehaviorRegistry.register(TicTacToeAbility.ID, TicTacToeTargetBehavior::new);
+        AbilityBehaviorRegistry.register(TeleportationStaffAbility.ID, TeleportationStaffTargetBehavior::new);
 
         // Status effect behaviors: how each CC type plays out on the vanilla
         // entity (stat engine / potions / AI / velocity). Types without a
@@ -269,6 +295,8 @@ public final class DMain extends JavaPlugin {
         // HUD overlay config — create manager early so hud.yml is available before
         // services start
         configManager = new BukkitConfigManager(this);
+        SpecialItemBuffService.getInstance()
+                .init(configManager.getProvider(SpecialItemBuffConfigLoader.FILE_NAME));
         HudConfig hudCfg = HudConfigLoader.load(configManager.getProvider("hud.yml"));
         HudOverlayService.getInstance().init(this, hudCfg);
         HunterHudFormatter.load(hudCfg);
@@ -480,6 +508,9 @@ public final class DMain extends JavaPlugin {
         if (rewardCaseService != null) {
             rewardCaseService.shutdown();
         }
+        GamblersNoteService.getInstance().shutdown();
+        TeleportationStaffService.getInstance().shutdown();
+        TicTacToeService.getInstance().shutdown();
         gameStateController.stop();
         effectManagerInterface.cancelAll();
         BukkitStatusEffectManager.getInstance().cancelAll();

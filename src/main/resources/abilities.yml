@@ -462,3 +462,60 @@ abilities:
     action: LEFT_CLICK
     cooldownScope: PLAYER
     cooldown: 0
+  SLIME_BOOTS:
+    name: Slime Boots
+    description:
+      - "Sprint-jump from the ground to launch"
+      - "forward in the direction you are looking."
+      - ""
+      - "<gray>No cooldown. Air jumps do not work.</gray>"
+    triggerType: PASSIVE
+    action: NONE
+    cooldownScope: PLAYER
+    cooldown: 0
+  GAMBLERS_NOTE:
+    name: Gambler's Note
+    description:
+      - "Right-click, then type your estimate of"
+      - "the damage your team will take in 3 seconds."
+      - ""
+      - "<green>Correct:</green> the whole team receives a random buff."
+      - "<red>Wrong:</red> you take damage based on how far off you were."
+    triggerType: MANUAL
+    action: RIGHT_CLICK
+    cooldownScope: PLAYER
+    cooldown: 0
+  TELEPORTATION_INCIDENT:
+    name: Teleportation Incident
+    description:
+      - "Shuffle every living party member's"
+      - "location once."
+    triggerType: MANUAL
+    action: RIGHT_CLICK
+    cooldownScope: PLAYER
+    cooldown: 10000
+    cooldownScaling: NONE
+  TIC_TAC_TOE:
+    name: Tic Tac Toe
+    description:
+      - "Target another player and force them"
+      - "into a game of Tic Tac Toe."
+      - ""
+      - "<gray>The initiator plays red and moves first.</gray>"
+      - "<gray>Win to receive a random buff.</gray>"
+      - "<gray>The menu cannot be closed mid-game.</gray>"
+    triggerType: MANUAL
+    action: RIGHT_CLICK
+    cooldownScope: PLAYER
+    cooldown: 0
+  TELEPORTATION_STAFF:
+    name: Teleportation Staff
+    description:
+      - "Mark another player. After a hidden"
+      - "5-15 second delay, they are pulled"
+      - "to your location."
+    triggerType: MANUAL
+    action: RIGHT_CLICK
+    cooldownScope: PLAYER
+    cooldown: 15000
+    cooldownScaling: NONE

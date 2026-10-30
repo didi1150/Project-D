@@ -1418,55 +1418,90 @@ items:
   # ---- Reward-only items ---------------------------------------------------
   # These never enter the normal level/class unlock path. They are rolled from
   # rewards.yml and permanently unlocked for a player the first time they are
-  # claimed. The sample entries use existing abilities so they work immediately.
-  SEALBREAKER:
+  # claimed.
+  SLIME_BOOTS:
     reward-only: true
-    name: Sealbreaker
-    material: NETHERITE_SWORD
-    slot: MAIN_HAND
-    itemType: SWORD
+    name: Slime Boots
+    material: LEATHER_BOOTS
+    leather-color: 0x66CC66
+    slot: FEET
+    itemType: BOOTS
     allowed-classes: []
     description:
-    - "<aqua>A blade forged from a broken seal.</aqua>"
-    - "<gray>Right-click to release its shockwave.</gray>"
+    - "<green>Leather boots slick with slime.</green>"
+    - "<gray>Sprint-jump from the ground to launch forward.</gray>"
+    - "<gray>No cooldown. Air jumps do not work.</gray>"
     passive-stats: []
-    active-stats:
-    - amount: 45.0
-      statType: ATTACK_DAMAGE
-      modifierType: FLAT
-      statTarget: BOTH
-      policy: STACK
-    - amount: 15.0
-      statType: ABILITY_HASTE
-      modifierType: FLAT
-      statTarget: BOTH
-      policy: STACK
+    active-stats: []
     abilities:
-    - SMASH
-  SEALED_SCEPTRE:
+    - SLIME_BOOTS
+  GAMBLERS_NOTE:
     reward-only: true
-    name: Sealed Sceptre
-    material: BLAZE_ROD
+    name: Gambler's Note
+    material: PAPER
+    slot: MAIN_HAND
+    itemType: MISC
+    allowed-classes: []
+    description:
+    - "<yellow>A folded note covered in frantic numbers.</yellow>"
+    - "<gray>Right-click, then type your estimate of the</gray>"
+    - "<gray>damage your team will take in 3 seconds.</gray>"
+    - ""
+    - "<gray>Correct: the whole team receives a random buff.</gray>"
+    - "<gray>Wrong: you take damage based on how far off you were.</gray>"
+    passive-stats: []
+    active-stats: []
+    abilities:
+    - GAMBLERS_NOTE
+  TELEPORTATION_INCIDENT:
+    reward-only: true
+    name: Teleportation Incident
+    material: STICK
+    slot: MAIN_HAND
+    itemType: MISC
+    allowed-classes: []
+    description:
+    - "<light_purple>A stick that bends space around it.</light_purple>"
+    - "<gray>Right-click to shuffle every living</gray>"
+    - "<gray>party member's location once.</gray>"
+    passive-stats: []
+    active-stats: []
+    abilities:
+    - TELEPORTATION_INCIDENT
+  TIC_TAC_TOE:
+    reward-only: true
+    name: Tic Tac Toe
+    material: PLAYER_HEAD
+    skull-texture: eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvNzk3OTU1NDYyZTRlNTc2NjY0NDk5YWM0YTFjNTcyZjYxNDNmMTlhZDJkNjE5NDc3NjE5OGY4ZDEzNmZkYjIifX19
+    slot: MAIN_HAND
+    itemType: MISC
+    allowed-classes: []
+    description:
+    - "<light_purple>A tiny board game with a mind of its own.</light_purple>"
+    - "<gray>Target another player to force them</gray>"
+    - "<gray>into a game of Tic Tac Toe.</gray>"
+    - ""
+    - "<gray>Win to receive a random buff.</gray>"
+    - "<gray>Nobody can leave until the game ends.</gray>"
+    passive-stats: []
+    active-stats: []
+    abilities:
+    - TIC_TAC_TOE
+  TELEPORTATION_STAFF:
+    reward-only: true
+    name: Teleportation Staff
+    material: END_ROD
     slot: MAIN_HAND
     itemType: STAFF
     allowed-classes: []
     description:
-    - "<light_purple>A sceptre humming with imprisoned light.</light_purple>"
-    - "<gray>Right-click to channel a focus beam.</gray>"
+    - "<aqua>A rod humming with unstable spatial energy.</aqua>"
+    - "<gray>Mark another player. After a hidden</gray>"
+    - "<gray>5-15 second delay, they are pulled to you.</gray>"
     passive-stats: []
-    active-stats:
-    - amount: 100.0
-      statType: MANA_MAX
-      modifierType: FLAT
-      statTarget: BOTH
-      policy: STACK
-    - amount: 40.0
-      statType: ABILITY_POWER
-      modifierType: FLAT
-      statTarget: BOTH
-      policy: STACK
+    active-stats: []
     abilities:
-    - FOCUS_BEAM
+    - TELEPORTATION_STAFF
 
 # ---- Basic Archer Set (item set bonus: full 4/4 set) -----------------------
 # Full set passive: +10% projectile damage dealt (arrows, projectiles and the
