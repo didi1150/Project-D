@@ -22,8 +22,13 @@ public class RPGEntityAttackTracker {
 	public boolean canAttack() {
 		long now = System.currentTimeMillis();
 		long diff = now - lastValidAttack;
-		double attackDelay = 1.0 / rpgEntity.getStatEngineAdapter().getCurrentValue(StatType.ATTACK_SPEED, now)
-				* 1000;
+		double attackSpeed = rpgEntity.getStatEngineAdapter().getCurrentValue(StatType.ATTACK_SPEED, now);
+		// A missing or zero ATTACK_SPEED would make the delay infinite and lock
+		// the entity out of attacking forever; treat it as "no cooldown".
+		if (!Double.isFinite(attackSpeed) || attackSpeed <= 0) {
+			return true;
+		}
+		double attackDelay = 1000.0 / attackSpeed;
 		return diff > attackDelay;
 	}
 

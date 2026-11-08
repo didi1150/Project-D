@@ -44,7 +44,7 @@ public class StatLoader {
             return stats;
         }
         for (String key : section.getKeys()) {
-            int amount = section.getInt(key, 0);
+            double amount = section.getDouble(key, 0);
             CombatStat stat = new CombatStat(key, amount);
             stats.put(StatType.valueOf(key), stat);
         }

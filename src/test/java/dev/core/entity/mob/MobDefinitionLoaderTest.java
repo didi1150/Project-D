@@ -140,6 +140,23 @@ class MobDefinitionLoaderTest {
         assertTrue(registry.getForTier(SpawnTier.ADVANCED).isEmpty(), "no mob configured for ADVANCED");
     }
 
+    @Test
+    void loadAll_preservesFractionalStats() {
+        TestConfigProvider provider = new TestConfigProvider();
+        ConfigSection stats = provider.getRoot().getSection("dungeon-mobs")
+                .getSection("miner-skeleton").getSection("stats");
+        stats.set("HEALTH_MAX", 200);
+        stats.set("ATTACK_SPEED", 0.5);
+        stats.set("CRIT_CHANCE", 0.25);
+
+        MobDefinition mob = MobDefinitionLoader.loadAll(provider).get("miner-skeleton");
+
+        long now = System.currentTimeMillis();
+        assertEquals(0.5, mob.getBaseStats().getCurrentValue(StatType.ATTACK_SPEED, now), 0.001,
+                "fractional ATTACK_SPEED must not be truncated to 0");
+        assertEquals(0.25, mob.getBaseStats().getCurrentValue(StatType.CRIT_CHANCE, now), 0.001);
+    }
+
     // ---------------------------------------------------------------- test config
 
     private static final class TestConfigProvider implements ConfigProvider {
